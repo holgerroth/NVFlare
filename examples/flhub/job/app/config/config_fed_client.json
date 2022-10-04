@@ -28,7 +28,7 @@
       "path": "monai.fl.client.monai_algo.MonaiAlgo",
       "args": {
         "bundle_root": "config/spleen_ct_segmentation",
-        "local_epochs": 10
+        "local_epochs": 1
       }
     }
   ]

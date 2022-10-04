@@ -56,31 +56,24 @@ SimpleJobDefManager -> "/tmp/flare/jobs/t2a"
 
 ### 2.3 Start FL systems
 
-#### 2.3.1 T1 system
-
 ```
+# T1 system
 ./workspaces/t1_workspace/localhost/startup/start.sh
 ./workspaces/t1_workspace/t1_client_a/startup/start.sh
 ./workspaces/t1_workspace/t1_client_b/startup/start.sh
-```
 
-#### 2.3.2 T2a system
-
-```
+# T2a system
 ./workspaces/t2a_workspace/localhost/startup/start.sh
 ./workspaces/t2a_workspace/site-1/startup/start.sh
-```
 
-#### 2.3.3 T2b system
-
-```
+# T2b system
 ./workspaces/t2b_workspace/localhost/startup/start.sh
 ./workspaces/t2b_workspace/site-1/startup/start.sh
 ```
 
 ### 3. Submit job
 
-Open admin for hub
+Open admin for hub. Provide admin username: `admin@nvflare.com`
 ```
 ./workspaces/t1_workspace/admin@nvflare.com/startup/fl_admin.sh
 ```
@@ -89,9 +82,15 @@ Submit job in console. Replace `[HUB_EXAMPLE]` with your local path of this fold
 ```
 submit_job [HUB_EXAMPLE]/job
 ```
+
 e.g.
 ```
 submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/flhub/job
+```
+
+For a simple example, run
+```
+submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/hello-numpy-sag
 ```
 
 
@@ -114,6 +113,7 @@ Delete workspaces & temp folders
 ```
 rm -r workspaces/workspace
 rm -r workspaces/*_workspace
+
 rm -r /tmp/nvflare
 rm -r /tmp/flare
 ```

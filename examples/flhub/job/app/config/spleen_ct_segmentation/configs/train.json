@@ -128,11 +128,9 @@
             "transforms": "$@train#deterministic_transforms + @train#random_transforms"
         },
         "dataset": {
-            "_target_": "CacheDataset",
+            "_target_": "Dataset",
             "data": "$[{'image': i, 'label': l} for i, l in zip(@images[:-9], @labels[:-9])]",
-            "transform": "@train#preprocessing",
-            "cache_rate": 1.0,
-            "num_workers": 4
+            "transform": "@train#preprocessing"
         },
         "dataloader": {
             "_target_": "DataLoader",
@@ -212,10 +210,9 @@
             "transforms": "%train#deterministic_transforms"
         },
         "dataset": {
-            "_target_": "CacheDataset",
+            "_target_": "Dataset",
             "data": "$[{'image': i, 'label': l} for i, l in zip(@images[-9:], @labels[-9:])]",
-            "transform": "@validate#preprocessing",
-            "cache_rate": 1.0
+            "transform": "@validate#preprocessing"
         },
         "dataloader": {
             "_target_": "DataLoader",
