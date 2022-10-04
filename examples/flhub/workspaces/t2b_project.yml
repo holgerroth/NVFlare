@@ -123,7 +123,7 @@ builders:
         # if overseer_exists is false, args in this section will be used.
         overseer_exists: false
         args:
-           sp_end_point: localhost:8002:8003
+           sp_end_point: localhost:8202:8203
            heartbeat_interval: 6
 
       snapshot_persistor:
