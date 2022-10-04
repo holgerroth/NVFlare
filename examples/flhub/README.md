@@ -23,11 +23,7 @@ Install requirements
 export NVFLARE_HOME=${PWD}/../..
 export HUB_EXAMPLE=${NVFLARE_HOME}/examples/flhub
 pip install -r ./virtualenv/requirements.txt
-pip install -e ${NVFLARE_HOME}
-cd ${NVFLARE_HOME}/integration/monai
-pip install -e .
-cd ${HUB_EXAMPLE}
-export PYTHONPATH=${NVFLARE_HOME}/examples
+export PYTHONPATH=${NVFLARE_HOME}:${NVFLARE_HOME}/examples:${NVFLARE_HOME}/integration/monai
 ```
 
 ## 2. Create your FL workspaces and start all FL systems
@@ -36,7 +32,7 @@ export PYTHONPATH=${NVFLARE_HOME}/examples
 ```
 cd ./workspaces
 for system in "t1" "t2a" "t2b"; do
-  python3 -m nvflare.lighter.provision -p ./${system}_project.yml
+  nvflare provision -p ./${system}_project.yml
   cp -r ./workspace/${system}_project/prod_00 ./${system}_workspace
 done
 cd ..
@@ -45,8 +41,8 @@ cd ..
 ### 2.2 Copy hub configs
 
 ```
-cp -r ./config/site_a ./workspaces/t1_workspace/t1_client_a/local
-cp -r ./config/site_b ./workspaces/t1_workspace/t1_client_b/local
+cp -r ./config/site_a/* ./workspaces/t1_workspace/t1_client_a/local/.
+cp -r ./config/site_b/* ./workspaces/t1_workspace/t1_client_b/local/.
 ```
 
 ### 2.3 Start FL systems
@@ -83,4 +79,32 @@ Open admin for hub
 Submit job in console. Replace `[HUB_EXAMPLE]` with your local path of this folder
 ```
 submit_job [HUB_EXAMPLE]/job
+```
+e.g.
+```
+submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/flhub/job
+```
+
+
+### 4. (Optional) Clean-up
+
+Shutdown all FL systems
+```
+./workspaces/t1_workspace/localhost/startup/stop_fl.sh
+./workspaces/t1_workspace/t1_client_a/startup/stop_fl.sh
+./workspaces/t1_workspace/t1_client_b/startup/stop_fl.sh
+
+./workspaces/t2a_workspace/localhost/startup/stop_fl.sh
+./workspaces/t2a_workspace/site-1/startup/stop_fl.sh
+
+./workspaces/t2b_workspace/localhost/startup/stop_fl.sh
+./workspaces/t2b_workspace/site-1/startup/stop_fl.sh
+```
+
+Delete workspaces & temp folders
+```
+rm -r workspaces/workspace
+rm -r workspaces/*_workspace
+rm -r /tmp/nvflare
+rm -r /tmp/flare
 ```

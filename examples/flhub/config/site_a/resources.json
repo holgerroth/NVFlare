@@ -22,9 +22,7 @@
         {
             "id": "resource_consumer",
             "path": "nvflare.app_common.resource_consumers.gpu_resource_consumer.GPUResourceConsumer",
-            "args": {
-                "gpu_resource_key": "gpu"
-            }
+            "args": {}
         },
         {
             "id": "job_manager",
