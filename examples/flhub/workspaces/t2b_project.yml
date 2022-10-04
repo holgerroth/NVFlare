@@ -21,7 +21,7 @@ server_components: &svr_comps
   job_manager:    # This id is reserved by system.  Do not change it.
     path: nvflare.apis.impl.job_def_manager.SimpleJobDefManager
     args:
-      uri_root: /tmp/nvflare/jobs-storage
+      uri_root: /tmp/flare/jobs/t2b
       job_store_id: job_store
   job_store:
     path: nvflare.app_common.storages.filesystem_storage.FilesystemStorage
@@ -133,7 +133,7 @@ builders:
           storage:
             path: nvflare.app_common.storages.filesystem_storage.FilesystemStorage
             args:
-              root_dir: /tmp/nvflare/snapshot-storage
+              root_dir: /tmp/nvflare/snapshot-storage_t2b
               uri_root: /
 
   - path: nvflare.lighter.impl.auth_policy.AuthPolicyBuilder

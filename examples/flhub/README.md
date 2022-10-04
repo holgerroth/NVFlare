@@ -45,11 +45,8 @@ cd ..
 ### 2.2 Copy hub configs
 
 ```
-for k in "a" "b"; do
-    cp -r ./config/site_${k} ./workspaces/t1_workspace/t1_client_${k}/local
-    cp -r ./config/site_${k} ./workspaces/t2a_workspace/localhost/local
-    cp -r ./config/site_${k} ./workspaces/t2b_workspace/localhost/local
-done
+cp -r ./config/site_a ./workspaces/t1_workspace/t1_client_a/local
+cp -r ./config/site_b ./workspaces/t1_workspace/t1_client_b/local
 ```
 
 ### 2.3 Start FL systems
