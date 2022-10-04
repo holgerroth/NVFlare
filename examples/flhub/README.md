@@ -23,6 +23,7 @@ Install requirements
 export NVFLARE_HOME=${PWD}/../..
 export HUB_EXAMPLE=${NVFLARE_HOME}/examples/flhub
 pip install -r ./virtualenv/requirements.txt
+pip install -r ${NVFLARE_HOME}/requirements-min.txt
 export PYTHONPATH=${NVFLARE_HOME}:${NVFLARE_HOME}/examples:${NVFLARE_HOME}/integration/monai
 ```
 
@@ -38,11 +39,19 @@ done
 cd ..
 ```
 
-### 2.2 Copy hub configs
+### 2.2 Adjust hub configs
 
+Modify hub clients:
 ```
 cp -r ./config/site_a/* ./workspaces/t1_workspace/t1_client_a/local/.
 cp -r ./config/site_b/* ./workspaces/t1_workspace/t1_client_b/local/.
+```
+
+Modify t2 server configs TODO!
+```
+mv resources.json.default resources.default 
+FilesystemStorage -> "/tmp/nvflare/snapshot-storage_t2a"
+SimpleJobDefManager -> "/tmp/flare/jobs/t2a"
 ```
 
 ### 2.3 Start FL systems
@@ -90,15 +99,15 @@ submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/flhub/job
 
 Shutdown all FL systems
 ```
-./workspaces/t1_workspace/localhost/startup/stop_fl.sh
-./workspaces/t1_workspace/t1_client_a/startup/stop_fl.sh
-./workspaces/t1_workspace/t1_client_b/startup/stop_fl.sh
+./workspaces/t1_workspace/localhost/startup/stop_fl.sh <<< "y"
+./workspaces/t1_workspace/t1_client_a/startup/stop_fl.sh <<< "y"
+./workspaces/t1_workspace/t1_client_b/startup/stop_fl.sh <<< "y"
 
-./workspaces/t2a_workspace/localhost/startup/stop_fl.sh
-./workspaces/t2a_workspace/site-1/startup/stop_fl.sh
+./workspaces/t2a_workspace/localhost/startup/stop_fl.sh <<< "y"
+./workspaces/t2a_workspace/site-1/startup/stop_fl.sh <<< "y"
 
-./workspaces/t2b_workspace/localhost/startup/stop_fl.sh
-./workspaces/t2b_workspace/site-1/startup/stop_fl.sh
+./workspaces/t2b_workspace/localhost/startup/stop_fl.sh <<< "y"
+./workspaces/t2b_workspace/site-1/startup/stop_fl.sh <<< "y"
 ```
 
 Delete workspaces & temp folders
