@@ -21,6 +21,8 @@ from nvflare.app_common.abstract.model import ModelLearnable
 from nvflare.app_common.abstract.shareable_generator import ShareableGenerator
 from nvflare.fuel.utils.pipe.pipe import Pipe
 from .defs import Topic, send_to_pipe, receive_from_pipe
+from nvflare.apis.dxo import MetaKey
+from nvflare.app_common.app_constant import AppConstants
 
 import time
 
@@ -93,8 +95,15 @@ class HubShareableGenerator(ShareableGenerator):
                         reason=f"bad task data from T1 - must be Shareable but got {type(data)}",
                         fl_ctx=fl_ctx)
                     break
+                #dxo = from_shareable(data)
+                #return dxo.to_shareable()
+                self.log_info(fl_ctx, "==== Piped data ====")
                 dxo = from_shareable(data)
-                return dxo.to_shareable()
+                print("dxo:", dxo.data_kind, len(dxo.data))
+                print("DXO meta props", dxo.get_meta_props())
+                print("CURRENT_ROUND", data.get_header(AppConstants.CURRENT_ROUND))
+                print("=====================")
+                return data
             time.sleep(self.task_data_poll_interval)
         return None
 
