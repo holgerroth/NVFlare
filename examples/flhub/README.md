@@ -22,9 +22,10 @@ Install requirements
 ```
 export NVFLARE_HOME=${PWD}/../..
 export HUB_EXAMPLE=${NVFLARE_HOME}/examples/flhub
+export PYTHONPATH=${NVFLARE_HOME}:${NVFLARE_HOME}/examples:${NVFLARE_HOME}/integration/monai
+
 pip install -r ./virtualenv/requirements.txt
 pip install -r ${NVFLARE_HOME}/requirements-min.txt
-export PYTHONPATH=${NVFLARE_HOME}:${NVFLARE_HOME}/examples:${NVFLARE_HOME}/integration/monai
 ```
 
 ## 2. Create your FL workspaces and start all FL systems
@@ -32,9 +33,9 @@ export PYTHONPATH=${NVFLARE_HOME}:${NVFLARE_HOME}/examples:${NVFLARE_HOME}/integ
 ### 2.1 Prepare workspaces
 ```
 cd ./workspaces
-for system in "t1" "t2a" "t2b"; do
-  nvflare provision -p ./${system}_project.yml
-  cp -r ./workspace/${system}_project/prod_00 ./${system}_workspace
+for SYSTEM in "t1" "t2a" "t2b"; do
+  nvflare provision -p ./${SYSTEM}_project.yml
+  cp -r ./workspace/${SYSTEM}_project/prod_00 ./${SYSTEM}_workspace
 done
 cd ..
 ```
@@ -49,9 +50,12 @@ cp -r ./config/site_b/* ./workspaces/t1_workspace/t1_client_b/local/.
 
 Modify t2 server configs TODO!
 ```
-mv resources.json.default resources.default 
-FilesystemStorage -> "/tmp/nvflare/snapshot-storage_t2a"
-SimpleJobDefManager -> "/tmp/flare/jobs/t2a"
+for SYSTEM in "t2a" "t2b"; do
+    export T2_SERVER_LOCAL=./workspaces/${SYSTEM}_workspace/localhost/local
+    mv ${T2_SERVER_LOCAL}/resources.json.default ${T2_SERVER_LOCAL}/resources.json
+    sed -i "s|/tmp/nvflare/snapshot-storage|/tmp/nvflare/snapshot-storage_${SYSTEM}|g" ${T2_SERVER_LOCAL}/resources.json
+    sed -i "s|/tmp/nvflare/jobs-storage|/tmp/flare/jobs/${SYSTEM}|g" ${T2_SERVER_LOCAL}/resources.json
+done 
 ```
 
 ### 2.3 Start FL systems
@@ -64,11 +68,11 @@ SimpleJobDefManager -> "/tmp/flare/jobs/t2a"
 
 # T2a system
 ./workspaces/t2a_workspace/localhost/startup/start.sh
-./workspaces/t2a_workspace/site-1/startup/start.sh
+./workspaces/t2a_workspace/site_a-1/startup/start.sh
 
 # T2b system
 ./workspaces/t2b_workspace/localhost/startup/start.sh
-./workspaces/t2b_workspace/site-1/startup/start.sh
+./workspaces/t2b_workspace/site_b-1/startup/start.sh
 ```
 
 ### 3. Submit job
@@ -83,16 +87,15 @@ Submit job in console. Replace `[HUB_EXAMPLE]` with your local path of this fold
 submit_job [HUB_EXAMPLE]/job
 ```
 
-e.g.
-```
-submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/flhub/job
-```
-
 For a simple example, run
 ```
 submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/hello-numpy-sag
 ```
 
+For a MonaiAlgo example, run
+```
+submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/flhub/job
+```
 
 ### 4. (Optional) Clean-up
 
@@ -102,10 +105,10 @@ Shutdown all FL systems
 ./workspaces/t1_workspace/t1_client_b/startup/stop_fl.sh <<< "y"
 ./workspaces/t1_workspace/localhost/startup/stop_fl.sh <<< "y"
 
-./workspaces/t2a_workspace/site-1/startup/stop_fl.sh <<< "y"
+./workspaces/t2a_workspace/site_a-1/startup/stop_fl.sh <<< "y"
 ./workspaces/t2a_workspace/localhost/startup/stop_fl.sh <<< "y"
 
-./workspaces/t2b_workspace/site-1/startup/stop_fl.sh <<< "y"
+./workspaces/t2b_workspace/site_b-1/startup/stop_fl.sh <<< "y"
 ./workspaces/t2b_workspace/localhost/startup/stop_fl.sh <<< "y"
 ```
 

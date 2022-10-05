@@ -10,7 +10,7 @@
     "dataset_dir": "/media/hroth/workspace/Data/MSD/Orig/Task09_Spleen",
     "images": "$list(sorted(glob.glob(@dataset_dir + '/imagesTr/*.nii.gz')))",
     "labels": "$list(sorted(glob.glob(@dataset_dir + '/labelsTr/*.nii.gz')))",
-    "val_interval": 5,
+    "val_interval": 1,
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
     "network_def": {
         "_target_": "UNet",
