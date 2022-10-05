@@ -14,34 +14,34 @@ participants:
     org: nvidia
     fed_learn_port: 8202
     admin_port: 8203
-  - name: site-1
+  - name: site_b-1
     type: client
     org: nvidia
-  - name: site-2
+  - name: site_b-2
     type: client
     org: nvidia
-  - name: site-3
+  - name: site_b-3
     type: client
     org: nvidia
-  - name: site-4
+  - name: site_b-4
     type: client
     org: nvidia
-  - name: site-5
+  - name: site_b-5
     type: client
     org: nvidia
-  - name: site-6
+  - name: site_b-6
     type: client
     org: nvidia
-  - name: site-7
+  - name: site_b-7
     type: client
     org: nvidia
-  - name: site-8
+  - name: site_b-8
     type: client
     org: nvidia
-  - name: site-9
+  - name: site_b-9
     type: client
     org: nvidia
-  - name: site-10
+  - name: site_b-10
     type: client
     org: nvidia
   - name: admin@nvflare.com

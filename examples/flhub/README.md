@@ -98,15 +98,15 @@ submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/hello-numpy-sag
 
 Shutdown all FL systems
 ```
-./workspaces/t1_workspace/localhost/startup/stop_fl.sh <<< "y"
 ./workspaces/t1_workspace/t1_client_a/startup/stop_fl.sh <<< "y"
 ./workspaces/t1_workspace/t1_client_b/startup/stop_fl.sh <<< "y"
+./workspaces/t1_workspace/localhost/startup/stop_fl.sh <<< "y"
 
-./workspaces/t2a_workspace/localhost/startup/stop_fl.sh <<< "y"
 ./workspaces/t2a_workspace/site-1/startup/stop_fl.sh <<< "y"
+./workspaces/t2a_workspace/localhost/startup/stop_fl.sh <<< "y"
 
-./workspaces/t2b_workspace/localhost/startup/stop_fl.sh <<< "y"
 ./workspaces/t2b_workspace/site-1/startup/stop_fl.sh <<< "y"
+./workspaces/t2b_workspace/localhost/startup/stop_fl.sh <<< "y"
 ```
 
 Delete workspaces & temp folders

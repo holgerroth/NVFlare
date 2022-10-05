@@ -7,7 +7,7 @@
     "bundle_root": "/workspace/data/tutorials/modules/bundle/spleen_segmentation",
     "ckpt_dir": "$@bundle_root + '/models'",
     "output_dir": "$@bundle_root + '/eval'",
-    "dataset_dir": "/workspace/Data/MSD/Orig/Task09_Spleen",
+    "dataset_dir": "/media/hroth/workspace/Data/MSD/Orig/Task09_Spleen",
     "images": "$list(sorted(glob.glob(@dataset_dir + '/imagesTr/*.nii.gz')))",
     "labels": "$list(sorted(glob.glob(@dataset_dir + '/labelsTr/*.nii.gz')))",
     "val_interval": 5,
@@ -128,9 +128,11 @@
             "transforms": "$@train#deterministic_transforms + @train#random_transforms"
         },
         "dataset": {
-            "_target_": "Dataset",
-            "data": "$[{'image': i, 'label': l} for i, l in zip(@images[:-9], @labels[:-9])]",
-            "transform": "@train#preprocessing"
+            "_target_": "CacheDataset",
+            "data": "$[{'image': i, 'label': l} for i, l in zip(@images[:2], @labels[:2])]",
+            "transform": "@train#preprocessing",
+            "cache_rate": 1.0,
+            "num_workers": 4
         },
         "dataloader": {
             "_target_": "DataLoader",
@@ -210,9 +212,10 @@
             "transforms": "%train#deterministic_transforms"
         },
         "dataset": {
-            "_target_": "Dataset",
-            "data": "$[{'image': i, 'label': l} for i, l in zip(@images[-9:], @labels[-9:])]",
-            "transform": "@validate#preprocessing"
+            "_target_": "CacheDataset",
+            "data": "$[{'image': i, 'label': l} for i, l in zip(@images[2:4], @labels[2:4])]",
+            "transform": "@validate#preprocessing",
+            "cache_rate": 1.0
         },
         "dataloader": {
             "_target_": "DataLoader",
