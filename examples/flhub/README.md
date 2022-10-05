@@ -112,6 +112,8 @@ Shutdown all FL systems
 ./workspaces/t2b_workspace/localhost/startup/stop_fl.sh <<< "y"
 ```
 
+Note, you can check if nvflare processes are still running with `ps -asx | grep flare`.
+
 Delete workspaces & temp folders
 ```
 rm -r workspaces/workspace
