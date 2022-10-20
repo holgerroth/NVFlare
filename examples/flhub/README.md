@@ -60,22 +60,19 @@ done
 
 ### 2.3 Start FL systems
 
-```
 # T1 system with 2 clients (a & b)
-./workspaces/t1_workspace/localhost/startup/start.sh
-./workspaces/t1_workspace/t1_client_a/startup/start.sh
-./workspaces/t1_workspace/t1_client_b/startup/start.sh
+```
+./start_t1.sh
+```
 
 # T2a system with 1 client
-export CUDA_VISIBLE_DEVICES=0
-./workspaces/t2a_workspace/localhost/startup/start.sh
-./workspaces/t2a_workspace/site_a-1/startup/start.sh
+```
+./start_t2a.sh
+```
 
-# T2b system with 2 clientsN
-export CUDA_VISIBLE_DEVICES=1
-./workspaces/t2b_workspace/localhost/startup/start.sh
-./workspaces/t2b_workspace/site_b-1/startup/start.sh
-./workspaces/t2b_workspace/site_b-2/startup/start.sh
+# T2b system with 2 clients
+```
+./start_t2b.sh
 ```
 
 ### 3. Submit job
@@ -104,16 +101,7 @@ submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/flhub/job
 
 Shutdown all FL systems
 ```
-./workspaces/t1_workspace/t1_client_a/startup/stop_fl.sh <<< "y"
-./workspaces/t1_workspace/t1_client_b/startup/stop_fl.sh <<< "y"
-./workspaces/t1_workspace/localhost/startup/stop_fl.sh <<< "y"
-
-./workspaces/t2a_workspace/site_a-1/startup/stop_fl.sh <<< "y"
-./workspaces/t2a_workspace/localhost/startup/stop_fl.sh <<< "y"
-
-./workspaces/t2b_workspace/site_b-1/startup/stop_fl.sh <<< "y"
-./workspaces/t2b_workspace/site_b-2/startup/stop_fl.sh <<< "y"
-./workspaces/t2b_workspace/localhost/startup/stop_fl.sh <<< "y"
+./shutdown_systems.sh
 ```
 
 Note, you can check if nvflare processes are still running with `ps -asx | grep flare`.

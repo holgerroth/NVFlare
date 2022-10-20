@@ -95,8 +95,6 @@ class HubShareableGenerator(ShareableGenerator):
                         reason=f"bad task data from T1 - must be Shareable but got {type(data)}",
                         fl_ctx=fl_ctx)
                     break
-                #dxo = from_shareable(data)
-                #return dxo.to_shareable()
                 self.log_info(fl_ctx, "==== Piped data ====")
                 dxo = from_shareable(data)
                 print("dxo:", dxo.data_kind, len(dxo.data))
