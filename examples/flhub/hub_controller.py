@@ -16,6 +16,7 @@ import json
 import time
 import traceback
 
+from nvflare.apis.dxo import from_shareable
 from nvflare.apis.client import Client
 from nvflare.apis.controller_spec import TaskOperatorKey
 from nvflare.apis.event_type import EventType
@@ -277,6 +278,13 @@ class HubController(Controller):
             wait_time_after_min_resps = 0
         targets = operator.get(TaskOperatorKey.TARGETS, None)
 
+        self.log_info(fl_ctx, "==== bcast data ====")
+        dxo = from_shareable(data)
+        print("dxo:", dxo.data_kind, len(dxo.data))
+        print("CURRENT_ROUND", data.get_header(AppConstants.CURRENT_ROUND))
+        print("DXO meta props", dxo.get_meta_props())
+        print("=====================")
+
         # data is from T1
         train_task = Task(
             name=task_name,
@@ -297,6 +305,7 @@ class HubController(Controller):
             abort_signal=abort_signal,
         )
 
+        fl_ctx.set_prop(AppConstants.CURRENT_ROUND, data.get_header(AppConstants.CURRENT_ROUND))
         aggr_result = aggr.aggregate(fl_ctx)
         return aggr_result
 
