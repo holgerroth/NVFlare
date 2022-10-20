@@ -14,6 +14,7 @@
 
 import json
 import time
+import traceback
 
 from nvflare.apis.client import Client
 from nvflare.apis.controller_spec import TaskOperatorKey
@@ -106,6 +107,7 @@ class HubController(Controller):
             self._control_flow(abort_signal, fl_ctx)
             self.pipe_monitor.stop()
         except BaseException as ex:
+            traceback.print_exc()
             self._abort(f"control_flow exception {ex}", abort_signal, fl_ctx)
 
     def _control_flow(self, abort_signal: Signal, fl_ctx: FLContext):
@@ -130,7 +132,7 @@ class HubController(Controller):
                     fl_ctx=fl_ctx)
                 return
 
-            topic, data = self.pipe_monitor.get_next(self.pipe)
+            topic, data = self.pipe_monitor.get_next()
             if not topic:
                 if self.task_wait_time and time.time() - start > self.task_wait_time:
                     # timed out - tell T1 to end the RUN

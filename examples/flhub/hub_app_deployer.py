@@ -94,7 +94,10 @@ class HubAppDeployer(AppDeployerSpec):
         # change to use HubController as the workflow for T2
         t2_wf = t2_server_component_dict.get("workflows", None)
         if not t2_wf:
-            return f"missing workflows in {t2_server_component_file}"
+            print(f"####### missing workflows in {t2_server_component_file}")
+            return f"missing workflows in {t2_server_component_file}", None, None
+        else:
+            print(f"####### got workflow {t2_server_component_file}")
         t2_server_app_config_dict["workflows"] = t2_wf
 
         # recreate T2's server app config file

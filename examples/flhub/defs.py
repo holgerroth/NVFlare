@@ -46,7 +46,7 @@ class PipeMonitor(object):
         self.messages = []
         self.reader = threading.Thread(target=self._read)
         self.asked_to_stop = False
-        self.lock = threading.Lock
+        self.lock = threading.Lock()
 
     def start(self):
         if not self.reader.is_alive():

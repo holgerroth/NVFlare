@@ -4,7 +4,7 @@
   "operators": {
     "train": {
       "method": "bcast",
-      "aggregator_id": "aggregator",
+      "aggregator": "aggregator",
       "timeout": 600,
       "min_targets": 1
     },

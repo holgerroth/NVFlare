@@ -150,8 +150,8 @@ class Task(object):
         self.props[key] = value
 
     def get_prop(self, key):
-        if key.startswith("__"):
-            raise ValueError("Keys start with __ is reserved. Please use other key instead of {}.".format(key))
+        #if key.startswith("__"):
+        #    raise ValueError("Keys start with __ is reserved. Please use other key instead of {}.".format(key))
         return self.props.get(key)
 
 

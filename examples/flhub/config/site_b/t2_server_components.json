@@ -1,21 +1,17 @@
 {
   "format_version": 2,
-  "components": [
+  "workflows": [
     {
-      "id": "shareable_generator",
-      "path": "flhub.hub_shareable_generator.HubShareableGenerator",
+      "id": "controller",
+      "path": "flhub.hub_controller.HubController",
       "args": {
         "pipe_id": "pipe",
-        "task_name": "train",
         "task_wait_time": 60,
         "task_data_poll_interval": 0.5
       }
-    },
-    {
-      "id": "persistor",
-      "path": "flhub.hub_persistor.HubPersistor",
-      "args": {}
-    },
+    }
+  ],
+  "components": [
     {
       "id": "pipe",
       "path": "nvflare.fuel.utils.pipe.file_pipe.FilePipe",
