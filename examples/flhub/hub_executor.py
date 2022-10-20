@@ -106,5 +106,13 @@ class HubExecutor(Executor):
                     self.log_error(fl_ctx,
                                    f"bad result data from T2 - must be Shareable but got {type(data)}")
                     return make_reply(ReturnCode.EXECUTION_EXCEPTION)
+                # add important meta information
+                self.log_info(fl_ctx, "==== Piped data ====")
+                dxo = from_shareable(data)
+                print("dxo:", dxo.data_kind, len(dxo.data))
+                print("CURRENT_ROUND", shareable.get_header(AppConstants.CURRENT_ROUND))
+                print("DXO meta props", dxo.get_meta_props())
+                print("=====================")
+                data.set_header(AppConstants.CURRENT_ROUND, shareable.get_header(AppConstants.CURRENT_ROUND))
                 return data
             time.sleep(self.result_poll_interval)
