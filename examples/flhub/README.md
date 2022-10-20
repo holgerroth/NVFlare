@@ -48,7 +48,7 @@ cp -r ./config/site_a/* ./workspaces/t1_workspace/t1_client_a/local/.
 cp -r ./config/site_b/* ./workspaces/t1_workspace/t1_client_b/local/.
 ```
 
-Modify t2 server configs TODO!
+Modify t2 server configs:
 ```
 for SYSTEM in "t2a" "t2b"; do
     T2_SERVER_LOCAL=./workspaces/${SYSTEM}_workspace/localhost/local
