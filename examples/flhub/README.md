@@ -51,7 +51,7 @@ cp -r ./config/site_b/* ./workspaces/t1_workspace/t1_client_b/local/.
 Modify t2 server configs TODO!
 ```
 for SYSTEM in "t2a" "t2b"; do
-    export T2_SERVER_LOCAL=./workspaces/${SYSTEM}_workspace/localhost/local
+    T2_SERVER_LOCAL=./workspaces/${SYSTEM}_workspace/localhost/local
     mv ${T2_SERVER_LOCAL}/resources.json.default ${T2_SERVER_LOCAL}/resources.json
     sed -i "s|/tmp/nvflare/snapshot-storage|/tmp/nvflare/snapshot-storage_${SYSTEM}|g" ${T2_SERVER_LOCAL}/resources.json
     sed -i "s|/tmp/nvflare/jobs-storage|/tmp/flare/jobs/${SYSTEM}|g" ${T2_SERVER_LOCAL}/resources.json
@@ -71,7 +71,7 @@ export CUDA_VISIBLE_DEVICES=0
 ./workspaces/t2a_workspace/localhost/startup/start.sh
 ./workspaces/t2a_workspace/site_a-1/startup/start.sh
 
-# T2b system with 2 clients
+# T2b system with 2 clientsN
 export CUDA_VISIBLE_DEVICES=1
 ./workspaces/t2b_workspace/localhost/startup/start.sh
 ./workspaces/t2b_workspace/site_b-1/startup/start.sh
