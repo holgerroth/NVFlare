@@ -34,7 +34,7 @@ pip install -r ${NVFLARE_HOME}/requirements-min.txt
 ```
 cd ./workspaces
 for SYSTEM in "t1" "t2a" "t2b"; do
-  nvflare provision -p ./${SYSTEM}_project.yml
+  python3 -m nvflare.lighter.provision -p ./${SYSTEM}_project.yml
   cp -r ./workspace/${SYSTEM}_project/prod_00 ./${SYSTEM}_workspace
 done
 cd ..
@@ -89,12 +89,12 @@ submit_job [HUB_EXAMPLE]/job
 
 For a simple example, run
 ```
-submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/hello-numpy-sag
+submit_job [HUB_EXAMPLE]/job-numpy-sag
 ```
 
 For a MonaiAlgo example, run
 ```
-submit_job /home/hroth/Code2/nvflare/flhub_hroth/examples/flhub/job
+submit_job [HUB_EXAMPLE]/job
 ```
 
 ### 4. (Optional) Clean-up
