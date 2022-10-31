@@ -3,5 +3,5 @@
 export projectname='nvflare_flhub'
 export projectpath="."
 
-python3 -m venv ${projectname}
+python3.8 -m venv ${projectname}
 source ${projectname}/bin/activate
