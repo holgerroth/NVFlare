@@ -114,3 +114,11 @@ rm -r workspaces/*_workspace
 rm -r /tmp/nvflare
 rm -r /tmp/flare
 ```
+
+## Run admin demo
+
+Open JupyterLab
+```
+jupyter lab demo.ipynb
+```
+See [here](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) for installing jupyter lab.
