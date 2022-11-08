@@ -55,7 +55,7 @@ for SYSTEM in "t2a" "t2b"; do
     mv ${T2_SERVER_LOCAL}/resources.json.default ${T2_SERVER_LOCAL}/resources.json
     sed -i "s|/tmp/nvflare/snapshot-storage|/tmp/nvflare/snapshot-storage_${SYSTEM}|g" ${T2_SERVER_LOCAL}/resources.json
     sed -i "s|/tmp/nvflare/jobs-storage|/tmp/flare/jobs/${SYSTEM}|g" ${T2_SERVER_LOCAL}/resources.json
-done 
+done
 ```
 
 ### 2.3 Start FL systems

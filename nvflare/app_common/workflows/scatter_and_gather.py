@@ -193,7 +193,7 @@ class ScatterAndGather(Controller):
 
                 self.log_info(fl_ctx, f"Round {self._current_round} started.")
                 fl_ctx.set_prop(AppConstants.GLOBAL_MODEL, self._global_weights, private=True, sticky=False)
-                fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self._current_round, private=False, sticky=True)
+                fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self._current_round, private=True, sticky=False)
                 self.fire_event(AppEventType.ROUND_STARTED, fl_ctx)
 
                 # Create train_task
@@ -333,7 +333,7 @@ class ScatterAndGather(Controller):
                     self.system_panic("Execution result is not a shareable. ScatterAndGather exiting.", fl_ctx=fl_ctx)
                     return False
 
-        fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self._current_round, private=False, sticky=True)
+        fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self._current_round, private=True, sticky=False)
         fl_ctx.set_prop(AppConstants.TRAINING_RESULT, result, private=True, sticky=False)
         fl_ctx.set_prop(AppConstants.CONTRIBUTION_ROUND, contribution_round, private=True, sticky=False)
         self.fire_event(AppEventType.BEFORE_CONTRIBUTION_ACCEPT, fl_ctx)

@@ -163,7 +163,7 @@ class CyclicController(Controller):
                     return
 
                 self.log_debug(fl_ctx, "Starting current round={}.".format(self._current_round))
-                fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self._current_round, private=False, sticky=True)
+                fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self._current_round, private=True, sticky=False)
 
                 # Task for one cyclic
                 targets = self._get_relay_orders()

@@ -31,7 +31,8 @@ class IntimeModelSelector(Widget):
         Args:
             weigh_by_local_iter (bool, optional): whether the metrics should be weighted by trainer's iteration number.
             aggregation_weights (dict, optional): a mapping of client name to float for aggregation. Defaults to None.
-            tb_summary (bool, optional): whether to print val_metric using TensorBoard or not (default to False).
+            validation_metric_name (str, optional): key used to save initial validation metric in the DXO meta properties (defaults to MetaKey.INITIAL_METRICS).
+            tb_summary (bool, optional): whether to print val_metric using TensorBoard or not (defaults to False).
         """
         super().__init__()
 
@@ -48,7 +49,7 @@ class IntimeModelSelector(Widget):
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
             self._startup(fl_ctx)
-        elif event_type == EventType.BEFORE_PROCESS_SUBMISSION:
+        elif event_type == AppEventType.BEFORE_CONTRIBUTION_ACCEPT:
             self._before_accept(fl_ctx)
         elif event_type == AppEventType.BEFORE_AGGREGATION:
             self._before_aggregate(fl_ctx)
@@ -92,9 +93,7 @@ class IntimeModelSelector(Widget):
             return False  # There is no aggregated model at round 0
 
         if contribution_round != current_round:
-            print("DEBUG contribution_round", client_name, contribution_round)
-            print("DEBUG current_round", client_name, current_round)
-            self.log_debug(
+            self.log_warning(
                 fl_ctx,
                 f"discarding shareable from {client_name} for round: {contribution_round}. Current round is: {current_round}",
             )
