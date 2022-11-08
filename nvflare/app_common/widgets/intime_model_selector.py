@@ -25,21 +25,24 @@ from nvflare.widgets.widget import Widget
 
 
 class IntimeModelSelector(Widget):
-    def __init__(self, weigh_by_local_iter=False, aggregation_weights=None):
+    def __init__(self, weigh_by_local_iter=False, aggregation_weights=None, validation_metric_name=MetaKey.INITIAL_METRICS, tb_summary=False):
         """Handler to determine if the model is globally best.
 
         Args:
             weigh_by_local_iter (bool, optional): whether the metrics should be weighted by trainer's iteration number.
             aggregation_weights (dict, optional): a mapping of client name to float for aggregation. Defaults to None.
+            tb_summary (bool, optional): whether to print val_metric using TensorBoard or not (default to False).
         """
         super().__init__()
 
         self.val_metric = self.best_val_metric = -np.inf
         self.weigh_by_local_iter = weigh_by_local_iter
-        self.validation_metric_name = MetaKey.INITIAL_METRICS
+        self.validation_metric_name = validation_metric_name
         self.aggregation_weights = aggregation_weights or {}
+        self.tb_summary = tb_summary
+        self._writer = None
 
-        self.logger.debug(f"model selection weights control: {aggregation_weights}")
+        self.logger.info(f"model selection weights control: {aggregation_weights}")
         self._reset_stats()
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
@@ -51,6 +54,11 @@ class IntimeModelSelector(Widget):
             self._before_aggregate(fl_ctx)
 
     def _startup(self, fl_ctx):
+        if self.tb_summary:
+            from torch.utils.tensorboard import SummaryWriter
+            self.app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
+            self._writer = SummaryWriter(self.app_root)
+            self.log_info(fl_ctx, f"Attempting to write TensorBoard events to {self.app_root}")
         self._reset_stats()
 
     def _reset_stats(self):
@@ -84,13 +92,28 @@ class IntimeModelSelector(Widget):
             return False  # There is no aggregated model at round 0
 
         if contribution_round != current_round:
+            print("DEBUG contribution_round", client_name, contribution_round)
+            print("DEBUG current_round", client_name, current_round)
             self.log_debug(
                 fl_ctx,
                 f"discarding shareable from {client_name} for round: {contribution_round}. Current round is: {current_round}",
             )
             return False
 
+        # parse validation metrics from T2 system
         validation_metric = dxo.get_meta_prop(self.validation_metric_name)
+        _val_metrics = []
+        meta = None
+        if validation_metric is None:  # try checking meta props for sub system metrics
+            meta = dxo.get_meta_props()
+            for k in meta:
+                _val_metric = meta[k].get(self.validation_metric_name)
+                if _val_metric:
+                    _val_metrics.append(_val_metric)
+        if len(_val_metrics) > 0:  # average sub system metrics
+            validation_metric = np.mean(_val_metrics)
+            self.log_info(fl_ctx, f"computing average validation metric from {len(_val_metrics)} clients: {_val_metrics}")
+
         if validation_metric is None:
             self.log_debug(fl_ctx, f"validation metric not existing in {client_name}")
             return False
@@ -102,11 +125,20 @@ class IntimeModelSelector(Widget):
         else:
             n_iter = 1.0
 
+        if self.tb_summary and meta is not None:
+            if self._writer is not None:
+                for _client_name_key in meta:
+                    _val_metric = meta[k].get(self.validation_metric_name)
+                    if _val_metric:
+                        self.log_info(fl_ctx, f"add_scalar val-metric-{_client_name_key}: {_val_metric} at {int(current_round*n_iter)}")
+                        self._writer.add_scalar(f"val-metric-{_client_name_key}", _val_metric, int(current_round*n_iter))
+
         aggregation_weights = self.aggregation_weights.get(client_name, 1.0)
         self.log_debug(fl_ctx, f"aggregation weight: {aggregation_weights}")
 
-        self.validation_metric_weighted_sum += validation_metric * n_iter * aggregation_weights
-        self.validation_metric_sum_of_weights += n_iter
+        weight = n_iter * aggregation_weights
+        self.validation_metric_weighted_sum += validation_metric * weight
+        self.validation_metric_sum_of_weights += weight
         return True
 
     def _before_aggregate(self, fl_ctx):

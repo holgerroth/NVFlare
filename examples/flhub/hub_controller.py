@@ -307,6 +307,11 @@ class HubController(Controller):
 
         fl_ctx.set_prop(AppConstants.CURRENT_ROUND, data.get_header(AppConstants.CURRENT_ROUND))
         aggr_result = aggr.aggregate(fl_ctx)
+        self.log_info(fl_ctx, f"=========== aggr_result ===========")
+        dxo = from_shareable(aggr_result)
+        self.log_info(fl_ctx, f"DXO: {dxo.data_kind}, {len(dxo.data)}")
+        self.log_info(fl_ctx, "DXO meta props", dxo.get_meta_props())
+        self.log_info(fl_ctx, "=====================")
         return aggr_result
 
     def _process_bcast_result(self, client_task: ClientTask, fl_ctx: FLContext) -> None:

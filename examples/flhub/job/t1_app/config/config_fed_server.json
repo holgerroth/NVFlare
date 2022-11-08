@@ -2,7 +2,7 @@
   "format_version": 2,
 
   "min_clients": 2,
-  "num_rounds": 3,
+  "num_rounds": 30,
 
   "task_data_filters": [],
   "task_result_filters": [],
@@ -29,7 +29,9 @@
     {
       "id": "model_selector",
       "name": "IntimeModelSelector",
-      "args": {}
+      "args": {
+        "tb_summary": true
+      }
     }
   ],
   "workflows": [
