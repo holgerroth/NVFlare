@@ -1,0 +1,39 @@
+{
+  "format_version": 2,
+
+  "DATASET_ROOT": "/tmp/cifar10",
+
+  "executors": [
+    {
+      "tasks": [
+        "_splitnn_task_init_model_",
+        "_splitnn_task_train_"
+      ],
+      "executor": {
+        "id": "Executor",
+        "path": "pt.learners.splitnn_learner_executor_aux.SplitNNLearnerExecutorAux",
+        "args": {
+          "learner_id": "cifar10-learner"
+        }
+      }
+    }
+  ],
+
+  "task_result_filters": [
+  ],
+  "task_data_filters": [
+  ],
+
+  "components": [
+    {
+      "id": "cifar10-learner",
+      "path": "pt.learners.cifar10_learner_splitnn_aux.CIFAR10LearnerSplitNNAux",
+      "args": {
+        "dataset_root": "{DATASET_ROOT}",
+        "lr": 1e-2,
+        "model": {"path": "pt.networks.split_nn.SplitNN", "args":  {"split_id":  0}},
+        "timeit": true
+      }
+    }
+  ]
+}
