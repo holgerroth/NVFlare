@@ -18,21 +18,17 @@ import numpy as np
 from timeit import default_timer as timer
 import torch
 import torch.optim as optim
-from pt.networks.cifar10_nets import ModerateCNN
-from pt.utils.cifar10_dataset import CIFAR10_Idx, CIFAR10SplitNN
+from pt.utils.cifar10_dataset import CIFAR10SplitNN
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, transforms
 
-from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
+from nvflare.apis.dxo import DXO, DataKind, from_shareable
 from nvflare.apis.fl_constant import FLContextKey, ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.learner_spec import Learner
-from nvflare.app_common.app_constant import AppConstants, ModelName, ValidateType
-from nvflare.app_common.pt.pt_fedproxloss import PTFedProxLoss
-
-from pt.learners.cifar10_learner import CIFAR10Learner
+from nvflare.app_common.app_constant import AppConstants
 from nvflare.fuel.utils import fobs
 from nvflare.app_common.pt.pt_decomposers import TensorDecomposer
 
@@ -236,26 +232,23 @@ class CIFAR10LearnerSplitNN(Learner):
             self.times["learner_start_label_step"].append(timer())
         self.model.train()
         self.optimizer.zero_grad()
-        print("=============================================")
-        print("222###### activations", "requires_grad", activations.requires_grad, "is_leaf", activations.is_leaf)
-        print("=============================================")
 
         labels = self.train_dataset.get_batch(batch_indices)
         labels = labels.to(self.device)
         activations = activations.to(self.device)
         activations.requires_grad_(True)
 
-        print("=============================================")
-        print("333###### activations", "requires_grad", activations.requires_grad, "is_leaf", activations.is_leaf)
-        print("=============================================")
-
         pred = self.model.forward(activations)
         loss = self.criterion(pred, labels)
         loss.backward()
 
-        self.log_info(fl_ctx, f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}")
+        _, pred_labels = torch.max(pred, 1)
+        acc = (pred_labels == labels).sum()/len(labels)
+
+        self.log_info(fl_ctx, f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}, accuracy: {acc.item():.4f}")
         if self.writer:
-            self.writer.add_scalar("train_loss", loss.item(), self.current_round)
+            self.writer.add_scalar("train_loss", loss, self.current_round)
+            self.writer.add_scalar("train_accuracy", acc, self.current_round)
 
         print(f"====== {self.client_name} Model with `split_id` {self.split_id} train_step_label_side grad: ======")
         #print_grads(self.model)
