@@ -57,7 +57,7 @@ class SplitNNConstants(object):
     TASK_TRAIN = "_splitnn_task_train_"
 
     TASK_RESULT = "_splitnn_task_result_"
-    TIMEOUT = 10.0  # timeout for waiting for reply from aux message request
+    TIMEOUT = 60.0  # timeout for waiting for reply from aux message request
 
 
 class CIFAR10LearnerSplitNNAux(Learner):
@@ -215,11 +215,8 @@ class CIFAR10LearnerSplitNNAux(Learner):
         # register aux message handlers
         engine = fl_ctx.get_engine()
 
-        #engine.register_aux_message_handler(topic=SplitNNConstants.TASK_DATA_STEP, message_handle_func=self.train_data_side)
-        #engine.register_aux_message_handler(topic=SplitNNConstants.TASK_BACKWARD_STEP, message_handle_func=self.backward_data_side)
-        # merged steps 1 & 2
-        engine.register_aux_message_handler(topic=SplitNNConstants.TASK_DATA_STEP, message_handle_func=self.train_backward_data_side)
-        engine.register_aux_message_handler(topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self.train_label_side)
+        engine.register_aux_message_handler(topic=self.data_step_task, message_handle_func=self.train_backward_data_side)
+        engine.register_aux_message_handler(topic=self.label_step_task, message_handle_func=self.train_label_side)
         self.log_info(fl_ctx, "Registered aux message handlers")
 
     """ training steps """
@@ -258,8 +255,8 @@ class CIFAR10LearnerSplitNNAux(Learner):
         loss = self.criterion(pred, labels)
         loss.backward()
 
+        self.log_info(fl_ctx, f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}")
         if self.writer:
-            self.log_info(fl_ctx, f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}")
             self.writer.add_scalar("train_loss", loss.item(), self.current_round)
 
         print(f"====== {self.client_name} Model with `split_id` {self.split_id} train_step_label_side grad: ======")
@@ -314,7 +311,7 @@ class CIFAR10LearnerSplitNNAux(Learner):
 
         self.current_round = request.get_header(AppConstants.CURRENT_ROUND)
         self.num_rounds = request.get_header(AppConstants.NUM_ROUNDS)
-        self.log_info(fl_ctx, f"Train data in round {self.current_round} of {self.num_rounds} rounds.")
+        self.log_info(fl_ctx, f"Train data side in round {self.current_round} of {self.num_rounds} rounds.")
 
         dxo = from_shareable(request)
         batch_indices = dxo.get_meta_prop(SplitNNConstants.BATCH_INDICES)
@@ -329,6 +326,7 @@ class CIFAR10LearnerSplitNNAux(Learner):
         return_shareable = DXO(data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.ACTIVATIONS: fobs.dumps(activations)}).to_shareable()
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_step"].append(timer())
+        self.log_info(fl_ctx, f"Sending train data return_shareable: {type(return_shareable)}")
         return return_shareable
 
     def train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
@@ -353,10 +351,12 @@ class CIFAR10LearnerSplitNNAux(Learner):
         gradient = self.train_step_label_side(batch_indices=batch_indices, activations=fobs.loads(activations), fl_ctx=fl_ctx)
 
         self.log_info(fl_ctx, "train_label_side finished.")
-        result_shareable = DXO(data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.GRADIENT: fobs.dumps(gradient)}).to_shareable()
+        return_shareable = DXO(data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.GRADIENT: fobs.dumps(gradient)}).to_shareable()
         if self.timeit:
             self.times["aux_hdl_learner_end_label_train_step"].append(timer())
-        return result_shareable
+
+        self.log_info(fl_ctx, f"Sending train label return_shareable: {type(return_shareable)}")
+        return return_shareable
 
     def backward_data_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
@@ -368,7 +368,6 @@ class CIFAR10LearnerSplitNNAux(Learner):
         gradient = dxo.get_meta_prop(SplitNNConstants.GRADIENT)
         if gradient is None:
             raise ValueError("No gradient in DXO!")
-        print("@@@@@@@@@@gradient (before fobs):", gradient, type(gradient))
         self.backward_step_data_side(gradient=fobs.loads(gradient))
 
         self.log_info(fl_ctx, "backward_data_side finished.")

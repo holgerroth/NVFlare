@@ -196,8 +196,8 @@ class SplitNNControllerAux(Controller):
 
         # Task for one SplitNN training step
         targets = engine.get_clients()
-        if len(targets) != self.nr_supported_clients:  # TODO: allow more clients being registered
-            self.system_panic(f"only two clients supported but there are {len(targets)}", fl_ctx)
+        #if len(targets) != self.nr_supported_clients:  # TODO: allow more clients being registered
+        #    self.system_panic(f"only two clients supported but there are {len(targets)}", fl_ctx)
 
         for t in targets:
             if t.name not in self.targets_names:
@@ -261,6 +261,9 @@ class SplitNNControllerAux(Controller):
                                          request=data_shareable,
                                          timeout=SplitNNConstants.TIMEOUT, fl_ctx=fl_ctx)
         shareable = result.get(self.targets_names[1])  # TODO: handle None
+        if shareable is None:  # TODO: handle None
+            self.log_warning(fl_ctx, "Received None.")
+            return None
         print(f"2.2 @@@@@@@@@@@@@@@@@ {SplitNNConstants.TASK_LABEL_STEP} result shareable: {type(shareable)}")
 
         gradients = from_shareable(shareable).get_meta_props().get(SplitNNConstants.GRADIENT)
@@ -274,8 +277,8 @@ class SplitNNControllerAux(Controller):
         try:
             engine = fl_ctx.get_engine()
             targets = engine.get_clients()
-            if len(targets) != self.nr_supported_clients:
-                self.system_panic(f"only two clients supported but there are {len(targets)}", fl_ctx)  # TODO: Better have min nr. clients and send between both of them.
+            #if len(targets) != self.nr_supported_clients:
+            #    self.system_panic(f"only two clients supported but there are {len(targets)}", fl_ctx)  # TODO: Better have min nr. clients and send between both of them.
 
             targets_dict = {}
             for t in targets:
