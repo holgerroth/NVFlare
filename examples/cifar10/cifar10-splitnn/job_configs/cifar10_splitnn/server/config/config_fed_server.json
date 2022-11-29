@@ -33,7 +33,7 @@
   "workflows": [
       {
         "id": "splitnn_ctl",
-        "path": "pt.workflows.splitnn_workflow_aux.SplitNNControllerAux",
+        "path": "pt.workflows.splitnn_workflow.SplitNNController",
         "args": {
             "num_rounds" : "{num_rounds}",
             "batch_size": "{batch_size}",

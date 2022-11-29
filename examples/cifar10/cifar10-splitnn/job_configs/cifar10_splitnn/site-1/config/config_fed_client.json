@@ -11,7 +11,7 @@
       ],
       "executor": {
         "id": "Executor",
-        "path": "pt.learners.splitnn_learner_executor_aux.SplitNNLearnerExecutorAux",
+        "path": "pt.learners.splitnn_learner_executor.SplitNNLearnerExecutor",
         "args": {
           "learner_id": "cifar10-learner"
         }
@@ -27,7 +27,7 @@
   "components": [
     {
       "id": "cifar10-learner",
-      "path": "pt.learners.cifar10_learner_splitnn_aux.CIFAR10LearnerSplitNNAux",
+      "path": "pt.learners.cifar10_learner_splitnn.CIFAR10LearnerSplitNN",
       "args": {
         "dataset_root": "{DATASET_ROOT}",
         "lr": 1e-2,
