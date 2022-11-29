@@ -60,7 +60,7 @@ class SplitNNConstants(object):
     TIMEOUT = 60.0  # timeout for waiting for reply from aux message request
 
 
-class CIFAR10LearnerSplitNNAux(Learner):
+class CIFAR10LearnerSplitNN(Learner):
     def __init__(
         self,
         dataset_root: str = "./dataset",
@@ -69,22 +69,20 @@ class CIFAR10LearnerSplitNNAux(Learner):
         label_step_task=SplitNNConstants.TASK_LABEL_STEP,
         data_backward_step_task=SplitNNConstants.TASK_BACKWARD_STEP,
         lr: float = 1e-2,
-        analytic_sender_id: str = "analytic_sender",
         model: dict = None,
-        timeit: bool = False
+        timeit: bool = False,  # TODO: remove option
+        analytic_sender_id: str = "analytic_sender",
     ):
-        """Simple CIFAR-10 Trainer.
+        """Simple CIFAR-10 Trainer for split learning.
 
         Args:
             dataset_root: directory with CIFAR-10 data.
-            aggregation_epochs: the number of training epochs for a round. Defaults to 1.
-            train_task_name: name of the task to train the model.
-            submit_model_task_name: name of the task to submit the best local model.
+            init_model_task:
+            data_step_task:
+            label_step_task:
+            data_backward_step_task:
+            model:
             analytic_sender_id: id of `AnalyticsSender` if configured as a client component. If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
-
-        Returns:
-            a Shareable with the updated local model after running `execute()`
-            or the best local model depending on the specified task.
         """
         super().__init__()
         self.dataset_root = dataset_root

@@ -27,7 +27,7 @@ from nvflare.widgets.info_collector import GroupInfoCollector, InfoCollector
 from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 from nvflare.apis.shareable import ReservedHeaderKey, Shareable
 
-from pt.learners.cifar10_learner_splitnn_aux import SplitNNConstants
+from pt.learners.cifar10_learner_splitnn import SplitNNConstants
 
 import os
 import pickle
@@ -35,7 +35,7 @@ import numpy as np
 from timeit import default_timer as timer
 
 
-class SplitNNControllerAux(Controller):
+class SplitNNController(Controller):
     def __init__(
         self,
         num_rounds: int = 5000,

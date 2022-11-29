@@ -21,11 +21,11 @@ from nvflare.apis.shareable import Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.learner_spec import Learner
 from nvflare.app_common.app_constant import AppConstants, ValidateType
-from pt.learners.cifar10_learner_splitnn_aux import SplitNNConstants
+from pt.learners.cifar10_learner_splitnn import SplitNNConstants
 
 
 # TODO: maybe move all into one executor
-class SplitNNLearnerExecutorAux(Executor):
+class SplitNNLearnerExecutor(Executor):
     def __init__(
         self,
         learner_id,
