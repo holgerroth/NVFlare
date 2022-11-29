@@ -1,14 +1,12 @@
 import numpy as np
-
-
 import torch
+from pt.networks.cifar10_nets import ModerateCNN2
+from pt.utils.cifar10_dataset import CIFAR10SplitNN
 from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, transforms
 
-from pt.networks.cifar10_nets import ModerateCNN, ModerateCNN2
-from pt.utils.cifar10_dataset import CIFAR10SplitNN
-#from pt.learners.cifar10_learner_splitnn import SplitNNConstants
+# from pt.learners.cifar10_learner_splitnn import SplitNNConstants
 
 
 # TODO: maybe only use the part net that is being used
@@ -17,9 +15,7 @@ class SplitNN(ModerateCNN2):
     def __init__(self, split_id):
         super().__init__()
         if split_id not in [0, 1]:
-            raise ValueError(
-                f"Only supports split_id '0' or '1' but was {self.split_id}"
-            )
+            raise ValueError(f"Only supports split_id '0' or '1' but was {self.split_id}")
         self.split_id = split_id
 
         if self.split_id == 0:
@@ -31,7 +27,6 @@ class SplitNN(ModerateCNN2):
 
     def forward(self, x):
         x = self.split_forward(x)
-        print(f"#########Forward {self.split_forward} x", x.shape)
         return x
 
     def get_split_id(self):
@@ -49,7 +44,7 @@ def print_grads(net):
             print(name, "grad", None)
 
 
-def test_splitnn():
+def test_splitnn():  # TODO: move to unit testing
     """Test SplitNN"""
 
     lr = 1e-2
@@ -104,26 +99,14 @@ def test_splitnn():
     )
 
     train_image_dataset = CIFAR10SplitNN(
-        root="/tmp/cifar10_vertical",
-        train=True,
-        download=True,
-        transform=transform_train,
-        returns="image"
+        root="/tmp/cifar10_vertical", train=True, download=True, transform=transform_train, returns="image"
     )
     train_label_dataset = CIFAR10SplitNN(
-        root="/tmp/cifar10_vertical",
-        train=True,
-        download=True,
-        transform=transform_train,
-        returns="label"
+        root="/tmp/cifar10_vertical", train=True, download=True, transform=transform_train, returns="label"
     )
 
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=bs, shuffle=True, num_workers=2
-    )
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=bs, shuffle=False, num_workers=2
-    )
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=bs, shuffle=True, num_workers=2)
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=bs, shuffle=False, num_workers=2)
 
     def valid(model1, model2, data_loader, device):
         model1.eval()
@@ -186,12 +169,12 @@ def test_splitnn():
 
     # main training loop
     writer = SummaryWriter("./")
-    #epoch_len = len(train_loader)
-    epoch_len = int(train_size/bs)
+    # epoch_len = len(train_loader)
+    epoch_len = int(train_size / bs)
     for e in range(epoch_max):
         epoch_loss = 0
-        #for i, (inputs, targets) in enumerate(train_loader):
-            #epoch_loss += train(inputs=inputs.to(device), targets=targets.to(device))
+        # for i, (inputs, targets) in enumerate(train_loader):
+        # epoch_loss += train(inputs=inputs.to(device), targets=targets.to(device))
 
         for i in range(epoch_len):
             batch_indices = np.random.randint(0, train_size - 1, bs)
@@ -199,7 +182,7 @@ def test_splitnn():
             targets = train_label_dataset.get_batch(batch_indices)
             loss = train(inputs=inputs.to(device), targets=targets.to(device))
             epoch_loss += loss
-            writer.add_scalar("loss", loss, e*epoch_len + i)
+            writer.add_scalar("loss", loss, e * epoch_len + i)
 
         train_acc = valid(net1, net2, train_loader, device)
         val_acc = valid(net1, net2, valid_loader, device)

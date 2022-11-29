@@ -104,8 +104,6 @@ class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch s
             target_batch.append(torch.tensor(target, dtype=torch.long))
         img_batch = torch.stack(img_batch, dim=0)
         target_batch = torch.stack(target_batch, dim=0)
-        #print("img_batch", np.shape(img_batch), type(img_batch), img_batch.dtype)
-        #print("target_batch", np.shape(target_batch), type(target_batch), target_batch.dtype)
         if self.returns == "all":
             return img_batch, target_batch
         elif self.returns == "image":

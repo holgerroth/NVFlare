@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nvflare.apis.dxo import MetaKey, from_shareable
+from pt.learners.cifar10_learner_splitnn import SplitNNConstants
+
 from nvflare.apis.event_type import EventType
 from nvflare.apis.executor import Executor
 from nvflare.apis.fl_constant import ReturnCode
@@ -20,17 +21,12 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.learner_spec import Learner
-from nvflare.app_common.app_constant import AppConstants, ValidateType
-from pt.learners.cifar10_learner_splitnn import SplitNNConstants
 
 
 # TODO: maybe move all into one executor
 class SplitNNLearnerExecutor(Executor):
     def __init__(
-        self,
-        learner_id,
-        init_model_task=SplitNNConstants.TASK_INIT_MODEL,
-        train_task=SplitNNConstants.TASK_TRAIN
+        self, learner_id, init_model_task=SplitNNConstants.TASK_INIT_MODEL, train_task=SplitNNConstants.TASK_TRAIN
     ):
         """Key component to run learner on clients.
 
@@ -71,15 +67,13 @@ class SplitNNLearnerExecutor(Executor):
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         self.log_info(fl_ctx, f"Client trainer got task: {task_name}")
 
-        print("#" * 50)
-        print("# task_name", task_name)
-        print("#" * 50)
+        self.log_info(fl_ctx, f"Executing task {task_name}...")
         try:
             if task_name == self.init_model_task:
-                print("Initializing model...")
+                self.log_info(fl_ctx, "Initializing model...")
                 return self.learner.init_model(shareable=shareable, fl_ctx=fl_ctx, abort_signal=abort_signal)
             elif task_name == self.train_task:
-                print("Running training...")  # TODO: remove this? It's actually never executed.
+                self.log_info(fl_ctx, "Running training...")  # TODO: remove this? It's actually never executed.
             else:
                 self.log_error(fl_ctx, f"Could not handle task: {task_name}")
                 return make_reply(ReturnCode.TASK_UNKNOWN)
