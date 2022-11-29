@@ -6,8 +6,6 @@ from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, transforms
 
-# from pt.learners.cifar10_learner_splitnn import SplitNNConstants
-
 
 # TODO: maybe only use the part net that is being used
 #  rather than inheriting the full net

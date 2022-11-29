@@ -196,9 +196,10 @@ class CIFAR10LearnerSplitNN(Learner):
         )
 
         # Select local TensorBoard writer or event-based writer for streaming
-        self.writer = parts.get(self.analytic_sender_id)  # user configured config_fed_client.json for streaming
-        if not self.writer:  # use local TensorBoard writer only
-            self.writer = SummaryWriter(self.app_root)
+        if self.split_id == 1:  # metrics can only be computed for client with labels
+            self.writer = parts.get(self.analytic_sender_id)  # user configured config_fed_client.json for streaming
+            if not self.writer:  # use local TensorBoard writer only
+                self.writer = SummaryWriter(self.app_root)
 
         # register aux message handlers
         engine = fl_ctx.get_engine()

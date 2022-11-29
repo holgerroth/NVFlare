@@ -33,7 +33,5 @@ class TensorDecomposer(fobs.Decomposer):
 
     def recompose(self, data: Any) -> torch.Tensor:
         stream = BytesIO(data)
-        print("@@@@@@@@@@@@ data", sys.getsizeof(data))
         array = np.load(stream, allow_pickle=False)
-        print("@@@@@@@@@@@@ array", np.shape(array))
         return torch.from_numpy(array)
