@@ -14,13 +14,14 @@
 
 import os
 import pickle
-import numpy as np
 from timeit import default_timer as timer
+
+import numpy as np
 import torch
 import torch.optim as optim
 from pt.utils.cifar10_dataset import CIFAR10SplitNN
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import datasets, transforms
+from torchvision import transforms
 
 from nvflare.apis.dxo import DXO, DataKind, from_shareable
 from nvflare.apis.fl_constant import FLContextKey, ReturnCode
@@ -29,8 +30,8 @@ from nvflare.apis.shareable import Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.learner_spec import Learner
 from nvflare.app_common.app_constant import AppConstants
-from nvflare.fuel.utils import fobs
 from nvflare.app_common.pt.pt_decomposers import TensorDecomposer
+from nvflare.fuel.utils import fobs
 
 
 def print_grads(net):
@@ -149,7 +150,6 @@ class CIFAR10LearnerSplitNN(Learner):
                 )
                 return
         if self.model and not isinstance(self.model, torch.nn.Module):
-            print("@@@@@@@@@@@ self.model", self.model)
             self.log_error(fl_ctx, f"expect model to be torch.nn.Module but got {type(self.model)}: {self.model}")
             return
         if self.model is None:
@@ -159,11 +159,9 @@ class CIFAR10LearnerSplitNN(Learner):
 
     def initialize(self, parts: dict, fl_ctx: FLContext):
         self._get_model(fl_ctx=fl_ctx)
-        #print("@@@@@@@@@@@@ self.model", self.model)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
         self.optimizer = optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
-        #self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.criterion = torch.nn.CrossEntropyLoss()
 
         self.transform_train = transforms.Compose(
@@ -194,11 +192,7 @@ class CIFAR10LearnerSplitNN(Learner):
             raise ValueError(f"Expected split_id to be '0' or '1' but was {self.split_id}")
 
         self.train_dataset = CIFAR10SplitNN(
-            root=self.dataset_root,
-            train=True,
-            download=True,
-            transform=self.transform_train,
-            returns=data_returns
+            root=self.dataset_root, train=True, download=True, transform=self.transform_train, returns=data_returns
         )
 
         # Select local TensorBoard writer or event-based writer for streaming
@@ -209,11 +203,14 @@ class CIFAR10LearnerSplitNN(Learner):
         # register aux message handlers
         engine = fl_ctx.get_engine()
 
-        engine.register_aux_message_handler(topic=self.data_step_task, message_handle_func=self.train_backward_data_side)
+        engine.register_aux_message_handler(
+            topic=self.data_step_task, message_handle_func=self.train_backward_data_side
+        )
         engine.register_aux_message_handler(topic=self.label_step_task, message_handle_func=self.train_label_side)
         self.log_info(fl_ctx, "Registered aux message handlers")
 
     """ training steps """
+
     def train_step_data_side(self, batch_indices):
         if self.timeit:
             self.times["learner_start_data_step"].append(timer())
@@ -243,40 +240,41 @@ class CIFAR10LearnerSplitNN(Learner):
         loss.backward()
 
         _, pred_labels = torch.max(pred, 1)
-        acc = (pred_labels == labels).sum()/len(labels)
+        acc = (pred_labels == labels).sum() / len(labels)
 
-        self.log_info(fl_ctx, f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}, accuracy: {acc.item():.4f}")
+        self.log_info(
+            fl_ctx,
+            f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}, accuracy: {acc.item():.4f}",
+        )
         if self.writer:
             self.writer.add_scalar("train_loss", loss, self.current_round)
             self.writer.add_scalar("train_accuracy", acc, self.current_round)
-
-        print(f"====== {self.client_name} Model with `split_id` {self.split_id} train_step_label_side grad: ======")
-        #print_grads(self.model)
 
         self.optimizer.step()
         if self.timeit:
             self.times["learner_end_label_step"].append(timer())
 
-        print("%%%%%%%%%%%32434322344 activations.grad", type(activations.grad))
         if not isinstance(activations.grad, torch.Tensor):
             raise ValueError("No valid gradients available!")
         return activations.grad  # gradient to be returned to other client
 
-    def backward_step_data_side(self, gradient):
+    def backward_step_data_side(self, gradient, fl_ctx: FLContext):
         if self.timeit:
             self.times["learner_start_backward_step"].append(timer())
         self.optimizer.zero_grad()
-        print("!!!!!!!!!!!!!!!!!!gradient", type(gradient))
+
         gradient = gradient.to(self.device)
         self.activations.backward(gradient=gradient)
         self.optimizer.step()
 
-        print(f"====== {self.client_name} Model with `split_id` {self.split_id} backward_step_data_side grad: ======")
-        #print_grads(self.model)
+        self.log_info(
+            fl_ctx, f"{self.client_name} runs model with `split_id` {self.split_id} for backward step on data side."
+        )
         if self.timeit:
             self.times["learner_end_backward_step"].append(timer())
 
     """ message_handle_func functions """
+
     def train_backward_data_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_train_back_step"].append(timer())
@@ -286,8 +284,9 @@ class CIFAR10LearnerSplitNN(Learner):
         gradient = dxo.get_meta_prop(SplitNNConstants.GRADIENT)
         if gradient is not None:
             result_backward = self.backward_data_side(topic=topic, request=request, fl_ctx=fl_ctx)
-            assert result_backward.get_return_code() == ReturnCode.OK, \
-                f"Backward step failed with return code {result_backward.get_return_code()}"
+            assert (
+                result_backward.get_return_code() == ReturnCode.OK
+            ), f"Backward step failed with return code {result_backward.get_return_code()}"
         # 2. compute activations
         results_activations = self.train_data_side(topic=topic, request=request, fl_ctx=fl_ctx)
         if self.timeit:
@@ -298,7 +297,9 @@ class CIFAR10LearnerSplitNN(Learner):
         if self.timeit:
             self.times["aux_hdl_learner_start_data_train_step"].append(timer())
         if self.split_id != 0:
-            raise ValueError(f"Expected `split_id` 0. It doesn't make sense to run `train_data_side` with `split_id` {self.split_id}")
+            raise ValueError(
+                f"Expected `split_id` 0. It doesn't make sense to run `train_data_side` with `split_id` {self.split_id}"
+            )
 
         self.current_round = request.get_header(AppConstants.CURRENT_ROUND)
         self.num_rounds = request.get_header(AppConstants.NUM_ROUNDS)
@@ -311,10 +312,13 @@ class CIFAR10LearnerSplitNN(Learner):
 
         activations = self.train_step_data_side(batch_indices=batch_indices)
 
-        print(f"====== {self.client_name} Model with `split_id` {self.split_id} train_data_side finished:")
-        self.log_info(fl_ctx, "train_data_side finished.")
+        self.log_info(
+            fl_ctx, f"{self.client_name} finished model with `split_id` {self.split_id} for train on data side."
+        )
 
-        return_shareable = DXO(data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.ACTIVATIONS: fobs.dumps(activations)}).to_shareable()
+        return_shareable = DXO(
+            data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.ACTIVATIONS: fobs.dumps(activations)}
+        ).to_shareable()
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_step"].append(timer())
         self.log_info(fl_ctx, f"Sending train data return_shareable: {type(return_shareable)}")
@@ -324,7 +328,9 @@ class CIFAR10LearnerSplitNN(Learner):
         if self.timeit:
             self.times["aux_hdl_learner_start_label_train_step"].append(timer())
         if self.split_id != 1:
-            raise ValueError(f"Expected `split_id` 1. It doesn't make sense to run `train_label_side` with `split_id` {self.split_id}")
+            raise ValueError(
+                f"Expected `split_id` 1. It doesn't make sense to run `train_label_side` with `split_id` {self.split_id}"
+            )
 
         self.current_round = request.get_header(AppConstants.CURRENT_ROUND)
         self.num_rounds = request.get_header(AppConstants.NUM_ROUNDS)
@@ -339,10 +345,14 @@ class CIFAR10LearnerSplitNN(Learner):
         if activations is None:
             raise ValueError("No activations in DXO!")
 
-        gradient = self.train_step_label_side(batch_indices=batch_indices, activations=fobs.loads(activations), fl_ctx=fl_ctx)
+        gradient = self.train_step_label_side(
+            batch_indices=batch_indices, activations=fobs.loads(activations), fl_ctx=fl_ctx
+        )
 
         self.log_info(fl_ctx, "train_label_side finished.")
-        return_shareable = DXO(data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.GRADIENT: fobs.dumps(gradient)}).to_shareable()
+        return_shareable = DXO(
+            data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.GRADIENT: fobs.dumps(gradient)}
+        ).to_shareable()
         if self.timeit:
             self.times["aux_hdl_learner_end_label_train_step"].append(timer())
 
@@ -353,13 +363,15 @@ class CIFAR10LearnerSplitNN(Learner):
         if self.timeit:
             self.times["aux_hdl_learner_start_data_backward_step"].append(timer())
         if self.split_id != 0:
-            raise ValueError(f"Expected `split_id` 0. It doesn't make sense to run `backward_data_side` with `split_id` {self.split_id}")
+            raise ValueError(
+                f"Expected `split_id` 0. It doesn't make sense to run `backward_data_side` with `split_id` {self.split_id}"
+            )
 
         dxo = from_shareable(request)
         gradient = dxo.get_meta_prop(SplitNNConstants.GRADIENT)
         if gradient is None:
             raise ValueError("No gradient in DXO!")
-        self.backward_step_data_side(gradient=fobs.loads(gradient))
+        self.backward_step_data_side(gradient=fobs.loads(gradient), fl_ctx=fl_ctx)
 
         self.log_info(fl_ctx, "backward_data_side finished.")
         if self.timeit:
@@ -376,11 +388,9 @@ class CIFAR10LearnerSplitNN(Learner):
         # update local model weights with received weights
         dxo = from_shareable(shareable)
         global_weights = dxo.data
-        print("##########!!!!!!! global_weights", global_weights.keys())
 
         # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
         local_var_dict = self.model.state_dict()
-        print("##########!!!!!!! local_var_dict", local_var_dict.keys())
         model_keys = global_weights.keys()
         n_loaded = 0
         for var_name in local_var_dict:
@@ -390,7 +400,9 @@ class CIFAR10LearnerSplitNN(Learner):
                 weights = global_weights[var_name]
                 try:
                     # reshape global weights to compute difference later on
-                    global_weights[var_name] = np.reshape(weights, local_var_dict[var_name].shape)  # TODO: check if this is needed for SplitNN
+                    global_weights[var_name] = np.reshape(
+                        weights, local_var_dict[var_name].shape
+                    )  # TODO: check if this is needed for SplitNN
                     # update the local dict
                     local_var_dict[var_name] = torch.as_tensor(global_weights[var_name])
                     n_loaded += 1

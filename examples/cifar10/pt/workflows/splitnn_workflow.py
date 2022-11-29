@@ -11,28 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import traceback
+import os
+import pickle
+from timeit import default_timer as timer
+
+import numpy as np
+from pt.learners.cifar10_learner_splitnn import SplitNNConstants
 
 from nvflare.apis.client import Client
+from nvflare.apis.dxo import DXO, DataKind, from_shareable
 from nvflare.apis.fl_constant import FLContextKey, ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.impl.controller import ClientTask, Controller, Task
+from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
-from nvflare.app_common.abstract.aggregator import Aggregator
 from nvflare.app_common.abstract.learnable_persistor import LearnablePersistor
 from nvflare.app_common.abstract.shareable_generator import ShareableGenerator
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.app_event_type import AppEventType
 from nvflare.widgets.info_collector import GroupInfoCollector, InfoCollector
-from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
-from nvflare.apis.shareable import ReservedHeaderKey, Shareable
-
-from pt.learners.cifar10_learner_splitnn import SplitNNConstants
-
-import os
-import pickle
-import numpy as np
-from timeit import default_timer as timer
 
 
 class SplitNNController(Controller):
@@ -40,17 +37,16 @@ class SplitNNController(Controller):
         self,
         num_rounds: int = 5000,
         start_round: int = 0,
-        persistor_id=AppConstants.DEFAULT_PERSISTOR_ID, # used to init the models on both clients # TODO some way to collect data on server
+        persistor_id=AppConstants.DEFAULT_PERSISTOR_ID,  # used to init the models on both clients # TODO some way to collect data on server
         shareable_generator_id=AppConstants.DEFAULT_SHAREABLE_GENERATOR_ID,
         init_model_task=SplitNNConstants.TASK_INIT_MODEL,
         data_step_task=SplitNNConstants.TASK_DATA_STEP,
         label_step_task=SplitNNConstants.TASK_LABEL_STEP,
-        #data_backward_step_task=SplitNNConstants.TASK_BACKWARD_STEP,
         task_timeout: int = 10,
         ignore_result_error: bool = True,
         batch_size: int = 256,
         train_size: int = 50000,  # CIFAR-10 training set
-        timeit: bool = False
+        timeit: bool = False,
     ):
         """The controller for FederatedAveraging Workflow.
 
@@ -91,8 +87,6 @@ class SplitNNController(Controller):
             raise TypeError("data_step_task must be a string but got {}".format(type(data_step_task)))
         if not isinstance(label_step_task, str):
             raise TypeError("label_step_task must be a string but got {}".format(type(label_step_task)))
-        #if not isinstance(data_backward_step_task, str):
-        #    raise TypeError("data_backward_step_task must be a string but got {}".format(type(data_backward_step_task)))
         if num_rounds < 0:
             raise ValueError("num_rounds must be greater than or equal to 0.")
         if start_round < 0:
@@ -118,9 +112,8 @@ class SplitNNController(Controller):
         self.init_model_task = init_model_task
         self.data_step_task = data_step_task
         self.label_step_task = label_step_task
-        #self.data_backward_step_task = data_backward_step_task
 
-        self.targets_names = ["site-1", "site-2"]  # TODO: hardcoded order! Maybe configureable.
+        self.targets_names = ["site-1", "site-2"]  # TODO: hardcoded order! Maybe configurable.
         self.nr_supported_clients = 2
         self.batch_size = batch_size
         self.train_size = train_size
@@ -169,7 +162,9 @@ class SplitNNController(Controller):
                 return False
             else:
                 if rc in [ReturnCode.MISSING_PEER_CONTEXT, ReturnCode.BAD_PEER_CONTEXT]:
-                    self.system_panic(f"Peer context for task {task} is bad or missing. SplitNNController exiting.", fl_ctx=fl_ctx)
+                    self.system_panic(
+                        f"Peer context for task {task} is bad or missing. SplitNNController exiting.", fl_ctx=fl_ctx
+                    )
                     return False
                 elif rc in [ReturnCode.EXECUTION_EXCEPTION, ReturnCode.TASK_UNKNOWN]:
                     self.system_panic(
@@ -181,7 +176,10 @@ class SplitNNController(Controller):
                     ReturnCode.TASK_DATA_FILTER_ERROR,
                     ReturnCode.TASK_RESULT_FILTER_ERROR,
                 ]:
-                    self.system_panic(f"Execution result for task {task} is not a shareable. SplitNNController exiting.", fl_ctx=fl_ctx)
+                    self.system_panic(
+                        f"Execution result for task {task} is not a shareable. SplitNNController exiting.",
+                        fl_ctx=fl_ctx,
+                    )
                     return False
 
         # assign result to current task
@@ -196,9 +194,6 @@ class SplitNNController(Controller):
 
         # Task for one SplitNN training step
         targets = engine.get_clients()
-        #if len(targets) != self.nr_supported_clients:  # TODO: allow more clients being registered
-        #    self.system_panic(f"only two clients supported but there are {len(targets)}", fl_ctx)
-
         for t in targets:
             if t.name not in self.targets_names:
                 self.system_panic(f"Client {t.name} not in expected target names: {self.targets_names}", fl_ctx)
@@ -229,22 +224,27 @@ class SplitNNController(Controller):
         with self._engine.new_context() as record_fl_ctx:  # TODO: this is needed to make the fl_ctx available in the record filter
             record_fl_ctx.set_prop(SplitNNConstants.BATCH_INDICES, self.batch_indices, private=True, sticky=True)
 
-        dxo = DXO(data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.BATCH_INDICES: self.batch_indices,
-                                                                 SplitNNConstants.GRADIENT: gradients})
+        dxo = DXO(
+            data={},
+            data_kind=DataKind.WEIGHT_DIFF,
+            meta={SplitNNConstants.BATCH_INDICES: self.batch_indices, SplitNNConstants.GRADIENT: gradients},
+        )
 
         data_shareable = dxo.to_shareable()
         data_shareable.set_header(AppConstants.CURRENT_ROUND, self._current_round)
         data_shareable.set_header(AppConstants.NUM_ROUNDS, self._num_rounds)
         data_shareable.add_cookie(AppConstants.CONTRIBUTION_ROUND, self._current_round)
 
-        result = engine.send_aux_request(targets=[self.targets_names[0]],
-                                         topic=SplitNNConstants.TASK_DATA_STEP,
-                                         request=data_shareable,
-                                         timeout=SplitNNConstants.TIMEOUT, fl_ctx=fl_ctx)
+        result = engine.send_aux_request(
+            targets=[self.targets_names[0]],
+            topic=SplitNNConstants.TASK_DATA_STEP,
+            request=data_shareable,
+            timeout=SplitNNConstants.TIMEOUT,
+            fl_ctx=fl_ctx,
+        )
         shareable = result.get(self.targets_names[0])  # TODO: handle None
-        print(f"2.1 @@@@@@@@@@@@@@@@@ {SplitNNConstants.TASK_DATA_STEP} result shareable: {type(shareable)}")
         dxo = from_shareable(shareable)
-        print(f"2.1 ########## result {SplitNNConstants.ACTIVATIONS}: {type(dxo.get_meta_props().get(SplitNNConstants.ACTIVATIONS))}") #{dxo.get_meta_props().get(SplitNNConstants.ACTIVATIONS).shape}")
+
         # add batch indices
         dxo.set_meta_prop(SplitNNConstants.BATCH_INDICES, self.batch_indices)
 
@@ -256,18 +256,18 @@ class SplitNNController(Controller):
         """ 2.2 label train step """
         if self.timeit:
             self.times["wf_before_label_step"].append(timer())
-        result = engine.send_aux_request(targets=[self.targets_names[1]],
-                                         topic=SplitNNConstants.TASK_LABEL_STEP,
-                                         request=data_shareable,
-                                         timeout=SplitNNConstants.TIMEOUT, fl_ctx=fl_ctx)
+        result = engine.send_aux_request(
+            targets=[self.targets_names[1]],
+            topic=SplitNNConstants.TASK_LABEL_STEP,
+            request=data_shareable,
+            timeout=SplitNNConstants.TIMEOUT,
+            fl_ctx=fl_ctx,
+        )
         shareable = result.get(self.targets_names[1])  # TODO: handle None
         if shareable is None:  # TODO: handle None
-            self.log_warning(fl_ctx, "Received None.")
+            self.log_warning(fl_ctx, "Received no gradients.")
             return None
-        print(f"2.2 @@@@@@@@@@@@@@@@@ {SplitNNConstants.TASK_LABEL_STEP} result shareable: {type(shareable)}")
-
         gradients = from_shareable(shareable).get_meta_props().get(SplitNNConstants.GRADIENT)
-        print(f"2.2 ########## result {SplitNNConstants.GRADIENT}: {type(gradients)}") #{gradients.shape}")
 
         if self.timeit:
             self.times["wf_after_label_step"].append(timer())
@@ -277,9 +277,6 @@ class SplitNNController(Controller):
         try:
             engine = fl_ctx.get_engine()
             targets = engine.get_clients()
-            #if len(targets) != self.nr_supported_clients:
-            #    self.system_panic(f"only two clients supported but there are {len(targets)}", fl_ctx)  # TODO: Better have min nr. clients and send between both of them.
-
             targets_dict = {}
             for t in targets:
                 if t.name not in self.targets_names:
