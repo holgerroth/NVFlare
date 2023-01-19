@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-import pickle
+import pickle  # TODO: remove
 from timeit import default_timer as timer
 
 import numpy as np
@@ -64,7 +64,6 @@ class CIFAR10LearnerSplitNN(Learner):
         init_model_task=SplitNNConstants.TASK_INIT_MODEL,
         data_step_task=SplitNNConstants.TASK_DATA_STEP,
         label_step_task=SplitNNConstants.TASK_LABEL_STEP,
-        data_backward_step_task=SplitNNConstants.TASK_BACKWARD_STEP,
         lr: float = 1e-2,
         model: dict = None,
         timeit: bool = False,  # TODO: remove option
@@ -77,7 +76,6 @@ class CIFAR10LearnerSplitNN(Learner):
             init_model_task:
             data_step_task:
             label_step_task:
-            data_backward_step_task:
             model:
             analytic_sender_id: id of `AnalyticsSender` if configured as a client component. If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
         """
@@ -86,7 +84,6 @@ class CIFAR10LearnerSplitNN(Learner):
         self.init_model_task = init_model_task
         self.data_step_task = data_step_task
         self.label_step_task = label_step_task
-        self.data_backward_step_task = data_backward_step_task
         self.lr = lr
         self.model = model
         self.analytic_sender_id = analytic_sender_id

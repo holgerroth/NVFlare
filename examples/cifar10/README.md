@@ -12,3 +12,7 @@ This example runs you through the process and includes instructions on running
 [FedAvg](https://arxiv.org/abs/1602.05629) with streaming of TensorBoard metrics to the server during training 
 and [homomorphic encryption](https://developer.nvidia.com/blog/federated-learning-with-homomorphic-encryption/)
 for secure server-side aggregation.
+
+### [Split learning with CIFAR-10](./cifar10-splitnn/README.md)
+This example includes instructions on how to run [split learning](https://arxiv.org/abs/1810.06060) 
+using the CIFAR-10 dataset and the FL simulator in a vertical FL scenario.
