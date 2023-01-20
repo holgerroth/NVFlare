@@ -59,7 +59,8 @@ class CIFAR10_Idx(torch.utils.data.Dataset):
 
 
 class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch sampling
-    def __init__(self, root, train=True, transform=None, download=False, returns="all"):
+    def __init__(self, root, train=True, transform=None, download=False,
+                 returns="all", intersect_idx=None):
         """CIFAR-10 dataset with index to extract a mini-batch based on given batch indices
         Useful for SplitNN training
 
@@ -71,6 +72,9 @@ class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch s
             transform: image transforms
             download: whether to download the data (default: False)
             returns: specify which data the client has
+            intersect_idx: indices of samples intersecting between both
+                participating sites. Intersection indices will be sorted to
+                ensure that data is aligned on both sites.
         Returns:
             A PyTorch dataset
         """
@@ -79,13 +83,22 @@ class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch s
         self.transform = transform
         self.download = download
         self.returns = returns
+        self.intersect_idx = intersect_idx
+
+        if self.intersect_idx is not None:
+            self.intersect_idx = np.sort(self.intersect_idx).astype(np.int64)
+
         self.data, self.target = self.__build_cifar_subset__()
 
     def __build_cifar_subset__(self):
-        # if index provided, extract subset, otherwise use the whole set
+        # if intersect index provided, extract subset, otherwise use the whole
+        # set
         cifar_dataobj = datasets.CIFAR10(self.root, self.train, self.transform, self.download)
         data = cifar_dataobj.data
         target = np.array(cifar_dataobj.targets)
+        if self.intersect_idx is not None:
+            data = data[self.intersect_idx]
+            target = target[self.intersect_idx]
         return data, target
 
     def __getitem__(self, index):

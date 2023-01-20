@@ -2,6 +2,7 @@
   "format_version": 2,
 
   "DATASET_ROOT": "/tmp/cifar10",
+  "INTERSECTION_FILE": "/tmp/nvflare/cifar10_psi/simulate_job/site-1/psi/intersection.txt",
 
   "executors": [
     {
@@ -30,6 +31,7 @@
       "path": "pt.learners.cifar10_learner_splitnn.CIFAR10LearnerSplitNN",
       "args": {
         "dataset_root": "{DATASET_ROOT}",
+        "intersection_file": "{INTERSECTION_FILE}",
         "lr": 1e-2,
         "model": {"path": "pt.networks.split_nn.SplitNN", "args":  {"split_id":  1}},
         "timeit": true
