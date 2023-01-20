@@ -23,14 +23,13 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--split_dir", type=str,
-                        default="/tmp/cifar10_vert_splits", help="output "
-                                                                 "folder")
+    parser.add_argument("--split_dir", type=str, default="/tmp/cifar10_vert_splits", help="output folder")
+    parser.add_argument("--overlap", type=int, default=10_000, help="number of overlapping samples")
     args = parser.parse_args()
 
     splitter = Cifar10VerticalDataSplitter(
         split_dir=args.split_dir,
-        overlap=10_000
+        overlap=args.overlap
     )
 
     # set up a dummy context for logging
