@@ -65,7 +65,7 @@ class SplitNNController(Controller):
             task_timeout (int, optional): timeout (in sec) to determine if one client fails to request the task which it is assigned to . Defaults to 10.
             ignore_result_error (bool, optional): whether this controller can proceed if result has errors. Defaults to True.
             train_size: int = 50_000,  # overlapping set of CIFAR-10 training set.
-                Defaults to the full dataset size of 50_000
+                Defaults to the full dataset size of 50_000   # TODO: get dataset sizes from clients? Check they have the same size!
         Raises:
             TypeError: when any of input arguments does not have correct type
             ValueError: when any of input arguments is out of range
