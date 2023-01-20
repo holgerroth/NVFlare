@@ -45,7 +45,8 @@ class SplitNNController(Controller):
         task_timeout: int = 10,
         ignore_result_error: bool = True,
         batch_size: int = 256,
-        train_size: int = 50000,  # CIFAR-10 training set
+        train_size: int = 50_000,  # overlapping set of CIFAR-10 training
+            # set. D
         timeit: bool = False,
     ):
         """The controller for FederatedAveraging Workflow.
@@ -63,7 +64,8 @@ class SplitNNController(Controller):
             shareable_generator_id (str, optional): ID of the shareable generator. Defaults to "shareable_generator".
             task_timeout (int, optional): timeout (in sec) to determine if one client fails to request the task which it is assigned to . Defaults to 10.
             ignore_result_error (bool, optional): whether this controller can proceed if result has errors. Defaults to True.
-
+            train_size: int = 50_000,  # overlapping set of CIFAR-10 training set.
+                Defaults to the full dataset size of 50_000
         Raises:
             TypeError: when any of input arguments does not have correct type
             ValueError: when any of input arguments is out of range

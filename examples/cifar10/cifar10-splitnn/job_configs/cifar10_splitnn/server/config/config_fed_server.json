@@ -3,6 +3,7 @@
 
   "num_rounds": 15625,
   "batch_size": 64,
+  "train_size": 10000,
 
   "server": {
     "heart_beat_timeout": 600
@@ -37,6 +38,7 @@
         "args": {
             "num_rounds" : "{num_rounds}",
             "batch_size": "{batch_size}",
+            "train_size": "{train_size}",
             "start_round": 0,
             "persistor_id": "persistor",
             "task_timeout": 0,

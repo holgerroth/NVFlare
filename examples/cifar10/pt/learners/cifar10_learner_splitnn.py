@@ -61,6 +61,7 @@ class CIFAR10LearnerSplitNN(Learner):
     def __init__(
         self,
         dataset_root: str = "./dataset",
+        intersection_file: str = "./intersection.txt",
         init_model_task=SplitNNConstants.TASK_INIT_MODEL,
         data_step_task=SplitNNConstants.TASK_DATA_STEP,
         label_step_task=SplitNNConstants.TASK_LABEL_STEP,
@@ -73,6 +74,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
         Args:
             dataset_root: directory with CIFAR-10 data.
+            intersection_file:
             init_model_task:
             data_step_task:
             label_step_task:
@@ -81,6 +83,7 @@ class CIFAR10LearnerSplitNN(Learner):
         """
         super().__init__()
         self.dataset_root = dataset_root
+        self.intersection_file = intersection_file
         self.init_model_task = init_model_task
         self.data_step_task = data_step_task
         self.label_step_task = label_step_task
@@ -189,7 +192,9 @@ class CIFAR10LearnerSplitNN(Learner):
             raise ValueError(f"Expected split_id to be '0' or '1' but was {self.split_id}")
 
         self.train_dataset = CIFAR10SplitNN(
-            root=self.dataset_root, train=True, download=True, transform=self.transform_train, returns=data_returns
+            root=self.dataset_root, train=True, download=True,
+            transform=self.transform_train, returns=data_returns,
+            intersect_idx=np.loadtxt(self.intersection_file)
         )
 
         # Select local TensorBoard writer or event-based writer for streaming
