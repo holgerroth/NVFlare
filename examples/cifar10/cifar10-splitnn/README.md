@@ -33,10 +33,11 @@ Set `PYTHONPATH` to include custom files of this example:
 export PYTHONPATH=${PWD}/..
 ```
 
-### 2. Download the CIFAR-10 dataset 
-To speed up the following experiments, first download the [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) dataset:
+## 2. Download and split the CIFAR-10 dataset 
+To simulate a vertical split dataset, we first download the [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) dataset
+and distribute it between the two clients.
 ```
-python3 ../pt/utils/cifar10_download_data.py
+python3 ../pt/utils/cifar10_vertical_split_data.py
 ```
 
 ## 3. Run simulated SL experiments
