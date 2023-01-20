@@ -18,11 +18,18 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 from nvflare.apis.fl_constant import ReservedKey
+import argparse
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--split_dir", type=str,
+                        default="/tmp/cifar10_vert_splits", help="output "
+                                                                 "folder")
+    args = parser.parse_args()
+
     splitter = Cifar10VerticalDataSplitter(
-        split_dir="/tmp/cifar10_vert_splits",
+        split_dir=args.split_dir,
         overlap=10_000
     )
 
