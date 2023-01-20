@@ -60,7 +60,8 @@ class Cifar10VerticalDataSplitter(FLComponent):
             sum_file.write(json.dumps(class_sum))
 
         for _site, _idx in site_idx.items():
-            site_file_name = os.path.join(self.split_dir, _site + ".npy")
+            site_file_name = os.path.join(self.split_dir, f"{_site}.npy")
+            self.log_info(fl_ctx, f"save {site_file_name}")
             np.save(site_file_name, _idx)
 
     def _split_data(self):

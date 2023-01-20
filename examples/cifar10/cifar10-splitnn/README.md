@@ -10,7 +10,7 @@ Activations and corresponding gradients are being exchanged between the clients 
 For instructions of how to run CIFAR-10 in real-world deployment settings, 
 see the example on ["Real-world Federated Learning with CIFAR-10"](../cifar10-real-world/README.md).
 
-## (Optional) 1. Set up a virtual environment
+## (Optional) Set up a virtual environment
 ```
 python3 -m pip install --user --upgrade pip
 python3 -m pip install --user virtualenv
@@ -33,18 +33,11 @@ Set `PYTHONPATH` to include custom files of this example:
 export PYTHONPATH=${PWD}/..
 ```
 
-## 2. Download and split the CIFAR-10 dataset 
-To simulate a vertical split dataset, we first download the [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) dataset
-and distribute it between the two clients.
+## Start Jupyter notebook  
+Start a Jupyter Lab
 ```
-python3 ../pt/utils/cifar10_vertical_split_data.py
+jupyter lab .
 ```
+and open [cifar10_split_learning.ipynb](./cifar10_split_learning.ipynb).
 
-## 3. Run simulated SL experiments
-
-We are using NVFlare's [FL simulator](https://nvflare.readthedocs.io/en/latest/user_guide/fl_simulator.html) to run the following experiments. 
-
-To run the experiment, execute:
-```
-nvflare simulator job_configs/cifar10_splitnn --workspace /tmp/nvflare/splitnn_cifar10 --threads 2 --n_clients 2
-```
+See [here](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) for installing Jupyter Lab.
