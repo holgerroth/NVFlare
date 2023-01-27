@@ -41,16 +41,19 @@ def print_grads(net):
         else:
             print(name, "grad", None)
 
-
-class SplitNNConstants(object):
-    BATCH_INDICES = "_splitnn_batch_indices_"
+class SplitNNDataKind(object):
     ACTIVATIONS = "_splitnn_activations_"
     GRADIENT = "_splitnn_gradient_"
 
+class SplitNNConstants(object):
+    BATCH_INDICES = "_splitnn_batch_indices_"
+    DATA = "_splitnn_data_"
+    BATCH_SIZE = "_splitnn_batch_size_"
+
     TASK_INIT_MODEL = "_splitnn_task_init_model_"
-    TASK_DATA_STEP = "_splitnn_task_data_step_"
+    #TASK_DATA_STEP = "_splitnn_task_data_step_"
     TASK_LABEL_STEP = "_splitnn_task_label_step_"
-    TASK_BACKWARD_STEP = "_splitnn_task_backward_step_"
+    #TASK_BACKWARD_STEP = "_splitnn_task_backward_step_"
     TASK_TRAIN = "_splitnn_task_train_"
 
     TASK_RESULT = "_splitnn_task_result_"
@@ -62,9 +65,9 @@ class CIFAR10LearnerSplitNN(Learner):
         self,
         dataset_root: str = "./dataset",
         intersection_file: str = "./intersection.txt",
-        init_model_task=SplitNNConstants.TASK_INIT_MODEL,
-        data_step_task=SplitNNConstants.TASK_DATA_STEP,
-        label_step_task=SplitNNConstants.TASK_LABEL_STEP,
+        #init_model_task=SplitNNConstants.TASK_INIT_MODEL,
+        #data_step_task=SplitNNConstants.TASK_DATA_STEP,
+        label_step_task_name=SplitNNConstants.TASK_LABEL_STEP,
         lr: float = 1e-2,
         model: dict = None,
         timeit: bool = False,  # TODO: remove option
@@ -77,23 +80,25 @@ class CIFAR10LearnerSplitNN(Learner):
             intersection_file:
             init_model_task:
             data_step_task:
-            label_step_task:
+            label_step_task_name:
             model:
             analytic_sender_id: id of `AnalyticsSender` if configured as a client component. If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
         """
         super().__init__()
         self.dataset_root = dataset_root
         self.intersection_file = intersection_file
-        self.init_model_task = init_model_task
-        self.data_step_task = data_step_task
-        self.label_step_task = label_step_task
+        #self.init_model_task = init_model_task
+        #self.data_step_task = data_step_task
+        self.label_step_task_name = label_step_task_name
         self.lr = lr
         self.model = model
         self.analytic_sender_id = analytic_sender_id
+        self.targets_names = ["site-1", "site-2"]  # TODO: hardcoded order! Maybe configurable.
 
         self.app_root = None
         self.current_round = None
         self.num_rounds = None
+        self.batch_size = None
         self.writer = None
         self.client_name = None
         self.device = None
@@ -103,6 +108,8 @@ class CIFAR10LearnerSplitNN(Learner):
         self.train_dataset = None
         self.split_id = None
         self.activations = None
+        self.batch_indices = None
+        self.train_size = 0
 
         # use FOBS serializing/deserializing PyTorch tensors
         fobs.register(TensorDecomposer)
@@ -196,6 +203,10 @@ class CIFAR10LearnerSplitNN(Learner):
             transform=self.transform_train, returns=data_returns,
             intersect_idx=np.loadtxt(self.intersection_file)
         )
+        self.train_size = len(self.train_dataset)
+        if self.train_size <= 0:
+            raise ValueError(f"Expected train dataset size to be larger zero but got {self.train_size}")
+        self.log_info(fl_ctx, f"Training with {self.train_size} overlapping indices of {self.train_dataset.orig_size}.")
 
         # Select local TensorBoard writer or event-based writer for streaming
         if self.split_id == 1:  # metrics can only be computed for client with labels
@@ -206,11 +217,12 @@ class CIFAR10LearnerSplitNN(Learner):
         # register aux message handlers
         engine = fl_ctx.get_engine()
 
-        engine.register_aux_message_handler(
-            topic=self.data_step_task, message_handle_func=self.train_backward_data_side
-        )
-        engine.register_aux_message_handler(topic=self.label_step_task, message_handle_func=self.train_label_side)
-        self.log_info(fl_ctx, "Registered aux message handlers")
+        #engine.register_aux_message_handler(
+        #    topic=self.data_step_task, message_handle_func=self.train_backward_data_side
+        #)
+        if self.split_id == 1:
+            engine.register_aux_message_handler(topic=self.label_step_task_name, message_handle_func=self.train_label_side)
+            self.log_info(fl_ctx, f"Registered aux message handlers for split_id {self.split_id}")
 
     """ training steps """
 
@@ -278,25 +290,23 @@ class CIFAR10LearnerSplitNN(Learner):
 
     """ message_handle_func functions """
 
-    def train_backward_data_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+    def train_backward_data_side(self, fl_ctx: FLContext, gradient=None) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_train_back_step"].append(timer())
         # combine forward and backward on data client
         # 1. perform backward step if gradients provided
-        dxo = from_shareable(request)
-        gradient = dxo.get_meta_prop(SplitNNConstants.GRADIENT)
         if gradient is not None:
-            result_backward = self.backward_data_side(topic=topic, request=request, fl_ctx=fl_ctx)
+            result_backward = self.backward_data_side(gradient, fl_ctx=fl_ctx)
             assert (
                 result_backward.get_return_code() == ReturnCode.OK
             ), f"Backward step failed with return code {result_backward.get_return_code()}"
         # 2. compute activations
-        results_activations = self.train_data_side(topic=topic, request=request, fl_ctx=fl_ctx)
+        results_activations = self.train_data_side(fl_ctx=fl_ctx)
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_back_step"].append(timer())
         return results_activations
 
-    def train_data_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+    def train_data_side(self, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_train_step"].append(timer())
         if self.split_id != 0:
@@ -304,28 +314,18 @@ class CIFAR10LearnerSplitNN(Learner):
                 f"Expected `split_id` 0. It doesn't make sense to run `train_data_side` with `split_id` {self.split_id}"
             )
 
-        self.current_round = request.get_header(AppConstants.CURRENT_ROUND)
-        self.num_rounds = request.get_header(AppConstants.NUM_ROUNDS)
         self.log_info(fl_ctx, f"Train data side in round {self.current_round} of {self.num_rounds} rounds.")
 
-        dxo = from_shareable(request)
-        batch_indices = dxo.get_meta_prop(SplitNNConstants.BATCH_INDICES)
-        if batch_indices is None:
-            raise ValueError("No batch indices in DXO!")
-
-        activations = self.train_step_data_side(batch_indices=batch_indices)
+        activations = self.train_step_data_side(batch_indices=self.batch_indices)
 
         self.log_info(
             fl_ctx, f"{self.client_name} finished model with `split_id` {self.split_id} for train on data side."
         )
 
-        return_shareable = DXO(
-            data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.ACTIVATIONS: fobs.dumps(activations)}
-        ).to_shareable()
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_step"].append(timer())
-        self.log_info(fl_ctx, f"Sending train data return_shareable: {type(return_shareable)}")
-        return return_shareable
+        self.log_info(fl_ctx, f"Sending train data activations: {type(activations)}")
+        return activations
 
     def train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
@@ -340,11 +340,14 @@ class CIFAR10LearnerSplitNN(Learner):
         self.log_info(fl_ctx, f"Train label in round {self.current_round} of {self.num_rounds} rounds.")
 
         dxo = from_shareable(request)
+        if dxo.data_kind != SplitNNDataKind.ACTIVATIONS:
+            raise ValueError(f"Expected data kind {SplitNNDataKind.ACTIVATIONS} but received {dxo.data_kind}")
+
         batch_indices = dxo.get_meta_prop(SplitNNConstants.BATCH_INDICES)
         if batch_indices is None:
             raise ValueError("No batch indices in DXO!")
 
-        activations = dxo.get_meta_prop(SplitNNConstants.ACTIVATIONS)
+        activations = dxo.data.get(SplitNNConstants.DATA)
         if activations is None:
             raise ValueError("No activations in DXO!")
 
@@ -354,7 +357,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.log_info(fl_ctx, "train_label_side finished.")
         return_shareable = DXO(
-            data={}, data_kind=DataKind.WEIGHT_DIFF, meta={SplitNNConstants.GRADIENT: fobs.dumps(gradient)}
+            data={SplitNNConstants.DATA: fobs.dumps(gradient)}, data_kind=SplitNNDataKind.GRADIENT
         ).to_shareable()
         if self.timeit:
             self.times["aux_hdl_learner_end_label_train_step"].append(timer())
@@ -362,7 +365,7 @@ class CIFAR10LearnerSplitNN(Learner):
         self.log_info(fl_ctx, f"Sending train label return_shareable: {type(return_shareable)}")
         return return_shareable
 
-    def backward_data_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+    def backward_data_side(self, gradient, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_backward_step"].append(timer())
         if self.split_id != 0:
@@ -370,10 +373,6 @@ class CIFAR10LearnerSplitNN(Learner):
                 f"Expected `split_id` 0. It doesn't make sense to run `backward_data_side` with `split_id` {self.split_id}"
             )
 
-        dxo = from_shareable(request)
-        gradient = dxo.get_meta_prop(SplitNNConstants.GRADIENT)
-        if gradient is None:
-            raise ValueError("No gradient in DXO!")
         self.backward_step_data_side(gradient=fobs.loads(gradient), fl_ctx=fl_ctx)
 
         self.log_info(fl_ctx, "backward_data_side finished.")
@@ -418,6 +417,60 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.log_info(fl_ctx, "init_model finished.")
         return make_reply(ReturnCode.OK)
+
+    def train(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
+
+        self.num_rounds = shareable.get_header(AppConstants.NUM_ROUNDS)
+        if not self.num_rounds:
+            raise ValueError("No number of rounds available.")
+        self.batch_size = shareable.get_header(SplitNNConstants.BATCH_SIZE)
+
+        gradients = None  # initial gradients
+        for self.current_round in range(self.num_rounds):
+            if self.split_id != 0:
+                continue   # only run this logic on first site
+
+            if abort_signal.triggered:
+                return make_reply(ReturnCode.TASK_ABORTED)
+            engine = fl_ctx.get_engine()
+            self.log_debug(fl_ctx, f"Starting current round={self.current_round} of {self.num_rounds}.")
+
+            self.batch_indices = np.random.randint(0, self.train_size - 1, self.batch_size)
+            #with self._engine.new_context() as record_fl_ctx:  # TODO: this is needed to make the fl_ctx available in the record filter
+                #record_fl_ctx.set_prop(SplitNNConstants.BATCH_INDICES, self.batch_indices, private=True, sticky=True)
+
+            # Site-1 image forward & backward (from 2nd round)
+            fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self.current_round, private=True, sticky=False)
+            activations = self.train_backward_data_side(fl_ctx, gradients)
+
+            # Site-2 label loss & backward
+            dxo = DXO(data={SplitNNConstants.DATA: fobs.dumps(activations)}, data_kind=SplitNNDataKind.ACTIVATIONS)
+            dxo.set_meta_prop(SplitNNConstants.BATCH_INDICES, self.batch_indices)
+
+            data_shareable = dxo.to_shareable()
+            data_shareable.set_header(AppConstants.CURRENT_ROUND, self.current_round)
+            data_shareable.set_header(AppConstants.NUM_ROUNDS, self.num_rounds)
+            data_shareable.add_cookie(AppConstants.CONTRIBUTION_ROUND, self.current_round)
+
+            print("SENDING to", self.targets_names[1])
+            result = engine.send_aux_request(
+                targets=[self.targets_names[1]],  # TODO: add self.other_site_name, self.my_site_name?
+                topic=self.label_step_task_name,
+                request=data_shareable,
+                timeout=SplitNNConstants.TIMEOUT,
+                fl_ctx=fl_ctx,
+            )
+            shareable = result.get(self.targets_names[1])  # TODO: handle None
+            dxo = from_shareable(shareable)
+            if dxo.data_kind != SplitNNDataKind.GRADIENT:
+                raise ValueError(f"Expected data kind {SplitNNDataKind.GRADIENT} but received {dxo.data_kind}")
+            gradients = dxo.data.get(SplitNNConstants.DATA)
+            print("GRADIENTS", gradients, type(gradients))
+
+            self.log_info(fl_ctx, f"Ending current round={self.current_round}.")
+
+        return make_reply(ReturnCode.OK)
+
 
     def finalize(self, fl_ctx: FLContext):
         if self.timeit:

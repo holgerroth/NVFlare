@@ -84,6 +84,7 @@ class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch s
         self.download = download
         self.returns = returns
         self.intersect_idx = intersect_idx
+        self.orig_size = 0
 
         if self.intersect_idx is not None:
             self.intersect_idx = np.sort(self.intersect_idx).astype(np.int64)
@@ -96,6 +97,7 @@ class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch s
         cifar_dataobj = datasets.CIFAR10(self.root, self.train, self.transform, self.download)
         data = cifar_dataobj.data
         target = np.array(cifar_dataobj.targets)
+        self.orig_size = len(data)
         if self.intersect_idx is not None:
             data = data[self.intersect_idx]
             target = target[self.intersect_idx]
