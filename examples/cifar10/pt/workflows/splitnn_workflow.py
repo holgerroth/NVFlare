@@ -46,8 +46,6 @@ class SplitNNController(Controller):
         task_timeout: int = 10,
         ignore_result_error: bool = True,
         batch_size: int = 256,
-        train_size: int = 50_000,  # overlapping set of CIFAR-10 training
-            # set. D
         timeit: bool = False,
     ):
         """The controller for Split Learning Workflow.
@@ -65,8 +63,6 @@ class SplitNNController(Controller):
             shareable_generator_id (str, optional): ID of the shareable generator. Defaults to "shareable_generator".
             task_timeout (int, optional): timeout (in sec) to determine if one client fails to request the task which it is assigned to . Defaults to 10.
             ignore_result_error (bool, optional): whether this controller can proceed if result has errors. Defaults to True.
-            train_size: int = 50_000,  # overlapping set of CIFAR-10 training set.
-                Defaults to the full dataset size of 50_000   # TODO: get dataset sizes from clients? Check they have the same size!
         Raises:
             TypeError: when any of input arguments does not have correct type
             ValueError: when any of input arguments is out of range
@@ -122,7 +118,6 @@ class SplitNNController(Controller):
         self.targets_names = ["site-1", "site-2"]  # TODO: hardcoded order! Maybe configurable.
         self.nr_supported_clients = 2
         self.batch_size = batch_size
-        self.train_size = train_size
 
         self.batch_indices = "DEBUG batch_indices"
 
@@ -242,67 +237,6 @@ class SplitNNController(Controller):
             fl_ctx=fl_ctx,
             abort_signal=abort_signal,
         )
-
-    """
-    def train_step(self, engine, fl_ctx: FLContext, gradients=None):
-        if self.timeit:
-            self.times["wf_before_data_step"].append(timer())
-        # Task for one SplitNN training step
-        # 2.1 data forward step & and backward
-        # generate a random batch
-        self.batch_indices = np.random.randint(0, self.train_size - 1, self.batch_size)
-        with self._engine.new_context() as record_fl_ctx:  # TODO: this is needed to make the fl_ctx available in the record filter
-            record_fl_ctx.set_prop(SplitNNConstants.BATCH_INDICES, self.batch_indices, private=True, sticky=True)
-
-        dxo = DXO(
-            data={},
-            data_kind=DataKind.WEIGHT_DIFF,
-            meta={SplitNNConstants.BATCH_INDICES: self.batch_indices, SplitNNConstants.GRADIENT: gradients},
-        )
-
-        data_shareable = dxo.to_shareable()
-        data_shareable.set_header(AppConstants.CURRENT_ROUND, self._current_round)
-        data_shareable.set_header(AppConstants.NUM_ROUNDS, self._num_rounds)
-        data_shareable.add_cookie(AppConstants.CONTRIBUTION_ROUND, self._current_round)
-
-        result = engine.send_aux_request(
-            targets=[self.targets_names[0]],
-            topic=SplitNNConstants.TASK_DATA_STEP,
-            request=data_shareable,
-            timeout=SplitNNConstants.TIMEOUT,
-            fl_ctx=fl_ctx,
-        )
-        shareable = result.get(self.targets_names[0])  # TODO: handle None
-        dxo = from_shareable(shareable)
-
-        # add batch indices
-        dxo.set_meta_prop(SplitNNConstants.BATCH_INDICES, self.batch_indices)
-
-        data_shareable = dxo.to_shareable()
-        data_shareable.set_header(AppConstants.CURRENT_ROUND, self._current_round)
-        data_shareable.set_header(AppConstants.NUM_ROUNDS, self._num_rounds)
-        data_shareable.add_cookie(AppConstants.CONTRIBUTION_ROUND, self._current_round)
-
-        # 2.2 label train step
-        if self.timeit:
-            self.times["wf_before_label_step"].append(timer())
-        result = engine.send_aux_request(
-            targets=[self.targets_names[1]],
-            topic=SplitNNConstants.TASK_LABEL_STEP,
-            request=data_shareable,
-            timeout=SplitNNConstants.TIMEOUT,
-            fl_ctx=fl_ctx,
-        )
-        shareable = result.get(self.targets_names[1])  # TODO: handle None
-        if shareable is None:  # TODO: handle None
-            self.log_warning(fl_ctx, "Received no gradients.")
-            return None
-        gradients = from_shareable(shareable).get_meta_props().get(SplitNNConstants.GRADIENT)
-
-        if self.timeit:
-            self.times["wf_after_label_step"].append(timer())
-        return gradients
-    """
 
     def control_flow(self, abort_signal: Signal, fl_ctx: FLContext):
         try:
