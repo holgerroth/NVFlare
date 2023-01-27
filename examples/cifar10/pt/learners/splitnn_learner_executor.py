@@ -26,21 +26,21 @@ from nvflare.app_common.abstract.learner_spec import Learner
 # TODO: maybe move all into one executor
 class SplitNNLearnerExecutor(Executor):
     def __init__(
-        self, learner_id, init_model_task=SplitNNConstants.TASK_INIT_MODEL, train_task=SplitNNConstants.TASK_TRAIN
+        self, learner_id, init_model_task_name=SplitNNConstants.TASK_INIT_MODEL, train_task_name=SplitNNConstants.TASK_TRAIN
     ):
         """Key component to run learner on clients.
 
         Args:
             learner_id (str): id pointing to the learner object
-            train_task (str, optional): label to dispatch train task. Defaults to AppConstants.TASK_TRAIN.
-            submit_model_task (str, optional): label to dispatch submit model task. Defaults to AppConstants.TASK_SUBMIT_MODEL.
-            validate_task (str, optional): label to dispatch validation task. Defaults to AppConstants.TASK_VALIDATION.
+            train_task_name (str, optional): label to dispatch train task. Defaults to AppConstants.TASK_TRAIN.
+            submit_model_task_name (str, optional): label to dispatch submit model task. Defaults to AppConstants.TASK_SUBMIT_MODEL.
+            validate_task_name (str, optional): label to dispatch validation task. Defaults to AppConstants.TASK_VALIDATION.
         """
         super().__init__()
         self.learner_id = learner_id
         self.learner = None
-        self.init_model_task = init_model_task
-        self.train_task = train_task
+        self.init_model_task_name = init_model_task_name
+        self.train_task_name = train_task_name
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
@@ -69,11 +69,12 @@ class SplitNNLearnerExecutor(Executor):
 
         self.log_info(fl_ctx, f"Executing task {task_name}...")
         try:
-            if task_name == self.init_model_task:
+            if task_name == self.init_model_task_name:
                 self.log_info(fl_ctx, "Initializing model...")
                 return self.learner.init_model(shareable=shareable, fl_ctx=fl_ctx, abort_signal=abort_signal)
-            elif task_name == self.train_task:
-                self.log_info(fl_ctx, "Running training...")  # TODO: remove this? It's actually never executed.
+            elif task_name == self.train_task_name:
+                self.log_info(fl_ctx, "Running training...")
+                return self.learner.train(shareable=shareable, fl_ctx=fl_ctx, abort_signal=abort_signal)
             else:
                 self.log_error(fl_ctx, f"Could not handle task: {task_name}")
                 return make_reply(ReturnCode.TASK_UNKNOWN)
