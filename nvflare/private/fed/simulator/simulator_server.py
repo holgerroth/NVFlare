@@ -35,6 +35,9 @@ class SimulatorServerEngine(ServerEngine):
     def update_job_run_status(self):
         pass
 
+    def update_job_run_status(self):
+        pass
+
 
 class SimulatorRunManager(RunManager):
     def create_job_processing_context_properties(self, workspace, job_id):
