@@ -11,16 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
-import pickle
-from timeit import default_timer as timer
 
-import numpy as np
 from pt.learners.cifar10_learner_splitnn import SplitNNConstants
 
 from nvflare.apis.client import Client
-from nvflare.apis.dxo import DXO, DataKind, from_shareable
-from nvflare.apis.fl_constant import FLContextKey, ReturnCode
+from nvflare.apis.fl_constant import ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.impl.controller import ClientTask, Controller, Task
 from nvflare.apis.shareable import Shareable
@@ -40,13 +35,10 @@ class SplitNNController(Controller):
         persistor_id=AppConstants.DEFAULT_PERSISTOR_ID,  # used to init the models on both clients # TODO some way to collect data on server
         shareable_generator_id=AppConstants.DEFAULT_SHAREABLE_GENERATOR_ID,
         init_model_task_name=SplitNNConstants.TASK_INIT_MODEL,
-        #data_step_task=SplitNNConstants.TASK_DATA_STEP,
-        #label_step_task=SplitNNConstants.TASK_LABEL_STEP,
         train_task_name=SplitNNConstants.TASK_TRAIN,
         task_timeout: int = 10,
         ignore_result_error: bool = True,
-        batch_size: int = 256,
-        timeit: bool = False,
+        batch_size: int = 256
     ):
         """The controller for Split Learning Workflow.
 
@@ -84,10 +76,6 @@ class SplitNNController(Controller):
             raise TypeError("`init_model_task_name` must be a string but got {}".format(type(init_model_task_name)))
         if not isinstance(train_task_name, str):
             raise TypeError("`train_task_name` must be a string but got {}".format(type(train_task_name)))
-        #if not isinstance(data_step_task, str):
-        #    raise TypeError("`data_step_task` must be a string but got {}".format(type(data_step_task)))
-        #if not isinstance(label_step_task, str):
-        #    raise TypeError("`label_step_task` must be a string but got {}".format(type(label_step_task)))
         if num_rounds < 0:
             raise ValueError("num_rounds must be greater than or equal to 0.")
         if start_round < 0:
@@ -118,15 +106,6 @@ class SplitNNController(Controller):
         self.targets_names = ["site-1", "site-2"]  # TODO: hardcoded order! Maybe configurable.
         self.nr_supported_clients = 2
         self.batch_size = batch_size
-
-        self.batch_indices = "DEBUG batch_indices"
-
-        self.timeit = timeit
-        self.times = {}
-        if self.timeit:
-            self.times["wf_before_data_step"] = []
-            self.times["wf_before_label_step"] = []
-            self.times["wf_after_label_step"] = []
 
     def start_controller(self, fl_ctx: FLContext):
         self.log_debug(fl_ctx, "starting controller")
@@ -271,11 +250,6 @@ class SplitNNController(Controller):
     def stop_controller(self, fl_ctx: FLContext):
         self._phase = AppConstants.PHASE_FINISHED
         self.log_debug(fl_ctx, "controller stopped")
-
-        if self.timeit:
-            app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
-            with open(os.path.join(app_root, "wf_times.pkl"), "wb") as f:
-                pickle.dump(self.times, f)
 
     def process_result_of_unknown_task(
         self,
