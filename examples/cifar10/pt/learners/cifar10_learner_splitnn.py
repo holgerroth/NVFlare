@@ -64,7 +64,7 @@ class CIFAR10LearnerSplitNN(Learner):
     def __init__(
         self,
         dataset_root: str = "./dataset",
-        intersection_file: str = "./intersection.txt",
+        intersection_file: str = None,
         #init_model_task=SplitNNConstants.TASK_INIT_MODEL,
         #data_step_task=SplitNNConstants.TASK_DATA_STEP,
         label_step_task_name=SplitNNConstants.TASK_LABEL_STEP,
@@ -162,7 +162,7 @@ class CIFAR10LearnerSplitNN(Learner):
         if self.model is None:
             self.log_error(fl_ctx, f"Model wasn't built correctly! It is {self.model}")
             return
-        self.log_info(fl_ctx, "Running model", self.model)
+        self.log_info(fl_ctx, f"Running model {self.model}")
 
     def initialize(self, parts: dict, fl_ctx: FLContext):
         self._get_model(fl_ctx=fl_ctx)
@@ -198,10 +198,14 @@ class CIFAR10LearnerSplitNN(Learner):
         else:
             raise ValueError(f"Expected split_id to be '0' or '1' but was {self.split_id}")
 
+        if self.intersection_file is not None:
+            _intersect_indices = np.loadtxt(self.intersection_file)
+        else:
+            _intersect_indices = None
         self.train_dataset = CIFAR10SplitNN(
             root=self.dataset_root, train=True, download=True,
             transform=self.transform_train, returns=data_returns,
-            intersect_idx=np.loadtxt(self.intersection_file)
+            intersect_idx=_intersect_indices
         )
         self.train_size = len(self.train_dataset)
         if self.train_size <= 0:
@@ -301,10 +305,10 @@ class CIFAR10LearnerSplitNN(Learner):
                 result_backward.get_return_code() == ReturnCode.OK
             ), f"Backward step failed with return code {result_backward.get_return_code()}"
         # 2. compute activations
-        results_activations = self.train_data_side(fl_ctx=fl_ctx)
+        activations = self.train_data_side(fl_ctx=fl_ctx)
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_back_step"].append(timer())
-        return results_activations
+        return activations
 
     def train_data_side(self, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
@@ -316,7 +320,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.log_debug(fl_ctx, f"Train data side in round {self.current_round} of {self.num_rounds} rounds.")
 
-        activations = self.train_step_data_side(batch_indices=self.batch_indices)
+        act = self.train_step_data_side(batch_indices=self.batch_indices)
 
         self.log_debug(
             fl_ctx, f"{self.client_name} finished model with `split_id` {self.split_id} for train on data side."
@@ -324,8 +328,8 @@ class CIFAR10LearnerSplitNN(Learner):
 
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_step"].append(timer())
-        self.log_debug(fl_ctx, f"Sending train data activations: {type(activations)}")
-        return activations
+        self.log_debug(fl_ctx, f"Sending train data activations: {type(act)}")
+        return act
 
     def train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
