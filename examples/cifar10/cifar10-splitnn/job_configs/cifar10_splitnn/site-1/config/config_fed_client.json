@@ -2,7 +2,7 @@
   "format_version": 2,
 
   "DATASET_ROOT": "/tmp/cifar10",
-  "INTERSECTION_FILE": "/tmp/nvflare/cifar10_psi/simulate_job/site-1/psi/intersection.txt",
+  "INTERSECTION_FILE": "/home/hroth/Code2/nvflare/splitnn/examples/cifar10/cifar10-splitnn/site-1-intersection.txt",
 
   "executors": [
     {
