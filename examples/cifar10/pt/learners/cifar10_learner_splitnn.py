@@ -200,13 +200,13 @@ class CIFAR10LearnerSplitNN(Learner):
 
         if self.split_id == 1:
             engine.register_aux_message_handler(
-                topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self.train_label_side
+                topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self._aux_train_label_side
             )
             self.log_debug(fl_ctx, f"Registered aux message handlers for split_id {self.split_id}")
 
     """ training steps """
 
-    def train_step_data_side(self, batch_indices):
+    def _train_step_data_side(self, batch_indices):
         if self.timeit:
             self.times["learner_start_data_step"].append(timer())
         self.model.train()
@@ -219,7 +219,7 @@ class CIFAR10LearnerSplitNN(Learner):
             self.times["learner_end_data_step"].append(timer())
         return self.activations.detach().requires_grad_()  # x to be sent to other client
 
-    def train_step_label_side(self, batch_indices, activations, fl_ctx: FLContext):
+    def _train_step_label_side(self, batch_indices, activations, fl_ctx: FLContext):
         if self.timeit:
             self.times["learner_start_label_step"].append(timer())
         self.model.train()
@@ -261,7 +261,7 @@ class CIFAR10LearnerSplitNN(Learner):
         else:
             return activations.grad
 
-    def backward_step_data_side(self, gradient, fl_ctx: FLContext):
+    def _backward_step_data_side(self, gradient, fl_ctx: FLContext):
         if self.timeit:
             self.times["learner_start_backward_step"].append(timer())
         self.optimizer.zero_grad()
@@ -279,33 +279,33 @@ class CIFAR10LearnerSplitNN(Learner):
         if self.timeit:
             self.times["learner_end_backward_step"].append(timer())
 
-    def train_backward_data_side(self, fl_ctx: FLContext, gradient=None) -> Shareable:
+    def _train_forward_backward_data_side(self, fl_ctx: FLContext, gradient=None) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_train_back_step"].append(timer())
         # combine forward and backward on data client
         # 1. perform backward step if gradients provided
         if gradient is not None:
-            result_backward = self.backward_data_side(gradient, fl_ctx=fl_ctx)
+            result_backward = self._backward_data_side(gradient, fl_ctx=fl_ctx)
             assert (
                 result_backward.get_return_code() == ReturnCode.OK
             ), f"Backward step failed with return code {result_backward.get_return_code()}"
         # 2. compute activations
-        activations = self.train_data_side(fl_ctx=fl_ctx)
+        activations = self._train_data_side(fl_ctx=fl_ctx)
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_back_step"].append(timer())
         return activations
 
-    def train_data_side(self, fl_ctx: FLContext) -> Shareable:
+    def _train_data_side(self, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_train_step"].append(timer())
         if self.split_id != 0:
             raise ValueError(
-                f"Expected `split_id` 0. It doesn't make sense to run `train_data_side` with `split_id` {self.split_id}"
+                f"Expected `split_id` 0. It doesn't make sense to run `_train_data_side` with `split_id` {self.split_id}"
             )
 
         self.log_debug(fl_ctx, f"Train data side in round {self.current_round} of {self.num_rounds} rounds.")
 
-        act = self.train_step_data_side(batch_indices=self.batch_indices)
+        act = self._train_step_data_side(batch_indices=self.batch_indices)
 
         self.log_debug(
             fl_ctx, f"{self.client_name} finished model with `split_id` {self.split_id} for train on data side."
@@ -320,14 +320,14 @@ class CIFAR10LearnerSplitNN(Learner):
         else:
             return act
 
-    def train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+    def _aux_train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         """aux message handler"""
 
         if self.timeit:
             self.times["aux_hdl_learner_start_label_train_step"].append(timer())
         if self.split_id != 1:
             raise ValueError(
-                f"Expected `split_id` 1. It doesn't make sense to run `train_label_side` with `split_id` {self.split_id}"
+                f"Expected `split_id` 1. It doesn't make sense to run `_aux_train_label_side` with `split_id` {self.split_id}"
             )
 
         self.current_round = request.get_header(AppConstants.CURRENT_ROUND)
@@ -346,11 +346,11 @@ class CIFAR10LearnerSplitNN(Learner):
         if activations is None:
             raise ValueError("No activations in DXO!")
 
-        gradient = self.train_step_label_side(
+        gradient = self._train_step_label_side(
             batch_indices=batch_indices, activations=fobs.loads(activations), fl_ctx=fl_ctx
         )
 
-        self.log_debug(fl_ctx, "train_label_side finished.")
+        self.log_debug(fl_ctx, "_aux_train_label_side finished.")
         return_shareable = DXO(
             data={SplitNNConstants.DATA: fobs.dumps(gradient)}, data_kind=SplitNNDataKind.GRADIENT
         ).to_shareable()
@@ -360,17 +360,17 @@ class CIFAR10LearnerSplitNN(Learner):
         self.log_debug(fl_ctx, f"Sending train label return_shareable: {type(return_shareable)}")
         return return_shareable
 
-    def backward_data_side(self, gradient, fl_ctx: FLContext) -> Shareable:
+    def _backward_data_side(self, gradient, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_backward_step"].append(timer())
         if self.split_id != 0:
             raise ValueError(
-                f"Expected `split_id` 0. It doesn't make sense to run `backward_data_side` with `split_id` {self.split_id}"
+                f"Expected `split_id` 0. It doesn't make sense to run `_backward_data_side` with `split_id` {self.split_id}"
             )
 
-        self.backward_step_data_side(gradient=fobs.loads(gradient), fl_ctx=fl_ctx)
+        self._backward_step_data_side(gradient=fobs.loads(gradient), fl_ctx=fl_ctx)
 
-        self.log_debug(fl_ctx, "backward_data_side finished.")
+        self.log_debug(fl_ctx, "_backward_data_side finished.")
         if self.timeit:
             self.times["aux_hdl_learner_end_data_backward_step"].append(timer())
         return make_reply(ReturnCode.OK)
@@ -436,7 +436,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
             # Site-1 image forward & backward (from 2nd round)
             fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self.current_round, private=True, sticky=False)
-            activations = self.train_backward_data_side(fl_ctx, gradients)
+            activations = self._train_forward_backward_data_side(fl_ctx, gradients)
 
             # Site-2 label loss & backward
             dxo = DXO(data={SplitNNConstants.DATA: fobs.dumps(activations)}, data_kind=SplitNNDataKind.ACTIVATIONS)
