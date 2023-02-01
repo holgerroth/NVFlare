@@ -12,7 +12,7 @@
       ],
       "executor": {
         "id": "Executor",
-        "path": "pt.learners.splitnn_learner_executor.SplitNNLearnerExecutor",
+        "path": "nvflare.app_common.executors.splitnn_learner_executor.SplitNNLearnerExecutor",
         "args": {
           "learner_id": "cifar10-learner"
         }
