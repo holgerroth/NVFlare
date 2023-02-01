@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pt.learners.cifar10_learner_splitnn import SplitNNConstants
-
 from nvflare.apis.client import Client
 from nvflare.apis.fl_constant import ReturnCode
 from nvflare.apis.fl_context import FLContext
@@ -26,13 +24,30 @@ from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.app_event_type import AppEventType
 from nvflare.widgets.info_collector import GroupInfoCollector, InfoCollector
 
+class SplitNNDataKind(object):
+    ACTIVATIONS = "_splitnn_activations_"
+    GRADIENT = "_splitnn_gradient_"
+
+class SplitNNConstants(object):
+    BATCH_INDICES = "_splitnn_batch_indices_"
+    DATA = "_splitnn_data_"
+    BATCH_SIZE = "_splitnn_batch_size_"
+    TARGET_NAMES = "_splitnn_target_names_"
+
+    TASK_INIT_MODEL = "_splitnn_task_init_model_"
+    TASK_LABEL_STEP = "_splitnn_task_label_step_"
+    TASK_TRAIN = "_splitnn_task_train_"
+
+    TASK_RESULT = "_splitnn_task_result_"
+    TIMEOUT = 60.0  # timeout for waiting for reply from aux message request
+
 
 class SplitNNController(Controller):
     def __init__(
         self,
         num_rounds: int = 5000,
         start_round: int = 0,
-        persistor_id=AppConstants.DEFAULT_PERSISTOR_ID,  # used to init the models on both clients # TODO some way to collect data on server
+        persistor_id=AppConstants.DEFAULT_PERSISTOR_ID,  # used to init the models on both clients
         shareable_generator_id=AppConstants.DEFAULT_SHAREABLE_GENERATOR_ID,
         init_model_task_name=SplitNNConstants.TASK_INIT_MODEL,
         train_task_name=SplitNNConstants.TASK_TRAIN,
@@ -103,7 +118,7 @@ class SplitNNController(Controller):
         #self.label_step_task = label_step_task
         self.train_task_name = train_task_name
 
-        self.targets_names = ["site-1", "site-2"]  # TODO: hardcoded order! Maybe configurable.
+        self.targets_names = ["site-1", "site-2"]
         self.nr_supported_clients = 2
         self.batch_size = batch_size
 
