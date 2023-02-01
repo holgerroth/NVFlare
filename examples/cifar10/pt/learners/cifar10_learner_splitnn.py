@@ -20,7 +20,6 @@ import numpy as np
 import torch
 import torch.optim as optim
 from pt.utils.cifar10_dataset import CIFAR10SplitNN
-from pt.workflows.splitnn_workflow import SplitNNConstants, SplitNNDataKind
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
@@ -32,6 +31,7 @@ from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.learner_spec import Learner
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.pt.pt_decomposers import TensorDecomposer
+from nvflare.app_common.workflows.splitnn_workflow import SplitNNConstants, SplitNNDataKind
 from nvflare.fuel.utils import fobs
 
 
