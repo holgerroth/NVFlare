@@ -28,12 +28,12 @@ install required packages for training
 pip install --upgrade pip
 pip install -r ./virtualenv/min-requirements.txt
 ```
+
+## Start Jupyter notebook
 Set `PYTHONPATH` to include custom files of this example:
 ```
 export PYTHONPATH=${PWD}/..
 ```
-
-## Start Jupyter notebook  
 Start a Jupyter Lab
 ```
 jupyter lab .
