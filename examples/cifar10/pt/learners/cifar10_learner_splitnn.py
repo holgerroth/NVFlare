@@ -45,6 +45,7 @@ class CIFAR10LearnerSplitNN(Learner):
         timeit: bool = False,  # TODO: remove option; only used for benchmarking
         analytic_sender_id: str = "analytic_sender",
         fp16: bool = True,
+        val_freq: int = 1000,
     ):
         """Simple CIFAR-10 Trainer for split learning.
 
@@ -58,6 +59,7 @@ class CIFAR10LearnerSplitNN(Learner):
                 If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
             fp16: If `True`, convert activations and gradients send between clients to `torch.float16`.
                 Reduces bandwidth needed for communication but might impact model accuracy.
+            val_freq: how often to perform validation in rounds. Defaults to 1000.
         """
         super().__init__()
         self.dataset_root = dataset_root
@@ -66,8 +68,9 @@ class CIFAR10LearnerSplitNN(Learner):
         self.model = model
         self.analytic_sender_id = analytic_sender_id
         self.fp16 = fp16
-        self.target_names = None
+        self.val_freq = val_freq
 
+        self.target_names = None
         self.app_root = None
         self.current_round = None
         self.num_rounds = None
@@ -79,11 +82,16 @@ class CIFAR10LearnerSplitNN(Learner):
         self.optimizer = None
         self.criterion = None
         self.transform_train = None
+        self.transform_valid = None
         self.train_dataset = None
+        self.valid_dataset = None
         self.split_id = None
-        self.activations = None
-        self.batch_indices = None
+        self.train_activations = None
+        self.train_batch_indices = None
         self.train_size = 0
+        self.val_loss = []
+        self.val_labels = []
+        self.val_pred_labels = []
 
         # use FOBS serializing/deserializing PyTorch tensors
         fobs.register(TensorDecomposer)
@@ -159,6 +167,15 @@ class CIFAR10LearnerSplitNN(Learner):
                 ),
             ]
         )
+        self.transform_valid = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                    std=[x / 255.0 for x in [63.0, 62.1, 66.7]],
+                ),
+            ]
+        )
 
         self.app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
         self.client_name = fl_ctx.get_identity_name()
@@ -184,6 +201,16 @@ class CIFAR10LearnerSplitNN(Learner):
             returns=data_returns,
             intersect_idx=_intersect_indices,
         )
+
+        self.valid_dataset = CIFAR10SplitNN(
+            root=self.dataset_root,
+            train=False,
+            download=False,
+            transform=self.transform_valid,
+            returns=data_returns,
+            intersect_idx=None,  # TODO: support validation intersect indices
+        )
+
         self.train_size = len(self.train_dataset)
         if self.train_size <= 0:
             raise ValueError(f"Expected train dataset size to be larger zero but got {self.train_size}")
@@ -200,7 +227,10 @@ class CIFAR10LearnerSplitNN(Learner):
 
         if self.split_id == 1:
             engine.register_aux_message_handler(
-                topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self._aux_train_label_side
+                topic=SplitNNConstants.TASK_TRAIN_LABEL_STEP, message_handle_func=self._aux_train_label_side
+            )
+            engine.register_aux_message_handler(
+                topic=SplitNNConstants.TASK_VALID_LABEL_STEP, message_handle_func=self._aux_val_label_side
             )
             self.log_debug(fl_ctx, f"Registered aux message handlers for split_id {self.split_id}")
 
@@ -214,10 +244,21 @@ class CIFAR10LearnerSplitNN(Learner):
         inputs = self.train_dataset.get_batch(batch_indices)
         inputs = inputs.to(self.device)
 
-        self.activations = self.model.forward(inputs)  # keep on site-1
+        self.train_activations = self.model.forward(inputs)  # keep on site-1
         if self.timeit:
             self.times["learner_end_data_step"].append(timer())
-        return self.activations.detach().requires_grad_()  # x to be sent to other client
+        return self.train_activations.detach().requires_grad_()  # x to be sent to other client
+
+    def _val_step_data_side(self, batch_indices):
+        if self.timeit:
+            self.times["learner_start_data_step"].append(timer())
+        self.model.eval()
+
+        inputs = self.valid_dataset.get_batch(batch_indices)
+        inputs = inputs.to(self.device)
+
+        _val_activations = self.model.forward(inputs)  # keep on site-1
+        return _val_activations.detach()  # x to be sent to other client
 
     def _train_step_label_side(self, batch_indices, activations, fl_ctx: FLContext):
         if self.timeit:
@@ -243,7 +284,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.log_info(
             fl_ctx,
-            f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}, accuracy: {acc.item():.4f}",
+            f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}, train_accuracy: {acc.item():.4f}",
         )
         if self.writer:
             self.writer.add_scalar("train_loss", loss, self.current_round)
@@ -261,7 +302,48 @@ class CIFAR10LearnerSplitNN(Learner):
         else:
             return activations.grad
 
+    def _val_step_label_side(self, batch_indices, activations, fl_ctx: FLContext):
+        self.model.eval()
+
+        labels = self.valid_dataset.get_batch(batch_indices)
+        labels = labels.to(self.device)
+
+        if self.fp16:
+            activations = activations.type(torch.float32)  # return to default pytorch precision
+
+        activations = activations.to(self.device)
+
+        pred = self.model.forward(activations)
+        loss = self.criterion(pred, labels)
+        self.val_loss.append(loss.unsqueeze(0))  # unsqueeze needed for later concatenation
+
+        _, pred_labels = torch.max(pred, 1)
+
+        self.val_pred_labels.extend(pred_labels.unsqueeze(0))
+        self.val_labels.extend(labels.unsqueeze(0))
+
+    def _log_validation(self, fl_ctx: FLContext):
+        if len(self.val_loss) > 0:
+            loss = torch.mean(torch.cat(self.val_loss))
+
+            _val_pred_labels = torch.cat(self.val_pred_labels)
+            _val_labels = torch.cat(self.val_labels)
+            acc = (_val_pred_labels == _val_labels).sum() / len(_val_labels)
+
+            self.log_info(
+                fl_ctx,
+                f"Round {self.current_round}/{self.num_rounds} val_loss: {loss.item():.4f}, val_accuracy: {acc.item():.4f}",
+            )
+            if self.writer:
+                self.writer.add_scalar("val_loss", loss, self.current_round)
+                self.writer.add_scalar("val_accuracy", acc, self.current_round)
+
+            self.val_loss = []
+            self.val_labels = []
+            self.val_pred_labels = []
+
     def _backward_step_data_side(self, gradient, fl_ctx: FLContext):
+        self.model.train()
         if self.timeit:
             self.times["learner_start_backward_step"].append(timer())
         self.optimizer.zero_grad()
@@ -270,7 +352,7 @@ class CIFAR10LearnerSplitNN(Learner):
             gradient = gradient.type(torch.float32)  # return to default pytorch precision
 
         gradient = gradient.to(self.device)
-        self.activations.backward(gradient=gradient)
+        self.train_activations.backward(gradient=gradient)
         self.optimizer.step()
 
         self.log_debug(
@@ -305,7 +387,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.log_debug(fl_ctx, f"Train data side in round {self.current_round} of {self.num_rounds} rounds.")
 
-        act = self._train_step_data_side(batch_indices=self.batch_indices)
+        act = self._train_step_data_side(batch_indices=self.train_batch_indices)
 
         self.log_debug(
             fl_ctx, f"{self.client_name} finished model with `split_id` {self.split_id} for train on data side."
@@ -321,7 +403,7 @@ class CIFAR10LearnerSplitNN(Learner):
             return act
 
     def _aux_train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
-        """aux message handler"""
+        """train aux message handler"""
 
         if self.timeit:
             self.times["aux_hdl_learner_start_label_train_step"].append(timer())
@@ -359,6 +441,39 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.log_debug(fl_ctx, f"Sending train label return_shareable: {type(return_shareable)}")
         return return_shareable
+
+    def _aux_val_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+        """validation aux message handler"""
+
+        if self.timeit:
+            self.times["aux_hdl_learner_start_label_train_step"].append(timer())
+        if self.split_id != 1:
+            raise ValueError(
+                f"Expected `split_id` 1. It doesn't make sense to run `_aux_train_label_side` with `split_id` {self.split_id}"
+            )
+
+        val_round = request.get_header(AppConstants.CURRENT_ROUND)
+        val_num_rounds = request.get_header(AppConstants.NUM_ROUNDS)
+        self.log_debug(fl_ctx, f"Validate label in round {self.current_round} of {self.num_rounds} rounds.")
+
+        dxo = from_shareable(request)
+        if dxo.data_kind != SplitNNDataKind.ACTIVATIONS:
+            raise ValueError(f"Expected data kind {SplitNNDataKind.ACTIVATIONS} but received {dxo.data_kind}")
+
+        batch_indices = dxo.get_meta_prop(SplitNNConstants.BATCH_INDICES)
+        if batch_indices is None:
+            raise ValueError("No batch indices in DXO!")
+
+        activations = dxo.data.get(SplitNNConstants.DATA)
+        if activations is None:
+            raise ValueError("No activations in DXO!")
+
+        self._val_step_label_side(batch_indices=batch_indices, activations=fobs.loads(activations), fl_ctx=fl_ctx)
+
+        if val_round == val_num_rounds - 1:
+            self._log_validation(fl_ctx)
+
+        return make_reply(ReturnCode.OK)
 
     def _backward_data_side(self, gradient, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
@@ -411,6 +526,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
     def train(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         """main training logic"""
+        engine = fl_ctx.get_engine()
 
         self.num_rounds = shareable.get_header(AppConstants.NUM_ROUNDS)
         if not self.num_rounds:
@@ -430,9 +546,8 @@ class CIFAR10LearnerSplitNN(Learner):
             if abort_signal.triggered:
                 return make_reply(ReturnCode.TASK_ABORTED)
 
-            engine = fl_ctx.get_engine()
             self.log_debug(fl_ctx, f"Starting current round={self.current_round} of {self.num_rounds}.")
-            self.batch_indices = np.random.randint(0, self.train_size - 1, self.batch_size)
+            self.train_batch_indices = np.random.randint(0, self.train_size - 1, self.batch_size)
 
             # Site-1 image forward & backward (from 2nd round)
             fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self.current_round, private=True, sticky=False)
@@ -440,7 +555,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
             # Site-2 label loss & backward
             dxo = DXO(data={SplitNNConstants.DATA: fobs.dumps(activations)}, data_kind=SplitNNDataKind.ACTIVATIONS)
-            dxo.set_meta_prop(SplitNNConstants.BATCH_INDICES, self.batch_indices)
+            dxo.set_meta_prop(SplitNNConstants.BATCH_INDICES, self.train_batch_indices)
 
             data_shareable = dxo.to_shareable()
             data_shareable.set_header(AppConstants.CURRENT_ROUND, self.current_round)
@@ -450,7 +565,7 @@ class CIFAR10LearnerSplitNN(Learner):
             # send to other side
             result = engine.send_aux_request(
                 targets=self.other_client,
-                topic=SplitNNConstants.TASK_LABEL_STEP,
+                topic=SplitNNConstants.TASK_TRAIN_LABEL_STEP,
                 request=data_shareable,
                 timeout=SplitNNConstants.TIMEOUT,
                 fl_ctx=fl_ctx,
@@ -471,7 +586,38 @@ class CIFAR10LearnerSplitNN(Learner):
 
             self.log_debug(fl_ctx, f"Ending current round={self.current_round}.")
 
+            if _curr_round % self.val_freq == 0 and self.val_freq > 0:
+                self._validate(fl_ctx)
+
         return make_reply(ReturnCode.OK)
+
+    def _validate(self, fl_ctx: FLContext):
+        engine = fl_ctx.get_engine()
+
+        idx = np.arange(len(self.valid_dataset))
+        n_batches = int(np.ceil(len(self.valid_dataset) / self.batch_size))
+        for _val_round, _val_batch_indices in enumerate(np.array_split(idx, n_batches)):
+            activations = self._val_step_data_side(batch_indices=_val_batch_indices)
+
+            # Site-2 label loss & accuracy
+            dxo = DXO(data={SplitNNConstants.DATA: fobs.dumps(activations)}, data_kind=SplitNNDataKind.ACTIVATIONS)
+            dxo.set_meta_prop(SplitNNConstants.BATCH_INDICES, _val_batch_indices)
+
+            data_shareable = dxo.to_shareable()
+            data_shareable.set_header(AppConstants.CURRENT_ROUND, _val_round)
+            data_shareable.set_header(AppConstants.NUM_ROUNDS, n_batches)
+            data_shareable.add_cookie(AppConstants.CONTRIBUTION_ROUND, _val_round)
+
+            # send to other side to validate
+            engine.send_aux_request(
+                targets=self.other_client,
+                topic=SplitNNConstants.TASK_VALID_LABEL_STEP,
+                request=data_shareable,
+                timeout=SplitNNConstants.TIMEOUT,
+                fl_ctx=fl_ctx,
+            )
+
+        self.log_debug(fl_ctx, "finished validation.")
 
     def finalize(self, fl_ctx: FLContext):
         if self.timeit:

@@ -37,7 +37,8 @@ class SplitNNConstants(object):
     TARGET_NAMES = "_splitnn_target_names_"
 
     TASK_INIT_MODEL = "_splitnn_task_init_model_"
-    TASK_LABEL_STEP = "_splitnn_task_label_step_"
+    TASK_TRAIN_LABEL_STEP = "_splitnn_task_train_label_step_"
+    TASK_VALID_LABEL_STEP = "_splitnn_task_valid_label_step_"
     TASK_TRAIN = "_splitnn_task_train_"
 
     TASK_RESULT = "_splitnn_task_result_"
