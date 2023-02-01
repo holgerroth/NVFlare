@@ -20,9 +20,9 @@ import numpy as np
 import torch
 import torch.optim as optim
 from pt.utils.cifar10_dataset import CIFAR10SplitNN
+from pt.workflows.splitnn_workflow import SplitNNConstants, SplitNNDataKind
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
-from pt.workflows.splitnn_workflow import SplitNNConstants, SplitNNDataKind
 
 from nvflare.apis.dxo import DXO, from_shareable
 from nvflare.apis.fl_constant import FLContextKey, ReturnCode
@@ -40,29 +40,28 @@ class CIFAR10LearnerSplitNN(Learner):
         self,
         dataset_root: str = "./dataset",
         intersection_file: str = None,
-        #init_model_task=SplitNNConstants.TASK_INIT_MODEL,
-        #data_step_task=SplitNNConstants.TASK_DATA_STEP,
         lr: float = 1e-2,
         model: dict = None,
-        timeit: bool = False,  # TODO: remove option
+        timeit: bool = False,  # TODO: remove option; only used for benchmarking
         analytic_sender_id: str = "analytic_sender",
-        fp16: bool = True
+        fp16: bool = True,
     ):
         """Simple CIFAR-10 Trainer for split learning.
 
         Args:
             dataset_root: directory with CIFAR-10 data.
-            intersection_file:
-            init_model_task:
-            data_step_task:
-            model:
-            analytic_sender_id: id of `AnalyticsSender` if configured as a client component. If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
+            intersection_file: Optional. intersection file specifying overlapping indices between both clients.
+                Defaults to `None`, i.e. the whole training dataset is used.
+            lr: learning rate.
+            model: Split learning model.
+            analytic_sender_id: id of `AnalyticsSender` if configured as a client component.
+                If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
+            fp16: If `True`, convert activations and gradients send between clients to `torch.float16`.
+                Reduces bandwidth needed for communication but might impact model accuracy.
         """
         super().__init__()
         self.dataset_root = dataset_root
         self.intersection_file = intersection_file
-        #self.init_model_task = init_model_task
-        #self.data_step_task = data_step_task
         self.lr = lr
         self.model = model
         self.analytic_sender_id = analytic_sender_id
@@ -108,8 +107,7 @@ class CIFAR10LearnerSplitNN(Learner):
             self.times["aux_hdl_learner_end_data_backward_step"] = []
 
     def _get_model(self, fl_ctx: FLContext):
-        """ Get model from client config. Modelled after `PTFileModelPersistor`.
-        """
+        """Get model from client config. Modelled after `PTFileModelPersistor`."""
         if isinstance(self.model, str):
             # treat it as model component ID
             model_component_id = self.model
@@ -179,9 +177,12 @@ class CIFAR10LearnerSplitNN(Learner):
         else:
             _intersect_indices = None
         self.train_dataset = CIFAR10SplitNN(
-            root=self.dataset_root, train=True, download=True,
-            transform=self.transform_train, returns=data_returns,
-            intersect_idx=_intersect_indices
+            root=self.dataset_root,
+            train=True,
+            download=True,
+            transform=self.transform_train,
+            returns=data_returns,
+            intersect_idx=_intersect_indices,
         )
         self.train_size = len(self.train_dataset)
         if self.train_size <= 0:
@@ -198,7 +199,9 @@ class CIFAR10LearnerSplitNN(Learner):
         engine = fl_ctx.get_engine()
 
         if self.split_id == 1:
-            engine.register_aux_message_handler(topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self.train_label_side)
+            engine.register_aux_message_handler(
+                topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self.train_label_side
+            )
             self.log_debug(fl_ctx, f"Registered aux message handlers for split_id {self.split_id}")
 
     """ training steps """
@@ -318,7 +321,7 @@ class CIFAR10LearnerSplitNN(Learner):
             return act
 
     def train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
-        """ aux message handler """
+        """aux message handler"""
 
         if self.timeit:
             self.times["aux_hdl_learner_start_label_train_step"].append(timer())
@@ -393,14 +396,12 @@ class CIFAR10LearnerSplitNN(Learner):
                 weights = global_weights[var_name]
                 try:
                     # reshape global weights to compute difference later on
-                    global_weights[var_name] = np.reshape(
-                        weights, local_var_dict[var_name].shape
-                    )
+                    global_weights[var_name] = np.reshape(weights, local_var_dict[var_name].shape)
                     # update the local dict
                     local_var_dict[var_name] = torch.as_tensor(global_weights[var_name])
                     n_loaded += 1
                 except Exception as e:
-                    raise ValueError("Convert weight from {} failed with error: {}".format(var_name, str(e)))
+                    raise ValueError(f"Convert weight from {var_name} failed.") from e
         self.model.load_state_dict(local_var_dict)
         if n_loaded == 0:
             raise ValueError("No global weights loaded!")
@@ -409,20 +410,23 @@ class CIFAR10LearnerSplitNN(Learner):
         return make_reply(ReturnCode.OK)
 
     def train(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
-        """ main training logic """
+        """main training logic"""
 
         self.num_rounds = shareable.get_header(AppConstants.NUM_ROUNDS)
         if not self.num_rounds:
             raise ValueError("No number of rounds available.")
         self.batch_size = shareable.get_header(SplitNNConstants.BATCH_SIZE)
-        self.target_names = np.asarray(shareable.get_header(SplitNNConstants.TARGET_NAMES))  # convert to array for string matching below
+        self.target_names = np.asarray(
+            shareable.get_header(SplitNNConstants.TARGET_NAMES)
+        )  # convert to array for string matching below
         self.other_client = self.target_names[self.target_names != self.client_name][0]
         self.log_info(fl_ctx, f"Starting training of {self.num_rounds} rounds with batch size {self.batch_size}")
 
         gradients = None  # initial gradients
-        for self.current_round in range(self.num_rounds):
+        for _curr_round in range(self.num_rounds):
+            self.current_round = _curr_round
             if self.split_id != 0:
-                continue   # only run this logic on first site
+                continue  # only run this logic on first site
             if abort_signal.triggered:
                 return make_reply(ReturnCode.TASK_ABORTED)
 
@@ -461,9 +465,9 @@ class CIFAR10LearnerSplitNN(Learner):
                 raise ValueError(f"No message returned from {self.other_client}!")
 
             # TODO: remove debugging
-            #_act = fobs.dumps(activations)
-            #print(f"c1->c2 (activations {type(_act)}): {sys.getsizeof(_act)*1e-6:.2f} MB")
-            #print(f"c2->c1 (gradients {type(gradients)}): {sys.getsizeof(gradients)*1e-6:.2f} MB")
+            # _act = fobs.dumps(activations)
+            # print(f"c1->c2 (activations {type(_act)}): {sys.getsizeof(_act)*1e-6:.2f} MB")
+            # print(f"c2->c1 (gradients {type(gradients)}): {sys.getsizeof(gradients)*1e-6:.2f} MB")
 
             self.log_debug(fl_ctx, f"Ending current round={self.current_round}.")
 

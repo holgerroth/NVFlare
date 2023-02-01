@@ -111,7 +111,7 @@ def test_splitnn():  # TODO: move to unit testing
         model2.eval()
         with torch.no_grad():
             correct, total = 0, 0
-            for i, (inputs, labels) in enumerate(data_loader):
+            for _, (inputs, labels) in enumerate(data_loader):
                 inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model1(inputs)
                 outputs = model2(outputs)

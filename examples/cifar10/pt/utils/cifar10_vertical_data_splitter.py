@@ -16,12 +16,11 @@ import json
 import os
 
 import numpy as np
-import torchvision.datasets as datasets
+from cifar10_data_splitter import Cifar10DataSplitter as Splitter
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_component import FLComponent
 from nvflare.apis.fl_context import FLContext
-from cifar10_data_splitter import Cifar10DataSplitter as splitter
 
 CIFAR10_ROOT = "/tmp/cifar10"  # will be used for all CIFAR-10 experiments
 
@@ -45,10 +44,7 @@ class Cifar10VerticalDataSplitter(FLComponent):
     def split(self, fl_ctx: FLContext):
         np.random.seed(self.seed)
 
-        self.log_info(
-            fl_ctx,
-            f"Partition CIFAR-10 dataset into vertically with {self.overlap} overlapping samples."
-        )
+        self.log_info(fl_ctx, f"Partition CIFAR-10 dataset into vertically with {self.overlap} overlapping samples.")
         site_idx, class_sum = self._split_data()
 
         # write to files
@@ -65,18 +61,18 @@ class Cifar10VerticalDataSplitter(FLComponent):
             np.save(site_file_name, _idx)
 
     def _split_data(self):
-        train_label = splitter.load_cifar10_data()
+        train_label = Splitter.load_cifar10_data()
 
         n_samples = len(train_label)
 
         if self.overlap > n_samples:
-            raise ValueError(f"Chosen overlap of {self.overlap} is larger than "
-                             f"train dataset with {n_samples} entries.")
+            raise ValueError(
+                f"Chosen overlap of {self.overlap} is larger than " f"train dataset with {n_samples} entries."
+            )
 
         sample_idx = np.arange(0, n_samples)
 
-        overlap_idx = np.random.choice(sample_idx, size=np.int64(
-            self.overlap), replace=False)
+        overlap_idx = np.random.choice(sample_idx, size=np.int64(self.overlap), replace=False)
 
         remain_idx = list(set(sample_idx) - set(overlap_idx))
 
@@ -90,14 +86,9 @@ class Cifar10VerticalDataSplitter(FLComponent):
         np.random.shuffle(idx_1)
         np.random.shuffle(idx_2)
 
-        site_idx = {
-            "overlap": overlap_idx,
-            "site-1": idx_1,
-            "site-2": idx_2
-        }
+        site_idx = {"overlap": overlap_idx, "site-1": idx_1, "site-2": idx_2}
 
         # collect class summary
-        class_sum = splitter.get_site_class_summary(train_label, {"overlap":
-                                                                      overlap_idx})
+        class_sum = Splitter.get_site_class_summary(train_label, {"overlap": overlap_idx})
 
         return site_idx, class_sum

@@ -25,7 +25,10 @@ from nvflare.app_common.abstract.learner_spec import Learner
 
 class SplitNNLearnerExecutor(Executor):
     def __init__(
-        self, learner_id, init_model_task_name=SplitNNConstants.TASK_INIT_MODEL, train_task_name=SplitNNConstants.TASK_TRAIN
+        self,
+        learner_id,
+        init_model_task_name=SplitNNConstants.TASK_INIT_MODEL,
+        train_task_name=SplitNNConstants.TASK_TRAIN,
     ):
         """Key component to run learner on clients.
 

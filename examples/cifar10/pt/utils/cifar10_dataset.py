@@ -59,8 +59,7 @@ class CIFAR10_Idx(torch.utils.data.Dataset):
 
 
 class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch sampling
-    def __init__(self, root, train=True, transform=None, download=False,
-                 returns="all", intersect_idx=None):
+    def __init__(self, root, train=True, transform=None, download=False, returns="all", intersect_idx=None):
         """CIFAR-10 dataset with index to extract a mini-batch based on given batch indices
         Useful for SplitNN training
 
