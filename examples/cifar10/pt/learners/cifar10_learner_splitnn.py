@@ -13,8 +13,7 @@
 # limitations under the License.
 
 import os
-import pickle  # TODO: remove
-import sys
+import pickle  # TODO: used for benchmarking, remove later
 from timeit import default_timer as timer
 
 import numpy as np
@@ -23,8 +22,9 @@ import torch.optim as optim
 from pt.utils.cifar10_dataset import CIFAR10SplitNN
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
+from pt.workflows.splitnn_workflow import SplitNNConstants, SplitNNDataKind
 
-from nvflare.apis.dxo import DXO, DataKind, from_shareable
+from nvflare.apis.dxo import DXO, from_shareable
 from nvflare.apis.fl_constant import FLContextKey, ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable, make_reply
@@ -33,31 +33,6 @@ from nvflare.app_common.abstract.learner_spec import Learner
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.pt.pt_decomposers import TensorDecomposer
 from nvflare.fuel.utils import fobs
-
-
-def print_grads(net):
-    for name, param in net.named_parameters():
-        if param.grad is not None:
-            print(name, "grad", param.grad.shape, torch.sum(param.grad).item())
-        else:
-            print(name, "grad", None)
-
-class SplitNNDataKind(object):
-    ACTIVATIONS = "_splitnn_activations_"
-    GRADIENT = "_splitnn_gradient_"
-
-class SplitNNConstants(object):
-    BATCH_INDICES = "_splitnn_batch_indices_"
-    DATA = "_splitnn_data_"
-    BATCH_SIZE = "_splitnn_batch_size_"
-    TARGET_NAMES = "_splitnn_target_names_"
-
-    TASK_INIT_MODEL = "_splitnn_task_init_model_"
-    TASK_LABEL_STEP = "_splitnn_task_label_step_"
-    TASK_TRAIN = "_splitnn_task_train_"
-
-    TASK_RESULT = "_splitnn_task_result_"
-    TIMEOUT = 60.0  # timeout for waiting for reply from aux message request
 
 
 class CIFAR10LearnerSplitNN(Learner):
@@ -133,7 +108,8 @@ class CIFAR10LearnerSplitNN(Learner):
             self.times["aux_hdl_learner_end_data_backward_step"] = []
 
     def _get_model(self, fl_ctx: FLContext):
-        # TODO: is this whole logic needed?
+        """ Get model from client config. Modelled after `PTFileModelPersistor`.
+        """
         if isinstance(self.model, str):
             # treat it as model component ID
             model_component_id = self.model
@@ -221,9 +197,6 @@ class CIFAR10LearnerSplitNN(Learner):
         # register aux message handlers
         engine = fl_ctx.get_engine()
 
-        #engine.register_aux_message_handler(
-        #    topic=self.data_step_task, message_handle_func=self.train_backward_data_side
-        #)
         if self.split_id == 1:
             engine.register_aux_message_handler(topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self.train_label_side)
             self.log_debug(fl_ctx, f"Registered aux message handlers for split_id {self.split_id}")
@@ -303,8 +276,6 @@ class CIFAR10LearnerSplitNN(Learner):
         if self.timeit:
             self.times["learner_end_backward_step"].append(timer())
 
-    """ message_handle_func functions """
-
     def train_backward_data_side(self, fl_ctx: FLContext, gradient=None) -> Shareable:
         if self.timeit:
             self.times["aux_hdl_learner_start_data_train_back_step"].append(timer())
@@ -347,6 +318,8 @@ class CIFAR10LearnerSplitNN(Learner):
             return act
 
     def train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+        """ aux message handler """
+
         if self.timeit:
             self.times["aux_hdl_learner_start_label_train_step"].append(timer())
         if self.split_id != 1:
@@ -436,6 +409,7 @@ class CIFAR10LearnerSplitNN(Learner):
         return make_reply(ReturnCode.OK)
 
     def train(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
+        """ main training logic """
 
         self.num_rounds = shareable.get_header(AppConstants.NUM_ROUNDS)
         if not self.num_rounds:
@@ -486,7 +460,7 @@ class CIFAR10LearnerSplitNN(Learner):
             else:
                 raise ValueError(f"No message returned from {self.other_client}!")
 
-
+            # TODO: remove debugging
             #_act = fobs.dumps(activations)
             #print(f"c1->c2 (activations {type(_act)}): {sys.getsizeof(_act)*1e-6:.2f} MB")
             #print(f"c2->c1 (gradients {type(gradients)}): {sys.getsizeof(gradients)*1e-6:.2f} MB")
@@ -494,7 +468,6 @@ class CIFAR10LearnerSplitNN(Learner):
             self.log_debug(fl_ctx, f"Ending current round={self.current_round}.")
 
         return make_reply(ReturnCode.OK)
-
 
     def finalize(self, fl_ctx: FLContext):
         if self.timeit:

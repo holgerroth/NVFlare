@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from pt.networks.cifar10_nets import ModerateCNN2
+from pt.networks.cifar10_nets import ModerateCNN
 from pt.utils.cifar10_dataset import CIFAR10SplitNN
 from torch import optim
 from torch.utils.tensorboard import SummaryWriter
@@ -9,7 +9,7 @@ from torchvision import datasets, transforms
 
 # TODO: maybe only use the part net that is being used
 #  rather than inheriting the full net
-class SplitNN(ModerateCNN2):
+class SplitNN(ModerateCNN):
     def __init__(self, split_id):
         super().__init__()
         if split_id not in [0, 1]:
