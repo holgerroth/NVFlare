@@ -61,8 +61,7 @@ class Cifar10DataSplitter(FLComponent):
         if self.split_dir is None:
             raise ValueError("You need to define a valid `split_dir` when splitting the data.")
         if alpha < 0.0:
-            raise ValueError(f"Alpha should be larger or equal 0.0 but was"
-                             f" {alpha}!")
+            raise ValueError(f"Alpha should be larger or equal 0.0 but was" f" {alpha}!")
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:

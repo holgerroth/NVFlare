@@ -20,8 +20,7 @@ from nvflare.app_common.psi.psi_spec import PSI
 
 
 class Cifar10LocalPSI(PSI):
-
-    def __init__(self, psi_writer_id: str, data_path: str ="/tmp/data.csv"):
+    def __init__(self, psi_writer_id: str, data_path: str = "/tmp/data.csv"):
         super().__init__(psi_writer_id)
         self.data_path = data_path
         self.data = {}
@@ -36,6 +35,6 @@ class Cifar10LocalPSI(PSI):
 
         # important the PSI algorithms requires the items are unique strings
         if len(np.unique(items)) != len(items):
-            raise ValueError(f"Expected all items to be unique!")
+            raise ValueError("Expected all items to be unique!")
 
         return [str(i) for i in items]

@@ -85,7 +85,7 @@ class ModerateCNN(nn.Module):
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Flatten()  # added to support split learning
+            nn.Flatten(),  # added to support split learning
         )
 
         self.fc_layer = nn.Sequential(

@@ -24,9 +24,11 @@ from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.app_event_type import AppEventType
 from nvflare.widgets.info_collector import GroupInfoCollector, InfoCollector
 
+
 class SplitNNDataKind(object):
     ACTIVATIONS = "_splitnn_activations_"
     GRADIENT = "_splitnn_gradient_"
+
 
 class SplitNNConstants(object):
     BATCH_INDICES = "_splitnn_batch_indices_"
@@ -53,7 +55,7 @@ class SplitNNController(Controller):
         train_task_name=SplitNNConstants.TASK_TRAIN,
         task_timeout: int = 10,
         ignore_result_error: bool = True,
-        batch_size: int = 256
+        batch_size: int = 256,
     ):
         """The controller for Split Learning Workflow.
 
@@ -68,7 +70,10 @@ class SplitNNController(Controller):
             start_round (int, optional): Start round for training. Defaults to 0.
             persistor_id (str, optional): ID of the persistor component. Defaults to "persistor".
             shareable_generator_id (str, optional): ID of the shareable generator. Defaults to "shareable_generator".
-            task_timeout (int, optional): timeout (in sec) to determine if one client fails to request the task which it is assigned to . Defaults to 10.
+            init_model_task_name: Task name used to initialize the local models.
+            train_task_name: Task name used for split learning.
+            task_timeout (int, optional): timeout (in sec) to determine if one client fails
+                to request the task which it is assigned to. Defaults to 10.
             ignore_result_error (bool, optional): whether this controller can proceed if result has errors. Defaults to True.
         Raises:
             TypeError: when any of input arguments does not have correct type
@@ -114,8 +119,6 @@ class SplitNNController(Controller):
 
         # task names
         self.init_model_task_name = init_model_task_name
-        #self.data_step_task = data_step_task
-        #self.label_step_task = label_step_task
         self.train_task_name = train_task_name
 
         self.targets_names = ["site-1", "site-2"]
@@ -132,7 +135,8 @@ class SplitNNController(Controller):
             )
         if not isinstance(self.shareable_generator, ShareableGenerator):
             self.system_panic(
-                f"Shareable generator {self.shareable_generator_id} must be a Shareable Generator instance, but got {type(self.shareable_generator)}",
+                f"Shareable generator {self.shareable_generator_id} must be a Shareable Generator instance, "
+                f"but got {type(self.shareable_generator)}",
                 fl_ctx,
             )
 
@@ -245,17 +249,6 @@ class SplitNNController(Controller):
             # 2. Start split learning
             self._phase = AppConstants.PHASE_TRAIN
             self._train(abort_signal=abort_signal, fl_ctx=fl_ctx)
-
-            #gradients = None  # initial gradients
-            #for self._current_round in range(self._num_rounds):
-            #    if abort_signal.triggered:
-            #        return
-
-            #    self.log_debug(fl_ctx, f"Starting current round={self._current_round}.")
-            #    fl_ctx.set_prop(AppConstants.CURRENT_ROUND, self._current_round, private=True, sticky=False)
-            #    gradients = self.train_step(engine=engine, fl_ctx=fl_ctx, gradients=gradients)
-
-            #    self.log_info(fl_ctx, f"Ending current round={self._current_round}.")
 
             self._phase = AppConstants.PHASE_FINISHED
             self.log_debug(fl_ctx, "SplitNN training ended.")

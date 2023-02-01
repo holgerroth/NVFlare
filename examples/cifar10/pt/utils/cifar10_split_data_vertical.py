@@ -12,13 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cifar10_vertical_data_splitter import Cifar10VerticalDataSplitter
-from nvflare.apis.fl_context import FLContext
 import logging
 import sys
+
+from cifar10_vertical_data_splitter import Cifar10VerticalDataSplitter
+
+from nvflare.apis.fl_context import FLContext
+
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-from nvflare.apis.fl_constant import ReservedKey
 import argparse
+
+from nvflare.apis.fl_constant import ReservedKey
 
 
 def main():
@@ -27,10 +31,7 @@ def main():
     parser.add_argument("--overlap", type=int, default=10_000, help="number of overlapping samples")
     args = parser.parse_args()
 
-    splitter = Cifar10VerticalDataSplitter(
-        split_dir=args.split_dir,
-        overlap=args.overlap
-    )
+    splitter = Cifar10VerticalDataSplitter(split_dir=args.split_dir, overlap=args.overlap)
 
     # set up a dummy context for logging
     fl_ctx = FLContext()
