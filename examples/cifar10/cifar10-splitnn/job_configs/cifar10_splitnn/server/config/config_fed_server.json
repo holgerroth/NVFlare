@@ -15,7 +15,7 @@
       "path": "nvflare.app_common.pt.pt_file_model_persistor.PTFileModelPersistor",
       "args": {
         "model": {
-          "path": "pt.networks.cifar10_nets.ModerateCNN2"
+          "path": "pt.networks.cifar10_nets.ModerateCNN"
         }
       }
     },
@@ -40,8 +40,7 @@
             "start_round": 0,
             "persistor_id": "persistor",
             "task_timeout": 0,
-            "shareable_generator_id": "shareable_generator",
-            "timeit": true
+            "shareable_generator_id": "shareable_generator"
         }
       }
   ]
