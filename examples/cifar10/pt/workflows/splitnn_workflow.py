@@ -203,6 +203,8 @@ class SplitNNController(Controller):
         data_shareable: Shareable = Shareable()
         data_shareable.set_header(AppConstants.NUM_ROUNDS, self._num_rounds)
         data_shareable.set_header(SplitNNConstants.BATCH_SIZE, self.batch_size)
+        data_shareable.set_header(SplitNNConstants.TARGET_NAMES, self.targets_names)
+
         task = Task(
             name=self.train_task_name,
             data=data_shareable,

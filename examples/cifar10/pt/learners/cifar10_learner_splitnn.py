@@ -14,6 +14,7 @@
 
 import os
 import pickle  # TODO: remove
+import sys
 from timeit import default_timer as timer
 
 import numpy as np
@@ -49,11 +50,10 @@ class SplitNNConstants(object):
     BATCH_INDICES = "_splitnn_batch_indices_"
     DATA = "_splitnn_data_"
     BATCH_SIZE = "_splitnn_batch_size_"
+    TARGET_NAMES = "_splitnn_target_names_"
 
     TASK_INIT_MODEL = "_splitnn_task_init_model_"
-    #TASK_DATA_STEP = "_splitnn_task_data_step_"
     TASK_LABEL_STEP = "_splitnn_task_label_step_"
-    #TASK_BACKWARD_STEP = "_splitnn_task_backward_step_"
     TASK_TRAIN = "_splitnn_task_train_"
 
     TASK_RESULT = "_splitnn_task_result_"
@@ -67,11 +67,11 @@ class CIFAR10LearnerSplitNN(Learner):
         intersection_file: str = None,
         #init_model_task=SplitNNConstants.TASK_INIT_MODEL,
         #data_step_task=SplitNNConstants.TASK_DATA_STEP,
-        label_step_task_name=SplitNNConstants.TASK_LABEL_STEP,
         lr: float = 1e-2,
         model: dict = None,
         timeit: bool = False,  # TODO: remove option
         analytic_sender_id: str = "analytic_sender",
+        fp16: bool = True
     ):
         """Simple CIFAR-10 Trainer for split learning.
 
@@ -80,7 +80,6 @@ class CIFAR10LearnerSplitNN(Learner):
             intersection_file:
             init_model_task:
             data_step_task:
-            label_step_task_name:
             model:
             analytic_sender_id: id of `AnalyticsSender` if configured as a client component. If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
         """
@@ -89,11 +88,11 @@ class CIFAR10LearnerSplitNN(Learner):
         self.intersection_file = intersection_file
         #self.init_model_task = init_model_task
         #self.data_step_task = data_step_task
-        self.label_step_task_name = label_step_task_name
         self.lr = lr
         self.model = model
         self.analytic_sender_id = analytic_sender_id
-        self.targets_names = ["site-1", "site-2"]  # TODO: hardcoded order! Maybe configurable.
+        self.fp16 = fp16
+        self.target_names = None
 
         self.app_root = None
         self.current_round = None
@@ -101,6 +100,7 @@ class CIFAR10LearnerSplitNN(Learner):
         self.batch_size = None
         self.writer = None
         self.client_name = None
+        self.other_client = None
         self.device = None
         self.optimizer = None
         self.criterion = None
@@ -225,7 +225,7 @@ class CIFAR10LearnerSplitNN(Learner):
         #    topic=self.data_step_task, message_handle_func=self.train_backward_data_side
         #)
         if self.split_id == 1:
-            engine.register_aux_message_handler(topic=self.label_step_task_name, message_handle_func=self.train_label_side)
+            engine.register_aux_message_handler(topic=SplitNNConstants.TASK_LABEL_STEP, message_handle_func=self.train_label_side)
             self.log_debug(fl_ctx, f"Registered aux message handlers for split_id {self.split_id}")
 
     """ training steps """
@@ -251,6 +251,10 @@ class CIFAR10LearnerSplitNN(Learner):
 
         labels = self.train_dataset.get_batch(batch_indices)
         labels = labels.to(self.device)
+
+        if self.fp16:
+            activations = activations.type(torch.float32)  # return to default pytorch precision
+
         activations = activations.to(self.device)
         activations.requires_grad_(True)
 
@@ -275,12 +279,19 @@ class CIFAR10LearnerSplitNN(Learner):
 
         if not isinstance(activations.grad, torch.Tensor):
             raise ValueError("No valid gradients available!")
-        return activations.grad  # gradient to be returned to other client
+        # gradient to be returned to other client
+        if self.fp16:
+            return activations.grad.type(torch.float16)
+        else:
+            return activations.grad
 
     def backward_step_data_side(self, gradient, fl_ctx: FLContext):
         if self.timeit:
             self.times["learner_start_backward_step"].append(timer())
         self.optimizer.zero_grad()
+
+        if self.fp16:
+            gradient = gradient.type(torch.float32)  # return to default pytorch precision
 
         gradient = gradient.to(self.device)
         self.activations.backward(gradient=gradient)
@@ -329,7 +340,11 @@ class CIFAR10LearnerSplitNN(Learner):
         if self.timeit:
             self.times["aux_hdl_learner_end_data_train_step"].append(timer())
         self.log_debug(fl_ctx, f"Sending train data activations: {type(act)}")
-        return act
+
+        if self.fp16:
+            return act.type(torch.float16)
+        else:
+            return act
 
     def train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         if self.timeit:
@@ -426,6 +441,8 @@ class CIFAR10LearnerSplitNN(Learner):
         if not self.num_rounds:
             raise ValueError("No number of rounds available.")
         self.batch_size = shareable.get_header(SplitNNConstants.BATCH_SIZE)
+        self.target_names = np.asarray(shareable.get_header(SplitNNConstants.TARGET_NAMES))  # convert to array for string matching below
+        self.other_client = self.target_names[self.target_names != self.client_name][0]
         self.log_info(fl_ctx, f"Starting training of {self.num_rounds} rounds with batch size {self.batch_size}")
 
         gradients = None  # initial gradients
@@ -454,17 +471,25 @@ class CIFAR10LearnerSplitNN(Learner):
 
             # send to other side
             result = engine.send_aux_request(
-                targets=[self.targets_names[1]],  # TODO: add self.other_site_name, self.my_site_name?
-                topic=self.label_step_task_name,
+                targets=self.other_client,
+                topic=SplitNNConstants.TASK_LABEL_STEP,
                 request=data_shareable,
                 timeout=SplitNNConstants.TIMEOUT,
                 fl_ctx=fl_ctx,
             )
-            shareable = result.get(self.targets_names[1])  # TODO: handle None
-            dxo = from_shareable(shareable)
-            if dxo.data_kind != SplitNNDataKind.GRADIENT:
-                raise ValueError(f"Expected data kind {SplitNNDataKind.GRADIENT} but received {dxo.data_kind}")
-            gradients = dxo.data.get(SplitNNConstants.DATA)
+            shareable = result.get(self.other_client)
+            if shareable is not None:
+                dxo = from_shareable(shareable)
+                if dxo.data_kind != SplitNNDataKind.GRADIENT:
+                    raise ValueError(f"Expected data kind {SplitNNDataKind.GRADIENT} but received {dxo.data_kind}")
+                gradients = dxo.data.get(SplitNNConstants.DATA)
+            else:
+                raise ValueError(f"No message returned from {self.other_client}!")
+
+
+            #_act = fobs.dumps(activations)
+            #print(f"c1->c2 (activations {type(_act)}): {sys.getsizeof(_act)*1e-6:.2f} MB")
+            #print(f"c2->c1 (gradients {type(gradients)}): {sys.getsizeof(gradients)*1e-6:.2f} MB")
 
             self.log_debug(fl_ctx, f"Ending current round={self.current_round}.")
 
