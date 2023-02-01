@@ -23,7 +23,6 @@ from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.learner_spec import Learner
 
 
-# TODO: maybe move all into one executor
 class SplitNNLearnerExecutor(Executor):
     def __init__(
         self, learner_id, init_model_task_name=SplitNNConstants.TASK_INIT_MODEL, train_task_name=SplitNNConstants.TASK_TRAIN
@@ -58,7 +57,7 @@ class SplitNNLearnerExecutor(Executor):
         try:
             engine = fl_ctx.get_engine()
             self.learner = engine.get_component(self.learner_id)
-            if not isinstance(self.learner, Learner):  # TODO: should we have a SplitNNLearner base class?
+            if not isinstance(self.learner, Learner):
                 raise TypeError(f"learner must be Learner type. Got: {type(self.learner)}")
             self.learner.initialize(engine.get_all_components(), fl_ctx)
         except Exception as e:
