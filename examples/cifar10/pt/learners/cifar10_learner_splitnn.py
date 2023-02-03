@@ -59,7 +59,7 @@ class CIFAR10LearnerSplitNN(Learner):
                 If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
             fp16: If `True`, convert activations and gradients send between clients to `torch.float16`.
                 Reduces bandwidth needed for communication but might impact model accuracy.
-            val_freq: how often to perform validation in rounds. Defaults to 1000.
+            val_freq: how often to perform validation in rounds. Defaults to 1000. No validation if <= 0.
         """
         super().__init__()
         self.dataset_root = dataset_root
