@@ -282,10 +282,11 @@ class CIFAR10LearnerSplitNN(Learner):
         _, pred_labels = torch.max(pred, 1)
         acc = (pred_labels == labels).sum() / len(labels)
 
-        self.log_info(
-            fl_ctx,
-            f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}, train_accuracy: {acc.item():.4f}",
-        )
+        if self.current_round % 100 == 0:
+            self.log_info(
+                fl_ctx,
+                f"Round {self.current_round}/{self.num_rounds} train_loss: {loss.item():.4f}, train_accuracy: {acc.item():.4f}",
+            )
         if self.writer:
             self.writer.add_scalar("train_loss", loss, self.current_round)
             self.writer.add_scalar("train_accuracy", acc, self.current_round)
@@ -586,8 +587,9 @@ class CIFAR10LearnerSplitNN(Learner):
 
             self.log_debug(fl_ctx, f"Ending current round={self.current_round}.")
 
-            if _curr_round % self.val_freq == 0 and self.val_freq > 0:
-                self._validate(fl_ctx)
+            if self.val_freq > 0:
+                if _curr_round % self.val_freq == 0:
+                    self._validate(fl_ctx)
 
         return make_reply(ReturnCode.OK)
 
