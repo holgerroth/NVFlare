@@ -85,6 +85,9 @@ class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch s
         self.intersect_idx = intersect_idx
         self.orig_size = 0
 
+        if self.returns not in ["all", "image", "label"]:
+            raise ValueError(f"Expected `returns` to be 'all', 'image', or 'label', but got '{self.returns}'")
+
         if self.intersect_idx is not None:
             self.intersect_idx = np.sort(self.intersect_idx).astype(np.int64)
 
@@ -108,24 +111,39 @@ class CIFAR10SplitNN(object):  # TODO: use torch.utils.data.Dataset with batch s
             img = self.transform(img)
         return img, target
 
+    def __getimage__(self, index):
+        img = self.data[index]
+        if self.transform is not None:
+            img = self.transform(img)
+        return img
+
+    def __getlabel__(self, index):
+        return self.target[index]
+
     # TODO: this can probably made more efficient using batch_sampler
     def get_batch(self, batch_indices):
         img_batch = []
         target_batch = []
-        for idx in batch_indices:
-            img, target = self.__getitem__(idx)
-            img_batch.append(img)
-            target_batch.append(torch.tensor(target, dtype=torch.long))
-        img_batch = torch.stack(img_batch, dim=0)
-        target_batch = torch.stack(target_batch, dim=0)
         if self.returns == "all":
+            for idx in batch_indices:
+                img, target = self.__getitem__(idx)
+                img_batch.append(img)
+                target_batch.append(torch.tensor(target, dtype=torch.long))
+            img_batch = torch.stack(img_batch, dim=0)
+            target_batch = torch.stack(target_batch, dim=0)
             return img_batch, target_batch
         elif self.returns == "image":
+            for idx in batch_indices:
+                img = self.__getimage__(idx)
+                img_batch.append(img)
+            img_batch = torch.stack(img_batch, dim=0)
             return img_batch
-        elif self.returns == "label":
+        else:  # "label"
+            for idx in batch_indices:
+                target = self.__getlabel__(idx)
+                target_batch.append(torch.tensor(target, dtype=torch.long))
+            target_batch = torch.stack(target_batch, dim=0)
             return target_batch
-        else:
-            raise ValueError(f"Expected `returns` to be 'all', 'image', or 'label', but got '{self.returns}'")
 
     def __len__(self):
         return len(self.data)
