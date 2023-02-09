@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import pickle  # TODO: used for benchmarking, remove later
 from timeit import default_timer as timer
 
 import numpy as np
@@ -32,6 +30,7 @@ from nvflare.app_common.abstract.learner_spec import Learner
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.pt.pt_decomposers import TensorDecomposer
 from nvflare.app_common.workflows.splitnn_workflow import SplitNNConstants, SplitNNDataKind
+from nvflare.fuel.f3.stats_pool import StatsPoolManager
 from nvflare.fuel.utils import fobs
 
 
@@ -42,7 +41,6 @@ class CIFAR10LearnerSplitNN(Learner):
         intersection_file: str = None,
         lr: float = 1e-2,
         model: dict = None,
-        timeit: bool = False,  # TODO: remove option; only used for benchmarking
         analytic_sender_id: str = "analytic_sender",
         fp16: bool = True,
         val_freq: int = 1000,
@@ -92,27 +90,10 @@ class CIFAR10LearnerSplitNN(Learner):
         self.val_loss = []
         self.val_labels = []
         self.val_pred_labels = []
+        self.compute_stats_pool = None
 
         # use FOBS serializing/deserializing PyTorch tensors
         fobs.register(TensorDecomposer)
-
-        self.timeit = timeit
-        self.times = {}
-        if self.timeit:
-            self.times["learner_start_data_step"] = []
-            self.times["learner_end_data_step"] = []
-            self.times["learner_start_label_step"] = []
-            self.times["learner_end_label_step"] = []
-            self.times["learner_start_backward_step"] = []
-            self.times["learner_end_backward_step"] = []
-            self.times["aux_hdl_learner_start_data_train_back_step"] = []
-            self.times["aux_hdl_learner_end_data_train_back_step"] = []
-            self.times["aux_hdl_learner_start_data_train_step"] = []
-            self.times["aux_hdl_learner_end_data_train_step"] = []
-            self.times["aux_hdl_learner_start_label_train_step"] = []
-            self.times["aux_hdl_learner_end_label_train_step"] = []
-            self.times["aux_hdl_learner_start_data_backward_step"] = []
-            self.times["aux_hdl_learner_end_data_backward_step"] = []
 
     def _get_model(self, fl_ctx: FLContext):
         """Get model from client config. Modelled after `PTFileModelPersistor`."""
@@ -147,6 +128,7 @@ class CIFAR10LearnerSplitNN(Learner):
         self.log_info(fl_ctx, f"Running model {self.model}")
 
     def initialize(self, parts: dict, fl_ctx: FLContext):
+        t_start = timer()
         self._get_model(fl_ctx=fl_ctx)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
@@ -234,35 +216,42 @@ class CIFAR10LearnerSplitNN(Learner):
             )
             self.log_debug(fl_ctx, f"Registered aux message handlers for split_id {self.split_id}")
 
+        self.compute_stats_pool = StatsPoolManager.add_time_hist_pool(
+            "Compute_Time", "Compute time in secs", scope=self.client_name
+        )
+
+        self.compute_stats_pool.record_value(category="initialize", value=timer() - t_start)
+
     """ training steps """
 
     def _train_step_data_side(self, batch_indices):
-        if self.timeit:
-            self.times["learner_start_data_step"].append(timer())
+        t_start = timer()
         self.model.train()
 
         inputs = self.train_dataset.get_batch(batch_indices)
         inputs = inputs.to(self.device)
 
         self.train_activations = self.model.forward(inputs)  # keep on site-1
-        if self.timeit:
-            self.times["learner_end_data_step"].append(timer())
+
+        self.compute_stats_pool.record_value(category="_train_step_data_side", value=timer() - t_start)
+
         return self.train_activations.detach().requires_grad_()  # x to be sent to other client
 
     def _val_step_data_side(self, batch_indices):
-        if self.timeit:
-            self.times["learner_start_data_step"].append(timer())
+        t_start = timer()
         self.model.eval()
 
         inputs = self.valid_dataset.get_batch(batch_indices)
         inputs = inputs.to(self.device)
 
         _val_activations = self.model.forward(inputs)  # keep on site-1
+
+        self.compute_stats_pool.record_value(category="_val_step_data_side", value=timer() - t_start)
+
         return _val_activations.detach()  # x to be sent to other client
 
     def _train_step_label_side(self, batch_indices, activations, fl_ctx: FLContext):
-        if self.timeit:
-            self.times["learner_start_label_step"].append(timer())
+        t_start = timer()
         self.model.train()
         self.optimizer.zero_grad()
 
@@ -292,8 +281,8 @@ class CIFAR10LearnerSplitNN(Learner):
             self.writer.add_scalar("train_accuracy", acc, self.current_round)
 
         self.optimizer.step()
-        if self.timeit:
-            self.times["learner_end_label_step"].append(timer())
+
+        self.compute_stats_pool.record_value(category="_train_step_label_side", value=timer() - t_start)
 
         if not isinstance(activations.grad, torch.Tensor):
             raise ValueError("No valid gradients available!")
@@ -304,6 +293,7 @@ class CIFAR10LearnerSplitNN(Learner):
             return activations.grad
 
     def _val_step_label_side(self, batch_indices, activations, fl_ctx: FLContext):
+        t_start = timer()
         self.model.eval()
 
         labels = self.valid_dataset.get_batch(batch_indices)
@@ -322,6 +312,8 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.val_pred_labels.extend(pred_labels.unsqueeze(0))
         self.val_labels.extend(labels.unsqueeze(0))
+
+        self.compute_stats_pool.record_value(category="_val_step_label_side", value=timer() - t_start)
 
     def _log_validation(self, fl_ctx: FLContext):
         if len(self.val_loss) > 0:
@@ -344,9 +336,8 @@ class CIFAR10LearnerSplitNN(Learner):
             self.val_pred_labels = []
 
     def _backward_step_data_side(self, gradient, fl_ctx: FLContext):
+        t_start = timer()
         self.model.train()
-        if self.timeit:
-            self.times["learner_start_backward_step"].append(timer())
         self.optimizer.zero_grad()
 
         if self.fp16:
@@ -359,12 +350,10 @@ class CIFAR10LearnerSplitNN(Learner):
         self.log_debug(
             fl_ctx, f"{self.client_name} runs model with `split_id` {self.split_id} for backward step on data side."
         )
-        if self.timeit:
-            self.times["learner_end_backward_step"].append(timer())
+        self.compute_stats_pool.record_value(category="_backward_step_data_side", value=timer() - t_start)
 
     def _train_forward_backward_data_side(self, fl_ctx: FLContext, gradient=None) -> Shareable:
-        if self.timeit:
-            self.times["aux_hdl_learner_start_data_train_back_step"].append(timer())
+        t_start = timer()
         # combine forward and backward on data client
         # 1. perform backward step if gradients provided
         if gradient is not None:
@@ -374,13 +363,13 @@ class CIFAR10LearnerSplitNN(Learner):
             ), f"Backward step failed with return code {result_backward.get_return_code()}"
         # 2. compute activations
         activations = self._train_data_side(fl_ctx=fl_ctx)
-        if self.timeit:
-            self.times["aux_hdl_learner_end_data_train_back_step"].append(timer())
+
+        self.compute_stats_pool.record_value(category="_train_forward_backward_data_side", value=timer() - t_start)
+
         return activations
 
     def _train_data_side(self, fl_ctx: FLContext) -> Shareable:
-        if self.timeit:
-            self.times["aux_hdl_learner_start_data_train_step"].append(timer())
+        t_start = timer()
         if self.split_id != 0:
             raise ValueError(
                 f"Expected `split_id` 0. It doesn't make sense to run `_train_data_side` with `split_id` {self.split_id}"
@@ -394,8 +383,8 @@ class CIFAR10LearnerSplitNN(Learner):
             fl_ctx, f"{self.client_name} finished model with `split_id` {self.split_id} for train on data side."
         )
 
-        if self.timeit:
-            self.times["aux_hdl_learner_end_data_train_step"].append(timer())
+        self.compute_stats_pool.record_value(category="_train_data_side", value=timer() - t_start)
+
         self.log_debug(fl_ctx, f"Sending train data activations: {type(act)}")
 
         if self.fp16:
@@ -405,9 +394,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
     def _aux_train_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         """train aux message handler"""
-
-        if self.timeit:
-            self.times["aux_hdl_learner_start_label_train_step"].append(timer())
+        t_start = timer()
         if self.split_id != 1:
             raise ValueError(
                 f"Expected `split_id` 1. It doesn't make sense to run `_aux_train_label_side` with `split_id` {self.split_id}"
@@ -437,17 +424,15 @@ class CIFAR10LearnerSplitNN(Learner):
         return_shareable = DXO(
             data={SplitNNConstants.DATA: fobs.dumps(gradient)}, data_kind=SplitNNDataKind.GRADIENT
         ).to_shareable()
-        if self.timeit:
-            self.times["aux_hdl_learner_end_label_train_step"].append(timer())
+
+        self.compute_stats_pool.record_value(category="_aux_train_label_side", value=timer() - t_start)
 
         self.log_debug(fl_ctx, f"Sending train label return_shareable: {type(return_shareable)}")
         return return_shareable
 
     def _aux_val_label_side(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
         """validation aux message handler"""
-
-        if self.timeit:
-            self.times["aux_hdl_learner_start_label_train_step"].append(timer())
+        t_start = timer()
         if self.split_id != 1:
             raise ValueError(
                 f"Expected `split_id` 1. It doesn't make sense to run `_aux_train_label_side` with `split_id` {self.split_id}"
@@ -474,11 +459,12 @@ class CIFAR10LearnerSplitNN(Learner):
         if val_round == val_num_rounds - 1:
             self._log_validation(fl_ctx)
 
+        self.compute_stats_pool.record_value(category="_aux_val_label_side", value=timer() - t_start)
+
         return make_reply(ReturnCode.OK)
 
     def _backward_data_side(self, gradient, fl_ctx: FLContext) -> Shareable:
-        if self.timeit:
-            self.times["aux_hdl_learner_start_data_backward_step"].append(timer())
+        t_start = timer()
         if self.split_id != 0:
             raise ValueError(
                 f"Expected `split_id` 0. It doesn't make sense to run `_backward_data_side` with `split_id` {self.split_id}"
@@ -487,12 +473,14 @@ class CIFAR10LearnerSplitNN(Learner):
         self._backward_step_data_side(gradient=fobs.loads(gradient), fl_ctx=fl_ctx)
 
         self.log_debug(fl_ctx, "_backward_data_side finished.")
-        if self.timeit:
-            self.times["aux_hdl_learner_end_data_backward_step"].append(timer())
+
+        self.compute_stats_pool.record_value(category="_backward_data_side", value=timer() - t_start)
+
         return make_reply(ReturnCode.OK)
 
     # Model initialization task (one time only in beginning)
     def init_model(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
+        t_start = timer()
         # Check abort signal
         if abort_signal.triggered:
             return make_reply(ReturnCode.TASK_ABORTED)
@@ -522,10 +510,14 @@ class CIFAR10LearnerSplitNN(Learner):
         if n_loaded == 0:
             raise ValueError("No global weights loaded!")
 
+        self.compute_stats_pool.record_value(category="init_model", value=timer() - t_start)
+
         self.log_info(fl_ctx, "init_model finished.")
+
         return make_reply(ReturnCode.OK)
 
     def train(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
+        t_start = timer()
         """main training logic"""
         engine = fl_ctx.get_engine()
 
@@ -580,20 +572,18 @@ class CIFAR10LearnerSplitNN(Learner):
             else:
                 raise ValueError(f"No message returned from {self.other_client}!")
 
-            # TODO: remove debugging
-            # _act = fobs.dumps(activations)
-            # print(f"c1->c2 (activations {type(_act)}): {sys.getsizeof(_act)*1e-6:.2f} MB")
-            # print(f"c2->c1 (gradients {type(gradients)}): {sys.getsizeof(gradients)*1e-6:.2f} MB")
-
             self.log_debug(fl_ctx, f"Ending current round={self.current_round}.")
 
             if self.val_freq > 0:
                 if _curr_round % self.val_freq == 0:
                     self._validate(fl_ctx)
 
+        self.compute_stats_pool.record_value(category="train", value=timer() - t_start)
+
         return make_reply(ReturnCode.OK)
 
     def _validate(self, fl_ctx: FLContext):
+        t_start = timer()
         engine = fl_ctx.get_engine()
 
         idx = np.arange(len(self.valid_dataset))
@@ -619,10 +609,6 @@ class CIFAR10LearnerSplitNN(Learner):
                 fl_ctx=fl_ctx,
             )
 
-        self.log_debug(fl_ctx, "finished validation.")
+        self.compute_stats_pool.record_value(category="_validate", value=timer() - t_start)
 
-    def finalize(self, fl_ctx: FLContext):
-        if self.timeit:
-            app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
-            with open(os.path.join(app_root, "learner_times.pkl"), "wb") as f:
-                pickle.dump(self.times, f)
+        self.log_debug(fl_ctx, "finished validation.")
