@@ -248,7 +248,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.compute_stats_pool.record_value(category="_val_step_data_side", value=timer() - t_start)
 
-        return _val_activations.detach()  # x to be sent to other client
+        return _val_activations.detach().flatten(start_dim=1, end_dim=-1)  # x to be sent to other client
 
     def _train_step_label_side(self, batch_indices, activations, fl_ctx: FLContext):
         t_start = timer()
@@ -344,7 +344,7 @@ class CIFAR10LearnerSplitNN(Learner):
             gradient = gradient.type(torch.float32)  # return to default pytorch precision
 
         gradient = gradient.to(self.device)
-        self.train_activations.backward(gradient=gradient)
+        self.train_activations.backward(gradient=gradient.reshape(self.train_activations.shape))
         self.optimizer.step()
 
         self.log_debug(
@@ -366,7 +366,7 @@ class CIFAR10LearnerSplitNN(Learner):
 
         self.compute_stats_pool.record_value(category="_train_forward_backward_data_side", value=timer() - t_start)
 
-        return activations
+        return activations.flatten(start_dim=1, end_dim=-1)  # keep batch dim
 
     def _train_data_side(self, fl_ctx: FLContext) -> Shareable:
         t_start = timer()
