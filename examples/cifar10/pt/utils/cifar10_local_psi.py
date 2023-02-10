@@ -33,8 +33,4 @@ class Cifar10LocalPSI(PSI):
 
         items = np.load(self.data_path)
 
-        # important the PSI algorithms requires the items are unique strings
-        if len(np.unique(items)) != len(items):
-            raise ValueError("Expected all items to be unique!")
-
         return [str(i) for i in items]

@@ -41,11 +41,12 @@ import json
 import os
 
 import numpy as np
-import torchvision.datasets as datasets
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_component import FLComponent
 from nvflare.apis.fl_context import FLContext
+
+from .cifar10_data_utils import get_site_class_summary, load_cifar10_data
 
 CIFAR10_ROOT = "/tmp/cifar10"  # will be used for all CIFAR-10 experiments
 
@@ -91,27 +92,8 @@ class Cifar10DataSplitter(FLComponent):
             site_file_name = site_file_path + str(site + 1) + ".npy"
             np.save(site_file_name, np.array(site_idx[site]))
 
-    @staticmethod
-    def load_cifar10_data():
-        # download data
-        train_dataset = datasets.CIFAR10(root=CIFAR10_ROOT, train=True, download=True)
-
-        # only training label is needed for doing split
-        train_label = np.array(train_dataset.targets)
-        return train_label
-
-    @staticmethod
-    def get_site_class_summary(train_label, site_idx):
-        class_sum = {}
-
-        for site, data_idx in site_idx.items():
-            unq, unq_cnt = np.unique(train_label[data_idx], return_counts=True)
-            tmp = {int(unq[i]): int(unq_cnt[i]) for i in range(len(unq))}
-            class_sum[site] = tmp
-        return class_sum
-
     def _partition_data(self):
-        train_label = self.load_cifar10_data()
+        train_label = load_cifar10_data()
 
         min_size = 0
         K = 10
@@ -141,6 +123,6 @@ class Cifar10DataSplitter(FLComponent):
             site_idx[j] = idx_batch[j]
 
         # collect class summary
-        class_sum = self.get_site_class_summary(train_label, site_idx)
+        class_sum = get_site_class_summary(train_label, site_idx)
 
         return site_idx, class_sum

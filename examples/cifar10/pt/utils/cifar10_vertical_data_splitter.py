@@ -16,11 +16,12 @@ import json
 import os
 
 import numpy as np
-from cifar10_data_splitter import Cifar10DataSplitter as Splitter
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_component import FLComponent
 from nvflare.apis.fl_context import FLContext
+
+from .cifar10_data_utils import get_site_class_summary, load_cifar10_data
 
 CIFAR10_ROOT = "/tmp/cifar10"  # will be used for all CIFAR-10 experiments
 
@@ -61,7 +62,7 @@ class Cifar10VerticalDataSplitter(FLComponent):
             np.save(site_file_name, _idx)
 
     def _split_data(self):
-        train_label = Splitter.load_cifar10_data()
+        train_label = load_cifar10_data()
 
         n_samples = len(train_label)
 
@@ -89,6 +90,6 @@ class Cifar10VerticalDataSplitter(FLComponent):
         site_idx = {"overlap": overlap_idx, "site-1": idx_1, "site-2": idx_2}
 
         # collect class summary
-        class_sum = Splitter.get_site_class_summary(train_label, {"overlap": overlap_idx})
+        class_sum = get_site_class_summary(train_label, {"overlap": overlap_idx})
 
         return site_idx, class_sum

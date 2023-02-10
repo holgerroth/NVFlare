@@ -1,7 +1,8 @@
 {
   "format_version": 2,
 
-  "num_rounds": 15625,
+  "0num_rounds": 15625,
+  "num_rounds": 100000,
   "batch_size": 64,
 
   "server": {

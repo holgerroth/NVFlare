@@ -31,10 +31,9 @@
       "path": "pt.learners.cifar10_learner_splitnn.CIFAR10LearnerSplitNN",
       "args": {
         "dataset_root": "{DATASET_ROOT}",
-        "intersection_file": "{INTERSECTION_FILE}",
         "lr": 1e-2,
         "model": {"path": "pt.networks.split_nn.SplitNN", "args":  {"split_id":  0}},
-        "timeit": true
+        "val_freq": 0
       }
     }
   ]
