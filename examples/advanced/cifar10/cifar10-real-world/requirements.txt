@@ -1,7 +1,0 @@
-nvflare[HE]>=2.3.0
-torch
-torchvision
-tensorboard
-tensorflow
-seaborn
-pandas

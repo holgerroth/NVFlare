@@ -37,26 +37,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import numpy as np
-import torchvision.datasets as datasets
-
-CIFAR10_ROOT = "/tmp/cifar10"  # will be used for all CIFAR-10 experiments
+from cifar10_data_splitter import Cifar10DataSplitter
 
 
-def load_cifar10_data():
-    # download data
-    train_dataset = datasets.CIFAR10(root=CIFAR10_ROOT, train=True, download=True)
-
-    # only training label is needed for doing split
-    train_label = np.array(train_dataset.targets)
-    return train_label
+def main():
+    splitter = Cifar10DataSplitter()
+    splitter.load_cifar10_data()  # will download to CIFAR10_ROOT defined in Cifar10DataSplitter
 
 
-def get_site_class_summary(train_label, site_idx):
-    class_sum = {}
-
-    for site, data_idx in site_idx.items():
-        unq, unq_cnt = np.unique(train_label[data_idx], return_counts=True)
-        tmp = {int(unq[i]): int(unq_cnt[i]) for i in range(len(unq))}
-        class_sum[site] = tmp
-    return class_sum
+if __name__ == "__main__":
+    main()

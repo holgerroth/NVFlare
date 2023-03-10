@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from pt.networks.cifar10_nets import ModerateCNN
-from pt.utils.cifar10_data_utils import CIFAR10_ROOT
+from pt.utils.cifar10_data_splitter import CIFAR10_ROOT
 from pt.utils.cifar10_dataset import CIFAR10_Idx
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, transforms
@@ -31,7 +31,7 @@ from nvflare.apis.shareable import ReservedHeaderKey, Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.learner_spec import Learner
 from nvflare.app_common.app_constant import AppConstants, ModelName, ValidateType
-from nvflare.app_opt.pt import PTFedProxLoss
+from nvflare.app_common.pt.pt_fedproxloss import PTFedProxLoss
 
 
 class CIFAR10Learner(Learner):  # also supports CIFAR10ScaffoldLearner
