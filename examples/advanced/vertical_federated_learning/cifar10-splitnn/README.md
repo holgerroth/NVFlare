@@ -17,7 +17,7 @@ This examples uses [JupyterLab](https://jupyter.org).
 We recommend creating a [virtual environment](../../../README.md#set-up-a-virtual-environment).
 
 ## 2. Start JupyterLab
-Set `PYTHONPATH` to include custom files of this example and some reused files from the [CIFAR-10](../../cifar10/README.md) examples:
+Set `PYTHONPATH` to include custom files of this example and some reused files from the [CIFAR-10](../../cifar10) examples:
 ```
 export PYTHONPATH=${PWD}/src:${PWD}/../../cifar10
 ```
