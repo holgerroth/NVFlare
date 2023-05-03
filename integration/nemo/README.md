@@ -16,7 +16,7 @@ NVIDIA NeMo™ is an end-to-end cloud-native enterprise framework for developers
 build, customize, and deploy generative AI models with billions of parameters.
 
 ## Description
-NVFlare utilizes features from NeMo such as prompt learning run LLM tasks in federated environments.
+NVFlare utilizes features from NeMo, such as prompt learning to run LLM tasks in federated environments.
 
 ### Examples
 
@@ -52,13 +52,13 @@ To install the package from source code, use:
 pip install -e .
 ```
 
-### Installation in virtual environment
+### Installation in a virtual environment
 
 If preferred to install dependencies locally, 
 we recommend following the instructions for setting up a 
 [virtual environment](../../examples/README.md#set-up-a-virtual-environment),
 and using it in [JupyterLab](../../examples/README.md#notebooks) for running 
-the notebooks the NeMo integration examples.
+the notebooks in the NeMo integration examples.
 
 Follow the NeMo installation steps [here](https://github.com/NVIDIA/NeMo#installation)
 before installing the NeMo-NVFlare package.
