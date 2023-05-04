@@ -17,7 +17,6 @@
           "path": "nemo_nvflare.ServerPromptEncoder",
           "args": {
             "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
-            "gpt_file_name": "{ROOT_DIR}/megatron_gpt_345m.nemo",
             "taskname": "sentiment"
           }
         }

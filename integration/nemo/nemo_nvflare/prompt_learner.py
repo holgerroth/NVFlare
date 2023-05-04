@@ -209,6 +209,7 @@ class PromptLearner(Learner):
         )
         self.config.model.precision = self.config.trainer.precision
 
+        self.log_info(fl_ctx, f"Model config - {OmegaConf.to_yaml(self.config.model)}")
         self.log_info(fl_ctx, f"Trainer config - {OmegaConf.to_yaml(self.config.trainer)}")
 
         # Set name of the experiment
