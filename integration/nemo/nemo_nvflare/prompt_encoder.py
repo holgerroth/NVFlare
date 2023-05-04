@@ -91,7 +91,7 @@ class ServerPromptEncoder(PromptEncoder, FLComponent):
         _encoder_type = PromptEncoderType(self.config.model.p_tuning.get("encoder_type", "mlp").lower())
 
         if _encoder_type == PromptEncoderType.TPMLP:
-            self._init_environment(self)
+            self._init_environment()
 
         PromptEncoder.__init__(
             self,
