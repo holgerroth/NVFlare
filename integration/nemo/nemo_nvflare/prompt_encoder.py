@@ -89,7 +89,7 @@ class ServerPromptEncoder(PromptEncoder, FLComponent):
         self.config.model.language_model_path = os.path.join(app_root, self.gpt_file_name)
 
         # Using defaults from `init_prompt_encoder` in `MegatronBasePromptLearningModel`
-        _encoder_type = PromptEncoderType(self.config.model.p_tuning.get("encoder_type", "mlp").lower())
+        _encoder_type = PromptEncoderType(self.config.model.p_tuning.get("encoder_type", "tpmlp").lower())
 
         if _encoder_type == PromptEncoderType.TPMLP:
             self._init_environment()

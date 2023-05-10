@@ -36,7 +36,7 @@ class RestoreOptimizers(Callback):
             return
 
         if len(self.lr_scheduler_states) > 0:
-            for config, lr_scheduler_state in zip(trainer.lr_scheduler_configs, self.lr_scheduler_states, strict=True):
+            for config, lr_scheduler_state in zip(trainer.lr_scheduler_configs, self.lr_scheduler_states):
                 config.scheduler.load_state_dict(lr_scheduler_state)
             self.logger.info("LR scheduler states restored.")
 

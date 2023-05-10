@@ -35,6 +35,7 @@ from nvflare.app_common.app_constant import AppConstants, ValidateType
 from .callbacks import RestoreOptimizers
 from .fed_megatron_gpt_prompt_learning_model import FedMegatronGPTPromptLearningModel
 from .utils import compute_model_diff, load_weights
+import time
 
 print("NEMO version", nemo.__version__)
 # configure logging at the root logging level
@@ -134,11 +135,12 @@ class PromptLearner(Learner):
         self.app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
         self.client_id = fl_ctx.get_identity_name()
 
-        os.environ["MASTER_ADDR"] = self.master_addr
-        os.environ["MASTER_PORT"] = (
-            str(self.master_port) if self.master_port else str((abs(hash(self.client_id)) % 30000) + 10000)
-        )  # turn client_id into unique port number
-        self.log_info(fl_ctx, f"Using `MASTER_ADDR`: {self.master_addr} and `MASTER_PORT`: {self.master_port}")
+        #os.environ["MASTER_ADDR"] = self.master_addr
+        #os.environ["MASTER_PORT"] = (
+        #    str(self.master_port) if self.master_port else str((abs(hash(self.client_id)) % 30000) + 10000)
+        #)  # turn client_id into unique port number
+        #self.log_info(fl_ctx, f"Using `MASTER_ADDR`: {self.master_addr} and `MASTER_PORT`: {self.master_port}")
+        self.log_info(fl_ctx, f"Using `MASTER_ADDR`: {os.environ['MASTER_ADDR']} and `MASTER_PORT`: {os.environ['MASTER_PORT']}")
 
         # Load model configuration
         self.config_path = os.path.join(self.app_root, self.config_path)
@@ -184,7 +186,8 @@ class PromptLearner(Learner):
 
         # for PyTorch Native AMP set precision=16
         self.config.trainer.accelerator = "gpu" if torch.cuda.is_available() else "cpu"
-        self.config.trainer.precision = 16 if torch.cuda.is_available() else 32
+        #self.config.trainer.precision = 16 if torch.cuda.is_available() else 32
+        #self.config.trainer.precision = "bf16"  # Not supported on V100
 
         self.config.trainer.devices = self.devices
         self.config.trainer.max_epochs = -1  # Needed to continue fit() in next round
@@ -193,35 +196,51 @@ class PromptLearner(Learner):
         # use torch elastic cluster environment so `create_process_externally` is True
         # the launcher is set to None. It will not try to spawn new processes.
         # It won't create the misconfiguration error because of the `interactive session`
-        os.environ["LOCAL_RANK"] = "0"
-        os.environ["RANK"] = "0"
-        os.environ["WORLD_SIZE"] = str(self.devices)
+        #os.environ["LOCAL_RANK"] = "0"
+        #os.environ["RANK"] = "0"
+        #########os.environ["WORLD_SIZE"] = str(self.devices)
+        self.log_info(fl_ctx, f"Running with distributed environment: `LOCAL_RANK`: {os.environ['LOCAL_RANK']}, `RANK`: {os.environ['RANK']}, and `WORLD_SIZE` {os.environ['WORLD_SIZE']}")
 
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG -4")
         strategy = NLPDDPStrategy(find_unused_parameters=False, no_ddp_communication_hook=True)
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG -3")
         plugins = [TorchElasticEnvironment()]
 
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG -2")
         # Add TensorBoard logger
         self.config.trainer.logger = True
         self.config.trainer.default_root_dir = self.app_root
 
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG -1")
         self.trainer = pl.Trainer(
             plugins=plugins, strategy=strategy, callbacks=[RestoreOptimizers()], **self.config.trainer
         )
+        #self.trainer = pl.Trainer(callbacks=[RestoreOptimizers()], **self.config.trainer)
         self.config.model.precision = self.config.trainer.precision
-
-        self.log_info(fl_ctx, f"Model config - {OmegaConf.to_yaml(self.config.model)}")
-        self.log_info(fl_ctx, f"Trainer config - {OmegaConf.to_yaml(self.config.trainer)}")
 
         # Set name of the experiment
         self.config.name = self.exp_name
 
+        self.log_info(fl_ctx, f"Model config - {OmegaConf.to_yaml(self.config.model)}")
+        self.log_info(fl_ctx, f"Trainer config - {OmegaConf.to_yaml(self.config.trainer)}")
+
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG 0")
         # The only thing left to do is load up the model and begin p-tuning!
         self.model = FedMegatronGPTPromptLearningModel(cfg=self.config.model, trainer=self.trainer)
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG 1")
         self.model.init_prompt_encoder()
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG 2")
 
         self.log_info(
             fl_ctx, f"Initialized model {type(self.model)} and prompt encoder {type(self.model.prompt_encoder)}"
         )
+        time_sleep = 0
+        print(f"$$$${os.environ['LOCAL_RANK']} DEBUG 3")
+        while not self.model.prompt_encoder:
+            time.sleep(1)
+            time_sleep += 1
+            print(f"$$$$$$$  Sleep for {time_sleep} seconds...")
+        print(f"##################################### Initialized model {type(self.model)} and prompt encoder {type(self.model.prompt_encoder)}")
 
     def finalize(self, fl_ctx: FLContext):
         # collect threads, close files here
