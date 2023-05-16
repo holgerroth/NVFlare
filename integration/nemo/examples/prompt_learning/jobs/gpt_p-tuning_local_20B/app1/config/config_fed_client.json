@@ -1,0 +1,48 @@
+{
+  "format_version": 2,
+  "MODEL_ROOT_DIR": "/home/hroth/llm_models",
+  "DATA_ROOT_DIR": "/workspace/Code/nvflare/nemo_nvflare/integration/nemo/examples/prompt_learning",
+  "devices": 2,
+  "executors": [
+    {
+      "tasks": [
+        "train",
+        "validate"
+      ],
+      "executor": {
+        "id": "Executor",
+        "name": "PTMultiProcessExecutor",
+        "args": {
+          "executor_id": "learner_executor",
+          "num_of_processes": "{devices}",
+          "components": [
+            {
+              "id": "learner_executor",
+              "path": "nvflare.app_common.executors.learner_executor.LearnerExecutor",
+              "args": {
+                "learner_id": "learner"
+              }
+            },
+            {
+              "id": "learner",
+              "path": "nemo_nvflare.PromptLearner",
+              "args": {
+                "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
+                "gpt_file_name": "{MODEL_ROOT_DIR}/nemo-megatron-gpt-20B/nemo_gpt20B_bf16_tp2.nemo",
+                "nemo_path": "nemo_gpt20B_bf16_tp2_sentiment.nemo",
+                "train_ds_files": "{DATA_ROOT_DIR}/data/FinancialPhraseBank-v1.0_split/site-1.jsonl",
+                "val_ds_files": "{DATA_ROOT_DIR}/data/FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
+                "new_tasks": "sentiment",
+                "aggregation_epochs": 50,
+                "devices": "{devices}"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "task_result_filters": [],
+  "task_data_filters": [],
+  "components": []
+}

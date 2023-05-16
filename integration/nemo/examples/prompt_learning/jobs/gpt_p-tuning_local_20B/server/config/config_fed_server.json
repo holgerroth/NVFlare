@@ -1,0 +1,63 @@
+{
+  "format_version": 2,
+  "MODEL_ROOT_DIR": "/home/hroth/llm_models",
+  "devices": 1,
+  "min_clients": 3,
+  "num_rounds": 1,
+  "server": {
+    "heart_beat_timeout": 600
+  },
+  "task_data_filters": [],
+  "task_result_filters": [],
+  "components": [
+    {
+      "id": "persistor",
+      "name": "PTFileModelPersistor",
+      "args": {
+        "model": {
+          "path": "nemo_nvflare.ServerPromptEncoder",
+          "args": {
+            "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
+            "taskname": "sentiment",
+            "total_virtual_tokens": 10,
+            "hidden_size": 6144
+          }
+        }
+      }
+    },
+    {
+      "id": "shareable_generator",
+      "name": "FullModelShareableGenerator",
+      "args": {}
+    },
+    {
+      "id": "aggregator",
+      "name": "InTimeAccumulateWeightedAggregator",
+      "args": {}
+    },
+    {
+      "id": "model_selector",
+      "name": "IntimeModelSelector",
+      "args": {
+        "weigh_by_local_iter": true
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "id": "scatter_and_gather",
+      "name": "ScatterAndGather",
+      "args": {
+        "min_clients": "{min_clients}",
+        "num_rounds": "{num_rounds}",
+        "start_round": 0,
+        "wait_time_after_min_received": 10,
+        "aggregator_id": "aggregator",
+        "persistor_id": "persistor",
+        "shareable_generator_id": "shareable_generator",
+        "train_task_name": "train",
+        "train_timeout": 0
+      }
+    }
+  ]
+}
