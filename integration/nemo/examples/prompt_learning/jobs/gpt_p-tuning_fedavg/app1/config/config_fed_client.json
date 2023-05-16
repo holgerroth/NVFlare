@@ -9,9 +9,32 @@
       ],
       "executor": {
         "id": "Executor",
-        "name": "LearnerExecutor",
+        "name": "PTMultiProcessExecutor",
         "args": {
-          "learner_id": "learner"
+          "executor_id": "client_algo_executor",
+          "num_of_processes": 2,
+          "components": [
+            {
+              "id": "Executor",
+              "name": "LearnerExecutor",
+              "args": {
+                "learner_id": "learner"
+              }
+            },
+            {
+              "id": "learner",
+              "path": "nemo_nvflare.PromptLearner",
+              "args": {
+                "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
+                "gpt_file_name": "{ROOT_DIR}/megatron_gpt_345m.nemo",
+                "nemo_path": "megatron_gpt_345m_sentiment.nemo",
+                "train_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0_split/site-1.jsonl",
+                "val_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
+                "new_tasks": "sentiment",
+                "aggregation_epochs": 1
+              }
+            }
+          ]
         }
       }
     }
@@ -19,6 +42,13 @@
   "task_result_filters": [],
   "task_data_filters": [],
   "components": [
+    {
+      "id": "Executor",
+      "name": "LearnerExecutor",
+      "args": {
+        "learner_id": "learner"
+      }
+    },
     {
       "id": "learner",
       "path": "nemo_nvflare.PromptLearner",

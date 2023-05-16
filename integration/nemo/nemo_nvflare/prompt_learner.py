@@ -227,15 +227,6 @@ class PromptLearner(Learner):
         # collect threads, close files here
         pass
 
-    def _get_train_callbacks(self):
-        # add existing configures callbacks
-        builder = CallbackBuilder()
-        callbacks = [builder(c) for c in self.config.trainer.get("callbacks", [])]
-
-        # add callback to restore optimizers
-        callbacks.append(RestoreOptimizers())
-        return callbacks
-
     def train(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         # update local model weights with received weights
         dxo = from_shareable(shareable)

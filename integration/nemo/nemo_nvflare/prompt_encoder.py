@@ -47,7 +47,7 @@ class ServerPromptEncoder(PromptEncoder, FLComponent):
         """
         Initializes the PromptEncoder module on the server.
         Args:
-            total_virtual_tokens: the total number of vitural tokens
+            total_virtual_tokens: the total number of virtual tokens
             hidden_size: hidden dimension
             taskname: prompt learning task name.
             config_path: NeMo model config file
@@ -76,7 +76,8 @@ class ServerPromptEncoder(PromptEncoder, FLComponent):
         plugins = [TorchElasticEnvironment()]
         trainer = pl.Trainer(plugins=plugins, strategy=strategy)
 
-        model = MegatronGPTPromptLearningModel(cfg=self.config.model, trainer=trainer)
+        # only needed to initialize the cluster environment
+        _model = MegatronGPTPromptLearningModel(cfg=self.config.model, trainer=trainer)
 
     def _initialize(self, fl_ctx: FLContext):
         # get app root
