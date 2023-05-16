@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "ROOT_DIR": "path_to_example_dir",
+  "ROOT_DIR": "/workspace/Code/nvflare/nemo_nvflare/integration/nemo/examples/prompt_learning",
   "min_clients": 3,
   "num_rounds": 50,
   "server": {
@@ -17,7 +17,11 @@
           "path": "nemo_nvflare.ServerPromptEncoder",
           "args": {
             "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
-            "taskname": "sentiment"
+            "taskname": "sentiment",
+            "total_virtual_tokens": 10,
+            "hidden_size": 4096,
+            "gpt_file_name": "{ROOT_DIR}/nemo-megatron-gpt-5B/nemo_gpt5B_fp16_tp2.nemo",
+            "devices": 2
           }
         }
       }

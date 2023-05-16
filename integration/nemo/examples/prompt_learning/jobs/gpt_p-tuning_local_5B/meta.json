@@ -1,0 +1,10 @@
+{
+  "name": "gpt_p-tuning_local",
+  "resource_spec": {},
+  "deploy_map": {
+    "server": ["server"],
+    "app1": ["site-1"],
+    "app2": ["site-2"],
+    "app3": ["site-3"]
+  }
+}

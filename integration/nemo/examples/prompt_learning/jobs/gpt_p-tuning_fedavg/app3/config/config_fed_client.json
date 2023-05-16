@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "ROOT_DIR": "/workspace/Code/nvflare/nemo_nvflare/integration/nemo/examples/prompt_learning",
+  "ROOT_DIR": "path_to_example_dir",
   "executors": [
     {
       "tasks": [
@@ -9,38 +9,28 @@
       ],
       "executor": {
         "id": "Executor",
-        "name": "PTMultiProcessExecutor",
+        "name": "LearnerExecutor",
         "args": {
-          "executor_id": "learner_executor",
-          "num_of_processes": 2,
-          "components": [
-            {
-              "id": "learner_executor",
-              "path": "nvflare.app_common.executors.learner_executor.LearnerExecutor",
-              "args": {
-                "learner_id": "learner"
-              }
-            },
-            {
-              "id": "learner",
-              "path": "nemo_nvflare.PromptLearner",
-              "args": {
-                "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
-                "gpt_file_name": "{ROOT_DIR}/nemo-megatron-gpt-5B/nemo_gpt5B_fp16_tp2.nemo",
-                "nemo_path": "nemo_gpt5B_fp16_tp2_sentiment.nemo",
-                "train_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0_split/site-3.jsonl",
-                "val_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
-                "new_tasks": "sentiment",
-                "aggregation_epochs": 1,
-                "devices": 2
-              }
-            }
-          ]
+          "learner_id": "learner"
         }
       }
     }
   ],
   "task_result_filters": [],
   "task_data_filters": [],
-  "components": []
+  "components": [
+    {
+      "id": "learner",
+      "path": "nemo_nvflare.PromptLearner",
+      "args": {
+        "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
+        "gpt_file_name": "{ROOT_DIR}/megatron_gpt_345m.nemo",
+        "nemo_path": "megatron_gpt_345m_sentiment.nemo",
+        "train_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0_split/site-3.jsonl",
+        "val_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
+        "new_tasks": "sentiment",
+        "aggregation_epochs": 1
+      }
+    }
+  ]
 }

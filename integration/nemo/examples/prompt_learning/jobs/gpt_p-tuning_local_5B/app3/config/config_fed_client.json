@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "ROOT_DIR": "path_to_example_dir",
+  "ROOT_DIR": "/workspace/Code/nvflare/nemo_nvflare/integration/nemo/examples/prompt_learning",
   "executors": [
     {
       "tasks": [
@@ -26,10 +26,10 @@
         "config_path": "config/megatron_gpt_prompt_learning_config.yaml",
         "gpt_file_name": "{ROOT_DIR}/megatron_gpt_345m.nemo",
         "nemo_path": "megatron_gpt_345m_sentiment.nemo",
-        "train_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0_split/site-2.jsonl",
+        "train_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0_split/site-3.jsonl",
         "val_ds_files": "{ROOT_DIR}/data/FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
         "new_tasks": "sentiment",
-        "aggregation_epochs": 1
+        "aggregation_epochs": 50
       }
     }
   ]
