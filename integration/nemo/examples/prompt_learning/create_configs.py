@@ -57,6 +57,12 @@ def main():
         help="Training files prefix.",
         default="data/FinancialPhraseBank-v1.0_split/site-",
     )
+    parser.add_argument(
+        "--train_ds_files_suffix",
+        type=str,
+        help="Training files suffix.",
+        default=".jsonl",
+    )    
 
     args = parser.parse_args()
 
@@ -77,7 +83,7 @@ def main():
         # modify client configs
         client_cfg = load_config(client_cfg_file)
         client_cfg["ROOT_DIR"] = args.root_dir
-        client_cfg["train_ds_files"] = os.path.join(args.root_dir, f"{args.train_ds_files_prefix}{i + 1}.jsonl")
+        client_cfg["train_ds_files"] = os.path.join(args.root_dir, f"{args.train_ds_files_prefix}{i}{args.train_ds_files_suffix}")
         client_cfg["val_ds_files"] = os.path.join(args.root_dir, args.val_ds_files)
         client_cfg["aggregation_epochs"] = args.aggregation_epochs
         if args.devices > 1:

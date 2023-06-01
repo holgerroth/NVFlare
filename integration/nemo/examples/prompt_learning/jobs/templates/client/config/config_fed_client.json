@@ -31,7 +31,7 @@
         "nemo_path": "megatron_gpt_345m_sentiment.nemo",
         "train_ds_files": "{train_ds_files}",
         "val_ds_files": "{val_ds_files}",
-        "new_tasks": "sentiment",
+        "new_tasks": "chat",
         "aggregation_epochs": "{aggregation_epochs}"
       }
     }

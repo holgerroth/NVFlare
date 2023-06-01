@@ -19,7 +19,7 @@
           "path": "nemo_nvflare.ServerPromptEncoder",
           "args": {
             "config_path": "{config_path}",
-            "taskname": "sentiment",
+            "taskname": "chat",
             "total_virtual_tokens": "{total_virtual_tokens}",
             "hidden_size": "{hidden_size}"
           }

@@ -7,6 +7,15 @@
     "truncate_field": null,
     "answer_only_loss": true,
     "answer_field": "label"
-  }
+  },
+  {
+    "taskname": "chat",
+    "prompt_template": "<|VIRTUAL_PROMPT_0|> {input} answer:{output}",
+    "total_virtual_tokens": 10,
+    "virtual_token_splits": [10],
+    "truncate_field": null,
+    "answer_only_loss": true,
+    "answer_field": "output"
+  }    
 ]
 
