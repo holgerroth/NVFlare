@@ -49,7 +49,7 @@ from nvflare.private.fed.server.job_meta_validator import JobMetaValidator
 from nvflare.private.fed.simulator.simulator_app_runner import SimulatorServerAppRunner
 from nvflare.private.fed.simulator.simulator_audit import SimulatorAuditor
 from nvflare.private.fed.simulator.simulator_const import SimulatorConstants
-from nvflare.private.fed.utils.fed_utils import add_logfile_handler, fobs_initialize
+from nvflare.private.fed.utils.fed_utils import add_logfile_handler, fobs_initialize, split_gpus
 from nvflare.security.logging import secure_format_exception
 from nvflare.security.security import EmptyAuthorizer
 
@@ -175,27 +175,33 @@ class SimulatorRunner(FLComponent):
                 return False
 
             if self.args.gpu:
-                gpus = self.args.gpu.split(",")
+                try:
+                    gpu_groups = split_gpus(self.args.gpu)
+                except ValueError as e:
+                    self.logger.error(f"GPUs group list option in wrong format. Error: {e}")
+                    return False
+
                 host_gpus = [str(x) for x in (get_host_gpu_ids())]
-                if host_gpus and not set(gpus).issubset(host_gpus):
-                    wrong_gpus = [x for x in gpus if x not in host_gpus]
+                gpu_ids = [x.split(",") for x in gpu_groups]
+                if host_gpus and not set().union(*gpu_ids).issubset(host_gpus):
+                    wrong_gpus = [x for x in gpu_groups if x not in host_gpus]
                     self.logger.error(f"These GPUs are not available: {wrong_gpus}")
                     return False
 
-                if len(gpus) > len(self.client_names):
+                if len(gpu_groups) > len(self.client_names):
                     self.logger.error(
                         f"The number of clients ({len(self.client_names)}) must be larger than or equal to "
-                        f"the number of GPUS: ({len(gpus)})"
+                        f"the number of GPU groups: ({len(gpu_groups)})"
                     )
                     return False
-                if len(gpus) > 1:
+                if len(gpu_groups) > 1:
                     if self.args.threads and self.args.threads > 1:
                         self.logger.info(
-                            "When running with multi GPU, each GPU will run with only 1 thread. "
+                            "When running with multi GPU, each GPU group will run with only 1 thread. "
                             "Set the Threads to 1."
                         )
                     self.args.threads = 1
-                elif len(gpus) == 1:
+                elif len(gpu_groups) == 1:
                     if self.args.threads is None:
                         self.args.threads = 1
                         self.logger.warn("The number of threads is not provided. Set it to default: 1")
@@ -369,7 +375,7 @@ class SimulatorRunner(FLComponent):
                 #     client.start_heartbeat(interval=2)
 
                 if self.args.gpu:
-                    gpus = self.args.gpu.split(",")
+                    gpus = split_gpus(self.args.gpu)
                     split_clients = self.split_clients(self.federated_clients, gpus)
                 else:
                     gpus = [None]
