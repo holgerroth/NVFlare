@@ -34,7 +34,7 @@
                 "nemo_path": "nemo_gpt20B_bf16_tp2_sentiment.nemo",
                 "train_ds_files": "{train_ds_files}",
                 "val_ds_files": "{val_ds_files}",
-                "new_tasks": "sentiment",
+                "new_tasks": "chat",
                 "aggregation_epochs": "{aggregation_epochs}",
                 "devices": "{devices}"
               }

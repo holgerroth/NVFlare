@@ -5,7 +5,7 @@ n_clients=3
 data_dir="data/SFT_Data/Data_ptuning/alpaca-cleaned/alpaca_data_cleaned/3-clients"
 
 # create configs
-python3 create_configs.py --job_folder="jobs/gpt_p-tuning_fedavg_345M_chat" --num_clients="$n_clients" --aggregation_epochs=50 --num_rounds=1 --train_ds_files_prefix="$data_dir/site-" --train_ds_files_suffix="-training.jsonl" --val_ds_files="$data_dir/site-0-validation.jsonl"
+python3 create_configs.py --job_folder="jobs/gpt_p-tuning_fedavg_345M_chat" --num_clients="$n_clients" --aggregation_epochs=1 --num_rounds=50 --train_ds_files_prefix="$data_dir/site-" --train_ds_files_suffix="-training.jsonl" --val_ds_files="$data_dir/site-0-validation.jsonl"
 
 # create gpus ids
 let "max_id = $n_clients - 1"
