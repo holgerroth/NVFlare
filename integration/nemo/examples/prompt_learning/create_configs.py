@@ -43,10 +43,10 @@ def main():
     parser.add_argument("--num_rounds", type=int, help="Number of FL rounds.", default=1)
     parser.add_argument("--devices", type=int, help="Number of GPU devices per client.", default=1)
     parser.add_argument(
-        "--model_root_dir", type=str, help="Root folder containing the models.", default=os.getcwd()
+        "--model_root", type=str, help="Root folder containing the models.", default=os.getcwd()
     )
     parser.add_argument(
-        "--data_root_dir", type=str, help="Root folder containing the data.", default=os.getcwd()
+        "--data_root", type=str, help="Root folder containing the data.", default=os.getcwd()
     )    
     parser.add_argument(
         "--val_ds_files",
@@ -85,9 +85,9 @@ def main():
 
         # modify client configs
         client_cfg = load_config(client_cfg_file)
-        client_cfg["ROOT_DIR"] = args.model_root_dir
-        client_cfg["train_ds_files"] = os.path.join(args.data_root_dir, f"{args.train_ds_files_prefix}{i}{args.train_ds_files_suffix}")
-        client_cfg["val_ds_files"] = os.path.join(args.data_root_dir, args.val_ds_files)
+        client_cfg["ROOT_DIR"] = args.model_root
+        client_cfg["train_ds_files"] = os.path.join(args.data_root, f"{args.train_ds_files_prefix}{i}{args.train_ds_files_suffix}")
+        client_cfg["val_ds_files"] = os.path.join(args.data_root, args.val_ds_files)
         client_cfg["aggregation_epochs"] = args.aggregation_epochs
         if args.devices > 1:
             client_cfg["devices"] = args.devices
@@ -115,7 +115,7 @@ def main():
         meta_cfg["deploy_map"][f"app{i+1}"] = [f"site-{i+1}"]
     save_config(meta_cfg_file, meta_cfg)
 
-    print(f"Created configs for {args.num_clients} clients and set ROOT_DIR to {args.root_dir}")
+    print(f"Created configs for {args.num_clients} clients and set model root to {args.model_root}")
 
 
 if __name__ == "__main__":

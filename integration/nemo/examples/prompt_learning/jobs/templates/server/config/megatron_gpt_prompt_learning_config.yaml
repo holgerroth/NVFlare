@@ -23,7 +23,7 @@ model:
   tensor_model_parallel_size: 1 # intra-layer model parallelism
   pipeline_model_parallel_size: 1 # inter-layer model parallelism
   global_batch_size: 64
-  micro_batch_size: 4
+  micro_batch_size: 1
   validation_global_batch_size: ${model.global_batch_size}
   validation_micro_batch_size: ${model.micro_batch_size}
   validation_drop_last: False
