@@ -50,6 +50,7 @@ print(f"Running with distributed environment: LOCAL_RANK: {os.environ['LOCAL_RAN
 # Load model configuration used by one of the clients
 print(f"Loading config from {config_filename}")
 config = OmegaConf.load(config_filename)
+print(f"Generating responses with {config.model.inference}")
 
 # Set GPT model path
 config.model.language_model_path = gpt_file_name
