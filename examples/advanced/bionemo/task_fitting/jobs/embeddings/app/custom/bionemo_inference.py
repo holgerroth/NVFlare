@@ -22,7 +22,7 @@ from bionemo_constants import BioNeMoConstants
 class BioNeMoInference(BroadcastAndProcess):
     def __init__(
         self,
-        base_config_path: str = "config/base_config.yaml",
+        base_config_path: str = "config/base_infer_config.yaml",
         infer_config_path: str = "config/infer.yaml",
         task_name: str = BioNeMoConstants.TASK_INFERENCE,
         min_responses_required: int = 0,
