@@ -24,6 +24,7 @@ from nvflare.apis.shareable import Shareable
 from nvflare.app_common.abstract.response_processor import ResponseProcessor
 
 from bionemo_constants import BioNeMoConstants, BioNeMoDataKind
+from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 
 
 class BioNeMoModelSharer(ResponseProcessor):
@@ -40,6 +41,7 @@ class BioNeMoModelSharer(ResponseProcessor):
         super().__init__()
         self.base_config_path = base_config_path
         self.infer_config_path = infer_config_path
+        self._inference_responses = {}
 
     def create_task_data(self, task_name: str, fl_ctx: FLContext) -> Shareable:
         """Create the data for the task to be sent to clients
@@ -100,6 +102,9 @@ class BioNeMoModelSharer(ResponseProcessor):
             )
             return False
 
+        dxo = from_shareable(response)
+        self._inference_responses[client.name] = dxo.data
+
         return True
 
     def final_process(self, fl_ctx: FLContext) -> bool:
@@ -113,5 +118,5 @@ class BioNeMoModelSharer(ResponseProcessor):
             If not successful, the control flow will exit.
         """
 
-        # no final processing required for this task
+        self.log_info(fl_ctx, f"Clients inference responses: {self._inference_responses}")
         return True

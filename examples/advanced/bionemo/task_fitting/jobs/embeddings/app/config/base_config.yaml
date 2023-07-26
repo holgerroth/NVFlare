@@ -4,7 +4,7 @@ do_testing: False # set to true to run evaluation on test data after training, r
 restore_from_path: null # used when starting from a .nemo file
 
 trainer:
-  devices: 2 # number of GPUs or CPUs
+  devices: 1 # number of GPUs or CPUs
   num_nodes: 1
   accelerator: gpu #gpu or cpu
   precision: 16 #16 or 32

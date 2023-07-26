@@ -10,7 +10,7 @@
   ],
   "workflows": [
     {
-      "id": "share_config",
+      "id": "bionemo_inference",
       "path": "bionemo_inference.BioNeMoInference",
       "args": {
         "base_config_path": "config/base_config.yaml",

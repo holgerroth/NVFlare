@@ -6,19 +6,9 @@
         "bionemo_inference"
       ],
       "executor": {
-        "id": "Executor",
-        "name": "PTMultiProcessExecutor",
-        "args": {
-          "executor_id": "inference_executor",
-          "num_of_processes": 2,
-          "components": [
-            {
-              "id": "inference_executor",
-              "path": "bionemo_inferer.BioNeMoInferer",
-              "args": {}
-            }
-          ]
-        }
+        "id": "inference_executor",
+        "path": "bionemo_inferer.BioNeMoInferer",
+        "args": {}
       }
     }
   ],

@@ -12,109 +12,205 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import os
+import time
 
-from omegaconf import OmegaConf
+import numpy as np
 
-from nvflare.apis.client import Client
-from nvflare.apis.dxo import DXO
+from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
+from nvflare.apis.executor import Executor
 from nvflare.apis.fl_constant import FLContextKey, ReturnCode
 from nvflare.apis.fl_context import FLContext
-from nvflare.apis.shareable import Shareable
-from nvflare.app_common.abstract.response_processor import ResponseProcessor
+from nvflare.apis.shareable import Shareable, make_reply
+from nvflare.apis.signal import Signal
+from nvflare.app_common.abstract.model import ModelLearnable
+from nvflare.app_common.app_constant import AppConstants
+from nvflare.security.logging import secure_format_exception
+from nvflare.apis.dxo import from_shareable
+from nvflare.apis.fl_constant import ReturnCode
+from nvflare.apis.fl_context import FLContext
+from nvflare.apis.shareable import Shareable, make_reply
+from nvflare.apis.signal import Signal
+from nvflare.app_common.app_constant import AppConstants
+from nvflare.app_common.executors.learner_executor import LearnerExecutor
+import pickle
+import torch
+from omegaconf.omegaconf import OmegaConf
+import os
+import uuid
 
-from .constants import NemoDataKind
+from nemo.core.config import hydra_runner
+from nemo.utils import logging
 
+from bionemo.data.memmap_fasta_fields_dataset import FASTAFieldsMemmapDataset
+from bionemo.data.memmap_csv_fields_dataset import CSVFieldsMemmapDataset
+from bionemo.data.mapped_dataset import FilteredMappedDataset
+from bionemo.data.utils import expand_dataset_paths
+from nemo.utils.distributed import gather_objects
+from nemo.utils.model_utils import import_class_by_path
 
-class BioNeMoInferer(ResponseProcessor):
+from bionemo_constants import BioNeMoConstants
+
+class BioNeMoInferer(Executor):
+    """Runs inference over all models. Supports extracting embeddings, and hiddens.
+
+        NOTE: If out of memory (OOM) error occurs, try splitting the data to multiple smaller files.
+    """
     def __init__(
         self,
-        config_path: str = "config/megatron_gpt_prompt_learning_config.yaml",
-        task_templates_file: str = "config/task_templates.json",
+        inference_task_name=BioNeMoConstants.TASK_INFERENCE,
     ):
-        """Share the NeMo config files with the clients.
-
-        Args:
-            config_path: NeMo model config file
-            task_templates_file: Task template file
-        """
+        # Init functions of components should be very minimal. Init
+        # is called when json is read. A big init will cause json loading to halt
+        # for long time.
         super().__init__()
-        self.config_path = config_path
-        self.task_templates_file = task_templates_file
 
-    def create_task_data(self, task_name: str, fl_ctx: FLContext) -> Shareable:
-        """Create the data for the task to be sent to clients
+        self._inference_task_name = inference_task_name
+        self.cfg = None
+        self.app_root = None
+        
+    def _set_config(self, config):
+        if not isinstance(config, dict):
+            raise ValueError(f"Expected config to be of type dict but received type {type(config)}")
 
-        Args:
-            task_name: name of the task
-            fl_ctx: the FL context
+        # Received primitive dicts from server; convert back to OmegaConf
+        if BioNeMoConstants.CONFIG in config:
+            self.cfg = OmegaConf.create(config[BioNeMoConstants.CONFIG])
+        else:
+            raise ValueError(f"Received config did not contain BioNeMo config! Received keys: {list(config.keys())}")
 
-        Returns: task data
 
-        """
-        # get app root
-        app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
+    def _inference(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal):
+        # First we extract DXO from the shareable.
+        incoming_dxo = from_shareable(shareable)
+        self._set_config(incoming_dxo.data)
 
-        # Load model configuration to initialize training NeMo environment
-        self.config_path = os.path.join(app_root, self.config_path)
-        config = OmegaConf.load(self.config_path)
-        self.log_info(fl_ctx, f"Load model configuration from {self.config_path}")
+        # Update loading paths with current app_root
+        self.cfg.model.downstream_task.restore_from_path = os.path.join(self.app_root, self.cfg.model.downstream_task.restore_from_path)
+        self.cfg.model.tokenizer.vocab_path = os.path.join(self.app_root, self.cfg.model.tokenizer.vocab_path)
+        self.cfg.model.tokenizer.model_path = os.path.join(self.app_root, self.cfg.model.tokenizer.model_path)
 
-        # Load task templates
-        self.task_templates_file = os.path.join(app_root, self.task_templates_file)
-        self.log_info(fl_ctx, f"Load task templates from {self.task_templates_file}")
-        task_templates = OmegaConf.load(self.task_templates_file)
+        self.log_info(fl_ctx, "\n\n************** Experiment configuration ***********")
+        self.log_info(fl_ctx, f'\n{OmegaConf.to_yaml(self.cfg)}')
 
-        configs = {
-            NemoDataKind.NEMO_CONFIG: OmegaConf.to_container(config),
-            NemoDataKind.TASK_TEMPLATES: OmegaConf.to_container(task_templates),
-        }
+        infer_class = import_class_by_path(self.cfg.infer_target)
+        infer_model = infer_class(self.cfg)
+        trainer = infer_model.trainer
 
-        # convert omega conf to primitive dict
-        dxo = DXO(data=configs, data_kind=NemoDataKind.CONFIGS)
-        return dxo.to_shareable()
+        self.log_info(fl_ctx, "\n\n************** Restored model configuration ***********")
+        self.log_info(fl_ctx, f'\n{OmegaConf.to_yaml(infer_model.model.cfg)}')
 
-    def process_client_response(self, client: Client, task_name: str, response: Shareable, fl_ctx: FLContext) -> bool:
-        """Process the weights submitted by a client.
+        # try to infer data_impl from the dataset_path file extension
+        if self.cfg.model.data.dataset_path.endswith('.fasta'):
+            self.cfg.model.data.data_impl = 'fasta_fields_mmap'
+        else:
+            # Data are assumed to be CSV format if no extension provided
+            self.log_info(fl_ctx, 'File extension not supplied for data, inferring csv.')
+            self.cfg.model.data.data_impl = 'csv_fields_mmap'
 
-        Args:
-            client: the client that submitted the response
-            task_name: name of the task
-            response: submitted data from the client
-            fl_ctx: FLContext
+        self.log_info(fl_ctx, f'Inferred data_impl: {self.cfg.model.data.data_impl}')
 
-        Returns:
-            boolean to indicate if the client data is acceptable.
-            If not acceptable, the control flow will exit.
+        if self.cfg.model.data.data_impl == "csv_fields_mmap":
+            dataset_paths = expand_dataset_paths(self.cfg.model.data.dataset_path, ext=".csv")
+            ds = CSVFieldsMemmapDataset(dataset_paths, **self.cfg.model.data.data_impl_kwargs.get("csv_fields_mmap", {}))
+        elif self.cfg.model.data.data_impl == "fasta_fields_mmap":
+            dataset_paths = expand_dataset_paths(self.cfg.model.data.dataset_path, ext=".fasta")
+            ds = FASTAFieldsMemmapDataset(dataset_paths, **self.cfg.model.data.data_impl_kwargs.get("fasta_fields_mmap", {}))
+        else:
+            raise ValueError(f'Unknown data_impl: {self.cfg.model.data.data_impl}')
 
-        """
+        # remove too long sequences
+        filtered_ds = FilteredMappedDataset(
+            dataset=ds,
+            criterion_fn=lambda x: len(infer_model._tokenize([x["sequence"]])[0]) <= infer_model.model.cfg.seq_length,
+        )
 
-        # We only check for client errors here
-        if not isinstance(response, Shareable):
-            self.log_error(
-                fl_ctx,
-                f"bad response from client {client.name}: " f"response must be Shareable but got {type(response)}",
-            )
-            return False
+        dataloader = torch.utils.data.DataLoader(
+            filtered_ds,
+            batch_size=self.cfg.model.data.batch_size,
+            num_workers=self.cfg.model.data.num_workers,
+            drop_last=False,
+        )
 
-        if response.get_return_code() != ReturnCode.OK:
-            self.log_exception(
-                fl_ctx, f"bad response from client {client.name}: Got return code {response.get_return_code()}"
-            )
-            return False
+        # predict outputs for all sequences in batch mode
+        all_batch_predictions = trainer.predict(
+            model=infer_model,
+            dataloaders=dataloader,
+            return_predictions=True,
+        )
 
-        return True
+        if not len(all_batch_predictions):
+            raise ValueError("No predictions were made")
 
-    def final_process(self, fl_ctx: FLContext) -> bool:
-        """Perform the final check. Do nothing.
+        # break batched predictions into individual predictions (list of dics)
+        predictions = []
+        pred_keys = list(all_batch_predictions[0].keys())
 
-        Args:
-            fl_ctx: FLContext
+        def cast_to_numpy(x):
+            if torch.is_tensor(x):
+                return x.cpu().numpy()
+            return x
 
-        Returns:
-            boolean indicating whether the final response processing is successful.
-            If not successful, the control flow will exit.
-        """
+        for batch_predictions in all_batch_predictions:
+            batch_size = len(batch_predictions[pred_keys[0]])
+            for i in range(batch_size):
+                predictions.append({k: cast_to_numpy(batch_predictions[k][i]) for k in pred_keys})
 
-        # no final processing required for this task
-        return True
+        # extract active hiddens if needed
+        if "hiddens" in self.cfg.model.downstream_task.outputs:
+            if ("hiddens" in predictions[0]) and ("mask" in predictions[0]):
+                for p in predictions:
+                    p["hiddens"] = p['hiddens'][p['mask']]
+                    del p['mask']
+        else:
+            for p in predictions:
+                del p['mask']
+                del p['hiddens']
+
+        # collect all results when using DDP
+        #self.log_info(fl_ctx, "Collecting results from all GPUs...")
+        #predictions = gather_objects(predictions, main_rank=0)
+        # all but rank 0 will return None
+        if predictions is None:
+            return
+
+        # from here only rank 0 should continue
+        output_fname = self.cfg.model.data.output_fname
+        if not output_fname:
+            output_fname = f"{self.cfg.model.data.dataset_path}.pkl"
+            self.log_info(fl_ctx, f"output_fname not specified, using {output_fname}")
+        if os.path.exists(self.cfg.model.data.output_fname):
+            self.log_warning(fl_ctx, "Output path {output_fname} already exists, appending a unique id to the path")
+            output_fname += "." + str(uuid.uuid4())
+
+        n_sequences = len(predictions)
+        self.log_info(fl_ctx, f"Saving {n_sequences} samples to output_fname = {output_fname}")
+        pickle.dump(predictions, open(output_fname, "wb"))
+
+        # Prepare a DXO for our updated model. Create shareable and return
+        data_info = {BioNeMoConstants.NUMBER_SEQUENCES: n_sequences}
+
+        outgoing_dxo = DXO(data_kind=BioNeMoConstants.DATA_INFO, data=data_info)
+        return outgoing_dxo.to_shareable()
+
+    def execute(
+        self,
+        task_name: str,
+        shareable: Shareable,
+        fl_ctx: FLContext,
+        abort_signal: Signal,
+    ) -> Shareable:
+        self.log_info(fl_ctx, f"Task name: {task_name}")
+        try:
+            if task_name == self._inference_task_name:
+                # get app root
+                self.app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
+
+                return self._inference(shareable=shareable, fl_ctx=fl_ctx, abort_signal=abort_signal)
+            else:
+                # If unknown task name, set RC accordingly.
+                return make_reply(ReturnCode.TASK_UNKNOWN)
+        except Exception as e:
+            self.log_exception(fl_ctx, f"Exception in BioNeMoInferer execute: {secure_format_exception(e)}.")
+            return make_reply(ReturnCode.EXECUTION_EXCEPTION)
