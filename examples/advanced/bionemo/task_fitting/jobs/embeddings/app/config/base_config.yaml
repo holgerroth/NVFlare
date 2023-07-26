@@ -1,0 +1,117 @@
+name: esm1nv
+do_training: True # set to false if data preprocessing steps must be completed
+do_testing: False # set to true to run evaluation on test data after training, requires test_dataset section
+restore_from_path: null # used when starting from a .nemo file
+
+trainer:
+  devices: 2 # number of GPUs or CPUs
+  num_nodes: 1
+  accelerator: gpu #gpu or cpu
+  precision: 16 #16 or 32
+  logger: False # logger is provided by NeMo exp_manager
+  enable_checkpointing: False # checkpointing is done by NeMo exp_manager
+  replace_sampler_ddp: False # use NeMo Megatron samplers
+  max_epochs: null # # use max_steps instead with NeMo Megatron model
+  max_steps: 1000000 # consumed_samples = global_step * micro_batch_size * data_parallel_size * accumulate_grad_batches
+  log_every_n_steps: 10  # number of interations between logging
+  val_check_interval: 1500
+  limit_val_batches: 50 # number of batches in validation step, use fraction for fraction of data, 0 to disable
+  limit_test_batches: 500 # number of batches in test step, use fraction for fraction of data, 0 to disable
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  benchmark: False
+
+model:
+  # model parallelism
+  micro_batch_size: 8 # NOTE: adjust to occupy ~ 90% of GPU memory
+  tensor_model_parallel_size: 1  # model parallelism
+  pipeline_model_parallel_size: 1
+
+  # model architecture
+  seq_length: 512 # FIXME: remove me (replaced by encoder_seq_length)
+  max_position_embeddings: ${.seq_length}
+  encoder_seq_length: ${.seq_length}
+  num_layers: 6
+  hidden_size: 768
+  ffn_hidden_size: 3072 # Transformer FFN hidden size. Usually 4 * hidden_size.
+  num_attention_heads: 12
+  init_method_std: 0.02 # Standard deviation of the zero mean normal distribution used for weight initialization.')
+  hidden_dropout: 0.1 # Dropout probability for hidden state transformer.
+  kv_channels: null # Projection weights dimension in multi-head attention. Set to hidden_size // num_attention_heads if null
+  apply_query_key_layer_scaling: True # scale Q * K^T by 1 / layer-number.
+  layernorm_epsilon: 1e-5
+  make_vocab_size_divisible_by: 128 # Pad the vocab size to be divisible by this value for computation efficiency.
+  pre_process: True # add embedding
+  post_process: True # add pooler
+  bert_binary_head: False # BERT binary head
+  resume_from_checkpoint: null # manually set the checkpoint file to load from
+  masked_softmax_fusion: True # Use a kernel that fuses the attention softmax with it's mask.
+
+  tokenizer:
+    library: 'sentencepiece'
+    type: null
+    model: models/vocab/protein_sequence_sentencepiece.model
+    vocab_file: models/vocab/protein_sequence.vocab
+
+  # precision
+  native_amp_init_scale: 4294967296 # 2 ** 32
+  native_amp_growth_interval: 1000
+  fp32_residual_connection: False # Move residual connections to fp32
+  fp16_lm_cross_entropy: False # Move the cross entropy unreduced loss calculation for lm head to fp16
+
+
+  # miscellaneous
+  seed: 1234
+  use_cpu_initialization: False # Init weights on the CPU (slow for large model)
+  onnx_safe: False # Use work-arounds for known problems with Torch ONNX exporter.
+
+  # not implemented in NeMo yet
+  activations_checkpoint_method: null # 'uniform', 'block'
+  activations_checkpoint_num_layers: 1
+
+  data:
+    batch_size: 128
+    ngc_registry_target: uniref50_2022_05
+    ngc_registry_version: v23.06
+    data_prefix: "" # must be null or ""
+    num_workers: 8
+    dataloader_type: single # cyclic
+    reset_position_ids: False # Reset position ids after end-of-document token
+    reset_attention_mask: False # Reset attention mask after end-of-document token
+    eod_mask_loss: False # Mask loss for the end of document tokens
+    masked_lm_prob: 0.15 # Probability of replacing a token with mask.
+    short_seq_prob: 0.1 # Probability of producing a short sequence.
+    skip_lines: 0
+    drop_last: False
+    pin_memory: False
+    data_impl: "" # csv_items_mmap, fasta_fields_mmap, or leave empty for inferring type based on file extension
+    data_impl_kwargs: # currently used only for csv_items_mmap (should be data_impl dependant)
+      csv_fields_mmap:
+        newline_int: 10 # byte-value of newline
+        header_lines: 1 # skip first N header lines
+        workers: null # number of workers when creating missing index files (null defaults to cpu_num // 2)
+        sort_dataset_paths: False # if True datasets will be sorted by name
+        data_sep: ',' # string to split text into columns
+        data_fields: # field names and corresponding columns to use for data
+          id: 0
+          sequence: 1
+      fasta_fields_mmap:
+        data_fields: # field names and corresponding columns to use for data
+          id: 0
+          sequence: 1
+    use_upsampling: True # if the data should be upsampled to max number of steps in the training
+    seed: ${model.seed} # Random seed
+    max_seq_length: ${model.seq_length} # Maximum input sequence length. Longer sequences are truncated
+
+  optim:
+    name: fused_adam # fused optimizers used by Megatron model
+    lr: 2e-4
+    weight_decay: 0.01
+    betas:
+    - 0.9
+    - 0.98
+    sched:
+      name: CosineAnnealing
+      warmup_steps: 500 # use to set warmup_steps explicitly or leave as null to calculate
+      constant_steps: 50000
+      min_lr: 2e-5
