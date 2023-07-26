@@ -41,7 +41,6 @@ import os
 import uuid
 
 from nemo.core.config import hydra_runner
-from nemo.utils import logging
 
 from bionemo.data.memmap_fasta_fields_dataset import FASTAFieldsMemmapDataset
 from bionemo.data.memmap_csv_fields_dataset import CSVFieldsMemmapDataset
@@ -181,7 +180,7 @@ class BioNeMoInferer(Executor):
             output_fname = f"{self.cfg.model.data.dataset_path}.pkl"
             self.log_info(fl_ctx, f"output_fname not specified, using {output_fname}")
         if os.path.exists(self.cfg.model.data.output_fname):
-            self.log_warning(fl_ctx, "Output path {output_fname} already exists, appending a unique id to the path")
+            self.log_warning(fl_ctx, f"Output path {output_fname} already exists, appending a unique id to the path")
             output_fname += "." + str(uuid.uuid4())
 
         n_sequences = len(predictions)

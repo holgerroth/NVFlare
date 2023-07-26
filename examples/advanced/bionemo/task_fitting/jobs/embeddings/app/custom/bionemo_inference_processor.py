@@ -27,7 +27,7 @@ from bionemo_constants import BioNeMoConstants, BioNeMoDataKind
 from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 
 
-class BioNeMoModelSharer(ResponseProcessor):
+class BioNeMoInferenceProcessor(ResponseProcessor):
     def __init__(
         self,
         base_config_path: str = "config/base_config.yaml",

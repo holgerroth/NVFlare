@@ -16,7 +16,7 @@ from typing import List, Union
 
 from nvflare.app_common.workflows.broadcast_and_process import BroadcastAndProcess
 
-from bionemo_model_sharer import BioNeMoModelSharer
+from bionemo_inference_processor import BioNeMoInferenceProcessor
 from bionemo_constants import BioNeMoConstants
 
 class BioNeMoInference(BroadcastAndProcess):
@@ -49,7 +49,7 @@ class BioNeMoInference(BroadcastAndProcess):
 
         BroadcastAndProcess.__init__(
             self,
-            processor=BioNeMoModelSharer(base_config_path=base_config_path, infer_config_path=infer_config_path),
+            processor=BioNeMoInferenceProcessor(base_config_path=base_config_path, infer_config_path=infer_config_path),
             task_name=task_name,
             min_responses_required=min_responses_required,
             wait_time_after_min_received=wait_time_after_min_received,

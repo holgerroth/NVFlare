@@ -129,7 +129,7 @@ class PromptLearner(Learner):
 
     def set_configs(self, configs):
         if not isinstance(configs, dict):
-            raise ValueError(f"Exptected configs to be of type dict but received type {type(configs)}")
+            raise ValueError(f"Expected configs to be of type dict but received type {type(configs)}")
 
         # Received primitive dicts from server; convert back to OmegaConf
         if NemoDataKind.NEMO_CONFIG in configs:
