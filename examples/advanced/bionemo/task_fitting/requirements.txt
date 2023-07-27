@@ -1,2 +1,4 @@
 nvflare
 biopython
+scikit-learn
+matplotlib
