@@ -1,11 +1,10 @@
 {
-  "name": "bionemo_embeddings",
+  "name": "bionemo_fedavg",
   "resource_spec": {},
-  "min_clients" : 1,
+  "min_clients" : 1,    
   "deploy_map": {
     "app": [
       "@ALL"
     ]
   }
 }
-
