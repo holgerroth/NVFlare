@@ -28,6 +28,7 @@ from nvflare.app_common.utils.fl_model_utils import FLModelUtils
 from nvflare.app_opt.pt.fedproxloss import PTFedProxLoss
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
+import sklearn
 
 
 class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearner
@@ -39,7 +40,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         fedproxloss_mu: float = 0.0,
         central: bool = False,
         analytic_sender_id: str = "analytic_sender",
-        batch_size: int = 64,
+        batch_size: int = 128,
         num_workers: int = 0,
     ):
         """Simple CIFAR-10 Trainer.
@@ -243,6 +244,13 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         # write to tensorboard
         if validate_type == ValidateType.BEFORE_TRAIN_VALIDATE:
             self.writer.add_scalar("accuracy", accuracy, self.epoch_of_start_time)
+
+            classifcation_report = sklearn.metrics.classification_report(self.y_test, predicted_testing_labels,
+                                                                         labels=list(set(predicted_testing_labels)),
+                                                                         output_dict=True)
+            for category, metrics in classifcation_report.items():
+                for k, v in metrics.items():
+                    self.writer.add_scalar(f"{category}_{k}", v, self.epoch_of_start_time)
 
         val_results = {"accuracy": accuracy}
         return FLModel(metrics=val_results, params_type=None)
