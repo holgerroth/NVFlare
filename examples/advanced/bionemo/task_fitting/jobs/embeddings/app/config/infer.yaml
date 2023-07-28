@@ -15,7 +15,7 @@ model:
     restore_from_path: "models/esm1nv.nemo"
     outputs: [embeddings, hiddens] # Which outputs to extract per sample (a value or list). Possible values: hiddens, embeddings.
   data:
-    dataset_path: /tmp/data/FLIP/secondary_structure/test/x000 # full path to dataset (can include range or a list)
+    dataset_path: /tmp/fasta/mixed_soft # full path to dataset (can include range or a list)
     output_fname: "" # output file, inferred based on dataset_path if empty
 
 target: bionemo.model.protein.esm1nv.esm1nv_model.ESM1nvModel  # path to model class to load

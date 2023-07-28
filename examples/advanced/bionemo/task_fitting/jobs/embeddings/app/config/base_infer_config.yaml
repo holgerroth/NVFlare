@@ -24,7 +24,7 @@ model:
     # Path to data must be specified by the user.
     dataset_path: ??? # full path to dataset (can include range or a list)
     output_fname: "" # output file, inferred based on dataset_path if empty
-    data_fields_map: # name which data_fields shoud be used for sequence/id (dataset dependant)
+    data_fields_map: # name which data_fields should be used for sequence/id (dataset dependant)
       sequence: "sequence"
       id: "id"
     data_impl: "" # csv_items_mmap, fasta_fields_mmap, or leave empty for inferring type based on file extension

@@ -100,6 +100,10 @@ class BioNeMoInferer(Executor):
         self.log_info(fl_ctx, "\n\n************** Restored model configuration ***********")
         self.log_info(fl_ctx, f'\n{OmegaConf.to_yaml(infer_model.model.cfg)}')
 
+        # Update dataset_path to reflect client name
+        client_name = fl_ctx.get_identity_name()
+        self.cfg.model.data.dataset_path = os.path.join(self.cfg.model.data.dataset_path, f"data_{client_name}")
+
         # try to infer data_impl from the dataset_path file extension
         if self.cfg.model.data.dataset_path.endswith('.fasta'):
             self.cfg.model.data.data_impl = 'fasta_fields_mmap'
@@ -142,7 +146,7 @@ class BioNeMoInferer(Executor):
         if not len(all_batch_predictions):
             raise ValueError("No predictions were made")
 
-        # break batched predictions into individual predictions (list of dics)
+        # break batched predictions into individual predictions (list of dicts)
         predictions = []
         pred_keys = list(all_batch_predictions[0].keys())
 
@@ -168,8 +172,8 @@ class BioNeMoInferer(Executor):
                 del p['hiddens']
 
         # collect all results when using DDP
-        #self.log_info(fl_ctx, "Collecting results from all GPUs...")
-        #predictions = gather_objects(predictions, main_rank=0)
+        self.log_info(fl_ctx, "Collecting results from all GPUs...")
+        predictions = gather_objects(predictions, main_rank=0)
         # all but rank 0 will return None
         if predictions is None:
             return

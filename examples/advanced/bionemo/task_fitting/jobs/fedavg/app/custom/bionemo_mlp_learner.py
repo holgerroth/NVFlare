@@ -191,16 +191,12 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         if model_name == ModelName.BEST_MODEL:
             try:
                 # load model to cpu as server might or might not have a GPU
-                model_data = torch.load(self.best_local_model_file, map_location="cpu")
+                model_weights = pickle.load(self.best_local_model_file)
             except Exception as e:
                 raise ValueError("Unable to load best model") from e
 
             # Create FLModel from model data.
-            if model_data:
-                # convert weights to numpy to support FOBS
-                model_weights = model_data["model_weights"]
-                for k, v in model_weights.items():
-                    model_weights[k] = v.numpy()
+            if model_weights:
                 return FLModel(params_type=ParamsType.FULL, params=model_weights)
             else:
                 # Set return code.
