@@ -70,19 +70,21 @@ class BioNeMoMLPModelPersistor(ModelPersistor):
         self.source_ckpt_file_full_name = source_ckpt_file_full_name
         self.learned_weights = None
 
-        # To initialize the model, fit on some random data
-        _X = [np.random.rand(768)]
-        _y = ["Nucleus"]
-        self.model.fit(_X, _y)
-
-        print("############ MLPClassifier", len(self.model.coefs_), [np.shape(x) for x in self.model.coefs_])
-
         self.default_train_conf = None
 
         if source_ckpt_file_full_name and not os.path.exists(source_ckpt_file_full_name):
             raise ValueError(f"specified source checkpoint model file {source_ckpt_file_full_name} does not exist")
 
     def _initialize(self, fl_ctx: FLContext):
+        # To initialize the model, fit on some random data
+        class_labels = ["Cell_membrane", "Cytoplasm", "Endoplasmic_reticulum", "Extracellular", "Golgi_apparatus", "Lysosome", "Mitochondrion", "Nucleus", "Peroxisome", "Plastid"]
+        _X, _y = [], []
+        for label in class_labels:
+            _X.append(np.random.rand(768))
+            _y.append(label)
+        self.model.fit(_X, _y)
+        self.log_info(fl_ctx, "MLPClassifier coefficients", [np.shape(x) for x in self.model.coefs_])
+
         app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
         log_dir = fl_ctx.get_prop(AppConstants.LOG_DIR)
         if log_dir:
@@ -124,8 +126,8 @@ class BioNeMoMLPModelPersistor(ModelPersistor):
             # save the current model as the best model!
             self.save_model_file(self._best_ckpt_save_path)
 
-    def save_model_file(path):
-        pickle.dump(self.learned_weights, open(path, "wb"))
+    def save_model_file(self, save_path):
+        pickle.dump(self.learned_weights, open(save_path, "wb"))
 
     def save_model(self, ml: ModelLearnable, fl_ctx: FLContext):
         err = validate_model_learnable(ml)

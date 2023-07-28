@@ -18,10 +18,12 @@ from typing import Union
 import pickle
 
 import numpy as np
+import pandas as pd
 from nvflare.apis.fl_constant import FLMetaKey, ReturnCode
 from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
 from nvflare.app_common.abstract.model_learner import ModelLearner
 from nvflare.app_common.app_constant import AppConstants, ModelName, ValidateType
+from torch.utils.tensorboard import SummaryWriter
 from nvflare.app_common.utils.fl_model_utils import FLModelUtils
 from nvflare.app_opt.pt.fedproxloss import PTFedProxLoss
 from sklearn.neural_network import MLPClassifier
@@ -31,7 +33,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearner
     def __init__(
         self,
-        data_filename: str = "/tmp/data/FLIP/secondary_structure/test/x000.pkl",
+        data_root: str = "/tmp/fasta/mixed_soft",
         aggregation_epochs: int = 1,
         lr: float = 1e-2,
         fedproxloss_mu: float = 0.0,
@@ -43,7 +45,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         """Simple CIFAR-10 Trainer.
 
         Args:
-            data_filename: directory with site training indices for CIFAR-10 data.
+            data_root: data file root.
             aggregation_epochs: the number of training epochs for a round. Defaults to 1.
             lr: local learning rate. Float number. Defaults to 1e-2.
             fedproxloss_mu: weight for FedProx loss. Float number. Defaults to 0.0 (no FedProx).
@@ -60,7 +62,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         super().__init__()
         # trainer init happens at the very beginning, only the basic info regarding the trainer is set here
         # the actual run has not started at this point
-        self.data_filename = data_filename
+        self.data_root = data_root
         self.aggregation_epochs = aggregation_epochs
         self.lr = lr
         self.fedproxloss_mu = fedproxloss_mu
@@ -79,6 +81,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.best_local_model_file = None
         self.model = None
         self.epoch_len = None
+        self.writer = None
         self.X_train = list()
         self.y_train = list()
         self.X_test = list()
@@ -99,43 +102,52 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.local_model_file = os.path.join(self.app_root, "local_model.pt")
         self.best_local_model_file = os.path.join(self.app_root, "best_local_model.pt")
 
-        protein_embeddings = pickle.load(open(self.data_filename, "rb"))
+        # Select local TensorBoard writer or event-based writer for streaming
+        self.writer = self.get_component(
+            self.analytic_sender_id
+        )  # user configured config_fed_client.json for streaming
+        if not self.writer:  # use local TensorBoard writer only
+            self.writer = SummaryWriter(self.app_root)
+
+        # Read embeddings
+        data_filename = os.path.join(self.data_root, f"data_{self.site_name}.pkl")
+        protein_embeddings = pickle.load(open(data_filename, "rb"))
         self.info(f"Loaded {len(protein_embeddings)} embeddigns")
 
-        # Prepare the data for training
-        r = np.random.rand(1)
-        for embedding  in protein_embeddings:
-            if "A" in embedding['id']:
-            #if embedding['id'] == 'train':
-                self.X_train.append(embedding["embeddings"])
-                #self.y_train.append(record_metadata['TARGET'])
-                if r > 0.5:
-                    self.y_train.append("Nuclei")
-                else:
-                    self.y_train.append("Plastid")
-            #elif embedding['id'] == 'test':
-            else:
-                self.X_test.append(embedding["embeddings"])
-                #self.y_test.append(record_metadata['TARGET'])
-                if r > 0.5:
-                    self.y_test.append("Nuclei")
-                else:
-                    self.y_test.append("Plastid")
+        # Read labels
+        labels_filename = os.path.join(self.data_root, f"data_{self.site_name}.csv")
+        labels = pd.read_csv(labels_filename).astype(str)
 
+        # Prepare the data for training
+        for embedding  in protein_embeddings:
+            # get label entry from pandas dataframe
+            label = labels.loc[labels["id"]==str(embedding["id"])]
+            if label['SET'].item() == 'train':
+                self.X_train.append(embedding["embeddings"])
+                self.y_train.append(label['TARGET'].item())
+            elif label['SET'].item() == 'test':
+                self.X_test.append(embedding["embeddings"])
+                self.y_test.append(label['TARGET'].item())
+
+        assert len(self.X_train) > 0
+        assert len(self.X_test) > 0
         self.info(f"There are {len(self.X_train)} training samples and {len(self.X_test)} testing samples.")
 
-        self.epoch_len = self.aggregation_epochs * int(len(self.X_train)/self.batch_size)
-        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), random_state=10, batch_size=self.batch_size, max_iter=self.epoch_len)
+        self.epoch_len = int(len(self.X_train)/self.batch_size)
+        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
+                                   learning_rate_init=self.lr,
+                                   warm_start=True # set warm_start to True to allow multiple calls of model.fit()
+                                   )
 
         # run fit to initialize the model
-        print("@@@@@@@@@@ X_train", np.shape(self.X_train[0]))
-        print("@@@@@@@@@@ y_train", np.shape(self.y_train[0]))
-        print("%%% FIT begin")
-        #self.model.fit(self.X_train[0:], self.y_train[0:])
-        _X = [np.random.rand(768)]
-        _y = ["Nucleus"]
-        self.model.fit(_X, _y)
-        print("%%% FIT done")
+        unique_labels, unique_idx = np.unique(self.y_train, return_index=True)
+        _X_train = list()
+        _y_train = list()
+        for i in unique_idx:
+            _X_train.append(self.X_train[i])
+            _y_train.append(self.y_train[i])
+        self.info(f"Found {len(unique_labels)} unique class labels in training data.")
+        self.model.fit(_X_train, _y_train)
 
     def finalize(self):
         # collect threads, close files here
@@ -155,9 +167,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         # get round information
         self.info(f"Current/Total Round: {self.current_round + 1}/{self.total_rounds} (epoch_len={self.epoch_len})")
         self.info(f"Client identity: {self.site_name}")
-
-        #print("&&&&&&&&&& 1 global_weights", model.params)
-        #print("&&&&&&&&&& 2 global_weights", [model.params[k] for k in model.params])
 
         # update local model weights with received weights
         global_weights = model.params
@@ -184,6 +193,9 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         FLModelUtils.set_meta_prop(fl_model, FLMetaKey.NUM_STEPS_CURRENT_ROUND, self.epoch_len)
         self.info("Local epochs finished. Returning FLModel")
+
+        self.epoch_of_start_time += self.aggregation_epochs
+
         return fl_model
 
     def get_model(self, model_name: str) -> Union[str, FLModel]:
@@ -209,22 +221,17 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         # get validation information
         self.info(f"Client identity: {self.site_name}")
 
-        #print("&&&&&&&&&& 3 global_weights", model.params)
-        #print("&&&&&&&&&& 4 global_weights", [model.params[k] for k in model.params])
-
         # update local model weights with received weights
         self.model.coefs_ = [model.params[k] for k in model.params]
 
         # get validation meta info
-        #validate_type = FLModelUtils.get_meta_prop(
-        #    model, FLMetaKey.VALIDATE_TYPE, ValidateType.MODEL_VALIDATE
-        #)  # TODO: enable model.get_meta_prop(...)
+        validate_type = FLModelUtils.get_meta_prop(
+            model, FLMetaKey.VALIDATE_TYPE, ValidateType.MODEL_VALIDATE
+        )
         model_owner = self.get_shareable_header(AppConstants.MODEL_OWNER)
 
         # perform valid
-        print("%%%%%%%%%% PREDICT 1")
         predicted_testing_labels = self.model.predict(self.X_test)
-        print("%%%%%%%%%% PREDICT 2")
         accuracy = accuracy_score(self.y_test, predicted_testing_labels)
         self.info(f"Model (owner={model_owner}) has an accuracy of {(accuracy * 100):.2f}%")
         self.info("Evaluation finished. Returning result")
@@ -232,6 +239,10 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         if accuracy > self.best_acc:
             self.best_acc = accuracy
             self.save_model(is_best=True)
+
+        # write to tensorboard
+        if validate_type == ValidateType.BEFORE_TRAIN_VALIDATE:
+            self.writer.add_scalar("accuracy", accuracy, self.epoch_of_start_time)
 
         val_results = {"accuracy": accuracy}
         return FLModel(metrics=val_results, params_type=None)

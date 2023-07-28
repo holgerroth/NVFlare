@@ -1,7 +1,7 @@
 {
     "format_version": 2,
-    "TRAIN_SPLIT_ROOT": "/tmp/data/FLIP/secondary_structure/test/x000.pkl",
-    "AGGREGATION_EPOCHS": 4,
+    "DATA_ROOT": "/tmp/fasta/mixed_soft",
+    "AGGREGATION_EPOCHS": 10,
     "executors": [
         {
             "tasks": [
@@ -25,9 +25,9 @@
             "id": "learner",
             "path": "bionemo_mlp_learner.BioNeMoMLPLearner",
             "args": {
-                "data_filename": "{TRAIN_SPLIT_ROOT}",
+                "data_root": "{DATA_ROOT}",
                 "aggregation_epochs": "{AGGREGATION_EPOCHS}",
-                "lr": 0.01
+                "lr": 0.001
             }
         }
     ]
