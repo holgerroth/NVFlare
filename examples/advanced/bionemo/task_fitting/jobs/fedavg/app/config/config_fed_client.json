@@ -27,7 +27,7 @@
             "args": {
                 "data_root": "{DATA_ROOT}",
                 "aggregation_epochs": "{AGGREGATION_EPOCHS}",
-                "lr": 1e-6
+                "lr": 1e-5
             }
         }
     ]
