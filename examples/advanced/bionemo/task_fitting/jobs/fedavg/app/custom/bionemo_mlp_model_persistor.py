@@ -83,7 +83,7 @@ class BioNeMoMLPModelPersistor(ModelPersistor):
             _X.append(np.random.rand(768))
             _y.append(label)
         self.model.fit(_X, _y)
-        self.log_info(fl_ctx, "MLPClassifier coefficients", [np.shape(x) for x in self.model.coefs_])
+        self.log_info(fl_ctx, f"MLPClassifier coefficients {[np.shape(x) for x in self.model.coefs_]}, intercepts {[np.shape(x) for x in self.model.intercepts_]}")
 
         app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
         log_dir = fl_ctx.get_prop(AppConstants.LOG_DIR)
@@ -107,8 +107,10 @@ class BioNeMoMLPModelPersistor(ModelPersistor):
 
         try:
             weights = {}
-            for i, c in enumerate(self.model.coefs_):
-                weights[str(i)] = c
+            for i, w in enumerate(self.model.coefs_):
+                weights[f"coef_{i}"] = w
+            for i, w in enumerate(self.model.intercepts_):
+                weights[f"intercept_{i}"] = w
         except Exception:
             self.log_exception(fl_ctx, "error getting coefficients from model object")
             self.system_panic(reason="cannot create coefficients from model object", fl_ctx=fl_ctx)

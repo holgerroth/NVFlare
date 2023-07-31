@@ -1,7 +1,7 @@
 {
     "format_version": 2,
     "DATA_ROOT": "/tmp/fasta/mixed_soft",
-    "AGGREGATION_EPOCHS": 5,
+    "AGGREGATION_EPOCHS": 10,
     "executors": [
         {
             "tasks": [
@@ -27,7 +27,7 @@
             "args": {
                 "data_root": "{DATA_ROOT}",
                 "aggregation_epochs": "{AGGREGATION_EPOCHS}",
-                "lr": 0.001
+                "lr": 1e-6
             }
         }
     ]

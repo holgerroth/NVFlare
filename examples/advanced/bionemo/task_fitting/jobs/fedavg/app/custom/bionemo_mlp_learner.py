@@ -36,7 +36,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self,
         data_root: str = "/tmp/fasta/mixed_soft",
         aggregation_epochs: int = 1,
-        lr: float = 1e-2,
+        lr: float = 1e-3,
         fedproxloss_mu: float = 0.0,
         central: bool = False,
         analytic_sender_id: str = "analytic_sender",
@@ -113,7 +113,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         # Read embeddings
         data_filename = os.path.join(self.data_root, f"data_{self.site_name}.pkl")
         protein_embeddings = pickle.load(open(data_filename, "rb"))
-        self.info(f"Loaded {len(protein_embeddings)} embeddigns")
+        self.info(f"Loaded {len(protein_embeddings)} embeddings")
 
         # Read labels
         labels_filename = os.path.join(self.data_root, f"data_{self.site_name}.csv")
@@ -135,10 +135,16 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.info(f"There are {len(self.X_train)} training samples and {len(self.X_test)} testing samples.")
 
         self.epoch_len = int(len(self.X_train)/self.batch_size)
+        #self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs, tol=0.0,
+        #                           learning_rate_init=self.lr,
+        #                           n_iter_no_change=1000000, verbose=True, warm_start=True)
+
         self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
                                    learning_rate_init=self.lr,
-                                   warm_start=True # set warm_start to True to allow multiple calls of model.fit()
-                                   )
+                                   verbose=True, warm_start=True)
+
+        # initialize the model
+        #self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,))
 
         # run fit to initialize the model
         unique_labels, unique_idx = np.unique(self.y_train, return_index=True)
@@ -164,6 +170,23 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         else:
             pickle.dump(save_dict, open(self.local_model_file, "wb"))
 
+    def load_weights(self, global_weights):
+        coefs = []
+        intercepts = []
+        global_weights_mean = []
+        for name in global_weights:
+            if "coef" in name:
+                coefs.append(global_weights[name])
+                global_weights_mean.append([np.mean(global_weights[name]), np.mean(np.abs(global_weights[name]))])
+            elif "intercept" in name:
+                intercepts.append(global_weights[name])
+                global_weights_mean.append([np.mean(global_weights[name]), np.mean(np.abs(global_weights[name]))])
+
+        self.info(f"mean global weights: {global_weights_mean}")
+
+        self.model.coefs_ = coefs
+        self.model.intercepts_ = intercepts
+
     def train(self, model: FLModel) -> Union[str, FLModel]:
         # get round information
         self.info(f"Current/Total Round: {self.current_round + 1}/{self.total_rounds} (epoch_len={self.epoch_len})")
@@ -171,23 +194,28 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         # update local model weights with received weights
         global_weights = model.params
-        self.model.coefs_ = [model.params[k] for k in global_weights]
+        #self.load_weights(global_weights)
 
         # local steps
         self.model.fit(self.X_train, self.y_train)
 
         # compute delta model, global model has the primary key set
         local_weights = {}
-        for i, c in enumerate(self.model.coefs_):
-            local_weights[str(i)] = c
+        for i, w in enumerate(self.model.coefs_):
+            local_weights[f"coef_{i}"] = w
+        for i, w in enumerate(self.model.intercepts_):
+            local_weights[f"intercept_{i}"] = w
         model_diff = {}
+        mean_diffs = []
         for name in global_weights:
             if name not in local_weights:
                 continue
             model_diff[name] = np.subtract(local_weights[name], global_weights[name], dtype=np.float32)
+            mean_diffs.append([np.mean(model_diff[name]), np.mean(np.shape(model_diff[name]))])
             if np.any(np.isnan(model_diff[name])):
                 self.stop_task(f"{name} weights became NaN...")
                 return ReturnCode.EXECUTION_EXCEPTION
+        self.info(f"mean weight diff: {mean_diffs}")
 
         # return an FLModel containing the model differences
         fl_model = FLModel(params_type=ParamsType.DIFF, params=model_diff)
@@ -223,7 +251,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.info(f"Client identity: {self.site_name}")
 
         # update local model weights with received weights
-        self.model.coefs_ = [model.params[k] for k in model.params]
+        #self.load_weights(model.params)
 
         # get validation meta info
         validate_type = FLModelUtils.get_meta_prop(
@@ -249,8 +277,11 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
                                                                          labels=list(set(predicted_testing_labels)),
                                                                          output_dict=True)
             for category, metrics in classifcation_report.items():
-                for k, v in metrics.items():
-                    self.writer.add_scalar(f"{category}_{k}", v, self.epoch_of_start_time)
+                if isinstance(metrics, dict):
+                    for k, v in metrics.items():
+                        self.writer.add_scalar(f"{category} {k}", v, self.epoch_of_start_time)
+                else:
+                    self.writer.add_scalar(f"{category}", metrics, self.epoch_of_start_time)
 
         val_results = {"accuracy": accuracy}
         return FLModel(metrics=val_results, params_type=None)
