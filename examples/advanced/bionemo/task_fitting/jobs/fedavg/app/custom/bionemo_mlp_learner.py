@@ -156,7 +156,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
     def save_model(self, is_best=False):
         # save model
-        model_weights = self.model.coefs_
+        model_weights = self.get_local_weights()
         save_dict = {"model_weights": model_weights, "epoch": self.epoch_global}
         if is_best:
             save_dict.update({"best_acc": self.best_acc})
@@ -165,6 +165,10 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
             pickle.dump(save_dict, open(self.local_model_file, "wb"))
 
     def load_weights(self, weights):
+        if "model_weights" in weights:
+            # access saved weights during cross-site validation
+            weights = weights["model_weights"]
+
         weights = copy.deepcopy(weights)
         coefs = []
         intercepts = []
@@ -178,12 +182,16 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.model.coefs_ = coefs
         self.model.intercepts_ = intercepts
 
-    def compute_weights_diff(self, global_weights):
+    def get_local_weights(self):
         local_weights = {}
         for i, w in enumerate(self.model.coefs_):
             local_weights[f"coef_{i}"] = w
         for i, w in enumerate(self.model.intercepts_):
             local_weights[f"intercept_{i}"] = w
+        return local_weights
+
+    def compute_weights_diff(self, global_weights):
+        local_weights = self.get_local_weights()
 
         # compute delta model, global model has the primary key set
         model_diff = {}
@@ -225,7 +233,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         if model_name == ModelName.BEST_MODEL:
             try:
                 # load model to cpu as server might or might not have a GPU
-                model_weights = pickle.load(self.best_local_model_file)
+                model_weights = pickle.load(open(self.best_local_model_file, "rb"))
             except Exception as e:
                 raise ValueError("Unable to load best model") from e
 
@@ -254,6 +262,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         # perform valid
         predicted_testing_labels = self.model.predict(self.X_test)
+        # TODO: use accuracy from classification report
         accuracy = accuracy_score(self.y_test, predicted_testing_labels)
         self.info(f"Model (owner={model_owner}) has an accuracy of {(accuracy * 100):.2f}%")
         self.info("Evaluation finished. Returning result")

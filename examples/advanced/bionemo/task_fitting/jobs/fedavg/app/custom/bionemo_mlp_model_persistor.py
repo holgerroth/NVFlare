@@ -36,9 +36,10 @@ from nvflare.app_common.abstract.model import (
     make_model_learnable,
     validate_model_learnable,
 )
+from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 
 
-class BioNeMoMLPModelPersistor(ModelPersistor):
+class BioNeMoMLPModelPersistor(PTFileModelPersistor):
     def __init__(
         self,
         global_model_file_name=DefaultCheckpointFileName.GLOBAL_MODEL,
@@ -151,3 +152,25 @@ class BioNeMoMLPModelPersistor(ModelPersistor):
         except Exception:
             self.log_exception(fl_ctx, "error loading checkpoint from {}".format(model_file))
             return {}
+
+    def get_model_inventory(self, fl_ctx: FLContext) -> Dict[str, ModelDescriptor]:
+        model_inventory = {}
+        location = os.path.join(self.log_dir, self.global_model_file_name)
+        if os.path.exists(location):
+            model_inventory[self.global_model_file_name] = ModelDescriptor(
+                name=self.global_model_file_name,
+                location=location,
+                model_format="WEIGHTS",
+                props={},
+            )
+
+        location = os.path.join(self.log_dir, self.best_global_model_file_name)
+        if os.path.exists(location):
+            model_inventory[self.best_global_model_file_name] = ModelDescriptor(
+                name=self.best_global_model_file_name,
+                location=location,
+                model_format="WEIGHTS",
+                props={},
+            )
+
+        return model_inventory
