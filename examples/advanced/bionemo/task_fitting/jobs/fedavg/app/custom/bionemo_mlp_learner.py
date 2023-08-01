@@ -37,7 +37,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         data_root: str = "/tmp/fasta/mixed_soft",
         aggregation_epochs: int = 1,
         lr: float = 1e-3,
-        fedproxloss_mu: float = 0.0,
         central: bool = False,
         analytic_sender_id: str = "analytic_sender",
         batch_size: int = 128,
@@ -49,7 +48,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
             data_root: data file root.
             aggregation_epochs: the number of training epochs for a round. Defaults to 1.
             lr: local learning rate. Float number. Defaults to 1e-2.
-            fedproxloss_mu: weight for FedProx loss. Float number. Defaults to 0.0 (no FedProx).
             central: Bool. Whether to simulate central training. Default False.
             analytic_sender_id: id of `AnalyticsSender` if configured as a client component.
                 If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
@@ -66,7 +64,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.data_root = data_root
         self.aggregation_epochs = aggregation_epochs
         self.lr = lr
-        self.fedproxloss_mu = fedproxloss_mu
         self.best_acc = 0.0
         self.central = central
         self.batch_size = batch_size
@@ -212,8 +209,18 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         global_weights = model.params
         self.load_weights(global_weights)
 
-        # local steps
+        # train the model
         self.model.fit(self.X_train, self.y_train)
+
+        # check the model performance
+        predicted_testing_labels = self.model.predict(self.X_test)
+        accuracy = accuracy_score(self.y_test, predicted_testing_labels)
+        self.info(f"Local model has an accuracy of {(accuracy * 100):.2f}%")
+
+        self.save_model()
+        if accuracy > self.best_acc:
+            self.best_acc = accuracy
+            self.save_model(is_best=True)
 
         # compute weight differences
         model_diff = self.compute_weights_diff(global_weights)
