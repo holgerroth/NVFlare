@@ -41,6 +41,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         analytic_sender_id: str = "analytic_sender",
         batch_size: int = 128,
         num_workers: int = 0,
+        warm_start: bool = True
     ):
         """Simple CIFAR-10 Trainer.
 
@@ -53,6 +54,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
                 If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
             batch_size: batch size for training and validation.
             num_workers: number of workers for data loaders.
+            warm_start: Use `True` in federated learning and `False` when simulating local training only.
 
         Returns:
             an FLModel with the updated local model differences after running `train()`, the metrics after `validate()`,
@@ -69,6 +71,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.analytic_sender_id = analytic_sender_id
+        self.warm_start = warm_start
 
         # Epoch counter
         self.epoch_of_start_time = 0
@@ -135,7 +138,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
                                    learning_rate_init=self.lr,
-                                   verbose=True, warm_start=True)
+                                   verbose=True, warm_start=self.warm_start)
 
         # run fit to initialize the model
         unique_labels, unique_idx = np.unique(self.y_train, return_index=True)
