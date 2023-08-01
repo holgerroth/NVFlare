@@ -135,9 +135,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.info(f"There are {len(self.X_train)} training samples and {len(self.X_test)} testing samples.")
 
         self.epoch_len = int(len(self.X_train)/self.batch_size)
-        #self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs, tol=0.0,
-        #                           learning_rate_init=self.lr,
-        #                           n_iter_no_change=1000000, verbose=True, warm_start=True)
 
         self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
                                    learning_rate_init=self.lr,
@@ -171,19 +168,32 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         weights = copy.deepcopy(weights)
         coefs = []
         intercepts = []
-        weights_mean = []
         for name in weights:
             if "coef" in name:
                 coefs.append(weights[name])
-                weights_mean.append([np.mean(weights[name]), np.mean(np.abs(weights[name]))])
             elif "intercept" in name:
                 intercepts.append(weights[name])
-                weights_mean.append([np.mean(weights[name]), np.mean(np.abs(weights[name]))])
-
-        self.info(f"mean global weights: {weights_mean}")
-
+            else:
+                raise ValueError(f"Expected to name to contain either `coef` or `intercept` but it was `{name}`.")
         self.model.coefs_ = coefs
         self.model.intercepts_ = intercepts
+
+    def compute_weights_diff(self, global_weights):
+        local_weights = {}
+        for i, w in enumerate(self.model.coefs_):
+            local_weights[f"coef_{i}"] = w
+        for i, w in enumerate(self.model.intercepts_):
+            local_weights[f"intercept_{i}"] = w
+
+        # compute delta model, global model has the primary key set
+        model_diff = {}
+        for name in global_weights:
+            if name not in local_weights:
+                continue
+            model_diff[name] = np.subtract(local_weights[name], global_weights[name], dtype=np.float32)
+            if np.any(np.isnan(model_diff[name])):
+                raise ValueError(f"{name} weights became NaN...")
+        return model_diff
 
     def train(self, model: FLModel) -> Union[str, FLModel]:
         # get round information
@@ -197,27 +207,8 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         # local steps
         self.model.fit(self.X_train, self.y_train)
 
-        # compute delta model, global model has the primary key set
-        local_weights = {}
-        for i, w in enumerate(self.model.coefs_):
-            local_weights[f"coef_{i}"] = w
-        for i, w in enumerate(self.model.intercepts_):
-            local_weights[f"intercept_{i}"] = w
-        model_diff = {}
-        mean_diffs = []
-        for name in global_weights:
-            if name not in local_weights:
-                continue
-            model_diff[name] = np.subtract(local_weights[name], global_weights[name], dtype=np.float32)
-            #print(f"local_weights[{name}]: {local_weights[name]}")
-            #print(f"global_weights[{name}]: {global_weights[name]}")
-            #print(f"model_diff[{name}]: {model_diff[name]}")
-            mean_diffs.append([np.mean(model_diff[name]), np.mean(np.abs(model_diff[name]))])
-            if np.any(np.isnan(model_diff[name])):
-                self.stop_task(f"{name} weights became NaN...")
-                return ReturnCode.EXECUTION_EXCEPTION
-        self.info(f"mean weight diff: {mean_diffs}")
-        #asdfasd
+        # compute weight differences
+        model_diff = self.compute_weights_diff(global_weights)
 
         # return an FLModel containing the model differences
         fl_model = FLModel(params_type=ParamsType.DIFF, params=model_diff)

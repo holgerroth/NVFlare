@@ -18,7 +18,6 @@ from nvflare.apis.shareable import Shareable
 from nvflare.app_common.abstract.model import ModelLearnable, ModelLearnableKey, model_learnable_to_dxo
 from nvflare.app_common.abstract.shareable_generator import ShareableGenerator
 from nvflare.app_common.app_constant import AppConstants
-import numpy as np
 
 
 class FullModelShareableGenerator(ShareableGenerator):
@@ -60,7 +59,6 @@ class FullModelShareableGenerator(ShareableGenerator):
             return base_model
 
         weights = base_model[ModelLearnableKey.WEIGHTS]
-        print("$$$$$$$ BEFORE UPDATE", list(weights.keys()), [np.mean(weights[k]) for k in weights])
         dxo = from_shareable(shareable)
 
         if dxo.data_kind == DataKind.WEIGHT_DIFF:
@@ -68,7 +66,6 @@ class FullModelShareableGenerator(ShareableGenerator):
                 model_diff = dxo.data
                 for v_name, v_value in model_diff.items():
                     weights[v_name] = weights[v_name] + v_value
-                    print("$$$$$$$$$$$$$$", v_name, v_value)
         elif dxo.data_kind == DataKind.WEIGHTS:
             weights = dxo.data
             if not weights:
@@ -79,7 +76,6 @@ class FullModelShareableGenerator(ShareableGenerator):
             raise ValueError(
                 "data_kind should be either DataKind.WEIGHTS or DataKind.WEIGHT_DIFF, but got {}".format(dxo.data_kind)
             )
-        print("$$$$$$$ AFTER UPDATE", list(base_model[ModelLearnableKey.WEIGHTS].keys()), [np.mean(base_model[ModelLearnableKey.WEIGHTS][k]) for k in base_model[ModelLearnableKey.WEIGHTS]])
 
         base_model[ModelLearnableKey.META] = dxo.get_meta_props()
         return base_model
