@@ -143,9 +143,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
                                    learning_rate_init=self.lr,
                                    verbose=True, warm_start=True)
 
-        # initialize the model
-        #self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,))
-
         # run fit to initialize the model
         unique_labels, unique_idx = np.unique(self.y_train, return_index=True)
         _X_train = list()
@@ -170,19 +167,20 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         else:
             pickle.dump(save_dict, open(self.local_model_file, "wb"))
 
-    def load_weights(self, global_weights):
+    def load_weights(self, weights):
+        weights = copy.deepcopy(weights)
         coefs = []
         intercepts = []
-        global_weights_mean = []
-        for name in global_weights:
+        weights_mean = []
+        for name in weights:
             if "coef" in name:
-                coefs.append(global_weights[name])
-                global_weights_mean.append([np.mean(global_weights[name]), np.mean(np.abs(global_weights[name]))])
+                coefs.append(weights[name])
+                weights_mean.append([np.mean(weights[name]), np.mean(np.abs(weights[name]))])
             elif "intercept" in name:
-                intercepts.append(global_weights[name])
-                global_weights_mean.append([np.mean(global_weights[name]), np.mean(np.abs(global_weights[name]))])
+                intercepts.append(weights[name])
+                weights_mean.append([np.mean(weights[name]), np.mean(np.abs(weights[name]))])
 
-        self.info(f"mean global weights: {global_weights_mean}")
+        self.info(f"mean global weights: {weights_mean}")
 
         self.model.coefs_ = coefs
         self.model.intercepts_ = intercepts
@@ -194,7 +192,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         # update local model weights with received weights
         global_weights = model.params
-        #self.load_weights(global_weights)
+        self.load_weights(global_weights)
 
         # local steps
         self.model.fit(self.X_train, self.y_train)
@@ -211,11 +209,15 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
             if name not in local_weights:
                 continue
             model_diff[name] = np.subtract(local_weights[name], global_weights[name], dtype=np.float32)
-            mean_diffs.append([np.mean(model_diff[name]), np.mean(np.shape(model_diff[name]))])
+            #print(f"local_weights[{name}]: {local_weights[name]}")
+            #print(f"global_weights[{name}]: {global_weights[name]}")
+            #print(f"model_diff[{name}]: {model_diff[name]}")
+            mean_diffs.append([np.mean(model_diff[name]), np.mean(np.abs(model_diff[name]))])
             if np.any(np.isnan(model_diff[name])):
                 self.stop_task(f"{name} weights became NaN...")
                 return ReturnCode.EXECUTION_EXCEPTION
         self.info(f"mean weight diff: {mean_diffs}")
+        #asdfasd
 
         # return an FLModel containing the model differences
         fl_model = FLModel(params_type=ParamsType.DIFF, params=model_diff)
@@ -251,7 +253,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.info(f"Client identity: {self.site_name}")
 
         # update local model weights with received weights
-        #self.load_weights(model.params)
+        self.load_weights(model.params)
 
         # get validation meta info
         validate_type = FLModelUtils.get_meta_prop(

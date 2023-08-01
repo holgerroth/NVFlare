@@ -119,6 +119,9 @@ class BioNeMoMLPModelPersistor(ModelPersistor):
         if self.model:
             self.default_train_conf = {"train": {"model": type(self.model).__name__}}
 
+        self.learned_weights = weights
+        print("%%%%%%%%%%% load_model learned_weights", list(self.learned_weights.keys()), [np.mean(self.learned_weights[k]) for k in self.learned_weights])
+
         return make_model_learnable(weights, meta_props=self.default_train_conf )
 
     def handle_event(self, event: str, fl_ctx: FLContext):
@@ -138,6 +141,7 @@ class BioNeMoMLPModelPersistor(ModelPersistor):
 
         # update with value of the model learnable
         self.learned_weights = ml.get(ModelLearnableKey.WEIGHTS, {})
+        print("%%%%%%%%%%% save_model learned_weights", list(self.learned_weights.keys()), [np.mean(self.learned_weights[k]) for k in self.learned_weights])
         self.save_model_file(self._ckpt_save_path)
 
     def get_model(self, model_file: str, fl_ctx: FLContext) -> ModelLearnable:
