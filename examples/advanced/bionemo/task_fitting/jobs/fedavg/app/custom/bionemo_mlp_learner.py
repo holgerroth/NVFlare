@@ -16,6 +16,8 @@ import copy
 import os
 from typing import Union
 import pickle
+import math
+from distutils.util import strtobool
 
 import numpy as np
 import pandas as pd
@@ -72,6 +74,9 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.num_workers = num_workers
         self.analytic_sender_id = analytic_sender_id
         self.warm_start = warm_start
+
+        self.sim_local = strtobool(os.getenv("SIM_LOCAL", "False"))
+        print("#########self.sim_local", self.sim_local)
 
         # Epoch counter
         self.epoch_of_start_time = 0
@@ -134,21 +139,21 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         assert len(self.X_test) > 0
         self.info(f"There are {len(self.X_train)} training samples and {len(self.X_test)} testing samples.")
 
-        self.epoch_len = int(len(self.X_train)/self.batch_size)
+        self.epoch_len = math.ceil(len(self.X_train)/self.batch_size)
 
         self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
                                    learning_rate_init=self.lr,
                                    verbose=True, warm_start=self.warm_start)
 
-        # run fit to initialize the model
-        unique_labels, unique_idx = np.unique(self.y_train, return_index=True)
-        _X_train = list()
-        _y_train = list()
-        for i in unique_idx:
-            _X_train.append(self.X_train[i])
-            _y_train.append(self.y_train[i])
-        self.info(f"Found {len(unique_labels)} unique class labels in training data.")
-        self.model.fit(_X_train, _y_train)
+        # run a fit with random data to initialize the model
+        # TODO: use partial_fit() instead of warm_start to allow changing class labels?
+        #  first call to partial_fit should include all class labels in `classes`
+        class_labels = ["Cell_membrane", "Cytoplasm", "Endoplasmic_reticulum", "Extracellular", "Golgi_apparatus", "Lysosome", "Mitochondrion", "Nucleus", "Peroxisome", "Plastid"]
+        _X, _y = [], []
+        for label in class_labels:
+            _X.append(np.random.rand(768))
+            _y.append(label)
+        self.model.fit(_X, _y)
 
     def finalize(self):
         # collect threads, close files here
@@ -210,7 +215,11 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         # update local model weights with received weights
         global_weights = model.params
-        self.load_weights(global_weights)
+        print("@@@@@@@@@@@ sim_local", self.sim_local)
+        if not self.sim_local:
+            self.load_weights(global_weights)
+        else:
+            self.warning("Simulating local training only!")
 
         # train the model
         self.model.fit(self.X_train, self.y_train)
@@ -262,7 +271,10 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.info(f"Client identity: {self.site_name}")
 
         # update local model weights with received weights
-        self.load_weights(model.params)
+        if not self.sim_local:
+            self.load_weights(model.params)
+        else:
+            self.warning("Simulating local validation only!")
 
         # get validation meta info
         validate_type = FLModelUtils.get_meta_prop(

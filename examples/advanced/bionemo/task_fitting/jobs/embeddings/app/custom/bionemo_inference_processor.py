@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import pprint
 
 from omegaconf import OmegaConf
 
@@ -118,5 +119,5 @@ class BioNeMoInferenceProcessor(ResponseProcessor):
             If not successful, the control flow will exit.
         """
 
-        self.log_info(fl_ctx, f"Clients inference responses: {self._inference_responses}")
+        self.log_info(fl_ctx, f"Clients inference responses:\n{pprint.pformat(self._inference_responses)}")
         return True

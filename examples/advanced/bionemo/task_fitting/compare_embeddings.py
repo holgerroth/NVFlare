@@ -29,57 +29,91 @@ service_result = "/home/hroth/Code2/BioNeMo/bionemo-service-public/examples/serv
 
 def main():
     X_service = []
+    seq_service = []
+
     X_local = []
+    seq_local = []
 
     # Read service results
     print(f"Reading data from {service_result}")
     _data = pickle.load(open(service_result, "rb"))
-    X_service.append(_data["X_train"])
-    X_test = _data["X_test"]
+    X_service.extend(_data["X_train"])
+    X_service.extend(_data["X_test"])
+    seq_service.extend(_data["seq_train"])
+    seq_service.extend(_data["seq_test"])
 
-    else:
-        print(f"Reading data from {data_root}")
-        for site_name in ["site-1", "site-2", "site-3"]:
-            # Read embeddings
-            data_filename = os.path.join(data_root, f"data_{site_name}.pkl")
-            protein_embeddings = pickle.load(open(data_filename, "rb"))
-            print(f"Loaded {len(protein_embeddings)} embeddings")
+    # Read local results
+    print(f"Reading data from {data_root}")
+    for site_name in ["site-1", "site-2", "site-3"]:
+        # Read embeddings
+        data_filename = os.path.join(data_root, f"data_{site_name}.pkl")
+        protein_embeddings = pickle.load(open(data_filename, "rb"))
+        print(f"Loaded {len(protein_embeddings)} embeddings")
 
-            # Read labels
-            labels_filename = os.path.join(data_root, f"data_{site_name}.csv")
-            labels = pd.read_csv(labels_filename).astype(str)
+        # Read labels
+        labels_filename = os.path.join(data_root, f"data_{site_name}.csv")
+        labels = pd.read_csv(labels_filename).astype(str)
 
-            # Prepare the data for training
-            for embedding in protein_embeddings:
-                # get label entry from pandas dataframe
-                label = labels.loc[labels["id"] == str(embedding["id"])]
-                if label['SET'].item() == 'train':
-                    X_train.append(embedding["embeddings"])
-                    y_train.append(label['TARGET'].item())
-                    sets.append("train")
-                elif label['SET'].item() == 'test':
-                    X_test.append(embedding["embeddings"])
-                    y_test.append(label['TARGET'].item())
-                    sets.append("test")
+        # Prepare the data for training
+        for embedding in protein_embeddings:
+            # get label entry from pandas dataframe
+            X_local.append(embedding["embeddings"])
+            seq_local.append(embedding["sequence"])
 
-    assert len(X_train) > 0
-    assert len(X_test) > 0
-    print(f"There are {len(X_train)} training samples and {len(X_test)} testing samples.")
+    assert len(X_service) > 0
+    assert len(X_local) > 0
+    assert len(seq_service) > 0
+    assert len(seq_local) > 0
+    print(f"There are {len(X_service)} service samples and {len(X_local)} local samples.")
 
-    # plot UMAP
-    print("compute UMAP embedding...")
-    reducer = umap.UMAP(transform_seed=42)
-    umap_embedding = reducer.fit_transform(X_train + X_test)
-    print(f"UMAP embedding train/test {umap_embedding.shape}")
+    # Compare
+    norms = {
+        "L1-norm": [],
+        "Type": [],
+    }
+    delta_l1_norms = []
+    service_l1_norms = []
+    local_l1_norms = []
 
-    embeddings_dict = create_embedding_dict(umap_embedding, y_train + y_test, sets)
+    for s_idx, s_seq in enumerate(seq_service):
+        l_idx = np.where(np.asarray(seq_local) == s_seq)
+        if not np.any(l_idx):
+            continue
+        assert len(l_idx) == 1
+        l_idx = l_idx[0].item()
 
-    label_names = sorted(set(y_test))
+        if s_idx % 1000 == 0:
+            print(f"Processing {s_idx+1} of {len(seq_service)} samples")
+
+        delta_l1 = np.linalg.norm(X_service[s_idx]-X_local[l_idx], ord=1)
+        service_l1 = np.linalg.norm(X_service[s_idx], ord=1)
+        local_l1 = np.linalg.norm(X_local[s_idx], ord=1)
+
+        delta_l1_norms.append(delta_l1)
+        service_l1_norms.append(service_l1)
+        local_l1_norms.append(local_l1)
+
+        for norm, type in zip([delta_l1, service_l1, local_l1], ["Delta", "Service", "Local"]):
+            norms["L1-norm"].append(float(norm))
+            norms["Type"].append(type)
+
+    #sns.histplot(data=pd.DataFrame(norms), x="Type", y="L1-norm")
+
     plt.figure()
-    ax = sns.scatterplot(data=pd.DataFrame(embeddings_dict), x="x", y="y", hue="label", hue_order=label_names, style="set")
-    plt.title(f"{len(y_train)} train, {len(y_test)} test")
-    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.subplot(1, 3, 1)
+    plt.hist(service_l1_norms)
+    plt.title("Service L1-norm")
+
+    plt.subplot(1, 3, 2)
+    plt.hist(local_l1_norms)
+    plt.title("Local L1-norm")
+
+    plt.subplot(1, 3, 3)
+    plt.hist(delta_l1_norms)
+    plt.title("Delta")
+
     plt.show()
+
 
 if __name__ == "__main__":
     main()
