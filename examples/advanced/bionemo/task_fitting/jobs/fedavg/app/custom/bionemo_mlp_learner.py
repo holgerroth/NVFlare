@@ -141,7 +141,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         self.epoch_len = math.ceil(len(self.X_train)/self.batch_size)
 
-        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
+        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(128, 64), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
                                    learning_rate_init=self.lr,
                                    verbose=True, warm_start=self.warm_start)
 
@@ -294,7 +294,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
             self.save_model(is_best=True)
 
         # write to tensorboard
-        if validate_type == ValidateType.BEFORE_TRAIN_VALIDATE:
+        if validate_type == ValidateType.BEFORE_TRAIN_VALIDATE:  # TODO: also compute classification report during cross-site
             self.writer.add_scalar("accuracy", accuracy, self.epoch_of_start_time)
 
             classifcation_report = sklearn.metrics.classification_report(self.y_test, predicted_testing_labels,

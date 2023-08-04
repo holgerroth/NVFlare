@@ -61,7 +61,7 @@ class BioNeMoMLPModelPersistor(PTFileModelPersistor):
         super().__init__(
             filter_id=filter_id,
         )
-        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(32,), random_state=10, max_iter=1)
+        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(128, 64), random_state=10, max_iter=1)
         self.log_dir = None
         self.ckpt_preload_path = None
         self.ckpt_dir_env_key = EnvironmentKey.CHECKPOINT_DIR
