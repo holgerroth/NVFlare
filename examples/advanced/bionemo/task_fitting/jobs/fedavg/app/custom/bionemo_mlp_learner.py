@@ -141,7 +141,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         self.epoch_len = math.ceil(len(self.X_train)/self.batch_size)
 
-        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(128, 64), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
+        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(512, 256, 128), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
                                    learning_rate_init=self.lr,
                                    verbose=True, warm_start=self.warm_start)
 
@@ -282,6 +282,11 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         )
         model_owner = self.get_shareable_header(AppConstants.MODEL_OWNER)
 
+        # train score
+        # perform valid
+        predicted_training_labels = self.model.predict(self.X_train)
+        train_accuracy = accuracy_score(self.y_train, predicted_training_labels)
+
         # perform valid
         predicted_testing_labels = self.model.predict(self.X_test)
         # TODO: use accuracy from classification report
@@ -296,6 +301,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         # write to tensorboard
         if validate_type == ValidateType.BEFORE_TRAIN_VALIDATE:  # TODO: also compute classification report during cross-site
             self.writer.add_scalar("accuracy", accuracy, self.epoch_of_start_time)
+            self.writer.add_scalar("train_accuracy", train_accuracy, self.epoch_of_start_time)
 
             classifcation_report = sklearn.metrics.classification_report(self.y_test, predicted_testing_labels,
                                                                          labels=list(set(predicted_testing_labels)),
@@ -307,5 +313,5 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
                 else:
                     self.writer.add_scalar(f"{category}", metrics, self.epoch_of_start_time)
 
-        val_results = {"accuracy": accuracy}
+        val_results = {"accuracy": accuracy, "train_accuracy": train_accuracy}
         return FLModel(metrics=val_results, params_type=None)
