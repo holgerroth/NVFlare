@@ -27,7 +27,8 @@ import json
 
 split_root = "/home/hroth/Code2/nvflare/bionemo_nvflare/examples/advanced/bionemo/task_fitting/fasta"
 
-alphas = [1, 5, 10]
+alphas = [1, 5, 10, 100]
+alphas = [100]
 
 
 

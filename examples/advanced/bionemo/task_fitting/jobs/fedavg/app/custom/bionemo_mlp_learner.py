@@ -141,16 +141,13 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         self.epoch_len = math.ceil(len(self.X_train)/self.batch_size)
 
-        #self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(512, 256, 128), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
-        #                           learning_rate_init=self.lr,
-        #                           verbose=True, warm_start=self.warm_start)
-
-        self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(512, 256, 128), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
-                                   learning_rate_init=self.lr)
+        self.model = MLPClassifier(solver='adam',
+                                   hidden_layer_sizes=(512, 256, 128),
+                                   batch_size=self.batch_size,
+                                   learning_rate_init=self.lr,
+                                   verbose=True)
 
         # run a fit with random data to initialize the model
-        # TODO: use partial_fit() instead of warm_start to allow changing class labels?
-        #  first call to partial_fit should include all class labels in `classes`
         class_labels = ["Cell_membrane", "Cytoplasm", "Endoplasmic_reticulum", "Extracellular", "Golgi_apparatus", "Lysosome", "Mitochondrion", "Nucleus", "Peroxisome", "Plastid"]
         _X, _y = [], []
         for label in class_labels:
@@ -225,7 +222,8 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
             self.warning("Simulating local training only!")
 
         # train the model
-        self.model.partial_fit(self.X_train, self.y_train)
+        for _ in range(self.aggregation_epochs):
+            self.model.partial_fit(self.X_train, self.y_train)
 
         # check the model performance
         predicted_testing_labels = self.model.predict(self.X_test)
