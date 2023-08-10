@@ -76,7 +76,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.warm_start = warm_start
 
         self.sim_local = strtobool(os.getenv("SIM_LOCAL", "False"))
-        print("#########self.sim_local", self.sim_local)
 
         # Epoch counter
         self.epoch_of_start_time = 0
@@ -215,7 +214,6 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         # update local model weights with received weights
         global_weights = model.params
-        print("@@@@@@@@@@@ sim_local", self.sim_local)
         if not self.sim_local:
             self.load_weights(global_weights)
         else:
