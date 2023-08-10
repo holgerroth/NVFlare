@@ -25,7 +25,6 @@ import glob
 import json
 
 
-result_root = "/home/hroth/Code2/nvflare/bionemo_nvflare/examples/advanced/bionemo/task_fitting/bionemo_results_mlp_tuning"
 result_root = "/home/hroth/Code2/nvflare/bionemo_nvflare/examples/advanced/bionemo/task_fitting/bionemo_results_alpha"
 
 def read_json(filename):
@@ -39,18 +38,20 @@ def main():
     results = {
         "Accuracy": [],
         "Site": [],
-        "Hiddens": [],
+        "alpha": [],
         "Setting": []
     }
     for result_file in result_files:
         _results = read_json(result_file)
 
-        hiddens = result_file.replace(result_root, "").split(os.sep)[1].replace("bionemo_", "")
-        assert len(hiddens) > 0
+        alpha = result_file.replace(result_root, "").split(os.sep)[1]
+        alpha = alpha[alpha.find("_")::].replace("_alpha", "")
+        alpha = float(alpha)
+        assert alpha > 0
 
         for site, v in _results.items():
             results["Site"].append(site)
-            results["Hiddens"].append(hiddens)
+            results["alpha"].append(alpha)
             if "local" in result_file:
                 results["Setting"].append("Local")
                 results["Accuracy"].append(v[site]["accuracy"])
@@ -59,25 +60,22 @@ def main():
                 results["Accuracy"].append(v["SRV_FL_global_model.pt"]["accuracy"])
                 # best
                 results["Site"].append(site)
-                results["Hiddens"].append(hiddens)
+                results["alpha"].append(alpha)
                 results["Setting"].append("FL (best)")
                 results["Accuracy"].append(v["SRV_best_FL_global_model.pt"]["accuracy"])
             else:
                 raise ValueError
 
-    hidden_names = ['32', '64_32', '128_64', '128_64_32', '256_128_64', '512_256_128', '1024_512_256', '2048_1024_512', '512_256_128_64', '1024_512_256_128']
-    hidden_names = ['32', '64_32', '128_64', '128_64_32', '256_128_64', '512_256_128', '512_256_128_64']
-    hidden_names = ['32', '64_32', '128_64', '128_64_32', '256_128_64', '512_256_128', '512_256_128_64']
-    unique_hiddens = list(set(results["Hiddens"]))
+    unique_hiddens = list(set(results["alpha"]))
     print(f"Read {len(unique_hiddens)} hidden sizes: {unique_hiddens}")
     #assert len(hidden_names) == len(unique_hiddens)
 
     plt.figure()
-    ax = sns.barplot(data=pd.DataFrame(results), x="Hiddens", y="Accuracy", hue="Setting",
+    ax = sns.barplot(data=pd.DataFrame(results), x="alpha", y="Accuracy", hue="Setting",
                      #order=hidden_names,
                      hue_order=["Local", "FL"],# "FL (best)"],
                      estimator='mean', errorbar="sd")
-    plt.ylim(0.665, 0.785)
+    plt.ylim(0.2, 0.74)
     sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
     plt.show()
 

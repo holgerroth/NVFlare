@@ -141,9 +141,12 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         self.epoch_len = math.ceil(len(self.X_train)/self.batch_size)
 
+        #self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(512, 256, 128), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
+        #                           learning_rate_init=self.lr,
+        #                           verbose=True, warm_start=self.warm_start)
+
         self.model = MLPClassifier(solver='adam', hidden_layer_sizes=(512, 256, 128), batch_size=self.batch_size, max_iter=self.aggregation_epochs,
-                                   learning_rate_init=self.lr,
-                                   verbose=True, warm_start=self.warm_start)
+                                   learning_rate_init=self.lr)
 
         # run a fit with random data to initialize the model
         # TODO: use partial_fit() instead of warm_start to allow changing class labels?
@@ -153,7 +156,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         for label in class_labels:
             _X.append(np.random.rand(768))
             _y.append(label)
-        self.model.fit(_X, _y)
+        self.model.partial_fit(_X, _y, classes=class_labels)
 
     def finalize(self):
         # collect threads, close files here
@@ -222,7 +225,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
             self.warning("Simulating local training only!")
 
         # train the model
-        self.model.fit(self.X_train, self.y_train)
+        self.model.partial_fit(self.X_train, self.y_train)
 
         # check the model performance
         predicted_testing_labels = self.model.predict(self.X_test)
