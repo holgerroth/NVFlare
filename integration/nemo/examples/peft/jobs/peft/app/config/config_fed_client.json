@@ -1,6 +1,8 @@
 {
   "format_version": 2,
-
+  
+  "steps": 100,
+    
   "executors": [
     {
       "tasks": ["train"],
@@ -10,7 +12,8 @@
           "launcher_id": "launcher",
           "heartbeat_timeout": 600,
           "from_nvflare_converter_id": "from_nvflare",
-          "to_nvflare_converter_id": "to_nvflare"
+          "to_nvflare_converter_id": "to_nvflare",
+          "global_evaluation": false
         }
       }
     }
@@ -24,7 +27,7 @@
       "id": "launcher",
       "name": "SubprocessLauncher",
       "args": {
-        "script": "python custom/megatron_gpt_peft_tuning.py"
+        "script": "python custom/megatron_gpt_peft_tuning.py trainer.max_steps={steps} trainer.val_check_interval={steps}"
       }
     },
     {
