@@ -23,12 +23,17 @@ class NumpyToNEMOParamsConverter(ParamsConverter):
     def convert(self, params: Dict) -> Dict:
         result = {}
         for var_name in params:
-            _var_name_split = var_name.split(".")
-            encoder_key = _var_name_split[0]
-            if encoder_key not in result:
-                result[encoder_key] = {}
-            local_var_name = ".".join(_var_name_split[1:])
-            result[encoder_key][local_var_name] = torch.as_tensor(params[var_name])
+            if "___" in var_name:
+                _var_name_split = var_name.split("___")
+                if len(_var_name_split) != 2:
+                    raise ValueError(f"Expected list of two strings after split at '___' but got list of length {len(_var_name_split)}")
+                encoder_key = _var_name_split[0]
+                if encoder_key not in result:
+                    result[encoder_key] = {}
+                local_var_name = _var_name_split[1]
+                result[encoder_key][local_var_name] = torch.as_tensor(params[var_name])
+            else:
+                result[var_name] = torch.as_tensor(params[var_name])
         return result
 
 
@@ -36,6 +41,9 @@ class NEMOToNumpyParamsConverter(ParamsConverter):
     def convert(self, params: Dict) -> Dict:
         state_dict = {}
         for encoder_key, prompt_state_dict in params.items():
-            for k, v in prompt_state_dict.items():
-                state_dict[f"{encoder_key}.{k}"] = v.detach().cpu().numpy()
+            if isinstance(prompt_state_dict, dict):
+                for k, v in prompt_state_dict.items():
+                    state_dict[f"{encoder_key}___{k}"] = v.detach().cpu().numpy()
+            else:
+                state_dict[encoder_key] = prompt_state_dict.detach().cpu().numpy()
         return state_dict
