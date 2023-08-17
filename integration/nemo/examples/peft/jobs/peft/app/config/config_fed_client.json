@@ -1,7 +1,8 @@
 {
   "format_version": 2,
   
-  "steps": 100,
+  "max_steps": 100,
+  "val_check_interval": 50,
     
   "executors": [
     {
@@ -13,7 +14,7 @@
           "heartbeat_timeout": 600,
           "from_nvflare_converter_id": "from_nvflare",
           "to_nvflare_converter_id": "to_nvflare",
-          "global_evaluation": false
+          "global_evaluation": true
         }
       }
     }
@@ -27,7 +28,7 @@
       "id": "launcher",
       "name": "SubprocessLauncher",
       "args": {
-        "script": "python custom/megatron_gpt_peft_tuning.py trainer.max_steps={steps} trainer.val_check_interval={steps}"
+        "script": "python custom/megatron_gpt_peft_tuning.py trainer.max_steps={max_steps} trainer.val_check_interval={val_check_interval}"
       }
     },
     {

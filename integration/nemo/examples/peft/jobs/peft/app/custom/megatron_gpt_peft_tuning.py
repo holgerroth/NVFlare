@@ -248,6 +248,12 @@ def main(cfg) -> None:
     # (1): flare patch
     flare.patch(trainer)        
         
+    # (2) evaluate the current global model to allow server-side model selection
+    print("--- validate global model ---")
+    trainer.validate(model)
+        
+    # (3) Perform local training starting with the received global model
+    print("--- train new model ---")
     trainer.fit(model)
 
 
