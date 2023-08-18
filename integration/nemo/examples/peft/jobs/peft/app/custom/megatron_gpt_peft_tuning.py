@@ -20,6 +20,7 @@ import torch.multiprocessing as mp
 from omegaconf.omegaconf import OmegaConf, open_dict
 from pytorch_lightning import Trainer
 from pytorch_lightning.plugins.environments import TorchElasticEnvironment
+from pytorch_lightning.trainer.connectors.checkpoint_connector import CheckpointConnector
 from torch.utils.data import DataLoader, Dataset
 
 from nemo.collections.nlp.models.language_modeling.megatron_gpt_peft_models import (
@@ -87,9 +88,6 @@ def _modify_config(gpt_cfg, cfg, add_cfg_to_tree=False):
         gpt_cfg.activations_checkpoint_granularity = cfg.model.get("activations_checkpoint_granularity", None)
         gpt_cfg.activations_checkpoint_num_layers = cfg.model.get("activations_checkpoint_num_layers", None)
         gpt_cfg.activations_checkpoint_method = cfg.model.get("activations_checkpoint_method", None)
-        gpt_cfg.activations_checkpoint_layers_per_pipeline = cfg.model.get(
-            "activations_checkpoint_layers_per_pipeline", None
-        )
         gpt_cfg.data = cfg.model.data
         gpt_cfg.optim = cfg.model.optim
         gpt_cfg.precision = cfg.trainer.precision
@@ -172,7 +170,6 @@ def validate_checkpoint_loading_args(cfg):
 
 @hydra_runner(config_path="../config", config_name="megatron_gpt_peft_tuning_config")
 def main(cfg) -> None:
-    
     logging.info("\n\n************** Experiment configuration ***********")
     logging.info(f'\n{OmegaConf.to_yaml(cfg)}')
 
@@ -185,9 +182,9 @@ def main(cfg) -> None:
         gradient_as_bucket_view=cfg.model.gradient_as_bucket_view,
         find_unused_parameters=False,
     )
-    if cfg.trainer.precision in [16, '16', 'bf16', '16-mixed', 'bf16-mixed']:
+    if cfg.trainer.precision in [16, 'bf16']:
         scaler = None
-        if cfg.trainer.precision in [16, '16', '16-mixed']:
+        if cfg.trainer.precision == 16:
             scaler = GradScaler(
                 init_scale=cfg.model.get('native_amp_init_scale', 2 ** 32),
                 growth_interval=cfg.model.get('native_amp_growth_interval', 1000),
@@ -196,30 +193,25 @@ def main(cfg) -> None:
                 if cfg.model.pipeline_model_parallel_size > 1
                 else True,  # turn off the grad scale for pipeline parallel LM model
             )
-            # MixedPrecisionPlugin in PTL >= 2.0 requires precision to be 16-mixed or bf16-mixed
-            plugin_precision = '16-mixed'
-        else:
-            plugin_precision = 'bf16-mixed'
         if megatron_amp_o2 and not with_distributed_adam:
-            plugins.append(MegatronHalfPrecisionPlugin(precision=plugin_precision, device='cuda', scaler=scaler))
+            plugins.append(MegatronHalfPrecisionPlugin(precision=cfg.trainer.precision, device='cuda', scaler=scaler))
         else:
-            plugins.append(PipelineMixedPrecisionPlugin(precision=plugin_precision, device='cuda', scaler=scaler))
+            plugins.append(PipelineMixedPrecisionPlugin(precision=cfg.trainer.precision, device='cuda', scaler=scaler))
 
     if cfg.get('cluster_type', None) == 'BCP':
         plugins.append(TorchElasticEnvironment())
 
     trainer = Trainer(plugins=plugins, strategy=strategy, **cfg.trainer)
     exp_manager(trainer, cfg.exp_manager)
-    # update resume from checkpoint found by exp_manager  
+    # update resume from checkpoint found by exp_manager
     if cfg.model.resume_from_checkpoint is not None:
-        trainer.ckpt_path = cfg.model.resume_from_checkpoint
-    else:  # Disable restoring ckpt_path for FL
-        trainer.ckpt_path = None
-    logging.info(f'Resuming training from checkpoint: {trainer.ckpt_path}')
+        resume_from_checkpoint = cfg.model.resume_from_checkpoint
+    else:
+        resume_from_checkpoint = trainer._checkpoint_connector.resume_from_checkpoint_fit_path
+    logging.info(f'Resuming training from checkpoint: {resume_from_checkpoint}')
 
-    print("########## DEBUG 0: trainer.ckpt_path", trainer.ckpt_path)
-    print("########## DEBUG 0: cfg.model.resume_from_checkpoint", cfg.model.resume_from_checkpoint)
-    
+    trainer._checkpoint_connector = CheckpointConnector(trainer, resume_from_checkpoint=resume_from_checkpoint)
+
     # hydra interpolation does not work here as the interpolation key is lost when PTL saves hparams
     with open_dict(cfg):
         cfg.model.precision = cfg.trainer.precision
@@ -234,13 +226,9 @@ def main(cfg) -> None:
             return_config=True,
             save_restore_connector=base_model_save_restore_connector,
         )
-        
-        print("########## DEBUG 1: trainer.ckpt_path", trainer.ckpt_path)
-        print("########## DEBUG 1: cfg.model.resume_from_checkpoint", cfg.model.resume_from_checkpoint)
-        
         base_model_cfg = _modify_config(base_model_cfg, cfg, add_cfg_to_tree=False)
         save_restore_connector = PEFTSaveRestoreConnector(
-            peft_model_nemo_path=cfg.model.peft.restore_from_path, peft_model_ckpt_path=trainer.ckpt_path
+            peft_model_nemo_path=cfg.model.peft.restore_from_path, peft_model_ckpt_path=resume_from_checkpoint
         )
         if os.path.isdir(cfg.model.restore_from_path):
             save_restore_connector.model_extracted_dir = cfg.model.restore_from_path
@@ -251,11 +239,9 @@ def main(cfg) -> None:
             override_config_path=base_model_cfg,
             save_restore_connector=save_restore_connector,
         )
-        print("########## DEBUG 2: trainer.ckpt_path", trainer.ckpt_path)
-        print("########## DEBUG 2: cfg.model.resume_from_checkpoint", cfg.model.resume_from_checkpoint)
     else:
         raise RuntimeError("PEFT training needs a trained base model present.")
-        
+
     # (1): flare patch
     flare.patch(trainer)        
     #fl_sys_info = flare.system_info()
@@ -266,7 +252,7 @@ def main(cfg) -> None:
     trainer.validate(model)
         
     # (3) Perform local training starting with the received global model
-    print("--- train new model ---")
+    print("--- train new model ---")        
     trainer.fit(model)
 
 
