@@ -1,0 +1,47 @@
+{
+  "format_version": 2,
+  
+  "max_steps": 100,
+  "val_check_interval": 50,
+  "devices": 2,
+  "master_port": ???,  # use  str(get_open_ports(1)[0]) in create_configs
+    
+  "executors": [
+    {
+      "tasks": ["train"],
+      "executor": {
+        "name": "PTFilePipeLauncherExecutor",
+        "args": {
+          "launcher_id": "launcher",
+          "heartbeat_timeout": 600,
+          "from_nvflare_converter_id": "from_nvflare",
+          "to_nvflare_converter_id": "to_nvflare",
+          "global_evaluation": true
+        }
+      }
+    }
+  ],
+  "task_result_filters": [
+  ],
+  "task_data_filters": [
+  ],
+  "components": [
+    {
+      "id": "launcher",
+      "name": "SubprocessLauncher",
+      "args": {
+        "script": "python -m torch.distributed.run --nproc_per_node={devices} --nnodes=1 --node_rank=0  --master_addr='localhost' --master_port={master_port} custom/megatron_gpt_peft_tuning.py trainer.max_steps={max_steps} trainer.val_check_interval={val_check_interval}"
+      }
+    },
+    {
+      "id": "from_nvflare",
+      "path": "nemo_params_converter.NumpyToNEMOParamsConverter",
+      "args": {}
+    },
+    {
+      "id": "to_nvflare",
+      "path": "nemo_params_converter.NEMOToNumpyParamsConverter",
+      "args": {}
+    }
+  ]
+}
