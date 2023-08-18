@@ -241,15 +241,12 @@ def main(cfg) -> None:
         )
     else:
         raise RuntimeError("PEFT training needs a trained base model present.")
-       
+
     # (1): flare patch
     flare.patch(trainer)        
-
-    # (optional): get the FL system info
-    fl_sys_info = flare.system_info()
-    print("--- fl_sys_info ---")
-    print(fl_sys_info)            
-    
+    #fl_sys_info = flare.system_info()
+    #print("############## fl_sys_info", fl_sys_info)
+        
     # (2) evaluate the current global model to allow server-side model selection
     print("--- validate global model ---")
     trainer.validate(model)

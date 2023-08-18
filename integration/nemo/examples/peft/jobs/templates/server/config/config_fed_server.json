@@ -20,15 +20,6 @@
       "args": {
         "expected_data_kind": "WEIGHTS"
       }
-    },
-    {
-      "id": "model_selector",
-      "name": "IntimeModelSelector",
-      "args": {
-          "key_metric": "validation_loss",
-          "negate_key_metric": true,
-          "tb_summary": true
-      }
     }
   ],
   "workflows": [
