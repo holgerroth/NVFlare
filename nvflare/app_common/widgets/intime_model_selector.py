@@ -12,16 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import numpy as np
 
 from nvflare.apis.dxo import DataKind, MetaKey, from_shareable
 from nvflare.apis.event_type import EventType
-from nvflare.apis.fl_constant import FLContextKey, ReservedKey
+from nvflare.apis.fl_constant import FLContextKey
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.app_event_type import AppEventType
 from nvflare.widgets.widget import Widget
+from nvflare.security.logging import secure_format_exception
+from nvflare.fuel.utils.import_utils import optional_import
+
+tb, tb_flag = optional_import(module="torch.utils.tensorboard")
 
 
 class IntimeModelSelector(Widget):
@@ -31,6 +36,7 @@ class IntimeModelSelector(Widget):
         aggregation_weights=None,
         validation_metric_name=MetaKey.INITIAL_METRICS,
         key_metric: str = "val_accuracy",
+        negate_key_metric: bool = False,
         tb_summary=False
     ):
         """Handler to determine if the model is globally best.
@@ -42,7 +48,9 @@ class IntimeModelSelector(Widget):
                 DXO meta properties (defaults to MetaKey.INITIAL_METRICS).
             key_metric: if metrics are a `dict`, `key_metric` can select the metric used for global model selection.
                 Defaults to "val_accuracy".
+            negate_key_metric: Whether to invert the key metric. Should be used if key metric is a loss. Default to `False`.
             tb_summary (bool, optional): whether to print val_metric using TensorBoard or not (defaults to False).
+                Requires `torch.utils.tensorboard` to be installed.
         """
         super().__init__()
 
@@ -51,15 +59,16 @@ class IntimeModelSelector(Widget):
         self.validation_metric_name = validation_metric_name
         self.aggregation_weights = aggregation_weights or {}
         self.key_metric = key_metric
-        self.tb_summary = tb_summary
-        self._writer = None
+        self.negate_key_metric = negate_key_metric
+        self.tb_summary = tb_summary and tb_flag
+        self._writers = {}
 
         self.logger.info(f"model selection weights control: {aggregation_weights}")
         self._reset_stats()
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
-            self._startup(fl_ctx)
+            self._startup()
         elif event_type == AppEventType.ROUND_STARTED:
             self._reset_stats()
         elif event_type == AppEventType.BEFORE_CONTRIBUTION_ACCEPT:
@@ -67,12 +76,7 @@ class IntimeModelSelector(Widget):
         elif event_type == AppEventType.BEFORE_AGGREGATION:
             self._before_aggregate(fl_ctx)
 
-    def _startup(self, fl_ctx):
-        if self.tb_summary:
-            from torch.utils.tensorboard import SummaryWriter
-            self.app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
-            self._writer = SummaryWriter(self.app_root)
-            self.log_info(fl_ctx, f"Attempting to write TensorBoard events to {self.app_root}")
+    def _startup(self):
         self._reset_stats()
 
     def _reset_stats(self):
@@ -86,7 +90,7 @@ class IntimeModelSelector(Widget):
             dxo = from_shareable(shareable)
         except Exception as e:
             self.log_exception(
-                fl_ctx, "shareable data is not a valid DXO. " "Received Exception: {secure_format_exception(e)}"
+                fl_ctx, f"shareable data is not a valid DXO. Received Exception: {secure_format_exception(e)}"
             )
 
         if dxo.data_kind not in (DataKind.WEIGHT_DIFF, DataKind.WEIGHTS, DataKind.COLLECTION):
@@ -123,12 +127,17 @@ class IntimeModelSelector(Widget):
         else:
             n_iter = 1.0
 
+        if self.tb_summary:
+            if client_name not in self._writers:
+                app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
+                self._writers[client_name] = tb.SummaryWriter(os.path.join(app_root, client_name))
+                self.log_info(fl_ctx, f"Attempting to write TensorBoard events for {client_name} to {self.app_root}")
+
         # select key metric if dictionary of metrics is provided
         if isinstance(validation_metric, dict):
-            if self.tb_summary and self._writer is not None:
+            if self.tb_summary:
                 for _metric, _value in validation_metric.items():
-                    self.log_info(fl_ctx,f"add_scalar {_metric}_{client_name}: {_value} at {int(current_round * n_iter)}")
-                    self._writer.add_scalar(f"{_metric}_{client_name}", _value, int(current_round * n_iter))
+                    self._writers[client_name].add_scalar(f"{_metric}_{client_name}", _value, int(current_round * n_iter))
 
             if self.key_metric in validation_metric:
                 validation_metric = validation_metric[self.key_metric]
@@ -139,9 +148,11 @@ class IntimeModelSelector(Widget):
                 )
                 return False
         elif isinstance(validation_metric, float):
-            if self.tb_summary and self._writer is not None:
-                self.log_info(fl_ctx,f"add_scalar val_metric_{client_name}: {validation_metric} at {int(current_round * n_iter)}")
-                self._writer.add_scalar(f"val_metric_{client_name}", validation_metric, int(current_round * n_iter))
+            if self.tb_summary:
+                self._writers[client_name].add_scalar(self.key_metric, validation_metric, int(current_round * n_iter))
+
+        if self.negate_key_metric:
+            validation_metric = -1.0 * validation_metric
 
         self.log_info(fl_ctx, f"validation metric {validation_metric} from client {client_name}")
 
