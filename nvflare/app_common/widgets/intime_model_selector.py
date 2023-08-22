@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,34 +16,23 @@ import numpy as np
 
 from nvflare.apis.dxo import DataKind, MetaKey, from_shareable
 from nvflare.apis.event_type import EventType
-from nvflare.apis.fl_constant import FLContextKey
+from nvflare.apis.fl_constant import FLContextKey, ReservedKey
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.app_event_type import AppEventType
-from nvflare.security.logging import secure_format_exception
 from nvflare.widgets.widget import Widget
 
 
 class IntimeModelSelector(Widget):
-    def __init__(
-        self,
-        weigh_by_local_iter=False,
-        aggregation_weights=None,
-        validation_metric_name=MetaKey.INITIAL_METRICS,
-        key_metric: str = "val_accuracy",
-        negate_key_metric: bool = False,
-    ):
+    def __init__(self, weigh_by_local_iter=False, aggregation_weights=None, validation_metric_name=MetaKey.INITIAL_METRICS, tb_summary=False):
         """Handler to determine if the model is globally best.
 
         Args:
             weigh_by_local_iter (bool, optional): whether the metrics should be weighted by trainer's iteration number.
             aggregation_weights (dict, optional): a mapping of client name to float for aggregation. Defaults to None.
-            validation_metric_name (str, optional): key used to save initial validation metric in the
-                DXO meta properties (defaults to MetaKey.INITIAL_METRICS).
-            key_metric: if metrics are a `dict`, `key_metric` can select the metric used for global model selection.
-                Defaults to "val_accuracy".
-            negate_key_metric: Whether to invert the key metric. Should be used if key metric is a loss. Defaults to `False`.
+            validation_metric_name (str, optional): key used to save initial validation metric in the DXO meta properties (defaults to MetaKey.INITIAL_METRICS).
+            tb_summary (bool, optional): whether to print val_metric using TensorBoard or not (defaults to False).
         """
         super().__init__()
 
@@ -51,15 +40,15 @@ class IntimeModelSelector(Widget):
         self.weigh_by_local_iter = weigh_by_local_iter
         self.validation_metric_name = validation_metric_name
         self.aggregation_weights = aggregation_weights or {}
-        self.key_metric = key_metric
-        self.negate_key_metric = negate_key_metric
+        self.tb_summary = tb_summary
+        self._writer = None
 
         self.logger.info(f"model selection weights control: {aggregation_weights}")
         self._reset_stats()
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
-            self._startup()
+            self._startup(fl_ctx)
         elif event_type == AppEventType.ROUND_STARTED:
             self._reset_stats()
         elif event_type == AppEventType.BEFORE_CONTRIBUTION_ACCEPT:
@@ -67,7 +56,12 @@ class IntimeModelSelector(Widget):
         elif event_type == AppEventType.BEFORE_AGGREGATION:
             self._before_aggregate(fl_ctx)
 
-    def _startup(self):
+    def _startup(self, fl_ctx):
+        if self.tb_summary:
+            from torch.utils.tensorboard import SummaryWriter
+            self.app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
+            self._writer = SummaryWriter(self.app_root)
+            self.log_info(fl_ctx, f"Attempting to write TensorBoard events to {self.app_root}")
         self._reset_stats()
 
     def _reset_stats(self):
@@ -79,10 +73,9 @@ class IntimeModelSelector(Widget):
         shareable: Shareable = peer_ctx.get_prop(FLContextKey.SHAREABLE)
         try:
             dxo = from_shareable(shareable)
-        except Exception as e:
-            self.log_exception(
-                fl_ctx, f"shareable data is not a valid DXO. Received Exception: {secure_format_exception(e)}"
-            )
+        except:
+            self.log_exception(fl_ctx, "shareable data is not a valid DXO")
+            return False
 
         if dxo.data_kind not in (DataKind.WEIGHT_DIFF, DataKind.WEIGHTS, DataKind.COLLECTION):
             self.log_debug(fl_ctx, "cannot handle {}".format(dxo.data_kind))
@@ -92,8 +85,8 @@ class IntimeModelSelector(Widget):
             self.log_debug(fl_ctx, "no data to filter")
             return False
 
-        contribution_round = shareable.get_cookie(AppConstants.CONTRIBUTION_ROUND)
-        client_name = peer_ctx.get_identity_name(default="?")
+        contribution_round = shareable.get_header(AppConstants.CONTRIBUTION_ROUND)
+        client_name = shareable.get_peer_prop(ReservedKey.IDENTITY_NAME, default="?")
 
         current_round = fl_ctx.get_prop(AppConstants.CURRENT_ROUND)
 
@@ -108,31 +101,38 @@ class IntimeModelSelector(Widget):
             )
             return False
 
+        # parse validation metrics from T2 system
         validation_metric = dxo.get_meta_prop(self.validation_metric_name)
+        _val_metrics = []
+        meta = None
+        if validation_metric is None:  # try checking meta props for sub system metrics
+            meta = dxo.get_meta_props()
+            for k in meta:
+                _val_metric = meta[k].get(self.validation_metric_name)
+                if _val_metric:
+                    _val_metrics.append(_val_metric)
+        if len(_val_metrics) > 0:  # average sub system metrics
+            validation_metric = np.mean(_val_metrics)
+            self.log_info(fl_ctx, f"computing average validation metric from {len(_val_metrics)} clients: {_val_metrics}")
+
         if validation_metric is None:
-            self.log_warning(fl_ctx, f"validation metric not existing in {client_name}")
+            self.log_debug(fl_ctx, f"validation metric not existing in {client_name}")
             return False
-
-        # select key metric if dictionary of metrics is provided
-        if isinstance(validation_metric, dict):
-            if self.key_metric in validation_metric:
-                validation_metric = validation_metric[self.key_metric]
-            else:
-                self.log_warning(
-                    fl_ctx,
-                    f"validation metric `{self.key_metric}` not in metrics from {client_name}: {list(validation_metric.keys())}",
-                )
-                return False
-
-        if self.negate_key_metric:
-            validation_metric = -1.0 * validation_metric
-
-        self.log_info(fl_ctx, f"validation metric {validation_metric} from client {client_name}")
+        else:
+            self.log_info(fl_ctx, f"validation metric {validation_metric} from client {client_name}")
 
         if self.weigh_by_local_iter:
             n_iter = dxo.get_meta_prop(MetaKey.NUM_STEPS_CURRENT_ROUND, 1.0)
         else:
             n_iter = 1.0
+
+        if self.tb_summary and meta is not None:
+            if self._writer is not None:
+                for _client_name_key in meta:
+                    _val_metric = meta[k].get(self.validation_metric_name)
+                    if _val_metric:
+                        self.log_info(fl_ctx, f"add_scalar val-metric-{_client_name_key}: {_val_metric} at {int(current_round*n_iter)}")
+                        self._writer.add_scalar(f"val-metric-{_client_name_key}", _val_metric, int(current_round*n_iter))
 
         aggregation_weights = self.aggregation_weights.get(client_name, 1.0)
         self.log_debug(fl_ctx, f"aggregation weight: {aggregation_weights}")
@@ -164,3 +164,4 @@ class IntimeModelSelectionHandler(IntimeModelSelector):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger.warning("'IntimeModelSelectionHandler' was renamed to 'IntimeModelSelector'")
+
