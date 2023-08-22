@@ -20,6 +20,13 @@
       "args": {
         "expected_data_kind": "WEIGHTS"
       }
+    },
+    {
+      "id": "model_selector",
+      "name": "IntimeModelSelector",
+      "args": {
+          "tb_summary": true
+      }
     }
   ],
   "workflows": [

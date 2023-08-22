@@ -24,7 +24,7 @@ def load_config(config_file):
     with open(config_file, "r") as f:
         try:
             return json.load(f)
-        except Exception as e:
+        except json.decoder.JSONDecodeError as e:
             raise ValueError(f"Reading {config_file} failed with {e}")
 
 
@@ -41,10 +41,11 @@ def main():
         help="Folder containing job config files in JSON format.",
     )
     parser.add_argument(
-        "--template_folder", type=str, help="Client config template in JSON format.", default="jobs/templates"
+        "--template_folder", type=str, help="Config template directory.", default="jobs/templates"
     )
     parser.add_argument("--num_clients", type=int, help="Number of client app folders to generate.", default=3)
     parser.add_argument("--max_steps", type=int, help="Local number of aggregation epochs.", default=1)
+    parser.add_argument("--val_check_interval", type=int, help="How often to validate. Defaults to ceil(max_steps/2).", default=None)
     parser.add_argument("--num_rounds", type=int, help="Number of FL rounds.", default=1)
     parser.add_argument("--devices", type=int, help="Number of GPU devices per client.", default=1)
     parser.add_argument(
@@ -68,6 +69,12 @@ def main():
         help="Path to an existing .nemo model you wish to add new tasks to or run inference with.",
         default="megatron_gpt_345m.nemo",
     )
+    parser.add_argument(
+        "--peft_scheme",
+        type=str,
+        help="PEFT scheme. Can be either ptuning, adapter, ia3, or lora.",
+        default="ptuning",
+    )    
 
 
     args = parser.parse_args()
@@ -89,7 +96,10 @@ def main():
         # modify client configs
         client_cfg = load_config(client_cfg_file)
         client_cfg["max_steps"] = args.max_steps
-        client_cfg["val_check_interval"] = math.ceil(args.max_steps/2)
+        if args.val_check_interval is None:
+            client_cfg["val_check_interval"] = math.ceil(args.max_steps/2)
+        else:
+            client_cfg["val_check_interval"] = args.val_check_interval
         if args.devices > 1:
             client_cfg["devices"] = args.devices
         save_config(client_cfg_file, client_cfg)
@@ -105,6 +115,8 @@ def main():
         nemo_cfg.model.data.validation_ds.file_names = [os.path.join(args.root_dir, args.val_ds_files), ]
         for file_name in nemo_cfg.model.data.validation_ds.file_names:
             assert os.path.isfile(file_name), f"Validation file {file_name} does not exist!"
+        print(f"Setting PEFT scheme to be {args.peft_scheme}")
+        nemo_cfg.model.peft.peft_scheme = args.peft_scheme
         OmegaConf.save(nemo_cfg, nemo_cfg_file)
 
     # modify server config
