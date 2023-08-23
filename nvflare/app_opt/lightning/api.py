@@ -18,6 +18,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import Callback
 from torch import Tensor
+import torch
 
 from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.client.api import clear, get_config, init, receive, send
@@ -107,6 +108,12 @@ class FLCallback(Callback):
         model = receive()
         if model:
             self.input_fl_model = model
+            _sum = 0
+            _n = 0
+            for k, v in model.params.items():
+                _sum += torch.sum(v)
+                _n += 1
+            print("***************** Received model sum=", _sum, "layers=", _n)
         return model
 
     def _send_model(self, output_model: FLModel):

@@ -46,6 +46,7 @@ def main():
     parser.add_argument("--num_clients", type=int, help="Number of client app folders to generate.", default=3)
     parser.add_argument("--max_steps", type=int, help="Local number of aggregation epochs.", default=1)
     parser.add_argument("--val_check_interval", type=int, help="How often to validate. Defaults to ceil(max_steps/2).", default=None)
+    parser.add_argument("--lr", type=float, help="learning rate.", default=1e-4)
     parser.add_argument("--num_rounds", type=int, help="Number of FL rounds.", default=1)
     parser.add_argument("--devices", type=int, help="Number of GPU devices per client.", default=1)
     parser.add_argument(
@@ -117,6 +118,8 @@ def main():
             assert os.path.isfile(file_name), f"Validation file {file_name} does not exist!"
         print(f"Setting PEFT scheme to be {args.peft_scheme}")
         nemo_cfg.model.peft.peft_scheme = args.peft_scheme
+        print(f"Setting learning rate to {args.lr}")
+        nemo_cfg.model.optim.lr = args.lr
         OmegaConf.save(nemo_cfg, nemo_cfg_file)
 
     # modify server config
