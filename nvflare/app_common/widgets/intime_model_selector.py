@@ -137,7 +137,7 @@ class IntimeModelSelector(Widget):
         if isinstance(validation_metric, dict):
             if self.tb_summary:
                 for _metric, _value in validation_metric.items():
-                    self._writers[client_name].add_scalar(f"{_metric}_{client_name}", _value, int(current_round * n_iter))
+                    self._writers[client_name].add_scalar(_metric, _value, int(current_round * n_iter))
 
             if self.key_metric in validation_metric:
                 validation_metric = validation_metric[self.key_metric]
