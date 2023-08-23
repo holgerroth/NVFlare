@@ -5,9 +5,10 @@ import glob
 import subprocess
 from nvflare import SimulatorRunner
 
-n_clients=3
+n_clients=1
 peft_scheme="lora"
-job_name=f"peft_{peft_scheme}_fedavg_345M"
+lr=1e-4
+job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_val10_1client"
 
 data_root = "/tmp/data"
 
@@ -25,12 +26,16 @@ def clean_memmap(data_root):
 clean_memmap(data_root)
 
 # Create configurations
-subprocess.run(["python3", "create_configs.py", "--job_folder", f"jobs/{job_name}", 
-                "--num_clients", str(n_clients), 
-                "--max_steps", "200", 
-                "--val_check_interval", "100",
-                "--num_rounds", "50",
-                "--peft_scheme", peft_scheme])
+try:
+    subprocess.run(["python3", "create_configs.py", "--job_folder", f"jobs/{job_name}", 
+                    "--num_clients", str(n_clients), 
+                    "--max_steps", "200", 
+                    "--val_check_interval", "50",
+                    "--num_rounds", "50",
+                    "--lr", str(lr),
+                    "--peft_scheme", peft_scheme])
+except subprocess.CalledProcessError as e:
+    raise RuntimeError(f"Create_configs failed with {e.output}")
 
 # Start FL simulation
 simulator = SimulatorRunner(
@@ -38,7 +43,7 @@ simulator = SimulatorRunner(
     workspace=f"/tmp/nvflare/nemo/{job_name}",
     n_clients=n_clients,
     threads=n_clients,
-    gpu="0,1,2"
+    #gpu="0,1,2"
 )
 run_status = simulator.run()
 print("Simulator finished with run_status", run_status)
