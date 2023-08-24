@@ -4,7 +4,7 @@
   "max_steps": 100,
   "val_check_interval": 50,
   "devices": 2,
-  "master_port": ???,  # use  str(get_open_ports(1)[0]) in create_configs
+  "master_port": 12345,
     
   "executors": [
     {
