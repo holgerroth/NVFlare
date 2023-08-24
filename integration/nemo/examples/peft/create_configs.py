@@ -124,6 +124,7 @@ def main():
         print(f"Setting learning rate to {args.lr}")
         nemo_cfg.model.optim.lr = args.lr
         if args.devices > 1:
+            nemo_cfg.trainer.devices = args.devices
             nemo_cfg.model.tensor_model_parallel_size = args.devices
         OmegaConf.save(nemo_cfg, nemo_cfg_file)
 
