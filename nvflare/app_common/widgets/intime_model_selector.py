@@ -131,7 +131,7 @@ class IntimeModelSelector(Widget):
             if client_name not in self._writers:
                 app_root = fl_ctx.get_prop(FLContextKey.APP_ROOT)
                 self._writers[client_name] = tb.SummaryWriter(os.path.join(app_root, client_name))
-                self.log_info(fl_ctx, f"Attempting to write TensorBoard events for {client_name} to {self.app_root}")
+                self.log_info(fl_ctx, f"Attempting to write TensorBoard events for {client_name} to {app_root}")
 
         # select key metric if dictionary of metrics is provided
         if isinstance(validation_metric, dict):
