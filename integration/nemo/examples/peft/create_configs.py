@@ -18,6 +18,7 @@ import os
 import shutil
 import math
 from omegaconf.omegaconf import OmegaConf, open_dict
+from nvflare.fuel.utils.network_utils import get_open_ports
 
 
 def load_config(config_file):
@@ -77,8 +78,9 @@ def main():
         default="ptuning",
     )    
 
-
     args = parser.parse_args()
+    open_ports = get_open_ports(args.num_clients)
+    print("open_ports", open_ports)
 
     # create client app folders
     for i in range(args.num_clients):
@@ -103,6 +105,7 @@ def main():
             client_cfg["val_check_interval"] = args.val_check_interval
         if args.devices > 1:
             client_cfg["devices"] = args.devices
+            client_cfg["master_port"] = str(open_ports[i])
         save_config(client_cfg_file, client_cfg)
 
         # modify nemo config
@@ -120,6 +123,8 @@ def main():
         nemo_cfg.model.peft.peft_scheme = args.peft_scheme
         print(f"Setting learning rate to {args.lr}")
         nemo_cfg.model.optim.lr = args.lr
+        if args.devices > 1:
+            nemo_cfg.model.tensor_model_parallel_size = args.devices
         OmegaConf.save(nemo_cfg, nemo_cfg_file)
 
     # modify server config
