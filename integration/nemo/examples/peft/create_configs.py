@@ -57,7 +57,7 @@ def main():
         "--val_ds_files",
         type=str,
         help="Validation files.",
-        default="data/FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
+        default="data/FinancialPhraseBank-v1.0/financial_phrase_bank_val_debug.jsonl",
     )
     parser.add_argument(
         "--train_ds_files_prefix",
@@ -113,7 +113,7 @@ def main():
         nemo_cfg = OmegaConf.load(nemo_cfg_file)
         nemo_cfg.model.restore_from_path = os.path.join(os.getcwd(), args.nemo_ckpt)
         assert os.path.isfile(nemo_cfg.model.restore_from_path), f"{nemo_cfg.model.restore_from_path} does not exist!"
-        nemo_cfg.model.data.train_ds.file_names = [os.path.join(args.root_dir, f"{args.train_ds_files_prefix}{i + 1}.jsonl"), ]
+        nemo_cfg.model.data.train_ds.file_names = [os.path.join(args.root_dir, f"{args.train_ds_files_prefix}{i + 1}_debug.jsonl"), ]
         for file_name in nemo_cfg.model.data.train_ds.file_names:
             assert os.path.isfile(file_name), f"Training file {file_name} does not exist!"
         nemo_cfg.model.data.validation_ds.file_names = [os.path.join(args.root_dir, args.val_ds_files), ]
