@@ -7,8 +7,8 @@ from nvflare import SimulatorRunner
 
 n_clients=1
 peft_scheme="lora"
-max_steps=10
-val_check_interval=5
+max_steps=100
+val_check_interval=20
 num_rounds=3
 lr=1e-4
 job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val{val_check_interval}_rounds{num_rounds}_{n_clients}clients"
