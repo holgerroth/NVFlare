@@ -1,7 +1,7 @@
 {
   "format_version": 2,
 
-  "DATASET_ROOT": "/data/NCBI-disease",
+  "DATASET_ROOT": "/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease",
 
   "executors": [
     {

@@ -93,9 +93,9 @@ class FLCallback(Callback):
         _sum = 0
         _n = 0
         for k, v in pl_module.state_dict().items():
-            for kk, vv in v.items():
-                _sum += torch.sum(vv)
-                _n += 1
+            #for kk, vv in v.items():
+            _sum += torch.sum(v)
+            _n += 1
         print("***************** model sum=", _sum, "layers=", _n, "*****************************")
 
     def _receive_and_update_model(self, pl_module):
