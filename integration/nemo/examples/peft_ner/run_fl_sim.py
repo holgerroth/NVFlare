@@ -7,9 +7,9 @@ from nvflare import SimulatorRunner
 
 n_clients=4
 peft_scheme="ptuning"
-peft_scheme="adapter"
-peft_scheme="lora"
-max_steps=100
+#peft_scheme="adapter"
+#peft_scheme="lora"
+max_steps=10
 num_rounds=30
 lr=1e-4
 job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients"
