@@ -11,7 +11,7 @@ peft_scheme="ptuning"
 #peft_scheme="lora"
 max_steps=100000
 val_check_interval=100
-num_rounds=50
+num_rounds=50 
 lr=1e-2
 job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients"
 
