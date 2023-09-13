@@ -34,7 +34,7 @@ exp_manager:
     model_parallel_size: ${model.tensor_model_parallel_size}
     always_save_nemo: False
     save_best_model: False
-  create_early_stopping_callback: True
+  create_early_stopping_callback: False
   early_stopping_callback_params:
     monitor: "val_loss"
     mode: "min"
@@ -104,7 +104,7 @@ model:
     
     # Used for p-tuning peft training
     p_tuning:
-      virtual_tokens: 10  # The number of virtual tokens the prompt encoder should add at the start of the sequence
+      virtual_tokens: 50  # The number of virtual tokens the prompt encoder should add at the start of the sequence
       bottleneck_dim: 1024  # the size of the prompt encoder mlp bottleneck
       embedding_dim: 1024  # the size of the prompt encoder embeddings
       init_std: 0.023
