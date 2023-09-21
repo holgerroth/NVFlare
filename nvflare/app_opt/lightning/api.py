@@ -42,6 +42,7 @@ class FLCallback(Callback):
         super(FLCallback, self).__init__()
         init(rank=str(rank))
         self.has_global_eval = get_config().get(ConfigKey.GLOBAL_EVAL, False)
+        print("#### has_global_eval", self.has_global_eval)
         self.has_training = get_config().get(ConfigKey.TRAINING, False)
         self.metrics = None
 
