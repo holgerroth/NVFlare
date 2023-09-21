@@ -252,21 +252,19 @@ class LauncherExecutor(Executor):
                 self._log_result(fl_ctx)
                 return make_reply(ReturnCode.TASK_ABORTED)
             elif reply.topic in [Topic.END, Topic.PEER_GONE]:
-                self.log_error(fl_ctx, f"received {reply.topic} while waiting for result for {task_name}")
+                self.log_error(fl_ctx, f"received '{reply} {reply.data}' while waiting for result for {task_name}")
                 self._stop_launcher(task_name, fl_ctx)
                 self._log_result(fl_ctx)
-                return make_reply(ReturnCode.SERVICE_UNAVAILABLE)
+                return make_reply(ReturnCode.EXECUTION_EXCEPTION)
             elif reply.msg_type != Message.REPLY:
-                self.log_warning(
-                    fl_ctx, f"ignored msg '{reply.topic}.{reply.req_id}' when waiting for '{req.topic}.{req.msg_id}'"
-                )
+                self.log_warning(fl_ctx, f"ignored msg '{reply}' when waiting for '{req}'")
             elif req.topic != reply.topic:
                 # ignore wrong task name
-                self.log_warning(fl_ctx, f"ignored '{reply.topic}' when waiting for '{req.topic}'")
+                self.log_warning(fl_ctx, f"ignored '{reply}' when waiting for '{req}'")
             elif req.msg_id != reply.req_id:
-                self.log_warning(fl_ctx, f"ignored '{reply.req_id}' when waiting for '{req.msg_id}'")
+                self.log_warning(fl_ctx, f"ignored '{reply}' when waiting for '{req}'")
             else:
-                self.log_info(fl_ctx, f"got result for task '{task_name}'")
+                self.log_info(fl_ctx, f"got result '{reply}' for task '{task_name}'")
                 if reply.data.params is not None:
                     self._result_fl_model = reply.data
                 if reply.data.metrics is not None:

@@ -58,7 +58,7 @@ def init(config: Union[str, Dict] = f"config/{CONFIG_EXCHANGE}", rank: Optional[
             else:
                 raise RuntimeError(f"Can't import TensorDecomposer for format: {ModelExchangeFormat.PYTORCH}")
 
-        # TODO: make things configurable in config_exchange
+        # TODO: make Pipe configurable
         mdx = FilePipeModelExchanger(data_exchange_path=client_config.get_exchange_path())
 
     PROCESS_MODEL_REGISTRY[pid] = ModelRegistry(client_config, mdx)

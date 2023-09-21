@@ -16,13 +16,19 @@ import os
 from typing import Dict, Optional
 
 from nvflare.apis.fl_context import FLContext
-from nvflare.app_common.executors.file_pipe_launcher_executor import FilePipeLauncherExecutor
+from nvflare.apis.utils.decomposers import flare_decomposers
+from nvflare.app_common.decomposers import common_decomposers
+from nvflare.app_common.executors.launcher_executor import LauncherExecutor
 from nvflare.app_common.model_exchange.constants import ModelExchangeFormat
 from nvflare.client.config import ClientConfig, ConfigKey, TransferType
 from nvflare.client.constants import CONFIG_EXCHANGE
+from nvflare.fuel.utils.constants import Mode
+from nvflare.fuel.utils.pipe.file_pipe import FilePipe
+from nvflare.fuel.utils.pipe.pipe_handler import PipeHandler
+from nvflare.fuel.utils.validation_utils import check_object_type
 
 
-class ClientAPILauncherExecutor(FilePipeLauncherExecutor):
+class ClientAPILauncherExecutor(LauncherExecutor):
     def __init__(
         self,
         data_exchange_path: Optional[str] = None,
@@ -71,7 +77,6 @@ class ClientAPILauncherExecutor(FilePipeLauncherExecutor):
                 This converter will be called when model is sent from nvflare executor side to controller side.
         """
         super().__init__(
-            data_exchange_path=data_exchange_path,
             pipe_id=pipe_id,
             pipe_name=pipe_name,
             launcher_id=launcher_id,
@@ -89,14 +94,48 @@ class ClientAPILauncherExecutor(FilePipeLauncherExecutor):
             to_nvflare_converter_id=to_nvflare_converter_id,
         )
 
+        self._data_exchange_path = data_exchange_path
         self._params_exchange_format = params_exchange_format
         self._params_transfer_type = params_transfer_type
+
+    def initialize(self, fl_ctx: FLContext) -> None:
+        self._init_launcher(fl_ctx)
+        self._init_converter(fl_ctx)
+
+        engine = fl_ctx.get_engine()
+
+        # gets FilePipe using _pipe_id or initialize a new one
+        if self._pipe_id:
+            pipe: FilePipe = engine.get_component(self._pipe_id)
+            check_object_type(self._pipe_id, pipe, FilePipe)
+            self._data_exchange_path = pipe.root_path
+        else:
+            # gets data_exchange_path
+            if self._data_exchange_path is None or self._data_exchange_path == "":
+                app_dir = engine.get_workspace().get_app_dir(fl_ctx.get_job_id())
+                self._data_exchange_path = os.path.abspath(app_dir)
+            elif not os.path.isabs(self._data_exchange_path):
+                raise RuntimeError("data exchange path needs to be absolute.")
+            pipe = FilePipe(mode=Mode.ACTIVE, root_path=self._data_exchange_path)
+
+        # init pipe
+        flare_decomposers.register()
+        common_decomposers.register()
+        pipe.open(self._pipe_name)
+        self.pipe_handler = PipeHandler(
+            pipe,
+            read_interval=self._read_interval,
+            heartbeat_interval=self._heartbeat_interval,
+            heartbeat_timeout=self._heartbeat_timeout,
+        )
+        self.pipe_handler.start()
 
     def prepare_config_for_launch(self, fl_ctx: FLContext):
         workspace = fl_ctx.get_engine().get_workspace()
         app_dir = workspace.get_app_dir(fl_ctx.get_job_id())
         config_file = os.path.join(app_dir, workspace.config_folder, CONFIG_EXCHANGE)
 
+        # prepare config exchange for Client API
         client_config = ClientConfig()
         self._update_config_exchange_dict(client_config.config)
         client_config.to_json(config_file)
