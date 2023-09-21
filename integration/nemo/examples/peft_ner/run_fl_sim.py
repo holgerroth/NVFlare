@@ -7,7 +7,7 @@ from nvflare import SimulatorRunner
 
 n_clients=4
 peft_scheme="ptuning"
-#peft_scheme="adapter"
+peft_scheme="adapter"
 #peft_scheme="lora"
 max_steps=2000
 val_check_interval=100
@@ -49,10 +49,10 @@ if sp.returncode != 0:
 # Start FL simulation
 simulator = SimulatorRunner(
     job_folder=f"jobs/{job_name}",
-    workspace=f"/tmp/nvflare/nemo/{job_name}",
+    workspace=f"./results/F1/{job_name}",
     n_clients=n_clients,
     threads=n_clients,
-    #gpu="0,1,2,3"
+    gpu="0,1,2,3"
 )
 run_status = simulator.run()
 print("Simulator finished with run_status", run_status)
