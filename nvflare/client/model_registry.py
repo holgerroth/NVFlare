@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 from typing import Optional
 
 from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
@@ -34,32 +35,40 @@ class ModelRegistry:
 
     """
 
-    def __init__(self, model_exchanger: ModelExchanger, config: ClientConfig):
+    def __init__(self, config: ClientConfig, model_exchanger: Optional[ModelExchanger] = None):
         self.model_exchanger = model_exchanger
         self.config = config
 
         self.cached_model: Optional[FLModel] = None
-        self.cache_valid = False
+        self.cache_loaded = False
         self.metrics = None
-        self.sys_info = None
+        self.sys_info = {}
         self.output_meta = {}
 
     def receive(self):
-        self.cached_model = self.model_exchanger.receive_model()
+        if not self.model_exchanger:
+            return None
+        received_model = self.model_exchanger.receive_model()
+        self._set_model(received_model)
+
+    def _set_model(self, model: FLModel):
+        self.cached_model = model
         self.sys_info = get_meta_from_fl_model(self.cached_model, SYS_ATTRS)
-        self.cache_valid = True
+        self.cache_loaded = True
 
     def get_model(self):
-        if not self.cache_valid:
+        if not self.cache_loaded:
             self.receive()
-        return self.cached_model
+        return copy.deepcopy(self.cached_model)
 
-    def get_sys_info(self):
-        if not self.cache_valid:
+    def get_sys_info(self) -> dict:
+        if not self.cache_loaded:
             self.receive()
         return self.sys_info
 
     def send(self, model: FLModel) -> None:
+        if not self.model_exchanger:
+            return None
         if self.config.get_transfer_type() == "DIFF":
             exchange_format = self.config.get_exchange_format()
             diff_func = DIFF_FUNCS.get(exchange_format, None)
@@ -67,19 +76,23 @@ class ModelRegistry:
                 raise RuntimeError(f"no default params diff function for {exchange_format}")
             elif self.cached_model is None:
                 raise RuntimeError("no received model")
-            try:
-                model.params = diff_func(original=self.cached_model.params, new=model.params)
-                model.params_type = ParamsType.DIFF
-            except Exception as e:
-                raise RuntimeError(f"params diff function failed: {e}")
+            elif model.params is not None:
+                try:
+                    model.params = diff_func(original=self.cached_model.params, new=model.params)
+                    model.params_type = ParamsType.DIFF
+                except Exception as e:
+                    raise RuntimeError(f"params diff function failed: {e}")
+            elif model.metrics is None:
+                raise RuntimeError("the model to send does not have either params or metrics")
         self.model_exchanger.submit_model(model=model)
 
     def clear(self):
         self.cached_model = None
-        self.cache_valid = False
+        self.cache_loaded = False
         self.sys_info = None
         self.metrics = None
-        self.model_exchanger.finalize(close_pipe=False)
+        if self.model_exchanger:
+            self.model_exchanger.finalize(close_pipe=False)
 
     def __str__(self):
         return f"{self.__class__.__name__}(config: {self.config.get_config()})"

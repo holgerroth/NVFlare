@@ -24,7 +24,6 @@ from nvflare.apis.workspace import Workspace
 from nvflare.fuel.f3.cellnet.core_cell import FQCN
 from nvflare.fuel.f3.cellnet.defs import MessageHeaderKey
 from nvflare.fuel.f3.cellnet.defs import ReturnCode as CellReturnCode
-from nvflare.fuel.utils import fobs
 from nvflare.private.aux_runner import AuxRunner
 from nvflare.private.defs import CellChannel, CellMessageHeaderKeys, new_cell_message
 from nvflare.private.event import fire_event
@@ -200,6 +199,7 @@ class ClientRunManager(ClientEngineExecutorSpec):
         timeout: float,
         fl_ctx: FLContext,
         optional=False,
+        secure=False,
     ) -> dict:
         if not targets:
             targets = [FQCN.ROOT_SERVER]
@@ -213,13 +213,15 @@ class ClientRunManager(ClientEngineExecutorSpec):
                 else:
                     targets = [targets]
         if targets:
-            return self.aux_runner.send_aux_request(targets, topic, request, timeout, fl_ctx, optional=optional)
+            return self.aux_runner.send_aux_request(
+                targets, topic, request, timeout, fl_ctx, optional=optional, secure=secure
+            )
         else:
             return {}
 
     def get_all_clients_from_server(self, fl_ctx, retry=0):
         job_id = fl_ctx.get_prop(FLContextKey.CURRENT_RUN)
-        get_clients_message = new_cell_message({CellMessageHeaderKeys.JOB_ID: job_id}, fobs.dumps({}))
+        get_clients_message = new_cell_message({CellMessageHeaderKeys.JOB_ID: job_id}, {})
         return_data = self.client.cell.send_request(
             target=FQCN.ROOT_SERVER,
             channel=CellChannel.SERVER_PARENT_LISTENER,
@@ -232,7 +234,7 @@ class ClientRunManager(ClientEngineExecutorSpec):
 
         if return_code == CellReturnCode.OK:
             if return_data.payload:
-                data = fobs.loads(return_data.payload)
+                data = return_data.payload
                 self.all_clients = data.get(ServerCommandKey.CLIENTS)
             else:
                 raise RuntimeError("Empty clients data from server")
@@ -248,9 +250,11 @@ class ClientRunManager(ClientEngineExecutorSpec):
     def register_aux_message_handler(self, topic: str, message_handle_func):
         self.aux_runner.register_aux_message_handler(topic, message_handle_func)
 
-    def fire_and_forget_aux_request(self, topic: str, request: Shareable, fl_ctx: FLContext, optional=False) -> dict:
+    def fire_and_forget_aux_request(
+        self, topic: str, request: Shareable, fl_ctx: FLContext, optional=False, secure=False
+    ) -> dict:
         return self.send_aux_request(
-            targets=None, topic=topic, request=request, timeout=0.0, fl_ctx=fl_ctx, optional=optional
+            targets=None, topic=topic, request=request, timeout=0.0, fl_ctx=fl_ctx, optional=optional, secure=secure
         )
 
     def abort_app(self, job_id: str, fl_ctx: FLContext):

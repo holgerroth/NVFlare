@@ -16,7 +16,6 @@ import time
 from threading import Lock
 from typing import List
 
-from nvflare.apis.client import Client
 from nvflare.apis.fl_component import FLComponent
 from nvflare.apis.fl_constant import ReturnCode
 from nvflare.apis.fl_context import FLContext
@@ -25,6 +24,7 @@ from nvflare.fuel.f3.cellnet.core_cell import Message, MessageHeaderKey
 from nvflare.fuel.f3.cellnet.core_cell import ReturnCode as CellReturnCode
 from nvflare.fuel.f3.cellnet.fqcn import FQCN
 from nvflare.private.defs import CellChannel
+from nvflare.private.fed.utils.fed_utils import get_target_names
 from nvflare.security.logging import secure_format_traceback
 
 
@@ -150,23 +150,9 @@ class AuxRunner(FLComponent):
         fl_ctx: FLContext,
         bulk_send: bool = False,
         optional: bool = False,
+        secure: bool = False,
     ) -> dict:
-        # validate targets
-        target_names = []
-        for t in targets:
-            if isinstance(t, str):
-                name = t
-            elif isinstance(t, Client):
-                name = t.name
-            else:
-                raise ValueError(f"invalid target in list: got {type(t)}")
-
-            if not name:
-                # ignore empty name
-                continue
-
-            if name not in target_names:
-                target_names.append(t)
+        target_names = get_target_names(targets)
 
         if not target_names:
             return {}
@@ -185,6 +171,7 @@ class AuxRunner(FLComponent):
                 fl_ctx=fl_ctx,
                 bulk_send=bulk_send,
                 optional=optional,
+                secure=secure,
             )
         except Exception:
             if optional:
@@ -205,6 +192,7 @@ class AuxRunner(FLComponent):
         fl_ctx: FLContext,
         bulk_send=False,
         optional=False,
+        secure=False,
     ) -> dict:
         """Send request to the job cells of other target sites.
 
@@ -253,7 +241,13 @@ class AuxRunner(FLComponent):
         cell_msg = Message(payload=request)
         if timeout > 0:
             cell_replies = cell.broadcast_request(
-                channel=channel, topic=topic, request=cell_msg, targets=target_fqcns, timeout=timeout, optional=optional
+                channel=channel,
+                topic=topic,
+                request=cell_msg,
+                targets=target_fqcns,
+                timeout=timeout,
+                optional=optional,
+                secure=secure,
             )
 
             replies = {}

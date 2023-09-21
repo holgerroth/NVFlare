@@ -11,28 +11,63 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import fnmatch
 import threading
 import time
 
 from nvflare.apis.event_type import EventType
+from nvflare.apis.executor import Executor
 from nvflare.apis.fl_component import FLComponent
-from nvflare.apis.fl_constant import FLContextKey, ReservedKey, ReservedTopic, ReturnCode
+from nvflare.apis.fl_constant import ConfigVarName, FilterKey, FLContextKey, ReservedKey, ReservedTopic, ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.fl_exception import UnsafeJobError
 from nvflare.apis.shareable import ReservedHeaderKey, Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.apis.utils.fl_context_utils import add_job_audit_event
+from nvflare.apis.utils.task_utils import apply_filters
+from nvflare.fuel.utils.config_service import ConfigService
 from nvflare.private.defs import SpecialTaskName, TaskConstant
 from nvflare.private.fed.client.client_engine_executor_spec import ClientEngineExecutorSpec, TaskAssignment
+from nvflare.private.json_configer import ConfigError
 from nvflare.private.privacy_manager import Scope
 from nvflare.security.logging import secure_format_exception
 from nvflare.widgets.info_collector import GroupInfoCollector, InfoCollector
 
 
+class TaskRouter:
+    def __init__(self):
+        self.task_table = {}
+        self.patterns = []
+
+    @staticmethod
+    def _is_pattern(p: str):
+        return "*" in p
+
+    def add_executor(self, tasks: list, executor: Executor):
+        for t in tasks:
+            assert isinstance(t, str)
+            if t in self.task_table:
+                raise ConfigError(f'multiple executors defined for task "{t}"')
+            self.task_table[t] = executor
+            if self._is_pattern(t):
+                self.patterns.append((t, executor))
+
+    def route(self, task_name: str):
+        e = self.task_table.get(task_name)
+        if e:
+            return e
+
+        # check patterns
+        for p, e in self.patterns:
+            if fnmatch.fnmatch(task_name, p):
+                return e
+        return None
+
+
 class ClientRunnerConfig(object):
     def __init__(
         self,
-        task_table: dict,  # task_name => Executor
+        task_router: TaskRouter,
         task_data_filters: dict,  # task_name => list of filters
         task_result_filters: dict,  # task_name => list of filters
         handlers=None,  # list of event handlers
@@ -42,7 +77,7 @@ class ClientRunnerConfig(object):
         """To init ClientRunnerConfig.
 
         Args:
-            task_table: task_name: Executor dict
+            task_router: TaskRouter object to find executor for a task
             task_data_filters: task_name => list of data filters
             task_result_filters: task_name => list of result filters
             handlers: list of event handlers
@@ -50,7 +85,7 @@ class ClientRunnerConfig(object):
             default_task_fetch_interval: default task fetch interval before getting the correct value from server.
                 default is set to 0.5.
         """
-        self.task_table = task_table
+        self.task_router = task_router
         self.task_data_filters = task_data_filters
         self.task_result_filters = task_result_filters
         self.handlers = handlers
@@ -91,7 +126,7 @@ class ClientRunner(FLComponent):
         """
 
         FLComponent.__init__(self)
-        self.task_table = config.task_table
+        self.task_router = config.task_router
         self.task_data_filters = config.task_data_filters
         self.task_result_filters = config.task_result_filters
         self.default_task_fetch_interval = config.default_task_fetch_interval
@@ -102,6 +137,9 @@ class ClientRunner(FLComponent):
         self.task_lock = threading.Lock()
         self.running_tasks = {}  # task_id => TaskAssignment
         self._register_aux_message_handlers(engine)
+
+    def find_executor(self, task_name):
+        return self.task_router.route(task_name)
 
     def _register_aux_message_handlers(self, engine):
         engine.register_aux_message_handler(topic=ReservedTopic.END_RUN, message_handle_func=self._handle_end_run)
@@ -185,11 +223,7 @@ class ClientRunner(FLComponent):
                 msg=f"submit result: {ReturnCode.RUN_MISMATCH}",
             )
 
-        executor = self.task_table.get(task.name)
-        if not executor:
-            # try default
-            executor = self.task_table.get("*")
-
+        executor = self.find_executor(task.name)
         if not executor:
             self.log_error(fl_ctx, f"bad task assignment: no executor available for task {task.name}")
             return self._reply_and_audit(
@@ -204,58 +238,42 @@ class ClientRunner(FLComponent):
         self.log_debug(fl_ctx, "firing event EventType.BEFORE_TASK_DATA_FILTER")
         self.fire_event(EventType.BEFORE_TASK_DATA_FILTER, fl_ctx)
 
-        # first apply privacy-defined filters
-        scope_object = fl_ctx.get_prop(FLContextKey.SCOPE_OBJECT)
-        filter_list = []
-        if scope_object:
-            assert isinstance(scope_object, Scope)
-            if scope_object.task_data_filters:
-                filter_list.extend(scope_object.task_data_filters)
+        task_data = task.data
+        try:
+            filter_name = Scope.TASK_DATA_FILTERS_NAME
+            task_data = apply_filters(filter_name, task_data, fl_ctx, self.task_data_filters, task.name, FilterKey.IN)
+        except UnsafeJobError:
+            self.log_exception(fl_ctx, "UnsafeJobError from Task Data Filters")
+            executor.unsafe = True
+            fl_ctx.set_job_is_unsafe()
+            self.run_abort_signal.trigger(True)
+            return self._reply_and_audit(
+                reply=make_reply(ReturnCode.UNSAFE_JOB),
+                ref=server_audit_event_id,
+                fl_ctx=fl_ctx,
+                msg=f"submit result: {ReturnCode.UNSAFE_JOB}",
+            )
+        except Exception as e:
+            self.log_exception(fl_ctx, f"Processing error from Task Data Filters : {secure_format_exception(e)}")
+            return self._reply_and_audit(
+                reply=make_reply(ReturnCode.TASK_DATA_FILTER_ERROR),
+                ref=server_audit_event_id,
+                fl_ctx=fl_ctx,
+                msg=f"submit result: {ReturnCode.TASK_DATA_FILTER_ERROR}",
+            )
 
-        task_filter_list = self.task_data_filters.get(task.name)
-        if task_filter_list:
-            filter_list.extend(task_filter_list)
+        if not isinstance(task_data, Shareable):
+            self.log_error(
+                fl_ctx, "task data was converted to wrong type: expect Shareable but got {}".format(type(task_data))
+            )
+            return self._reply_and_audit(
+                reply=make_reply(ReturnCode.TASK_DATA_FILTER_ERROR),
+                ref=server_audit_event_id,
+                fl_ctx=fl_ctx,
+                msg=f"submit result: {ReturnCode.TASK_DATA_FILTER_ERROR}",
+            )
 
-        if filter_list:
-            task_data = task.data
-            for f in filter_list:
-                filter_name = f.__class__.__name__
-                try:
-                    task_data = f.process(task_data, fl_ctx)
-                except UnsafeJobError:
-                    self.log_exception(fl_ctx, f"UnsafeJobError from Task Data Filter {filter_name}")
-                    executor.unsafe = True
-                    fl_ctx.set_job_is_unsafe()
-                    self.run_abort_signal.trigger(True)
-                    return self._reply_and_audit(
-                        reply=make_reply(ReturnCode.UNSAFE_JOB),
-                        ref=server_audit_event_id,
-                        fl_ctx=fl_ctx,
-                        msg=f"submit result: {ReturnCode.UNSAFE_JOB}",
-                    )
-                except Exception as e:
-                    self.log_exception(
-                        fl_ctx, f"Processing error from Task Data Filter {filter_name}: {secure_format_exception(e)}"
-                    )
-                    return self._reply_and_audit(
-                        reply=make_reply(ReturnCode.TASK_DATA_FILTER_ERROR),
-                        ref=server_audit_event_id,
-                        fl_ctx=fl_ctx,
-                        msg=f"submit result: {ReturnCode.TASK_DATA_FILTER_ERROR}",
-                    )
-
-            if not isinstance(task_data, Shareable):
-                self.log_error(
-                    fl_ctx, "task data was converted to wrong type: expect Shareable but got {}".format(type(task_data))
-                )
-                return self._reply_and_audit(
-                    reply=make_reply(ReturnCode.TASK_DATA_FILTER_ERROR),
-                    ref=server_audit_event_id,
-                    fl_ctx=fl_ctx,
-                    msg=f"submit result: {ReturnCode.TASK_DATA_FILTER_ERROR}",
-                )
-
-            task.data = task_data
+        task.data = task_data
 
         self.log_debug(fl_ctx, "firing event EventType.AFTER_TASK_DATA_FILTER")
         fl_ctx.set_prop(FLContextKey.TASK_DATA, value=task.data, private=True, sticky=False)
@@ -327,50 +345,38 @@ class ClientRunner(FLComponent):
         self.log_debug(fl_ctx, "firing event EventType.BEFORE_TASK_RESULT_FILTER")
         self.fire_event(EventType.BEFORE_TASK_RESULT_FILTER, fl_ctx)
 
-        filter_list = []
-        if scope_object and scope_object.task_result_filters:
-            filter_list.extend(scope_object.task_result_filters)
+        try:
+            filter_name = Scope.TASK_RESULT_FILTERS_NAME
+            reply = apply_filters(filter_name, reply, fl_ctx, self.task_result_filters, task.name, FilterKey.OUT)
+        except UnsafeJobError:
+            self.log_exception(fl_ctx, "UnsafeJobError from Task Result Filters")
+            executor.unsafe = True
+            fl_ctx.set_job_is_unsafe()
+            return self._reply_and_audit(
+                reply=make_reply(ReturnCode.UNSAFE_JOB),
+                ref=server_audit_event_id,
+                fl_ctx=fl_ctx,
+                msg=f"submit result: {ReturnCode.UNSAFE_JOB}",
+            )
+        except Exception as e:
+            self.log_exception(fl_ctx, f"Processing error in Task Result Filter : {secure_format_exception(e)}")
+            return self._reply_and_audit(
+                reply=make_reply(ReturnCode.TASK_RESULT_FILTER_ERROR),
+                ref=server_audit_event_id,
+                fl_ctx=fl_ctx,
+                msg=f"submit result: {ReturnCode.TASK_RESULT_FILTER_ERROR}",
+            )
 
-        task_filter_list = self.task_result_filters.get(task.name)
-        if task_filter_list:
-            filter_list.extend(task_filter_list)
-
-        if filter_list:
-            for f in filter_list:
-                filter_name = f.__class__.__name__
-                try:
-                    reply = f.process(reply, fl_ctx)
-                except UnsafeJobError:
-                    self.log_exception(fl_ctx, f"UnsafeJobError from Task Result Filter {filter_name}")
-                    executor.unsafe = True
-                    fl_ctx.set_job_is_unsafe()
-                    return self._reply_and_audit(
-                        reply=make_reply(ReturnCode.UNSAFE_JOB),
-                        ref=server_audit_event_id,
-                        fl_ctx=fl_ctx,
-                        msg=f"submit result: {ReturnCode.UNSAFE_JOB}",
-                    )
-                except Exception as e:
-                    self.log_exception(
-                        fl_ctx, f"Processing error in Task Result Filter {filter_name}: {secure_format_exception(e)}"
-                    )
-                    return self._reply_and_audit(
-                        reply=make_reply(ReturnCode.TASK_RESULT_FILTER_ERROR),
-                        ref=server_audit_event_id,
-                        fl_ctx=fl_ctx,
-                        msg=f"submit result: {ReturnCode.TASK_RESULT_FILTER_ERROR}",
-                    )
-
-            if not isinstance(reply, Shareable):
-                self.log_error(
-                    fl_ctx, "task result was converted to wrong type: expect Shareable but got {}".format(type(reply))
-                )
-                return self._reply_and_audit(
-                    reply=make_reply(ReturnCode.TASK_RESULT_FILTER_ERROR),
-                    ref=server_audit_event_id,
-                    fl_ctx=fl_ctx,
-                    msg=f"submit result: {ReturnCode.TASK_RESULT_FILTER_ERROR}",
-                )
+        if not isinstance(reply, Shareable):
+            self.log_error(
+                fl_ctx, "task result was converted to wrong type: expect Shareable but got {}".format(type(reply))
+            )
+            return self._reply_and_audit(
+                reply=make_reply(ReturnCode.TASK_RESULT_FILTER_ERROR),
+                ref=server_audit_event_id,
+                fl_ctx=fl_ctx,
+                msg=f"submit result: {ReturnCode.TASK_RESULT_FILTER_ERROR}",
+            )
 
         fl_ctx.set_prop(FLContextKey.TASK_RESULT, value=reply, private=True, sticky=False)
 
@@ -460,7 +466,49 @@ class ClientRunner(FLComponent):
                 self.running_tasks = {}
 
     def init_run(self, app_root, args):
+        sync_timeout = ConfigService.get_float_var(
+            name=ConfigVarName.RUNNER_SYNC_TIMEOUT,
+            default=2.0,
+        )
+        max_sync_tries = ConfigService.get_int_var(
+            name=ConfigVarName.MAX_RUNNER_SYNC_TRIES,
+            default=30,
+        )
+        target = "server"
+        synced = False
+        sync_start = time.time()
         with self.engine.new_context() as fl_ctx:
+            for i in range(max_sync_tries):
+                # sync with server runner before starting
+                time.sleep(0.5)
+                resp = self.engine.send_aux_request(
+                    targets=[target],
+                    topic=ReservedTopic.SYNC_RUNNER,
+                    request=Shareable(),
+                    timeout=sync_timeout,
+                    fl_ctx=fl_ctx,
+                    optional=True,
+                    secure=False,
+                )
+
+                if not resp:
+                    continue
+
+                reply = resp.get(target)
+                if not reply:
+                    continue
+
+                assert isinstance(reply, Shareable)
+                rc = reply.get_return_code()
+                if rc == ReturnCode.OK:
+                    synced = True
+                    break
+
+            if not synced:
+                raise RuntimeError(f"cannot sync with Server Runner after {max_sync_tries} tries")
+
+            self.log_info(fl_ctx, f"synced to Server Runner in {time.time()-sync_start} seconds")
+
             self.fire_event(EventType.ABOUT_TO_START_RUN, fl_ctx)
             fl_ctx.set_prop(FLContextKey.APP_ROOT, app_root, sticky=True)
             fl_ctx.set_prop(FLContextKey.ARGS, args, sticky=True)
@@ -485,15 +533,20 @@ class ClientRunner(FLComponent):
             self.fire_event(EventType.END_RUN, fl_ctx)
             self.log_info(fl_ctx, "END_RUN fired")
 
-    def abort(self):
+    def abort(self, msg: str = ""):
         """To Abort the current run.
 
         Returns: N/A
 
         """
-        # This is caused by the abort_job command.
+        # This is called when:
+        # 1. abort_job command is issued by the user
+        # 2. when the job is ended by the server when error conditions occur
+        # 3. when the job is ended normally at the end of the workflow
+        if not msg:
+            msg = "Client is stopping ..."
         with self.engine.new_context() as fl_ctx:
-            self.log_info(fl_ctx, "ABORT (RUN) command received")
+            self.log_info(fl_ctx, msg)
         self.run_abort_signal.trigger(True)
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):

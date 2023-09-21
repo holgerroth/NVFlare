@@ -156,6 +156,7 @@ class FLContextKey(object):
     COMPONENT_CONFIG = "__component_config__"
     COMPONENT_NODE = "__component_node__"
     CONFIG_CTX = "__config_ctx__"
+    FILTER_DIRECTION = "__filter_dir__"
 
 
 class ReservedTopic(object):
@@ -164,6 +165,7 @@ class ReservedTopic(object):
     ABORT_ASK = "__abort_task__"
     DO_TASK = "__do_task__"
     AUX_COMMAND = "__aux_command__"
+    SYNC_RUNNER = "__sync_runner__"
 
 
 class AdminCommandNames(object):
@@ -172,6 +174,7 @@ class AdminCommandNames(object):
     LIST_JOBS = "list_jobs"
     GET_JOB_META = "get_job_meta"
     DOWNLOAD_JOB = "download_job"
+    DOWNLOAD_JOB_FILE = "download_job_file"
     ABORT_JOB = "abort_job"
     DELETE_JOB = "delete_job"
     CLONE_JOB = "clone_job"
@@ -392,3 +395,16 @@ class FLMetaKey:
     TOTAL_ROUNDS = "total_rounds"
     JOB_ID = "job_id"
     SITE_NAME = "site_name"
+
+
+class FilterKey:
+    IN = "in"
+    OUT = "out"
+    INOUT = "inout"
+    DELIMITER = "/"
+
+
+class ConfigVarName:
+
+    RUNNER_SYNC_TIMEOUT = "runner_sync_timeout"
+    MAX_RUNNER_SYNC_TRIES = "max_runner_sync_tries"

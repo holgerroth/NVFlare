@@ -23,10 +23,6 @@
   "task_data_filters": [
   ],
 
-  "tracking": "mlflow",
-  "experiment_name": "monai_nvflare",
-  "tracking_uri": "http://127.0.0.1:5000",
-
   "components": [
     {
       "id": "client_algo",
@@ -40,14 +36,14 @@
         "id": "log_writer",
         "path": "monai_nvflare.nvflare_stats_handler.NVFlareStatsHandler",
         "args": {
-            "metrics_exchanger_id": "metric_exchanger"
+            "metrics_exchanger_id": "metrics_exchanger"
         }
     },
     {
-        "id": "metric_retriever",
-        "path": "nvflare.app_common.metric_exchange.metric_retriever.MetricRetriever",
+        "id": "metrics_retriever",
+        "path": "nvflare.app_common.metrics_exchange.metrics_retriever.MetricsRetriever",
         "args": {
-            "metric_exchanger_id": "metric_exchanger"
+            "metrics_exchanger_id": "metrics_exchanger"
         }
     },
     {

@@ -15,11 +15,11 @@
 from typing import Optional
 
 from nvflare.apis.analytix import AnalyticsDataType
-from nvflare.app_common.tracking.log_writer_me import LogWriterForMetricExchanger
+from nvflare.app_common.tracking.log_writer_me import LogWriterForMetricsExchanger
 from nvflare.app_common.tracking.tracker_types import LogWriterName
 
 
-class TBWriterForMetricsExchanger(LogWriterForMetricExchanger):
+class TBWriterForMetricsExchanger(LogWriterForMetricsExchanger):
     """Sends experiment tracking data through MetricsExchanger."""
 
     def get_writer_name(self) -> LogWriterName:
@@ -34,7 +34,7 @@ class TBWriterForMetricsExchanger(LogWriterForMetricExchanger):
             global_step (optional, int): Global step value.
             **kwargs: Additional arguments to pass to the receiver side.
         """
-        self.log(key=tag, value=scalar, data_type=AnalyticsDataType.SCALAR, global_step=global_step, **kwargs)
+        self.send_log(key=tag, value=scalar, data_type=AnalyticsDataType.SCALAR, global_step=global_step, **kwargs)
 
     def add_scalars(self, tag: str, scalars: dict, global_step: Optional[int] = None, **kwargs):
         """Sends scalars.
@@ -45,7 +45,7 @@ class TBWriterForMetricsExchanger(LogWriterForMetricExchanger):
             global_step (optional, int): Global step value.
             **kwargs: Additional arguments to pass to the receiver side.
         """
-        self.log(key=tag, value=scalars, data_type=AnalyticsDataType.SCALARS, global_step=global_step, **kwargs)
+        self.send_log(key=tag, value=scalars, data_type=AnalyticsDataType.SCALARS, global_step=global_step, **kwargs)
 
     def flush(self):
         """Flushes out the message.

@@ -31,7 +31,7 @@ def _set_up_run_config(workspace: Workspace, server, conf):
     runner_config = conf.runner_config
 
     # configure privacy control!
-    privacy_manager = create_privacy_manager(workspace, names_only=False)
+    privacy_manager = create_privacy_manager(workspace, names_only=False, is_server=True)
     if privacy_manager.is_policy_defined():
         if privacy_manager.components:
             for cid, comp in privacy_manager.components.items():
@@ -56,7 +56,9 @@ class ServerAppRunner(Runner):
         try:
             server_config_file_name = os.path.join(app_root, args.server_config)
 
-            conf = ServerJsonConfigurator(config_file_name=server_config_file_name, args=args, kv_list=kv_list)
+            conf = ServerJsonConfigurator(
+                config_file_name=server_config_file_name, app_root=app_root, args=args, kv_list=kv_list
+            )
             if event_handlers:
                 fl_ctx = FLContext()
                 fl_ctx.set_prop(FLContextKey.ARGS, args, sticky=False)

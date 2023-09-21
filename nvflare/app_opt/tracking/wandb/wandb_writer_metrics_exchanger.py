@@ -15,11 +15,11 @@
 from typing import Dict, Optional
 
 from nvflare.apis.analytix import AnalyticsDataType
-from nvflare.app_common.tracking.log_writer_me import LogWriterForMetricExchanger
+from nvflare.app_common.tracking.log_writer_me import LogWriterForMetricsExchanger
 from nvflare.app_common.tracking.tracker_types import LogWriterName
 
 
-class WandBWriterForMetricsExchanger(LogWriterForMetricExchanger):
+class WandBWriterForMetricsExchanger(LogWriterForMetricsExchanger):
     """Sends experiment tracking data through MetricsExchanger."""
 
     def get_writer_name(self) -> LogWriterName:
@@ -33,4 +33,4 @@ class WandBWriterForMetricsExchanger(LogWriterForMetricExchanger):
             metrics (Dict[str, float]): Dictionary of metric_name of type String to Float values.
             step (int, optional): A single integer step at which to log the specified Metrics.
         """
-        super().log(key="metrics", value=metrics, data_type=AnalyticsDataType.METRICS, global_step=step)
+        self.send_log(key="metrics", value=metrics, data_type=AnalyticsDataType.METRICS, global_step=step)
