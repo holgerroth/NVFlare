@@ -8,12 +8,12 @@ from nvflare import SimulatorRunner
 n_clients=4
 peft_scheme="ptuning"
 peft_scheme="adapter"
-#peft_scheme="lora"
+peft_scheme="lora"
 max_steps=2000
 val_check_interval=100
 num_rounds=50
 lr=5e-3
-job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_f1fg_4"
+job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_f1fg_5"
 
 
 data_root = f"/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/{n_clients}_split"
