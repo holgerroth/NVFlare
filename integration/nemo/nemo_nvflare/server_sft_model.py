@@ -39,13 +39,16 @@ def _modify_config(gpt_cfg, cfg, add_cfg_to_tree=False):
     OmegaConf.set_struct(gpt_cfg, True)
     OmegaConf.resolve(cfg)
     with open_dict(gpt_cfg):
-        gpt_cfg.megatron_amp_O2 = cfg.model.get("megatron_amp_O2", False)
+        gpt_cfg.megatron_amp_O2 = cfg.model.get('megatron_amp_O2', False)
         gpt_cfg.micro_batch_size = cfg.model.data.train_ds.micro_batch_size
         gpt_cfg.global_batch_size = cfg.model.data.train_ds.global_batch_size
         gpt_cfg.sequence_parallel = cfg.model.get("sequence_parallel", False)
         gpt_cfg.activations_checkpoint_granularity = cfg.model.get("activations_checkpoint_granularity", None)
         gpt_cfg.activations_checkpoint_num_layers = cfg.model.get("activations_checkpoint_num_layers", None)
         gpt_cfg.activations_checkpoint_method = cfg.model.get("activations_checkpoint_method", None)
+        gpt_cfg.activations_checkpoint_layers_per_pipeline = cfg.model.get(
+            "activations_checkpoint_layers_per_pipeline", None
+        )
         gpt_cfg.data = cfg.model.data
         gpt_cfg.optim = cfg.model.optim
         gpt_cfg.precision = cfg.trainer.precision
@@ -54,9 +57,22 @@ def _modify_config(gpt_cfg, cfg, add_cfg_to_tree=False):
         gpt_cfg.resume_from_checkpoint = cfg.model.resume_from_checkpoint
         gpt_cfg.save_nemo_on_validation_end = cfg.model.save_nemo_on_validation_end
         gpt_cfg.gradient_as_bucket_view = cfg.model.gradient_as_bucket_view
-        gpt_cfg.hidden_dropout = cfg.model.get("hidden_dropout", 0.0)
-        gpt_cfg.attention_dropout = cfg.model.get("attention_dropout", 0.0)
+        gpt_cfg.hidden_dropout = cfg.model.get('hidden_dropout', 0.0)
+        gpt_cfg.attention_dropout = cfg.model.get('attention_dropout', 0.0)
         gpt_cfg.ffn_dropout = cfg.model.ffn_dropout
+        gpt_cfg.use_flash_attention = cfg.model.get('use_flash_attention', False)
+
+        sft_cls = MegatronGPTSFTModel
+        gpt_cfg.target = f"{sft_cls.__module__}.{sft_cls.__name__}"
+
+        if cfg.model.get('use_flash_attention', None) is not None:
+            gpt_cfg.use_flash_attention = cfg.model.use_flash_attention
+
+        if cfg.model.get('seq_len_interpolation_factor', None) is not None:
+            gpt_cfg.seq_len_interpolation_factor = cfg.model.seq_len_interpolation_factor
+
+        sft_cls = MegatronGPTSFTModel
+        gpt_cfg.target = f"{sft_cls.__module__}.{sft_cls.__name__}"
 
         # This is needed when modifying a hparam file directly to load `.ckpt` files.
         # This is not needed to modify the cfg in `.nemo` files.

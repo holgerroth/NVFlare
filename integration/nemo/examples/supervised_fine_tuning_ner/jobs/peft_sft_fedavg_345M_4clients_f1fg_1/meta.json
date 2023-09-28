@@ -1,0 +1,21 @@
+{
+  "name": "peft_sft_fedavg_345M_4clients_f1fg_1",
+  "resource_spec": {},
+  "deploy_map": {
+    "server": [
+      "server"
+    ],
+    "app1": [
+      "site-1"
+    ],
+    "app2": [
+      "site-2"
+    ],
+    "app3": [
+      "site-3"
+    ],
+    "app4": [
+      "site-4"
+    ]
+  }
+}
