@@ -1,0 +1,36 @@
+{
+  "format_version": 2,
+  "model_file": "/workspace/Models/megatron_gpt_345m.nemo",
+  "train_ds_files": "/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-1_train.jsonl",
+  "validation_ds_files": "/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-1_val.jsonl",
+  "executors": [
+    {
+      "tasks": [
+        "train",
+        "validate",
+        "share_config"
+      ],
+      "executor": {
+        "id": "learner_executor",
+        "path": "nemo_nvflare.NemoLearnerExecutor",
+        "args": {
+          "learner_id": "learner"
+        }
+      }
+    }
+  ],
+  "task_result_filters": [],
+  "task_data_filters": [],
+  "components": [
+    {
+      "id": "learner",
+      "path": "nemo_nvflare.SFTLearner",
+      "args": {
+        "base_model_file_path": "{model_file}",
+        "train_ds_files": "{train_ds_files}",
+        "validation_ds_files": "{validation_ds_files}",
+        "aggregation_epochs": 1
+      }
+    }
+  ]
+}

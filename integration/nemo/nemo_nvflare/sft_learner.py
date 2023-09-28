@@ -42,6 +42,9 @@ from .callbacks import RestoreOptimizers
 from .constants import NemoDataKind
 from .utils_sft import compute_model_diff, load_weights
 
+import torch.multiprocessing as mp
+mp.set_start_method("spawn", force=True)
+
 print("NEMO version", nemo.__version__)
 # configure logging at the root logging level
 logging.getLogger().setLevel(logging.INFO)
@@ -55,13 +58,16 @@ def _modify_config(gpt_cfg, cfg, add_cfg_to_tree=False):
     OmegaConf.set_struct(gpt_cfg, True)
     OmegaConf.resolve(cfg)
     with open_dict(gpt_cfg):
-        gpt_cfg.megatron_amp_O2 = cfg.model.get("megatron_amp_O2", False)
+        gpt_cfg.megatron_amp_O2 = cfg.model.get('megatron_amp_O2', False)
         gpt_cfg.micro_batch_size = cfg.model.data.train_ds.micro_batch_size
         gpt_cfg.global_batch_size = cfg.model.data.train_ds.global_batch_size
         gpt_cfg.sequence_parallel = cfg.model.get("sequence_parallel", False)
         gpt_cfg.activations_checkpoint_granularity = cfg.model.get("activations_checkpoint_granularity", None)
         gpt_cfg.activations_checkpoint_num_layers = cfg.model.get("activations_checkpoint_num_layers", None)
         gpt_cfg.activations_checkpoint_method = cfg.model.get("activations_checkpoint_method", None)
+        gpt_cfg.activations_checkpoint_layers_per_pipeline = cfg.model.get(
+            "activations_checkpoint_layers_per_pipeline", None
+        )
         gpt_cfg.data = cfg.model.data
         gpt_cfg.optim = cfg.model.optim
         gpt_cfg.precision = cfg.trainer.precision
@@ -70,9 +76,22 @@ def _modify_config(gpt_cfg, cfg, add_cfg_to_tree=False):
         gpt_cfg.resume_from_checkpoint = cfg.model.resume_from_checkpoint
         gpt_cfg.save_nemo_on_validation_end = cfg.model.save_nemo_on_validation_end
         gpt_cfg.gradient_as_bucket_view = cfg.model.gradient_as_bucket_view
-        gpt_cfg.hidden_dropout = cfg.model.get("hidden_dropout", 0.0)
-        gpt_cfg.attention_dropout = cfg.model.get("attention_dropout", 0.0)
+        gpt_cfg.hidden_dropout = cfg.model.get('hidden_dropout', 0.0)
+        gpt_cfg.attention_dropout = cfg.model.get('attention_dropout', 0.0)
         gpt_cfg.ffn_dropout = cfg.model.ffn_dropout
+        gpt_cfg.use_flash_attention = cfg.model.get('use_flash_attention', False)
+
+        sft_cls = MegatronGPTSFTModel
+        gpt_cfg.target = f"{sft_cls.__module__}.{sft_cls.__name__}"
+
+        if cfg.model.get('use_flash_attention', None) is not None:
+            gpt_cfg.use_flash_attention = cfg.model.use_flash_attention
+
+        if cfg.model.get('seq_len_interpolation_factor', None) is not None:
+            gpt_cfg.seq_len_interpolation_factor = cfg.model.seq_len_interpolation_factor
+
+        sft_cls = MegatronGPTSFTModel
+        gpt_cfg.target = f"{sft_cls.__module__}.{sft_cls.__name__}"
 
         # This is needed when modifying a hparam file directly to load `.ckpt` files.
         # This is not needed to modify the cfg in `.nemo` files.
@@ -318,7 +337,7 @@ class SFTLearner(Learner):
         if current_round > 0:
             self.trainer.num_sanity_validation_steps = 0  # Turn off sanity validation steps in 2nd round of FL
             self.trainer.fit_loop.max_epochs += self.aggregation_epochs
-            self.trainer.fit_loop.max_steps += self.steps_per_round
+            self.trainer.fit_loop.epoch_loop.max_steps += self.steps_per_round
 
         total_rounds = shareable.get_header(AppConstants.NUM_ROUNDS)
         self.log_info(fl_ctx, f"Current/Total Round: {current_round + 1}/{total_rounds}")
@@ -375,6 +394,6 @@ class SFTLearner(Learner):
             self.log_info(fl_ctx, f"Global_model {self.key_metric}: {metric}")
 
             # use validation loss as validation metric
-            return DXO(data_kind=DataKind.METRICS, data={MetaKey.INITIAL_METRICS: metric}, meta={}).to_shareable()
+            return DXO(data_kind=DataKind.METRICS, data={MetaKey.INITIAL_METRICS: global_metrics[0]}, meta={}).to_shareable()
         else:
             return make_reply(ReturnCode.VALIDATE_TYPE_UNKNOWN)
