@@ -1,7 +1,7 @@
 {
   "format_version": 2,
   "min_clients": 1,
-  "num_rounds": 5,
+  "num_rounds": 50,
   "config_path": "config/megatron_gpt_sft.yaml",
   "base_model_file_path": "/workspace/Models/megatron_gpt_345m.nemo",
   "server": {
