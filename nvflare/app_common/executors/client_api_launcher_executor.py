@@ -16,7 +16,9 @@ import os
 from typing import Dict, Optional
 
 from nvflare.apis.fl_context import FLContext
+from nvflare.apis.shareable import Shareable
 from nvflare.apis.utils.decomposers import flare_decomposers
+from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.decomposers import common_decomposers
 from nvflare.app_common.executors.launcher_executor import LauncherExecutor
 from nvflare.app_common.model_exchange.constants import ModelExchangeFormat
@@ -49,6 +51,7 @@ class ClientAPILauncherExecutor(LauncherExecutor):
         params_transfer_type: TransferType = TransferType.FULL,
         from_nvflare_converter_id: Optional[str] = None,
         to_nvflare_converter_id: Optional[str] = None,
+        launch_once: bool = False,
     ) -> None:
         """Initializes the ClientAPILauncherExecutor.
 
@@ -75,6 +78,8 @@ class ClientAPILauncherExecutor(LauncherExecutor):
                 This converter will be called when model is sent from nvflare controller side to executor side.
             to_nvflare_converter_id (Optional[str]): Identifier used to get the ParamsConverter from NVFlare components.
                 This converter will be called when model is sent from nvflare executor side to controller side.
+            launch_once (bool): Whether to launch just once for the whole. Default is True, means only the first task
+                will trigger `launcher.launch_task`. Which is efficient when the data setup is taking a lot of time.
         """
         super().__init__(
             pipe_id=pipe_id,
@@ -92,6 +97,7 @@ class ClientAPILauncherExecutor(LauncherExecutor):
             global_evaluation=global_evaluation,
             from_nvflare_converter_id=from_nvflare_converter_id,
             to_nvflare_converter_id=to_nvflare_converter_id,
+            launch_once=launch_once,
         )
 
         self._data_exchange_path = data_exchange_path
@@ -130,7 +136,7 @@ class ClientAPILauncherExecutor(LauncherExecutor):
         )
         self.pipe_handler.start()
 
-    def prepare_config_for_launch(self, fl_ctx: FLContext):
+    def prepare_config_for_launch(self, shareable: Shareable, fl_ctx: FLContext):
         workspace = fl_ctx.get_engine().get_workspace()
         app_dir = workspace.get_app_dir(fl_ctx.get_job_id())
         config_file = os.path.join(app_dir, workspace.config_folder, CONFIG_EXCHANGE)
@@ -138,6 +144,10 @@ class ClientAPILauncherExecutor(LauncherExecutor):
         # prepare config exchange for Client API
         client_config = ClientConfig()
         self._update_config_exchange_dict(client_config.config)
+        total_rounds = shareable.get_header(AppConstants.NUM_ROUNDS)
+        client_config.config[ConfigKey.TOTAL_ROUNDS] = total_rounds
+        client_config.config[ConfigKey.SITE_NAME] = fl_ctx.get_identity_name()
+        client_config.config[ConfigKey.JOB_ID] = fl_ctx.get_job_id()
         client_config.to_json(config_file)
 
     def _update_config_exchange_dict(self, config: Dict):
@@ -146,3 +156,4 @@ class ClientAPILauncherExecutor(LauncherExecutor):
         config[ConfigKey.EXCHANGE_FORMAT] = self._params_exchange_format
         config[ConfigKey.EXCHANGE_PATH] = self._data_exchange_path
         config[ConfigKey.TRANSFER_TYPE] = self._params_transfer_type
+        config[ConfigKey.LAUNCH_ONCE] = self._launch_once

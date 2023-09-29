@@ -59,7 +59,7 @@ class Message:
         return Message(Message.REPLY, topic, data, msg_id, req_id=req_msg_id)
 
     def __str__(self):
-        return f"Message(topic={self.topic}, msg_id={self.msg_id}, req_id={self.req_id})"
+        return f"Message(topic={self.topic}, msg_id={self.msg_id}, req_id={self.req_id}, msg_type={self.msg_type})"
 
 
 class Pipe(ABC):
