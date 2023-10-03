@@ -66,8 +66,8 @@ class FLCallback(Callback):
                     self.max_steps_per_round = trainer.max_steps
 
             # record total local epochs/steps
-            self.total_local_epochs = trainer.current_epoch
-            self.total_local_steps += trainer.estimated_stepping_batches
+            self.total_local_epochs = trainer.current_epoch + 1
+            self.total_local_steps = trainer.estimated_stepping_batches
 
             # for next round
             trainer.num_sanity_val_steps = 0  # Turn off sanity validation steps in following rounds of FL
@@ -75,6 +75,12 @@ class FLCallback(Callback):
                 trainer.fit_loop.max_epochs = self.max_epochs_per_round + self.total_local_epochs
             if self.total_local_steps and self.max_steps_per_round is not None:
                 trainer.fit_loop.epoch_loop.max_steps = self.max_steps_per_round + self.total_local_steps
+            print(f"self.max_epochs_per_round is {self.max_epochs_per_round}")
+            print(f"self.max_steps_per_round is {self.max_steps_per_round}")
+            print(f"self.total_local_epochs is {self.total_local_epochs}")
+            print(f"self.total_local_steps is {self.total_local_steps}")
+            print(f"trainer.fit_loop.max_epochs is {trainer.fit_loop.max_epochs}")
+            print(f"trainer.fit_loop.epoch_loop.max_steps is {trainer.fit_loop.epoch_loop.max_steps}")
 
         # resets attributes
         self.metrics = None

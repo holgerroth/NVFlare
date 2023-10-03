@@ -74,6 +74,10 @@ def _get_model_registry() -> Optional[ModelRegistry]:
 def receive() -> FLModel:
     """Receives model from NVFlare side.
 
+    # TODO:
+    #   raise Exception timeout
+    #   job done
+
     Returns:
         An FLModel received.
     """
@@ -85,6 +89,7 @@ def send(fl_model: FLModel, clear_registry: bool = True) -> None:
     """Sends the model to NVFlare side.
 
     Args:
+        fl_model (FLModel): FLModel to be sent.
         clear_registry (bool): To clear the registry or not.
     """
     model_registry = _get_model_registry()
@@ -140,14 +145,23 @@ def get_site_name() -> str:
     return sys_info.get(ConfigKey.SITE_NAME, "")
 
 
+# TODO: (2) people can pass in train_func, train_args
+# TODO: (2) people can pass in eval_func, eval_args
+
+
 def receive_global_model():
     """Yields model received from NVFlare server."""
     sys_info = system_info()
     total_rounds = sys_info["total_rounds"]
-    is_last_round = False
     launch_once = get_config().get("launch_once", True)
 
     while True:
+        # TODO: (1) error handling, timeout
+        # TODO: (1) if timeout: raise exception
+        # TODO:
+        #   receive(timeout: Optional[float] = None)
+        #       (1) raises TimeoutException
+        #       (2) when job is done can raise an JobDoneException
         input_model = receive()
         current_round = input_model.current_round
         yield input_model

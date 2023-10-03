@@ -19,6 +19,7 @@ from tf_net import TFNet
 import nvflare.client as flare
 
 # (2) import how to load / dump flat weights
+# TODO: make this a component on server side to handle diff. format of weights
 from nvflare.app_opt.tf.utils import get_flat_weights, load_flat_weights
 
 PATH = "./tf_model.ckpt"
