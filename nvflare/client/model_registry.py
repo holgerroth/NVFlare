@@ -14,6 +14,7 @@
 
 import copy
 import os
+import shutil
 import tempfile
 import time
 from typing import Dict, Optional
@@ -43,7 +44,7 @@ def save_data_atomic(data: int, data_file_path: str):
             f.flush()
             os.fsync(f.fileno())
 
-        os.replace(temp_f.name, data_file_path)
+        shutil.move(temp_f.name, data_file_path)
     except Exception as e:
         print(f"XXX {e} XXX")
         os.remove(temp_f.name)
