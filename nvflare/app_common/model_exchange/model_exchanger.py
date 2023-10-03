@@ -138,15 +138,11 @@ class ModelExchanger:
                     self.pipe_handler.notify_abort(msg)
                     raise ExchangeTimeoutException(f"get data timeout after {timeout} secs")
             elif msg.topic == Topic.ABORT:
-                raise ExchangeAbortException("the other end is aborted")
+                raise ExchangeAbortException("the other end ask to abort")
             elif msg.topic == Topic.END:
-                raise ExchangeEndException(
-                    f"received {msg.topic}: {msg.data} while waiting for result for {self._topic}"
-                )
+                raise ExchangeEndException(f"received msg: '{msg}' while waiting for {self._topic}")
             elif msg.topic == Topic.PEER_GONE:
-                raise ExchangePeerGoneException(
-                    f"received {msg.topic}: {msg.data} while waiting for result for {self._topic}"
-                )
+                raise ExchangePeerGoneException(f"received msg: '{msg}' while waiting for {self._topic}")
             elif msg.topic == self._topic:
                 return msg.data, msg.msg_id
             time.sleep(self._get_poll_interval)

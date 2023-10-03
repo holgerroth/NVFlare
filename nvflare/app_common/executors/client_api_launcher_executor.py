@@ -38,56 +38,63 @@ class ClientAPILauncherExecutor(LauncherExecutor):
         pipe_name: str = "pipe",
         launcher_id: Optional[str] = None,
         launch_timeout: Optional[float] = None,
-        task_wait_time: Optional[float] = None,
-        task_read_wait_time: Optional[float] = None,
+        wait_timeout: Optional[float] = None,
+        result_timeout: Optional[float] = None,
+        last_result_transfer_timeout: float = 5.0,
+        peer_read_timeout: Optional[float] = None,
         result_poll_interval: float = 0.1,
         read_interval: float = 0.1,
         heartbeat_interval: float = 5.0,
         heartbeat_timeout: float = 30.0,
-        workers: int = 1,
+        workers: int = 4,
         training: bool = True,
         global_evaluation: bool = True,
-        params_exchange_format: ModelExchangeFormat = ModelExchangeFormat.NUMPY,
-        params_transfer_type: TransferType = TransferType.FULL,
         from_nvflare_converter_id: Optional[str] = None,
         to_nvflare_converter_id: Optional[str] = None,
-        launch_once: bool = False,
+        launch_once: bool = True,
+        params_exchange_format: ModelExchangeFormat = ModelExchangeFormat.NUMPY,
+        params_transfer_type: TransferType = TransferType.FULL,
     ) -> None:
         """Initializes the ClientAPILauncherExecutor.
 
         Args:
             data_exchange_path (Optional[str]): Path used for data exchange. If None, the "app_dir" of the running job will be used.
                 If pipe_id is provided, will use the Pipe gets from pipe_id.
-            pipe_id (Optional[str]): Identifier used to get the Pipe from NVFlare components.
+            pipe_id (Optional[str]): Identifier for obtaining the Pipe from NVFlare components.
             pipe_name (str): Name of the pipe. Defaults to "pipe".
-            launcher_id (Optional[str]): Identifier used to get the Launcher from NVFlare components.
-            launch_timeout (Optional[float]): Timeout for the "launch" method to end. None means never timeout.
-            task_wait_time (Optional[float]): Time to wait for tasks to complete before exiting the executor. None means never timeout.
-            task_read_wait_time (Optional[float]): Time to wait for task results from the pipe. None means no wait.
-            result_poll_interval (float): Interval for polling task results from the pipe. Defaults to 0.1.
-            read_interval (float): Interval for reading from the pipe. Defaults to 0.1.
-            heartbeat_interval (float): Interval for sending heartbeat to the peer. Defaults to 5.0.
-            heartbeat_timeout (float): Timeout for waiting for a heartbeat from the peer. Defaults to 30.0.
-            workers (int): Number of worker threads needed.
-            training (bool): Whether to run training using global model. Defaults to True.
-            global_evaluation (bool): Whether to run evaluation on global model. Defaults to True.
-            params_exchange_format (ModelExchangeFormat): What format to exchange the parameters.
-            params_transfer_type (TransferType): How to transfer the parameters. FULL means the whole model parameters are sent.
-                DIFF means that only the difference is sent.
+            launcher_id (Optional[str]): Identifier for obtaining the Launcher from NVFlare components.
+            launch_timeout (Optional[float]): Timeout for the Launcher's "launch_task" method to complete (None for no timeout).
+            wait_timeout (Optional[float]): Timeout for the Launcher's "wait_task" method to complete (None for no timeout).
+            result_timeout (Optional[float]): Timeout for retrieving the result (None for no timeout).
+            last_result_transfer_timeout (float): Timeout for transmitting the last result from an external process (default: 5.0).
+                This value should be greater than the time needed for sending the whole result.
+            peer_read_timeout (Optional[float]): Timeout for waiting the task to be read by the peer from the pipe (None for no timeout).
+            result_poll_interval (float): Interval for polling task results from the pipe (default: 0.1).
+            read_interval (float): Interval for reading from the pipe (default: 0.1).
+            heartbeat_interval (float): Interval for sending heartbeat to the peer (default: 5.0).
+            heartbeat_timeout (float): Timeout for waiting for a heartbeat from the peer (default: 30.0).
+            workers (int): Number of worker threads needed (default: 4).
+            training (bool): Whether to run training using global model (default: True).
+            global_evaluation (bool): Whether to run evaluation on global model (default: True).
             from_nvflare_converter_id (Optional[str]): Identifier used to get the ParamsConverter from NVFlare components.
                 This converter will be called when model is sent from nvflare controller side to executor side.
             to_nvflare_converter_id (Optional[str]): Identifier used to get the ParamsConverter from NVFlare components.
                 This converter will be called when model is sent from nvflare executor side to controller side.
-            launch_once (bool): Whether to launch just once for the whole. Default is True, means only the first task
+            launch_once (bool): Whether to launch just once for the whole job (default: True). True means only the first task
                 will trigger `launcher.launch_task`. Which is efficient when the data setup is taking a lot of time.
+            params_exchange_format (ModelExchangeFormat): What format to exchange the parameters.
+            params_transfer_type (TransferType): How to transfer the parameters. FULL means the whole model parameters are sent.
+                DIFF means that only the difference is sent.
         """
         super().__init__(
             pipe_id=pipe_id,
             pipe_name=pipe_name,
             launcher_id=launcher_id,
             launch_timeout=launch_timeout,
-            task_wait_time=task_wait_time,
-            task_read_wait_time=task_read_wait_time,
+            wait_timeout=wait_timeout,
+            result_timeout=result_timeout,
+            last_result_transfer_timeout=last_result_transfer_timeout,
+            peer_read_timeout=peer_read_timeout,
             result_poll_interval=result_poll_interval,
             read_interval=read_interval,
             heartbeat_interval=heartbeat_interval,
