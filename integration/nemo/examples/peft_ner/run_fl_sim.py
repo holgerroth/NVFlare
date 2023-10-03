@@ -49,7 +49,7 @@ if sp.returncode != 0:
 # Start FL simulation
 simulator = SimulatorRunner(
     job_folder=f"jobs/{job_name}",
-    workspace=f"./results/F1/{job_name}",
+    workspace=f"./results/F1_launch_once/{job_name}",
     n_clients=n_clients,
     threads=n_clients,
     gpu="0,1,2,3"
