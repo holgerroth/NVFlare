@@ -256,18 +256,23 @@ def main(cfg) -> None:
     # (1): flare patch
     flare.patch(trainer)        
 
-    # (optional): get the FL system info
-    fl_sys_info = flare.system_info()
-    print("--- fl_sys_info ---")
-    print(fl_sys_info)            
-    
-    # (2) evaluate the current global model to allow server-side model selection
-    print("--- validate global model ---")
-    trainer.validate(model)
-        
-    # (3) Perform local training starting with the received global model
-    print("--- train new model ---")      
-    trainer.fit(model)
+    # Receive the FLModel from NVFlare
+    # Note that we don't need to pass this input_model to trainer
+    # because after flare.patch the trainer.fit/validate will get the
+    # global model internally
+    for input_model in flare.receive_global_model():
+        # (optional): get the FL system info
+        fl_sys_info = flare.system_info()
+        print("--- fl_sys_info ---")
+        print(fl_sys_info)            
+
+        # (2) evaluate the current global model to allow server-side model selection
+        print("--- validate global model ---")
+        trainer.validate(model)
+
+        # (3) Perform local training starting with the received global model
+        print("--- train new model ---")      
+        trainer.fit(model)
 
 
 if __name__ == '__main__':
