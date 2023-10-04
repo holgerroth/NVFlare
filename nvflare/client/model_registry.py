@@ -46,8 +46,8 @@ def save_data_atomic(data: int, data_file_path: str):
 
         shutil.move(temp_f.name, data_file_path)
     except Exception as e:
-        print(f"XXX {e} XXX")
         os.remove(temp_f.name)
+        raise e
 
 
 def read_data(data_file_path: str, read_timeout: float = 300.0):
