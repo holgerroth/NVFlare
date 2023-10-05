@@ -1,0 +1,305 @@
+Created configs for 4 clients
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-4_val.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-4_train.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-1_train.jsonl_site-1_train.jsonl_indexmap_257280mns_1022msl_0.00ssp_1234s.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-3_train.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-2_val.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-1_train.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-3_train.jsonl_site-3_train.jsonl_indexmap_257280mns_1022msl_0.00ssp_1234s.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-2_train.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-4_train.jsonl_site-4_train.jsonl_indexmap_257280mns_1022msl_0.00ssp_1234s.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-3_val.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-1_val.jsonl.idx.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-2_train.jsonl_site-2_train.jsonl_indexmap_257280mns_1022msl_0.00ssp_1234s.npy
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-4_train.jsonl.idx.info
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-4_val.jsonl.idx.info
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-2_train.jsonl.idx.info
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-1_val.jsonl.idx.info
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-1_train.jsonl.idx.info
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-3_val.jsonl.idx.info
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-2_val.jsonl.idx.info
+/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/4_split/site-3_train.jsonl.idx.info
+2023-09-26 21:15:31,933 - SimulatorRunner - INFO - When running with multi GPU, each GPU group will run with only 1 thread. Set the Threads to 1.
+2023-09-26 21:15:31,934 - SimulatorRunner - INFO - Create the Simulator Server.
+2023-09-26 21:15:31,952 - CoreCell - INFO - server: creating listener on tcp://0:55101
+2023-09-26 21:15:32,019 - CoreCell - INFO - server: created backbone external listener for tcp://0:55101
+2023-09-26 21:15:32,020 - ConnectorManager - INFO - 10993: Try start_listener Listener resources: {'secure': False, 'host': 'localhost'}
+2023-09-26 21:15:32,029 - nvflare.fuel.f3.sfm.conn_manager - INFO - Connector [CH00002 PASSIVE tcp://0:10689] is starting
+2023-09-26 21:15:32,531 - CoreCell - INFO - server: created backbone internal listener for tcp://localhost:10689
+2023-09-26 21:15:32,531 - nvflare.fuel.f3.sfm.conn_manager - INFO - Connector [CH00001 PASSIVE tcp://0:55101] is starting
+2023-09-26 21:15:32,757 - nvflare.fuel.hci.server.hci - INFO - Starting Admin Server localhost on Port 56285
+2023-09-26 21:15:32,757 - SimulatorRunner - INFO - Deploy the Apps.
+2023-09-26 21:15:32,794 - SimulatorRunner - INFO - Create the simulate clients.
+2023-09-26 21:15:32,863 - ClientManager - INFO - Client: New client site-1@100.96.127.7 joined. Sent token: 4eeec6c0-9881-4b7d-a093-de12f844134b.  Total clients: 1
+2023-09-26 21:15:32,864 - FederatedClient - INFO - Successfully registered client:site-1 for project simulator_server. Token:4eeec6c0-9881-4b7d-a093-de12f844134b SSID:
+2023-09-26 21:15:32,923 - ClientManager - INFO - Client: New client site-2@100.96.127.7 joined. Sent token: 953dc9ff-9490-4375-8c0b-26a2151db19d.  Total clients: 2
+2023-09-26 21:15:32,924 - FederatedClient - INFO - Successfully registered client:site-2 for project simulator_server. Token:953dc9ff-9490-4375-8c0b-26a2151db19d SSID:
+2023-09-26 21:15:32,982 - ClientManager - INFO - Client: New client site-3@100.96.127.7 joined. Sent token: aa7147de-21fc-49c5-95ee-678731d8fcff.  Total clients: 3
+2023-09-26 21:15:32,983 - FederatedClient - INFO - Successfully registered client:site-3 for project simulator_server. Token:aa7147de-21fc-49c5-95ee-678731d8fcff SSID:
+2023-09-26 21:15:33,042 - ClientManager - INFO - Client: New client site-4@100.96.127.7 joined. Sent token: d95b6f61-37cd-4e63-afb5-c09c67140178.  Total clients: 4
+2023-09-26 21:15:33,043 - FederatedClient - INFO - Successfully registered client:site-4 for project simulator_server. Token:d95b6f61-37cd-4e63-afb5-c09c67140178 SSID:
+2023-09-26 21:15:33,044 - SimulatorRunner - INFO - Set the client status ready.
+2023-09-26 21:15:33,044 - SimulatorRunner - INFO - Deploy and start the Server App.
+2023-09-26 21:15:33,117 - Cell - INFO - Register blob CB for channel='server_command', topic='*'
+2023-09-26 21:15:33,118 - Cell - INFO - Register blob CB for channel='aux_communication', topic='*'
+2023-09-26 21:15:33,118 - ServerCommandAgent - INFO - ServerCommandAgent cell register_request_cb: server.simulate_job
+2023-09-26 21:15:41,200 - numexpr.utils - INFO - Note: detected 80 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2023-09-26 21:15:41,200 - numexpr.utils - INFO - Note: NumExpr detected 80 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2023-09-26 21:15:41,201 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py:20: UserWarning: Pandas requires version '2.7.3' or newer of 'numexpr' (version '2.7.2' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+2023-09-26 21:15:44,468 - matplotlib.font_manager - INFO - generated new fontManager
+NEMO version 1.21.0rc0
+NEMO version 1.21.0rc0
+2023-09-26 21:16:01,514 - IntimeModelSelector - INFO - model selection weights control: None
+2023-09-26 21:16:01,519 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job]: Server runner starting ...
+2023-09-26 21:16:01,747 - SimulatorClientRunner - INFO - Start the clients run simulation.
+2023-09-26 21:16:01,748 - SimulatorClientRunner - INFO - Start the clients run simulation.
+2023-09-26 21:16:01,749 - SimulatorClientRunner - INFO - Start the clients run simulation.
+2023-09-26 21:16:01,750 - SimulatorClientRunner - INFO - Start the clients run simulation.
+2023-09-26 21:16:02,715 - pytorch_lightning.utilities.rank_zero - INFO - GPU available: True (cuda), used: False
+2023-09-26 21:16:02,716 - pytorch_lightning.utilities.rank_zero - INFO - TPU available: False, using: 0 TPU cores
+2023-09-26 21:16:02,717 - pytorch_lightning.utilities.rank_zero - INFO - IPU available: False, using: 0 IPUs
+2023-09-26 21:16:02,717 - pytorch_lightning.utilities.rank_zero - INFO - HPU available: False, using: 0 HPUs
+[NeMo W 2023-09-26 21:16:02 nemo_logging:349] /usr/local/lib/python3.10/dist-packages/pytorch_lightning/trainer/setup.py:176: PossibleUserWarning: GPU available but not used. Set `accelerator` and `devices` using `Trainer(accelerator='gpu', devices=4)`.
+      rank_zero_warn(
+    
+2023-09-26 21:16:02,752 - SimulatorClientRunner - INFO - Simulate Run client: site-1 on GPU group: 0
+2023-09-26 21:16:02,755 - SimulatorClientRunner - INFO - Simulate Run client: site-2 on GPU group: 1
+2023-09-26 21:16:02,755 - SimulatorClientRunner - INFO - Simulate Run client: site-3 on GPU group: 2
+2023-09-26 21:16:02,784 - SimulatorClientRunner - INFO - Simulate Run client: site-4 on GPU group: 3
+2023-09-26 21:16:04,830 - ClientTaskWorker - INFO - ClientTaskWorker started to run
+2023-09-26 21:16:04,896 - ClientTaskWorker - INFO - ClientTaskWorker started to run
+2023-09-26 21:16:04,897 - ClientTaskWorker - INFO - ClientTaskWorker started to run
+2023-09-26 21:16:04,898 - CoreCell - INFO - site-1.simulate_job: created backbone external connector to tcp://localhost:55101
+2023-09-26 21:16:04,898 - nvflare.fuel.f3.sfm.conn_manager - INFO - Connector [CH00001 ACTIVE tcp://localhost:55101] is starting
+2023-09-26 21:16:04,922 - ClientTaskWorker - INFO - ClientTaskWorker started to run
+2023-09-26 21:16:04,962 - CoreCell - INFO - site-2.simulate_job: created backbone external connector to tcp://localhost:55101
+2023-09-26 21:16:04,962 - CoreCell - INFO - site-3.simulate_job: created backbone external connector to tcp://localhost:55101
+2023-09-26 21:16:04,962 - nvflare.fuel.f3.sfm.conn_manager - INFO - Connector [CH00001 ACTIVE tcp://localhost:55101] is starting
+2023-09-26 21:16:04,963 - nvflare.fuel.f3.sfm.conn_manager - INFO - Connector [CH00001 ACTIVE tcp://localhost:55101] is starting
+2023-09-26 21:16:04,988 - CoreCell - INFO - site-4.simulate_job: created backbone external connector to tcp://localhost:55101
+2023-09-26 21:16:04,989 - nvflare.fuel.f3.sfm.conn_manager - INFO - Connector [CH00001 ACTIVE tcp://localhost:55101] is starting
+2023-09-26 21:16:13,462 - numexpr.utils - INFO - Note: detected 80 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2023-09-26 21:16:13,462 - numexpr.utils - INFO - Note: NumExpr detected 80 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2023-09-26 21:16:13,463 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py:20: UserWarning: Pandas requires version '2.7.3' or newer of 'numexpr' (version '2.7.2' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+2023-09-26 21:16:13,468 - numexpr.utils - INFO - Note: detected 80 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2023-09-26 21:16:13,468 - numexpr.utils - INFO - Note: NumExpr detected 80 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2023-09-26 21:16:13,469 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py:20: UserWarning: Pandas requires version '2.7.3' or newer of 'numexpr' (version '2.7.2' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+2023-09-26 21:16:13,553 - numexpr.utils - INFO - Note: detected 80 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2023-09-26 21:16:13,554 - numexpr.utils - INFO - Note: NumExpr detected 80 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2023-09-26 21:16:13,554 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py:20: UserWarning: Pandas requires version '2.7.3' or newer of 'numexpr' (version '2.7.2' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+2023-09-26 21:16:13,701 - numexpr.utils - INFO - Note: detected 80 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2023-09-26 21:16:13,701 - numexpr.utils - INFO - Note: NumExpr detected 80 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2023-09-26 21:16:13,701 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py:20: UserWarning: Pandas requires version '2.7.3' or newer of 'numexpr' (version '2.7.2' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+NEMO version 1.21.0rc0
+NEMO version 1.21.0rc0
+2023-09-26 21:16:32,161 - Cell - INFO - Register blob CB for channel='aux_communication', topic='*'
+NEMO version 1.21.0rc0
+NEMO version 1.21.0rc0
+2023-09-26 21:16:32,217 - Cell - INFO - Register blob CB for channel='aux_communication', topic='*'
+NEMO version 1.21.0rc0
+NEMO version 1.21.0rc0
+2023-09-26 21:16:32,500 - Cell - INFO - Register blob CB for channel='aux_communication', topic='*'
+2023-09-26 21:16:32,700 - Cell - INFO - broadcast: channel='aux_communication', topic='__sync_runner__', targets=['server.simulate_job'], timeout=2.0
+2023-09-26 21:16:32,710 - ClientRunner - INFO - [identity=site-2, run=simulate_job]: synced to Server Runner in 0.5100531578063965 seconds
+2023-09-26 21:16:32,710 - ClientRunner - INFO - [identity=site-2, run=simulate_job]: client runner started
+2023-09-26 21:16:32,711 - ClientTaskWorker - INFO - Initialize ClientRunner for client: site-2
+2023-09-26 21:16:32,729 - Cell - INFO - broadcast: channel='aux_communication', topic='__sync_runner__', targets=['server.simulate_job'], timeout=2.0
+2023-09-26 21:16:32,736 - ClientRunner - INFO - [identity=site-4, run=simulate_job]: synced to Server Runner in 0.5077881813049316 seconds
+2023-09-26 21:16:32,737 - ClientRunner - INFO - [identity=site-4, run=simulate_job]: client runner started
+2023-09-26 21:16:32,737 - ClientTaskWorker - INFO - Initialize ClientRunner for client: site-4
+NEMO version 1.21.0rc0
+NEMO version 1.21.0rc0
+2023-09-26 21:16:32,762 - Cell - INFO - Register blob CB for channel='aux_communication', topic='*'
+2023-09-26 21:16:33,011 - Cell - INFO - broadcast: channel='aux_communication', topic='__sync_runner__', targets=['server.simulate_job'], timeout=2.0
+2023-09-26 21:16:33,018 - ClientRunner - INFO - [identity=site-3, run=simulate_job]: synced to Server Runner in 0.5084528923034668 seconds
+2023-09-26 21:16:33,019 - ClientRunner - INFO - [identity=site-3, run=simulate_job]: client runner started
+2023-09-26 21:16:33,019 - ClientTaskWorker - INFO - Initialize ClientRunner for client: site-3
+2023-09-26 21:16:33,273 - Cell - INFO - broadcast: channel='aux_communication', topic='__sync_runner__', targets=['server.simulate_job'], timeout=2.0
+2023-09-26 21:16:33,281 - ClientRunner - INFO - [identity=site-1, run=simulate_job]: synced to Server Runner in 0.508357048034668 seconds
+2023-09-26 21:16:33,282 - ClientRunner - INFO - [identity=site-1, run=simulate_job]: client runner started
+2023-09-26 21:16:33,282 - ClientTaskWorker - INFO - Initialize ClientRunner for client: site-1
+2023-09-26 21:17:19,861 - ServerSFTModel - ERROR - [identity=simulator_server, run=simulate_job]: Exception when handling event "_start_run": AttributeError: 'PrecisionPlugin' object has no attribute 'scaler'
+2023-09-26 21:17:19,902 - ServerSFTModel - ERROR - Traceback (most recent call last):
+  File "/workspace/Code/nvflare/nemo_peft_ner/nvflare/private/event.py", line 61, in fire_event
+    h.handle_event(event, ctx)
+  File "/workspace/Code/nvflare/nemo_peft_ner/integration/nemo/nemo_nvflare/server_sft_model.py", line 132, in handle_event
+    self._initialize(fl_ctx)
+  File "/workspace/Code/nvflare/nemo_peft_ner/integration/nemo/nemo_nvflare/server_sft_model.py", line 124, in _initialize
+    self.model = load_from_nemo(MegatronGPTSFTModel, self.config, trainer, gpt_cfg, modify_config_fn=_modify_config)
+  File "/workspace/Code/nvflare/nemo_peft_ner/integration/nemo/nemo_nvflare/server_sft_model.py", line 75, in load_from_nemo
+    model = cls.restore_from(
+  File "/workspace/Code/NeMo/upstream/nemo/core/classes/modelPT.py", line 449, in restore_from
+    instance = cls._save_restore_connector.restore_from(
+  File "/workspace/Code/NeMo/upstream/nemo/collections/nlp/parts/nlp_overrides.py", line 576, in restore_from
+    loaded_params = super().load_config_and_state_dict(
+  File "/workspace/Code/NeMo/upstream/nemo/core/connectors/save_restore_connector.py", line 164, in load_config_and_state_dict
+    instance = calling_cls.from_config_dict(config=conf, trainer=trainer)
+  File "/workspace/Code/NeMo/upstream/nemo/core/classes/common.py", line 507, in from_config_dict
+    raise e
+  File "/workspace/Code/NeMo/upstream/nemo/core/classes/common.py", line 499, in from_config_dict
+    instance = cls(cfg=config, trainer=trainer)
+  File "/workspace/Code/NeMo/upstream/nemo/collections/nlp/models/language_modeling/megatron_gpt_sft_model.py", line 81, in __init__
+    super().__init__(cfg, trainer=trainer)
+  File "/workspace/Code/NeMo/upstream/nemo/collections/nlp/models/language_modeling/megatron_gpt_model.py", line 212, in __init__
+    super().__init__(cfg, trainer=trainer, no_lm_init=True)
+  File "/workspace/Code/NeMo/upstream/nemo/collections/nlp/models/language_modeling/megatron_base_model.py", line 107, in __init__
+    self.model_parallel_config: ModelParallelConfig = self.build_model_parallel_config()
+  File "/workspace/Code/NeMo/upstream/nemo/collections/nlp/models/language_modeling/megatron_base_model.py", line 774, in build_model_parallel_config
+    "grad_scale_func": self.trainer.precision_plugin.scaler.scale
+AttributeError: 'PrecisionPlugin' object has no attribute 'scaler'
+
+2023-09-26 21:17:19,903 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job]: starting workflow share_config (<class 'nemo_nvflare.share_config_sft.ShareConfigSFT'>) ...
+2023-09-26 21:17:19,904 - ShareConfigSFT - INFO - [identity=simulator_server, run=simulate_job, wf=share_config]: Initializing BroadcastAndProcess.
+2023-09-26 21:17:19,905 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config]: Workflow share_config (<class 'nemo_nvflare.share_config_sft.ShareConfigSFT'>) started
+2023-09-26 21:17:19,950 - ConfigSharerSFT - INFO - [identity=simulator_server, run=simulate_job, wf=share_config]: Load model configuration from /workspace/Code/nvflare/nemo_peft_ner/integration/nemo/examples/supervised_fine_tuning_ner/../peft_ner/results/F1/peft_sft_fedavg_345M_4clients_f1fg_1/simulate_job/app_server/config/megatron_gpt_sft.yaml
+2023-09-26 21:17:19,952 - ShareConfigSFT - INFO - [identity=simulator_server, run=simulate_job, wf=share_config]: scheduled task share_config
+2023-09-26 21:17:21,282 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-2, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: assigned task to client site-2: name=share_config, id=efb85999-c271-4c39-923f-e761ac452fe6
+2023-09-26 21:17:21,283 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-2, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: sent task assignment to client. client_name:site-2 task_id:efb85999-c271-4c39-923f-e761ac452fe6
+2023-09-26 21:17:21,284 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-4, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: assigned task to client site-4: name=share_config, id=9d55e60a-7b4b-423f-b482-47127894ff43
+2023-09-26 21:17:21,284 - GetTaskCommand - INFO - return task to client.  client_name: site-2  task_name: share_config   task_id: efb85999-c271-4c39-923f-e761ac452fe6  sharable_header_task_id: efb85999-c271-4c39-923f-e761ac452fe6
+2023-09-26 21:17:21,285 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-4, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: sent task assignment to client. client_name:site-4 task_id:9d55e60a-7b4b-423f-b482-47127894ff43
+2023-09-26 21:17:21,286 - GetTaskCommand - INFO - return task to client.  client_name: site-4  task_name: share_config   task_id: 9d55e60a-7b4b-423f-b482-47127894ff43  sharable_header_task_id: 9d55e60a-7b4b-423f-b482-47127894ff43
+2023-09-26 21:17:21,287 - Communicator - INFO - Received from simulator_server server  (2 Bytes). getTask: share_config time: 0.008202552795410156 seconds
+2023-09-26 21:17:21,288 - FederatedClient - INFO - pull_task completed. Task name:share_config Status:True 
+2023-09-26 21:17:21,288 - Communicator - INFO - Received from simulator_server server  (2 Bytes). getTask: share_config time: 0.009226322174072266 seconds
+2023-09-26 21:17:21,289 - ClientRunner - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: got task assignment: name=share_config, id=efb85999-c271-4c39-923f-e761ac452fe6
+2023-09-26 21:17:21,289 - ClientRunner - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: invoking task executor NemoLearnerExecutor
+2023-09-26 21:17:21,290 - FederatedClient - INFO - pull_task completed. Task name:share_config Status:True 
+2023-09-26 21:17:21,290 - SFTLearner - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: Initializing the Learner...
+2023-09-26 21:17:21,290 - ClientRunner - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: got task assignment: name=share_config, id=9d55e60a-7b4b-423f-b482-47127894ff43
+2023-09-26 21:17:21,290 - SFTLearner - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: Running with distributed environment: LOCAL_RANK: 0, RANK: 0, WORLD_SIZE 1, MASTER_ADDR: localhost, and MASTER_PORT: 46621
+2023-09-26 21:17:21,290 - NemoLearnerExecutor - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: Client trainer got task: share_config
+2023-09-26 21:17:21,291 - ClientRunner - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: invoking task executor NemoLearnerExecutor
+2023-09-26 21:17:21,291 - SFTLearner - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: Initializing the Learner...
+2023-09-26 21:17:21,291 - SFTLearner - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: Running with distributed environment: LOCAL_RANK: 0, RANK: 0, WORLD_SIZE 1, MASTER_ADDR: localhost, and MASTER_PORT: 59591
+2023-09-26 21:17:21,292 - NemoLearnerExecutor - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: Client trainer got task: share_config
+2023-09-26 21:17:21,322 - NemoLearnerExecutor - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: Received config with 1 entries from server.
+2023-09-26 21:17:21,323 - ClientRunner - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: finished processing task
+2023-09-26 21:17:21,323 - NemoLearnerExecutor - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: Received config with 1 entries from server.
+2023-09-26 21:17:21,324 - ClientRunner - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: finished processing task
+2023-09-26 21:17:21,326 - FederatedClient - INFO - Starting to push execute result.
+2023-09-26 21:17:21,326 - FederatedClient - INFO - Starting to push execute result.
+2023-09-26 21:17:21,329 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-2, peer_run=simulate_job]: got result from client site-2 for task: name=share_config, id=efb85999-c271-4c39-923f-e761ac452fe6
+2023-09-26 21:17:21,329 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-4, peer_run=simulate_job]: got result from client site-4 for task: name=share_config, id=9d55e60a-7b4b-423f-b482-47127894ff43
+2023-09-26 21:17:21,330 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-2, peer_run=simulate_job, peer_rc=OK, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: finished processing client result by share_config
+2023-09-26 21:17:21,331 - SubmitUpdateCommand - INFO - submit_update process. client_name:site-2   task_id:efb85999-c271-4c39-923f-e761ac452fe6
+2023-09-26 21:17:21,332 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-4, peer_run=simulate_job, peer_rc=OK, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: finished processing client result by share_config
+2023-09-26 21:17:21,333 - SubmitUpdateCommand - INFO - submit_update process. client_name:site-4   task_id:9d55e60a-7b4b-423f-b482-47127894ff43
+2023-09-26 21:17:21,333 - Communicator - INFO -  SubmitUpdate size: 522 Bytes. time: 0.007303476333618164 seconds
+2023-09-26 21:17:21,335 - ClientRunner - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=efb85999-c271-4c39-923f-e761ac452fe6]: result sent to server for task: name=share_config, id=efb85999-c271-4c39-923f-e761ac452fe6
+2023-09-26 21:17:21,335 - ClientTaskWorker - INFO - Finished one task run for client: site-2 interval: 2 task_processed: True
+2023-09-26 21:17:21,335 - Communicator - INFO -  SubmitUpdate size: 522 Bytes. time: 0.008612632751464844 seconds
+2023-09-26 21:17:21,336 - ClientRunner - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=9d55e60a-7b4b-423f-b482-47127894ff43]: result sent to server for task: name=share_config, id=9d55e60a-7b4b-423f-b482-47127894ff43
+2023-09-26 21:17:21,337 - ClientTaskWorker - INFO - Finished one task run for client: site-4 interval: 2 task_processed: True
+2023-09-26 21:17:21,542 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-3, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: assigned task to client site-3: name=share_config, id=b1f15837-59e0-48aa-91cf-78ef76281c3a
+2023-09-26 21:17:21,543 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-3, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: sent task assignment to client. client_name:site-3 task_id:b1f15837-59e0-48aa-91cf-78ef76281c3a
+2023-09-26 21:17:21,543 - GetTaskCommand - INFO - return task to client.  client_name: site-3  task_name: share_config   task_id: b1f15837-59e0-48aa-91cf-78ef76281c3a  sharable_header_task_id: b1f15837-59e0-48aa-91cf-78ef76281c3a
+2023-09-26 21:17:21,545 - Communicator - INFO - Received from simulator_server server  (2 Bytes). getTask: share_config time: 0.005567789077758789 seconds
+2023-09-26 21:17:21,547 - FederatedClient - INFO - pull_task completed. Task name:share_config Status:True 
+2023-09-26 21:17:21,547 - ClientRunner - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: got task assignment: name=share_config, id=b1f15837-59e0-48aa-91cf-78ef76281c3a
+2023-09-26 21:17:21,548 - ClientRunner - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: invoking task executor NemoLearnerExecutor
+2023-09-26 21:17:21,548 - SFTLearner - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: Initializing the Learner...
+2023-09-26 21:17:21,549 - SFTLearner - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: Running with distributed environment: LOCAL_RANK: 0, RANK: 0, WORLD_SIZE 1, MASTER_ADDR: localhost, and MASTER_PORT: 51253
+2023-09-26 21:17:21,549 - NemoLearnerExecutor - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: Client trainer got task: share_config
+2023-09-26 21:17:21,583 - NemoLearnerExecutor - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: Received config with 1 entries from server.
+2023-09-26 21:17:21,583 - ClientRunner - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: finished processing task
+2023-09-26 21:17:21,586 - FederatedClient - INFO - Starting to push execute result.
+2023-09-26 21:17:21,590 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-3, peer_run=simulate_job]: got result from client site-3 for task: name=share_config, id=b1f15837-59e0-48aa-91cf-78ef76281c3a
+2023-09-26 21:17:21,591 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-3, peer_run=simulate_job, peer_rc=OK, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: finished processing client result by share_config
+2023-09-26 21:17:21,591 - SubmitUpdateCommand - INFO - submit_update process. client_name:site-3   task_id:b1f15837-59e0-48aa-91cf-78ef76281c3a
+2023-09-26 21:17:21,592 - Communicator - INFO -  SubmitUpdate size: 522 Bytes. time: 0.005751609802246094 seconds
+2023-09-26 21:17:21,593 - ClientRunner - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=b1f15837-59e0-48aa-91cf-78ef76281c3a]: result sent to server for task: name=share_config, id=b1f15837-59e0-48aa-91cf-78ef76281c3a
+2023-09-26 21:17:21,594 - ClientTaskWorker - INFO - Finished one task run for client: site-3 interval: 2 task_processed: True
+2023-09-26 21:17:21,801 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-1, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: assigned task to client site-1: name=share_config, id=bd597f68-c6df-4572-861a-41e6ad2fd7f5
+2023-09-26 21:17:21,802 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-1, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: sent task assignment to client. client_name:site-1 task_id:bd597f68-c6df-4572-861a-41e6ad2fd7f5
+2023-09-26 21:17:21,803 - GetTaskCommand - INFO - return task to client.  client_name: site-1  task_name: share_config   task_id: bd597f68-c6df-4572-861a-41e6ad2fd7f5  sharable_header_task_id: bd597f68-c6df-4572-861a-41e6ad2fd7f5
+2023-09-26 21:17:21,805 - Communicator - INFO - Received from simulator_server server  (2 Bytes). getTask: share_config time: 0.0058269500732421875 seconds
+2023-09-26 21:17:21,806 - FederatedClient - INFO - pull_task completed. Task name:share_config Status:True 
+2023-09-26 21:17:21,807 - ClientRunner - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: got task assignment: name=share_config, id=bd597f68-c6df-4572-861a-41e6ad2fd7f5
+2023-09-26 21:17:21,807 - ClientRunner - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: invoking task executor NemoLearnerExecutor
+2023-09-26 21:17:21,808 - SFTLearner - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: Initializing the Learner...
+2023-09-26 21:17:21,808 - SFTLearner - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: Running with distributed environment: LOCAL_RANK: 0, RANK: 0, WORLD_SIZE 1, MASTER_ADDR: localhost, and MASTER_PORT: 43273
+2023-09-26 21:17:21,809 - NemoLearnerExecutor - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: Client trainer got task: share_config
+2023-09-26 21:17:21,842 - NemoLearnerExecutor - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: Received config with 1 entries from server.
+2023-09-26 21:17:21,842 - ClientRunner - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: finished processing task
+2023-09-26 21:17:21,846 - FederatedClient - INFO - Starting to push execute result.
+2023-09-26 21:17:21,848 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-1, peer_run=simulate_job]: got result from client site-1 for task: name=share_config, id=bd597f68-c6df-4572-861a-41e6ad2fd7f5
+2023-09-26 21:17:21,849 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config, peer=site-1, peer_run=simulate_job, peer_rc=OK, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: finished processing client result by share_config
+2023-09-26 21:17:21,849 - SubmitUpdateCommand - INFO - submit_update process. client_name:site-1   task_id:bd597f68-c6df-4572-861a-41e6ad2fd7f5
+2023-09-26 21:17:21,851 - Communicator - INFO -  SubmitUpdate size: 522 Bytes. time: 0.004913330078125 seconds
+2023-09-26 21:17:21,852 - ClientRunner - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job, task_name=share_config, task_id=bd597f68-c6df-4572-861a-41e6ad2fd7f5]: result sent to server for task: name=share_config, id=bd597f68-c6df-4572-861a-41e6ad2fd7f5
+2023-09-26 21:17:21,853 - ClientTaskWorker - INFO - Finished one task run for client: site-1 interval: 2 task_processed: True
+2023-09-26 21:17:21,909 - ShareConfigSFT - INFO - [identity=simulator_server, run=simulate_job, wf=share_config]: task share_config exit with status TaskCompletionStatus.OK
+2023-09-26 21:17:21,955 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config]: Workflow: share_config finalizing ...
+2023-09-26 21:17:22,110 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=share_config]: starting workflow scatter_and_gather (<class 'nvflare.app_common.workflows.scatter_and_gather.ScatterAndGather'>) ...
+2023-09-26 21:17:22,111 - ScatterAndGather - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Initializing ScatterAndGather workflow.
+2023-09-26 21:17:22,111 - PTFileModelPersistor - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Both source_ckpt_file_full_name and ckpt_preload_path are not provided. Using the default model weights initialized on the persistor side.
+2023-09-26 21:17:22,111 - PTFileModelPersistor - ERROR - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: error getting state_dict from model object
+2023-09-26 21:17:22,118 - PTFileModelPersistor - ERROR - Traceback (most recent call last):
+  File "/workspace/Code/nvflare/nemo_peft_ner/nvflare/app_opt/pt/file_model_persistor.py", line 213, in load_model
+    data = self.model.state_dict() if self.model is not None else OrderedDict()
+  File "/workspace/Code/nvflare/nemo_peft_ner/integration/nemo/nemo_nvflare/server_sft_model.py", line 128, in state_dict
+    return self.model.state_dict()
+  File "/usr/local/lib/python3.10/dist-packages/torch/nn/modules/module.py", line 1640, in __getattr__
+    raise AttributeError("'{}' object has no attribute '{}'".format(
+AttributeError: 'ServerSFTModel' object has no attribute 'model'
+
+2023-09-26 21:17:22,118 - ServerRunner - ERROR - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Aborting current RUN due to FATAL_SYSTEM_ERROR received: cannot create state_dict from model object
+2023-09-26 21:17:22,119 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: asked to abort - triggered abort_signal to stop the RUN
+2023-09-26 21:17:22,119 - ServerRunner - ERROR - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Aborting current RUN due to FATAL_SYSTEM_ERROR received: Expected global weights to be of type `ModelLearnable` but received <class 'NoneType'>
+2023-09-26 21:17:22,120 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: asked to abort - triggered abort_signal to stop the RUN
+2023-09-26 21:17:22,120 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Workflow scatter_and_gather (<class 'nvflare.app_common.workflows.scatter_and_gather.ScatterAndGather'>) started
+2023-09-26 21:17:22,121 - ScatterAndGather - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Beginning ScatterAndGather training phase.
+2023-09-26 21:17:22,121 - ScatterAndGather - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Abort signal received. Exiting at round 0.
+2023-09-26 21:17:22,122 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Workflow: scatter_and_gather finalizing ...
+2023-09-26 21:17:22,622 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: ABOUT_TO_END_RUN fired
+2023-09-26 21:17:22,622 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: END_RUN fired
+2023-09-26 21:17:22,622 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: Server runner finished.
+2023-09-26 21:17:23,342 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather, peer=site-2, peer_run=simulate_job]: server runner is finalizing - asked client to end the run
+2023-09-26 21:17:23,343 - GetTaskCommand - INFO - return task to client.  client_name: site-2  task_name: __end_run__   task_id:   sharable_header_task_id: 
+2023-09-26 21:17:23,345 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather, peer=site-4, peer_run=simulate_job]: server runner is finalizing - asked client to end the run
+2023-09-26 21:17:23,345 - GetTaskCommand - INFO - return task to client.  client_name: site-4  task_name: __end_run__   task_id:   sharable_header_task_id: 
+2023-09-26 21:17:23,346 - FederatedClient - INFO - pull_task completed. Task name:__end_run__ Status:True 
+2023-09-26 21:17:23,346 - ClientRunner - INFO - [identity=site-2, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: server asked to end the run
+2023-09-26 21:17:23,347 - ClientTaskWorker - INFO - End the Simulator run.
+2023-09-26 21:17:23,347 - ClientTaskWorker - INFO - Clean up ClientRunner for : site-2 
+2023-09-26 21:17:23,348 - FederatedClient - INFO - pull_task completed. Task name:__end_run__ Status:True 
+2023-09-26 21:17:23,349 - ClientRunner - INFO - [identity=site-4, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: server asked to end the run
+2023-09-26 21:17:23,349 - FederatedClient - INFO - Shutting down client run: site-2
+2023-09-26 21:17:23,349 - ClientTaskWorker - INFO - End the Simulator run.
+2023-09-26 21:17:23,350 - ClientTaskWorker - INFO - Clean up ClientRunner for : site-4 
+2023-09-26 21:17:23,351 - FederatedClient - INFO - Shutting down client run: site-4
+2023-09-26 21:17:23,601 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather, peer=site-3, peer_run=simulate_job]: server runner is finalizing - asked client to end the run
+2023-09-26 21:17:23,601 - GetTaskCommand - INFO - return task to client.  client_name: site-3  task_name: __end_run__   task_id:   sharable_header_task_id: 
+2023-09-26 21:17:23,604 - FederatedClient - INFO - pull_task completed. Task name:__end_run__ Status:True 
+2023-09-26 21:17:23,604 - ClientRunner - INFO - [identity=site-3, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: server asked to end the run
+2023-09-26 21:17:23,604 - ClientTaskWorker - INFO - End the Simulator run.
+2023-09-26 21:17:23,605 - ClientTaskWorker - INFO - Clean up ClientRunner for : site-3 
+2023-09-26 21:17:23,605 - FederatedClient - INFO - Shutting down client run: site-3
+2023-09-26 21:17:23,862 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather, peer=site-1, peer_run=simulate_job]: server runner is finalizing - asked client to end the run
+2023-09-26 21:17:23,863 - GetTaskCommand - INFO - return task to client.  client_name: site-1  task_name: __end_run__   task_id:   sharable_header_task_id: 
+2023-09-26 21:17:23,866 - FederatedClient - INFO - pull_task completed. Task name:__end_run__ Status:True 
+2023-09-26 21:17:23,867 - ClientRunner - INFO - [identity=site-1, run=simulate_job, peer=simulator_server, peer_run=simulate_job]: server asked to end the run
+2023-09-26 21:17:23,867 - ClientTaskWorker - INFO - End the Simulator run.
+2023-09-26 21:17:23,867 - ClientTaskWorker - INFO - Clean up ClientRunner for : site-1 
+2023-09-26 21:17:23,868 - FederatedClient - INFO - Shutting down client run: site-1
+2023-09-26 21:17:23,868 - ServerRunner - INFO - [identity=simulator_server, run=simulate_job, wf=scatter_and_gather]: asked to abort - triggered abort_signal to stop the RUN
+2023-09-26 21:17:25,575 - SimulatorServer - INFO - Server app stopped.
+
+
+2023-09-26 21:17:25,705 - nvflare.fuel.hci.server.hci - INFO - Admin Server localhost on Port 56285 shutdown!
+2023-09-26 21:17:25,706 - SimulatorServer - INFO - shutting down server
+2023-09-26 21:17:25,706 - SimulatorServer - INFO - canceling sync locks
+2023-09-26 21:17:25,706 - SimulatorServer - INFO - server off
+2023-09-26 21:17:29,209 - MPM - INFO - MPM: Good Bye!
+Simulator finished with run_status 0
