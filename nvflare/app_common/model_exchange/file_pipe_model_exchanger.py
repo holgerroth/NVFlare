@@ -40,7 +40,7 @@ class FilePipeModelExchanger(ModelExchanger):
         Args:
             data_exchange_path (str): The path for data exchange. This is the location where the data
                 will be read from or written to.
-            supported_topics (list[str]): Supported topics for data exchange. This allows the sender and receiver to identify	
+            supported_topics (list[str]): Supported topics for data exchange. This allows the sender and receiver to identify
                 the purpose or content of the data being exchanged.
             file_accessor (Optional[FileAccessor]): The file accessor for reading and writing files.
                 If not provided, the default file accessor (FobsFileAccessor) will be used.

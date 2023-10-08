@@ -54,7 +54,7 @@ class ModelExchanger:
         """Initializes the ModelExchanger.
 
         Args:
-            supported_topics (list[str]): Supported topics for data exchange. This allows the sender and receiver to identify	
+            supported_topics (list[str]): Supported topics for data exchange. This allows the sender and receiver to identify
                 the purpose or content of the data being exchanged.
             pipe (Pipe): The pipe used for data exchange.
             pipe_name (str): Name of the pipe. Defaults to "pipe".
