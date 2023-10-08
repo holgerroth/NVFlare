@@ -56,7 +56,7 @@ class TestModelExchanger:
             _ = pipe_handler.send_to_peer(req)
 
             recv_pipe = FilePipe(Mode.PASSIVE, root_path=root_dir)
-            y_mdx = ModelExchanger(pipe=recv_pipe, pipe_name=test_pipe_name, topic=test_topic)
+            y_mdx = ModelExchanger(pipe=recv_pipe, pipe_name=test_pipe_name, supported_topics=[test_topic])
             result_model = y_mdx.receive_model()
 
             for k, v in result_model.params.items():
