@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import copy
+import json
 import os
 import shutil
 import tempfile
@@ -35,12 +36,12 @@ def get_data_file_name(config: dict):
     )
 
 
-def save_data_atomic(data: int, data_file_path: str):
+def write_data_to_file(current_round: int, data_file_path: str):
     temp_f = tempfile.NamedTemporaryFile(delete=False)
 
     try:
         with open(temp_f.name, "w") as f:
-            f.write(str(data))
+            f.write(json.dumps({"current_round": current_round}))
             f.flush()
             os.fsync(f.fileno())
 
@@ -50,16 +51,16 @@ def save_data_atomic(data: int, data_file_path: str):
         raise e
 
 
-def read_data(data_file_path: str, read_timeout: float = 300.0):
+def read_data_from_file(data_file_path: str, read_timeout: float = 300.0):
     start_time = time.time()
     while True:
         if os.path.exists(data_file_path):
             with open(data_file_path, "r") as f:
-                current_round = int(f.readlines()[0].strip())
-                return current_round
+                data = json.load(f)
+                return data["current_round"]
         if time.time() - start_time > read_timeout:
-            raise RuntimeError("Can't read data from rank 0.")
-        time.sleep(1.0)
+            raise RuntimeError("Can't read current_round from rank 0.")
+        time.sleep(0.5)
 
 
 class ModelRegistry:
@@ -85,19 +86,22 @@ class ModelRegistry:
         for k, v in self.config.config.items():
             if k in SYS_ATTRS:
                 self.sys_info[k] = v
-        self.output_meta = {}
         self.rank = rank
+        self.mode = self.config.get_mode()
 
     def receive(self):
         data_file_path = get_data_file_name(self.config.config)
         if not self.model_exchanger:
-            current_round = read_data(data_file_path)
-            self._set_model(FLModel(current_round=current_round))
+            current_round = read_data_from_file(data_file_path)
+            received_model = FLModel(current_round=current_round)
         else:
             received_model = self.model_exchanger.receive_model()
-            self._set_model(received_model)
-            # write out only the current_round for other ranks
-            save_data_atomic(received_model.current_round, data_file_path)
+            # write out the required data for other ranks
+            write_data_to_file(
+                current_round=received_model.current_round,
+                data_file_path=data_file_path,
+            )
+        self._set_model(received_model)
 
     def _set_model(self, model: FLModel):
         self.cached_model = model

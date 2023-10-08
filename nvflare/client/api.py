@@ -18,11 +18,12 @@ from typing import Dict, Optional, Union
 from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.app_common.model_exchange.constants import ModelExchangeFormat
 from nvflare.app_common.model_exchange.file_pipe_model_exchanger import FilePipeModelExchanger
+from nvflare.app_common.model_exchange.model_exchanger import DataExchangeException
 from nvflare.fuel.utils import fobs
 from nvflare.fuel.utils.import_utils import optional_import
 
 from .config import ClientConfig, ConfigKey, from_file
-from .constants import CONFIG_EXCHANGE
+from .constants import CONFIG_EXCHANGE, Mode
 from .model_registry import ModelRegistry
 from .utils import DIFF_FUNCS
 
@@ -59,12 +60,16 @@ def init(config: Union[str, Dict] = f"config/{CONFIG_EXCHANGE}", rank: Optional[
                 raise RuntimeError(f"Can't import TensorDecomposer for format: {ModelExchangeFormat.PYTORCH}")
 
         # TODO: make Pipe configurable
-        mdx = FilePipeModelExchanger(data_exchange_path=client_config.get_exchange_path())
+        mdx = FilePipeModelExchanger(
+            supported_topics=client_config.get_supported_topics(),
+            data_exchange_path=client_config.get_exchange_path(),
+            pipe_name=client_config.get_pipe_name(),
+        )
 
     PROCESS_MODEL_REGISTRY[pid] = ModelRegistry(client_config, rank, mdx)
 
 
-def _get_model_registry() -> Optional[ModelRegistry]:
+def _get_model_registry() -> ModelRegistry:
     pid = os.getpid()
     if pid not in PROCESS_MODEL_REGISTRY:
         raise RuntimeError("needs to call init method first")
@@ -142,18 +147,25 @@ def get_site_name() -> str:
 
 def receive_global_model():
     """Yields model received from NVFlare server."""
-    sys_info = system_info()
-    total_rounds = sys_info["total_rounds"]
-    is_last_round = False
-    launch_once = get_config().get("launch_once", True)
-
     while True:
-        input_model = receive()
-        current_round = input_model.current_round
-        yield input_model
-        is_last_round = current_round == total_rounds - 1
-        if launch_once and is_last_round:
+        try:
+            input_model = receive()
+            yield input_model
+            clear()
+        except DataExchangeException:
             break
-        elif not launch_once:
-            break
-        clear()
+
+
+def is_train() -> bool:
+    model_registry = _get_model_registry()
+    return model_registry.mode == Mode.TRAIN
+
+
+def is_evaluate() -> bool:
+    model_registry = _get_model_registry()
+    return model_registry.mode == Mode.EVALUATE
+
+
+def is_submit_model() -> bool:
+    model_registry = _get_model_registry()
+    return model_registry.mode == Mode.SUBMIT_MODEL

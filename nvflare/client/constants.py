@@ -17,3 +17,9 @@ from .config import ConfigKey
 SYS_ATTRS = (ConfigKey.JOB_ID, ConfigKey.SITE_NAME, ConfigKey.TOTAL_ROUNDS)
 CONST_ATTRS = (ConfigKey.TOTAL_ROUNDS,)
 CONFIG_EXCHANGE = "config_exchange.json"
+
+
+class Mode:
+    TRAIN = "train"
+    EVALUATE = "evaluate"
+    SUBMIT_MODEL = "submit_model"
