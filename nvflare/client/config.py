@@ -14,7 +14,7 @@
 
 import json
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from nvflare.app_common.model_exchange.constants import ModelExchangeFormat
 from nvflare.fuel.utils.config_factory import ConfigFactory
@@ -30,7 +30,10 @@ class ConfigKey:
     EXCHANGE_FORMAT = "exchange_format"
     TRANSFER_TYPE = "transfer_type"
     GLOBAL_EVAL = "global_eval"
-    TRAINING = "training"
+    TRAIN_WITH_EVAL = "train_with_eval"
+    MODE = "mode"
+    SUPPORTED_TOPICS = "supported_topics"
+    PIPE_NAME = "pipe_name"
     LAUNCH_ONCE = "launch_once"
     TOTAL_ROUNDS = "total_rounds"
     SITE_NAME = "site_name"
@@ -58,8 +61,17 @@ class ClientConfig:
     def get_config(self):
         return self.config
 
-    def get_exchange_path(self):
+    def get_exchange_path(self) -> str:
         return self.config[ConfigKey.EXCHANGE_PATH]
+
+    def get_mode(self) -> str:
+        return self.config[ConfigKey.MODE]
+
+    def get_supported_topics(self) -> List[str]:
+        return self.config[ConfigKey.SUPPORTED_TOPICS]
+
+    def get_pipe_name(self) -> str:
+        return self.config[ConfigKey.PIPE_NAME]
 
     def get_exchange_format(self) -> ModelExchangeFormat:
         return self.config[ConfigKey.EXCHANGE_FORMAT]
