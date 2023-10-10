@@ -49,6 +49,7 @@ from nemo.utils.model_utils import inject_model_parallel_rank
 
 # (0): import nvflare _lightning api
 import nvflare.client.lightning as flare
+from nemo_nvflare.callbacks import RestoreOptimizers
 
 mp.set_start_method("spawn", force=True)
 
@@ -216,7 +217,7 @@ def main(cfg) -> None:
     if cfg.get('cluster_type', None) == 'BCP':
         plugins.append(TorchElasticEnvironment())
 
-    trainer = Trainer(plugins=plugins, strategy=strategy, **cfg.trainer)
+    trainer = Trainer(plugins=plugins, strategy=strategy, callbacks=[RestoreOptimizers()], **cfg.trainer)
     exp_manager(trainer, cfg.exp_manager)
     # update resume from checkpoint found by exp_manager
     if cfg.model.resume_from_checkpoint is not None:

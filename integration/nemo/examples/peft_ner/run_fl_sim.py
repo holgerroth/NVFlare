@@ -1,22 +1,27 @@
 #!/usr/bin/python3
 
+import argparse
 import os
 import glob
 import subprocess
 from nvflare import SimulatorRunner
 
 n_clients=4
-peft_scheme="ptuning"
-peft_scheme="adapter"
-peft_scheme="lora"
-max_steps=2000
+max_steps=200
 val_check_interval=100
 num_rounds=50
 lr=5e-3
-job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_f1fg_5"
-
 
 data_root = f"/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/{n_clients}_split"
+
+# Parse arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--peft_scheme", type=str, help="PEFT scheme. Choose from 'ptuning', 'adapter', or 'lora'.")
+args = parser.parse_args()
+
+assert args.peft_scheme in ["ptuning", "adapter", "lora"], f"PEFT scheme {args.peft_scheme} not supported!"
+job_name=f"peft_{args.peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_f1fg_5"
+
 
 def clean_files(data_root, ext):
     files = glob.glob(os.path.join(data_root, "**", ext), recursive=True)
@@ -39,7 +44,7 @@ sp = subprocess.run(["python3", "create_configs.py", "--job_folder", f"jobs/{job
                     "--num_rounds", str(num_rounds),
                     "--root_dir", data_root,
                     "--lr", str(lr),
-                    "--peft_scheme", peft_scheme])
+                    "--peft_scheme", args.peft_scheme])
 if sp.returncode != 0:
     raise RuntimeError(f"Create_configs failed!")
 

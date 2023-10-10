@@ -128,6 +128,7 @@ class ClientAPILauncherExecutor(LauncherExecutor):
                 self._data_exchange_path = os.path.abspath(app_dir)
             elif not os.path.isabs(self._data_exchange_path):
                 raise RuntimeError("data exchange path needs to be absolute.")
+            self._data_exchange_path = os.path.join(self._data_exchange_path, fl_ctx.get_identity_name())
             pipe = FilePipe(mode=PipeMode.ACTIVE, root_path=self._data_exchange_path)
 
         flare_decomposers.register()
