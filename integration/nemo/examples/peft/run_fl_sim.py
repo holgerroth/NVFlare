@@ -18,7 +18,7 @@ data_root = "/workspace/Data/NLP"
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--peft_scheme", type=str, help="PEFT scheme. Choose from 'ptuning', 'adapter', or 'lora'.")
 args = parser.parse_args()
-job_name=f"peft_{args.peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_2"
+job_name=f"peft_{args.peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_3"
 
 assert args.peft_scheme in ["ptuning", "adapter", "lora"], f"PEFT scheme {args.peft_scheme} not supported!"
 
