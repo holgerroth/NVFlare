@@ -7,9 +7,9 @@ import subprocess
 from nvflare import SimulatorRunner
 
 n_clients=4
-max_steps=200
+max_steps=1000
 val_check_interval=100
-num_rounds=50
+num_rounds=100
 lr=5e-3
 
 data_root = f"/workspace/Data/NLP/NCBI-disease/NCBI-disease-20230831T023848Z-001/NCBI-disease/{n_clients}_split"

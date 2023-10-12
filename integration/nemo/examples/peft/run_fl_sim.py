@@ -1,18 +1,26 @@
 #!/usr/bin/python3
 
+import argparse
 import os
 import glob
 import subprocess
 from nvflare import SimulatorRunner
 
 n_clients=3
-peft_scheme="lora"
-max_steps=20
+max_steps=100
+val_check_interval=50
 num_rounds=100
 lr=1e-4
-job_name=f"peft_{peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients"
 
-data_root = "/tmp/data"
+data_root = "/workspace/Data/NLP"
+
+# Parse arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--peft_scheme", type=str, help="PEFT scheme. Choose from 'ptuning', 'adapter', or 'lora'.")
+args = parser.parse_args()
+job_name=f"peft_{args.peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_2"
+
+assert args.peft_scheme in ["ptuning", "adapter", "lora"], f"PEFT scheme {args.peft_scheme} not supported!"
 
 def clean_files(data_root, ext):
     files = glob.glob(os.path.join(data_root, "*", ext), recursive=True)
@@ -28,21 +36,21 @@ def clean_memmap(data_root):
 clean_memmap(data_root)
 
 # Create configurations
-try:
-    subprocess.run(["python3", "create_configs.py", "--job_folder", f"jobs/{job_name}", 
+sp = subprocess.run(["python3", "create_configs.py", "--job_folder", f"jobs/{job_name}", 
                     "--num_clients", str(n_clients), 
                     "--max_steps", str(max_steps), 
-                    "--val_check_interval", str(max_steps),
+                    "--val_check_interval", str(val_check_interval),
                     "--num_rounds", str(num_rounds),
+                    "--root_dir", data_root, 
                     "--lr", str(lr),
-                    "--peft_scheme", peft_scheme])
-except subprocess.CalledProcessError as e:
-    raise RuntimeError(f"Create_configs failed with {e.output}")
+                    "--peft_scheme", args.peft_scheme])
+if sp.returncode != 0:
+    raise RuntimeError(f"Create_configs failed!")
 
 # Start FL simulation
 simulator = SimulatorRunner(
     job_folder=f"jobs/{job_name}",
-    workspace=f"/tmp/nvflare/nemo/{job_name}",
+    workspace=f"./results/F1_launch_once/{job_name}",
     n_clients=n_clients,
     threads=n_clients,
     gpu="0,1,2"

@@ -214,8 +214,8 @@ model:
     sched:
       name: CosineAnnealing
       warmup_steps: 50
-      min_lr: 1e-6 # min_lr must be 0.0 for prompt learning when pipeline parallel > 1
-      constant_steps: 10000 # Constant steps should also be 0 when min_lr=0
+      min_lr: 1e-4 # min_lr must be 0.0 for prompt learning when pipeline parallel > 1
+      constant_steps: 100 # Constant steps should also be 0 when min_lr=0
       monitor: val_loss
       reduce_on_plateau: false
       max_steps: 100000

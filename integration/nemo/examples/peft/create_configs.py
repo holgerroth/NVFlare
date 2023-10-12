@@ -57,13 +57,13 @@ def main():
         "--val_ds_files",
         type=str,
         help="Validation files.",
-        default="data/FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
+        default="FinancialPhraseBank-v1.0/financial_phrase_bank_val.jsonl",
     )
     parser.add_argument(
         "--train_ds_files_prefix",
         type=str,
         help="Training files prefix.",
-        default="data/FinancialPhraseBank-v1.0_split/site-",
+        default="FinancialPhraseBank-v1.0_split/site-",
     )
     parser.add_argument(
         "--nemo_ckpt",
