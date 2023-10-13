@@ -15,8 +15,7 @@
           "from_nvflare_converter_id": "from_nvflare",
           "to_nvflare_converter_id": "to_nvflare",
           "train_with_evaluation": true,
-          "launch_once": true,
-          "data_exchange_path": "/tmp/nvflare_data_exchange_path"
+          "launch_once": true
         }
       }
     }

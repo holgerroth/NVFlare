@@ -34,7 +34,7 @@ exp_manager:
     model_parallel_size: ${model.tensor_model_parallel_size}
     always_save_nemo: False
     save_best_model: True
-  create_early_stopping_callback: True
+  create_early_stopping_callback: False
   early_stopping_callback_params:
     monitor: "val_loss"
     mode: "min"
@@ -210,7 +210,7 @@ model:
     sched:
       name: CosineAnnealing
       warmup_steps: 50
-      min_lr: 0.0 # min_lr must be 0.0 for prompt learning when pipeline parallel > 1
+      min_lr: 1e-5 # min_lr must be 0.0 for prompt learning when pipeline parallel > 1
       constant_steps: 0 # Constant steps should also be 0 when min_lr=0
       monitor: val_loss
       reduce_on_plateau: false

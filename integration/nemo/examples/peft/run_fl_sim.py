@@ -12,15 +12,17 @@ val_check_interval=50
 num_rounds=100
 lr=1e-4
 
-data_root = "/workspace/Data/NLP"
+data_root = "/home/hroth/Data/NLP"
 
 # Parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("-p", "--peft_scheme", type=str, help="PEFT scheme. Choose from 'ptuning', 'adapter', or 'lora'.")
-args = parser.parse_args()
-job_name=f"peft_{args.peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_3"
+parser.add_argument("-p", "--peft_scheme", type=str, help="PEFT scheme. Choose from 'ptuning', 'adapter', or 'lora'.", required=True)
+parser.add_argument("-g", "--gpu", type=str, help="gpus", required=True)
 
-assert args.peft_scheme in ["ptuning", "adapter", "lora"], f"PEFT scheme {args.peft_scheme} not supported!"
+args = parser.parse_args()
+job_name=f"peft_{args.peft_scheme}_fedavg_345M_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_a100_restoreoptim1"
+
+assert args.peft_scheme in ["ptuning", "adapter", "lora", "ia3"], f"PEFT scheme {args.peft_scheme} not supported!"
 
 def clean_files(data_root, ext):
     files = glob.glob(os.path.join(data_root, "*", ext), recursive=True)
@@ -53,7 +55,7 @@ simulator = SimulatorRunner(
     workspace=f"./results/F1_launch_once/{job_name}",
     n_clients=n_clients,
     threads=n_clients,
-    gpu="0,1,2"
+    gpu=args.gpu
 )
 run_status = simulator.run()
 print("Simulator finished with run_status", run_status)
