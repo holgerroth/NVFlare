@@ -8,8 +8,11 @@ from nvflare import SimulatorRunner
 
 n_clients=3
 peft_scheme="ptuning"
+peft_scheme="lora"
+peft_scheme="adapter"
+peft_scheme="ia3"
 max_steps=20
-num_rounds=100
+num_rounds=1000
 lr=1e-4
 nemo_ckpt="megatron_gpt_345m_tp2.nemo"
 devices=2
