@@ -113,7 +113,10 @@ def main():
         nemo_cfg = OmegaConf.load(nemo_cfg_file)
         nemo_cfg.model.restore_from_path = os.path.join(os.getcwd(), args.nemo_ckpt)
         assert os.path.isfile(nemo_cfg.model.restore_from_path), f"{nemo_cfg.model.restore_from_path} does not exist!"
-        nemo_cfg.model.data.train_ds.file_names = [os.path.join(args.root_dir, f"{args.train_ds_files_prefix}{i + 1}.jsonl"), ]
+        if args.train_ds_files_prefix.endswith(".jsonl"): # assume full filename is provided (used for central training)
+            nemo_cfg.model.data.train_ds.file_names = [os.path.join(args.root_dir, args.train_ds_files_prefix)]
+        else:
+            nemo_cfg.model.data.train_ds.file_names = [os.path.join(args.root_dir, f"{args.train_ds_files_prefix}{i + 1}.jsonl"), ]
         for file_name in nemo_cfg.model.data.train_ds.file_names:
             assert os.path.isfile(file_name), f"Training file {file_name} does not exist!"
         nemo_cfg.model.data.validation_ds.file_names = [os.path.join(args.root_dir, args.val_ds_files), ]
