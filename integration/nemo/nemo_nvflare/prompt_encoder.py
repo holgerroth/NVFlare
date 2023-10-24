@@ -96,6 +96,7 @@ class ServerPromptEncoder(PromptEncoder, FLComponent):
 
         PromptEncoder.__init__(
             self,
+            config=self.config,
             encoder_type=_encoder_type,
             total_virtual_tokens=self.total_virtual_tokens,
             token_dim=self.hidden_size,

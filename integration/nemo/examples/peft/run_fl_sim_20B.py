@@ -8,23 +8,25 @@ from nvflare import SimulatorRunner
 
 n_clients=3
 peft_scheme="ptuning"
+peft_scheme="adapter"
+peft_scheme="lora"
 val_check_interval=100
 lr=1e-4
 nemo_ckpt="/data/Models/nemo-megatron-gpt-20B/nemo_gpt20B_bf16_tp2.nemo"
 devices=2
 
 
-local = True
+local = False
 if local:
     algo="local"
-    max_steps=3000
+    max_steps=1000
     num_rounds=1    
 else:
     algo="fedavg"
     max_steps=100
-    num_rounds=30
+    num_rounds=11
 
-job_name=f"peft_{peft_scheme}_{algo}_20B_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_devices{devices}_nosched"
+job_name=f"peft_{peft_scheme}_{algo}_20B_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_devices{devices}_newsched_persistor"
 
 
 data_root = "/home/hroth/Data/NLP"

@@ -6,16 +6,18 @@ import sys
 import subprocess
 from nvflare import SimulatorRunner
 
+# TODO: combine with other script
+
 n_clients=1
 peft_scheme="ptuning"
-max_steps=3000
+max_steps=100
 val_check_interval=100
-num_rounds=1
+num_rounds=10
 lr=1e-4
 nemo_ckpt="/data/Models/nemo-megatron-gpt-20B/nemo_gpt20B_bf16_tp2.nemo"
 devices=2
 
-job_name=f"peft_{peft_scheme}_central_20B_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_devices{devices}_nosched"
+job_name=f"peft_{peft_scheme}_central_20B_lr{lr}_steps{max_steps}_val10_rounds{num_rounds}_{n_clients}clients_devices{devices}_newsched_rounds"
 
 data_root = "/home/hroth/Data/NLP"
 train_ds_files_prefix = "FinancialPhraseBank-v1.0/financial_phrase_bank_train.jsonl"
@@ -52,7 +54,7 @@ if sp.returncode != 0:
 # Start FL simulation
 simulator = SimulatorRunner(
     job_folder=f"jobs/{job_name}",
-    workspace=f"./results/F1_launch_once_tp2_DEBUG/{job_name}",
+    workspace=f"./results/F1_launch_once_tp2/{job_name}",
     n_clients=n_clients,
     threads=n_clients,
     gpu="[6,7]"

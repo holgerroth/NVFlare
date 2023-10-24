@@ -11,7 +11,7 @@
         "path": "nvflare.app_opt.pt.client_api_launcher_executor.PTClientAPILauncherExecutor",
         "args": {
           "launcher_id": "launcher",
-          "heartbeat_timeout": 60,
+          "heartbeat_timeout": 600,
           "from_nvflare_converter_id": "from_nvflare",
           "to_nvflare_converter_id": "to_nvflare",
           "train_with_evaluation": true,
