@@ -21,7 +21,7 @@ import threading
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_component import FLComponent
-from nvflare.apis.fl_constant import MachineStatus, SystemComponents, WorkspaceConstants
+from nvflare.apis.fl_constant import FLContextKey, MachineStatus, SystemComponents, WorkspaceConstants
 from nvflare.apis.fl_context import FLContext, FLContextManager
 from nvflare.apis.workspace import Workspace
 from nvflare.fuel.utils.network_utils import get_open_ports
@@ -36,6 +36,7 @@ from .client_engine_internal_spec import ClientEngineInternalSpec
 from .client_executor import ProcessExecutor
 from .client_run_manager import ClientRunInfo
 from .client_status import ClientStatus
+from .fed_client import FederatedClient
 
 
 def _remove_custom_path():
@@ -48,19 +49,18 @@ def _remove_custom_path():
 class ClientEngine(ClientEngineInternalSpec):
     """ClientEngine runs in the client parent process."""
 
-    def __init__(self, client, client_name, args, rank, workers=5):
+    def __init__(self, client: FederatedClient, args, rank, workers=5):
         """To init the ClientEngine.
 
         Args:
             client: FL client object
-            client_name: client name
             args: command args
             rank: local process rank
             workers: number of workers
         """
         super().__init__()
         self.client = client
-        self.client_name = client_name
+        self.client_name = client.client_name
         self.args = args
         self.rank = rank
         self.client_executor = ProcessExecutor(client, os.path.join(args.workspace, "startup"))
@@ -68,12 +68,15 @@ class ClientEngine(ClientEngineInternalSpec):
 
         self.fl_ctx_mgr = FLContextManager(
             engine=self,
-            identity_name=client_name,
+            identity_name=self.client_name,
             job_id="",
             public_stickers={},
             private_stickers={
                 SystemComponents.DEFAULT_APP_DEPLOYER: AppDeployer(),
                 SystemComponents.JOB_META_VALIDATOR: JobMetaValidator(),
+                SystemComponents.FED_CLIENT: client,
+                FLContextKey.SECURE_MODE: self.client.secure_train,
+                FLContextKey.WORKSPACE_ROOT: args.workspace,
             },
         )
 
@@ -149,6 +152,7 @@ class ClientEngine(ClientEngineInternalSpec):
 
         open_port = get_open_ports(1)[0]
 
+        server_config = list(self.client.servers.values())[0]
         self.client_executor.start_app(
             self.client,
             job_id,
@@ -158,7 +162,8 @@ class ClientEngine(ClientEngineInternalSpec):
             allocated_resource,
             token,
             resource_manager,
-            list(self.client.servers.values())[0]["target"],
+            target=server_config["target"],
+            scheme=server_config.get("scheme", "grpc"),
         )
 
         return "Start the client app..."

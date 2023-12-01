@@ -24,10 +24,10 @@ from nvflare.apis.fl_constant import ServerCommandKey, ServerCommandNames
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.fl_exception import FLCommunicationError
 from nvflare.apis.shareable import Shareable
-from nvflare.apis.utils.fl_context_utils import get_serializable_data
-from nvflare.fuel.f3.cellnet.cell import FQCN, Cell
+from nvflare.apis.utils.fl_context_utils import gen_new_peer_ctx
+from nvflare.fuel.f3.cellnet.core_cell import FQCN, CoreCell
 from nvflare.fuel.f3.cellnet.defs import MessageHeaderKey, ReturnCode
-from nvflare.fuel.utils import fobs
+from nvflare.fuel.f3.cellnet.utils import format_size
 from nvflare.private.defs import CellChannel, CellChannelTopic, CellMessageHeaderKeys, SpecialTaskName, new_cell_message
 from nvflare.private.fed.client.client_engine_internal_spec import ClientEngineInternalSpec
 from nvflare.security.logging import secure_format_exception
@@ -62,9 +62,10 @@ class Communicator:
         secure_train=False,
         client_state_processors: Optional[List[Filter]] = None,
         compression=None,
-        cell: Cell = None,
+        cell: CoreCell = None,
         client_register_interval=2,
         timeout=5.0,
+        maint_msg_timeout=5.0,
     ):
         """To init the Communicator.
 
@@ -85,30 +86,33 @@ class Communicator:
         self.compression = compression
         self.client_register_interval = client_register_interval
         self.timeout = timeout
+        self.maint_msg_timeout = maint_msg_timeout
 
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def client_registration(self, client_name, servers, project_name):
+    def client_registration(self, client_name, project_name, fl_ctx: FLContext):
         """Client's metadata used to authenticate and communicate.
 
         Args:
             client_name: client name
-            servers: FL servers
             project_name: FL study project name
+            fl_ctx: FLContext
 
         Returns:
             The client's token
 
         """
         local_ip = _get_client_ip()
+        shareable = Shareable()
+        shared_fl_ctx = gen_new_peer_ctx(fl_ctx)
+        shareable.set_header(ServerCommandKey.PEER_FL_CONTEXT, shared_fl_ctx)
 
-        login_message = new_cell_message(
-            {
-                CellMessageHeaderKeys.CLIENT_NAME: client_name,
-                CellMessageHeaderKeys.CLIENT_IP: local_ip,
-                CellMessageHeaderKeys.PROJECT_NAME: project_name,
-            }
-        )
+        headers = {
+            CellMessageHeaderKeys.CLIENT_NAME: client_name,
+            CellMessageHeaderKeys.CLIENT_IP: local_ip,
+            CellMessageHeaderKeys.PROJECT_NAME: project_name,
+        }
+        login_message = new_cell_message(headers, shareable)
 
         start = time.time()
         while not self.cell:
@@ -129,7 +133,7 @@ class Communicator:
                     channel=CellChannel.SERVER_MAIN,
                     topic=CellChannelTopic.Register,
                     request=login_message,
-                    timeout=self.timeout,
+                    timeout=self.maint_msg_timeout,
                 )
                 return_code = result.get_header(MessageHeaderKey.RETURN_CODE)
                 if return_code == ReturnCode.UNAUTHENTICATED:
@@ -148,15 +152,15 @@ class Communicator:
 
         return token, ssid
 
-    def pull_task(self, servers, project_name, token, ssid, fl_ctx: FLContext):
+    def pull_task(self, project_name, token, ssid, fl_ctx: FLContext, timeout=None):
         """Get a task from server.
 
         Args:
-            servers: FL servers
             project_name: FL study project name
             token: client token
             ssid: service session ID
             fl_ctx: FLContext
+            timeout: how long to wait for response from server
 
         Returns:
             A CurrentTask message from server
@@ -164,8 +168,7 @@ class Communicator:
         """
         start_time = time.time()
         shareable = Shareable()
-        shared_fl_ctx = FLContext()
-        shared_fl_ctx.set_public_props(get_serializable_data(fl_ctx).get_all_public_props())
+        shared_fl_ctx = gen_new_peer_ctx(fl_ctx)
         shareable.set_header(ServerCommandKey.PEER_FL_CONTEXT, shared_fl_ctx)
         client_name = fl_ctx.get_identity_name()
         task_message = new_cell_message(
@@ -175,9 +178,12 @@ class Communicator:
                 CellMessageHeaderKeys.SSID: ssid,
                 CellMessageHeaderKeys.PROJECT_NAME: project_name,
             },
-            fobs.dumps(shareable),
+            shareable,
         )
         job_id = str(shared_fl_ctx.get_prop(FLContextKey.CURRENT_RUN))
+
+        if not timeout:
+            timeout = self.timeout
 
         fqcn = FQCN.join([FQCN.ROOT_SERVER, job_id])
         task = self.cell.send_request(
@@ -185,21 +191,20 @@ class Communicator:
             channel=CellChannel.SERVER_COMMAND,
             topic=ServerCommandNames.GET_TASK,
             request=task_message,
-            timeout=self.timeout,
+            timeout=timeout,
             optional=True,
         )
         end_time = time.time()
         return_code = task.get_header(MessageHeaderKey.RETURN_CODE)
 
         if return_code == ReturnCode.OK:
-            size = len(task.payload)
-            task.payload = fobs.loads(task.payload)
+            size = task.get_header(MessageHeaderKey.PAYLOAD_LEN)
             task_name = task.payload.get_header(ServerCommandKey.TASK_NAME)
             fl_ctx.set_prop(FLContextKey.SSID, ssid, sticky=False)
             if task_name not in [SpecialTaskName.END_RUN, SpecialTaskName.TRY_AGAIN]:
                 self.logger.info(
-                    f"Received from {project_name} server "
-                    f" ({size} Bytes). getTask: {task_name} time: {end_time - start_time} seconds"
+                    f"Received from {project_name} server. getTask: {task_name} size: {format_size(size)} "
+                    f"({size} Bytes) time: {end_time - start_time:.6f} seconds"
                 )
         elif return_code == ReturnCode.AUTHENTICATION_ERROR:
             self.logger.warning("get_task request authentication failed.")
@@ -212,12 +217,11 @@ class Communicator:
         return task
 
     def submit_update(
-        self, servers, project_name, token, ssid, fl_ctx: FLContext, client_name, shareable, execute_task_name
+        self, project_name, token, ssid, fl_ctx: FLContext, client_name, shareable, execute_task_name, timeout=None
     ):
         """Submit the task execution result back to the server.
 
         Args:
-            servers: FL servers
             project_name: server project name
             token: client token
             ssid: service session ID
@@ -225,13 +229,13 @@ class Communicator:
             client_name: client name
             shareable: execution task result shareable
             execute_task_name: execution task name
+            timeout: how long to wait for response from server
 
         Returns:
             ReturnCode
         """
         start_time = time.time()
-        shared_fl_ctx = FLContext()
-        shared_fl_ctx.set_public_props(get_serializable_data(fl_ctx).get_all_public_props())
+        shared_fl_ctx = gen_new_peer_ctx(fl_ctx)
         shareable.set_header(ServerCommandKey.PEER_FL_CONTEXT, shared_fl_ctx)
 
         # shareable.add_cookie(name=FLContextKey.TASK_ID, data=task_id)
@@ -250,9 +254,12 @@ class Communicator:
                 CellMessageHeaderKeys.SSID: ssid,
                 CellMessageHeaderKeys.PROJECT_NAME: project_name,
             },
-            fobs.dumps(shareable),
+            shareable,
         )
         job_id = str(shared_fl_ctx.get_prop(FLContextKey.CURRENT_RUN))
+
+        if not timeout:
+            timeout = self.timeout
 
         fqcn = FQCN.join([FQCN.ROOT_SERVER, job_id])
         result = self.cell.send_request(
@@ -260,13 +267,14 @@ class Communicator:
             channel=CellChannel.SERVER_COMMAND,
             topic=ServerCommandNames.SUBMIT_UPDATE,
             request=task_message,
-            timeout=self.timeout,
+            timeout=timeout,
             optional=optional,
         )
         end_time = time.time()
         return_code = result.get_header(MessageHeaderKey.RETURN_CODE)
+        size = task_message.get_header(MessageHeaderKey.PAYLOAD_LEN)
         self.logger.info(
-            f" SubmitUpdate size: {len(task_message.payload)} Bytes. time: {end_time - start_time} seconds"
+            f" SubmitUpdate size: {format_size(size)} ({size} Bytes). time: {end_time - start_time:.6f} seconds"
         )
 
         return return_code
@@ -299,7 +307,7 @@ class Communicator:
                 channel=CellChannel.SERVER_MAIN,
                 topic=CellChannelTopic.Quit,
                 request=quit_message,
-                timeout=self.timeout,
+                timeout=self.maint_msg_timeout,
             )
             return_code = result.get_header(MessageHeaderKey.RETURN_CODE)
             if return_code == ReturnCode.UNAUTHENTICATED:
@@ -316,6 +324,8 @@ class Communicator:
         fl_ctx = engine.new_context()
         simulate_mode = fl_ctx.get_prop(FLContextKey.SIMULATE_MODE, False)
         wait_times = int(interval / 2)
+        num_heartbeats_sent = 0
+        heartbeats_log_interval = 10
         while not self.heartbeat_done:
             try:
                 job_ids = engine.get_all_job_ids()
@@ -335,12 +345,16 @@ class Communicator:
                         channel=CellChannel.SERVER_MAIN,
                         topic=CellChannelTopic.HEART_BEAT,
                         request=heartbeat_message,
-                        timeout=self.timeout,
+                        timeout=self.maint_msg_timeout,
                     )
                     return_code = result.get_header(MessageHeaderKey.RETURN_CODE)
                     if return_code == ReturnCode.UNAUTHENTICATED:
                         unauthenticated = result.get_header(MessageHeaderKey.ERROR)
                         raise FLCommunicationError("error:client_quit " + unauthenticated)
+
+                    num_heartbeats_sent += 1
+                    if num_heartbeats_sent % heartbeats_log_interval == 0:
+                        self.logger.debug(f"Client: {client_name} has sent {num_heartbeats_sent} heartbeats.")
 
                     if not simulate_mode:
                         # server_message = result.get_header(CellMessageHeaderKeys.MESSAGE)

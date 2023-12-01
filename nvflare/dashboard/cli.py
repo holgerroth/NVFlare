@@ -22,7 +22,7 @@ import docker
 import nvflare
 from nvflare.apis.utils.format_check import name_check
 from nvflare.dashboard.application.blob import _write
-from nvflare.lighter import utils
+from nvflare.lighter import tplt_utils, utils
 
 supported_csp = ("azure", "aws")
 
@@ -59,6 +59,8 @@ def start(args):
         pwd = utils.generate_password(8)
         print(f"Project admin credential is {answer} and the password is {pwd}")
         environment.update({"NVFL_CREDENTIAL": f"{answer}:{pwd}"})
+    if args.local:
+        return start_local(environment)
     try:
         client = docker.from_env()
     except docker.errors.DockerException:
@@ -109,6 +111,16 @@ def start(args):
         print("Container failed to start")
 
 
+def start_local(env):
+    print("Local dashboard without docker is for development and test only")
+    file_dir_path = os.path.dirname(__file__)
+    wsgi_location = os.path.join(file_dir_path, "wsgi.py")
+    cmd = [sys.executable, wsgi_location]
+    env.update({"NVFL_WEB_ROOT": os.path.dirname(os.path.abspath(__file__))})
+    process_status = subprocess.run(args=cmd, env=env)
+    return process_status
+
+
 def stop():
     try:
         client = docker.from_env()
@@ -127,6 +139,7 @@ def stop():
 def cloud(args):
     lighter_folder = os.path.dirname(utils.__file__)
     template = utils.load_yaml(os.path.join(lighter_folder, "impl", "master_template.yml"))
+    tplt = tplt_utils.Template(template)
     cwd = os.getcwd()
     csp = args.cloud
     dest = os.path.join(cwd, f"{csp}_start_dsb.sh")
@@ -135,7 +148,7 @@ def cloud(args):
     replacement_dict = {"NVFLARE": f"nvflare=={version}", "START_OPT": f"-i {args.image}" if args.image else ""}
     _write(
         dest,
-        utils.sh_replace(dsb_start, replacement_dict),
+        utils.sh_replace(tplt.get_cloud_script_header() + dsb_start, replacement_dict),
         "t",
         exe=True,
     )
@@ -177,13 +190,14 @@ def define_dashboard_parser(parser):
     parser.add_argument("-e", "--env", action="append", help="additonal environment variables: var1=value1")
     parser.add_argument("--cred", help="set credential directly in the form of USER_EMAIL:PASSWORD")
     parser.add_argument("-i", "--image", help="set the container image name")
+    parser.add_argument("--local", action="store_true", help="start dashboard locally without docker image")
 
 
 def handle_dashboard(args):
     support_csp_string = ", ".join(supported_csp)
     if args.stop:
         stop()
-    elif args.start:
+    elif args.start or args.local:
         start(args)
     elif args.cloud:
         if args.cloud in supported_csp:

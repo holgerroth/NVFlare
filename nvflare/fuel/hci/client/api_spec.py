@@ -32,9 +32,17 @@ class CommandCtxKey(object):
     RESULT = "result"
     JSON_PROCESSOR = "json_processor"
     META = "meta"
+    CUSTOM_PROPS = "custom_props"
+    BYTES_RECEIVER = "bytes_receiver"
 
 
 class CommandContext(SimpleContext):
+    def set_bytes_receiver(self, r):
+        self.set_prop(CommandCtxKey.BYTES_RECEIVER, r)
+
+    def get_bytes_receiver(self):
+        return self.get_prop(CommandCtxKey.BYTES_RECEIVER)
+
     def set_command_result(self, result):
         self.set_prop(CommandCtxKey.RESULT, result)
 
@@ -52,6 +60,12 @@ class CommandContext(SimpleContext):
 
     def get_command(self):
         return self.get_prop(CommandCtxKey.CMD)
+
+    def get_command_name(self):
+        args = self.get_command_args()
+        full_name = args[0]
+        parts = full_name.split(".")
+        return parts[-1]
 
     def set_command_args(self, cmd_args):
         self.set_prop(CommandCtxKey.CMD_ARGS, cmd_args)
@@ -82,6 +96,12 @@ class CommandContext(SimpleContext):
 
     def get_meta(self):
         return self.get_prop(CommandCtxKey.META)
+
+    def set_custom_props(self, value):
+        self.set_prop(CommandCtxKey.CUSTOM_PROPS, value)
+
+    def get_custom_props(self):
+        return self.get_prop(CommandCtxKey.CUSTOM_PROPS)
 
 
 class ApiPocValue(object):
@@ -132,6 +152,9 @@ class ReplyProcessor:
     def reply_done(self, ctx: CommandContext):
         pass
 
+    def process_bytes(self, ctx: CommandContext):
+        pass
+
 
 class AdminAPISpec(ABC):
     @abstractmethod
@@ -150,12 +173,13 @@ class AdminAPISpec(ABC):
         pass
 
     @abstractmethod
-    def server_execute(self, command: str, reply_processor=None):
+    def server_execute(self, command: str, reply_processor=None, cmd_ctx=None):
         """Executes a command on server side.
 
         Args:
             command: The command to be executed.
             reply_processor: processor to process reply from server
+            cmd_ctx: command context
         """
         pass
 

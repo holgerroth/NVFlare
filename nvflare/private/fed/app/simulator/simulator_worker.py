@@ -25,8 +25,6 @@ from nvflare.apis.fl_component import FLComponent
 from nvflare.apis.fl_constant import FLContextKey, WorkspaceConstants
 from nvflare.fuel.common.multi_process_executor_constants import CommunicationMetaData
 from nvflare.fuel.f3.cellnet.cell import Cell
-
-# from nvflare.fuel.f3.cellnet.new_cell import NewCell as Cell
 from nvflare.fuel.f3.cellnet.fqcn import FQCN
 from nvflare.fuel.f3.mpm import MainProcessMonitor as mpm
 from nvflare.fuel.hci.server.authz import AuthorizationService
@@ -40,7 +38,7 @@ from nvflare.private.fed.simulator.simulator_app_runner import SimulatorClientAp
 from nvflare.private.fed.simulator.simulator_audit import SimulatorAuditor
 from nvflare.private.fed.simulator.simulator_const import SimulatorConstants
 from nvflare.private.fed.utils.fed_utils import add_logfile_handler, fobs_initialize
-from nvflare.security.logging import secure_format_exception
+from nvflare.security.logging import secure_format_exception, secure_log_traceback
 from nvflare.security.security import EmptyAuthorizer
 
 CELL_CONNECT_CHECK_TIMEOUT = 10.0
@@ -49,7 +47,7 @@ FETCH_TASK_RUN_RETRY = 3
 
 class ClientTaskWorker(FLComponent):
     def create_client_engine(self, federated_client: FederatedClient, args, rank=0):
-        client_engine = ClientEngine(federated_client, federated_client.token, args, rank)
+        client_engine = ClientEngine(federated_client, args, rank)
         federated_client.set_client_engine(client_engine)
         federated_client.run_manager = None
 
@@ -99,7 +97,7 @@ class ClientTaskWorker(FLComponent):
                         )
 
                     # if any client got the END_RUN event, stop the simulator run.
-                    if client_runner.end_run_fired or client_runner.asked_to_stop:
+                    if client_runner.run_abort_signal.triggered:
                         stop_run = True
                         self.logger.info("End the Simulator run.")
                         break
@@ -113,6 +111,7 @@ class ClientTaskWorker(FLComponent):
                             time.sleep(0.5)
         except Exception as e:
             self.logger.error(f"do_one_task execute exception: {secure_format_exception(e)}")
+            secure_log_traceback()
             interval = 1.0
             stop_run = True
 
@@ -213,18 +212,7 @@ def _create_connection(listen_port):
     return conn
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--workspace", "-o", type=str, help="WORKSPACE folder", required=True)
-    parser.add_argument("--client", type=str, help="Client name", required=True)
-    parser.add_argument("--token", type=str, help="Client token", required=True)
-    parser.add_argument("--port", type=str, help="Listen port", required=True)
-    parser.add_argument("--gpu", "-g", type=str, help="gpu index number")
-    parser.add_argument("--parent_pid", type=int, help="parent process pid", required=True)
-    parser.add_argument("--simulator_root", "-root", type=str, help="Simulator root folder")
-    parser.add_argument("--root_url", "-r", type=str, help="cellnet root_url")
-    parser.add_argument("--parent_url", "-p", type=str, help="cellnet parent_url")
-    args = parser.parse_args()
+def main(args):
 
     # start parent process checking thread
     parent_pid = args.parent_pid
@@ -261,12 +249,28 @@ def main():
         AuditService.close()
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--workspace", "-o", type=str, help="WORKSPACE folder", required=True)
+    parser.add_argument("--client", type=str, help="Client name", required=True)
+    parser.add_argument("--token", type=str, help="Client token", required=True)
+    parser.add_argument("--port", type=str, help="Listen port", required=True)
+    parser.add_argument("--gpu", "-g", type=str, help="gpu index number")
+    parser.add_argument("--parent_pid", type=int, help="parent process pid", required=True)
+    parser.add_argument("--simulator_root", "-root", type=str, help="Simulator root folder")
+    parser.add_argument("--root_url", "-r", type=str, help="cellnet root_url")
+    parser.add_argument("--parent_url", "-p", type=str, help="cellnet parent_url")
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
     """
     This is the main program of simulator worker process when running the NVFlare Simulator..
     """
 
     # main()
-    mpm.run(main_func=main)
+    args = parse_arguments()
+    mpm.run(main_func=main, run_dir=args.workspace, args=args)
     time.sleep(2)
     # os._exit(0)

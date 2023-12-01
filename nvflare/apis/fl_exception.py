@@ -33,3 +33,33 @@ class UnsafeJobError(Exception):
     """Raised when a job is detected to be unsafe"""
 
     pass
+
+
+class NotAuthenticated(Exception):
+    """Raised when client registration is not authenticated."""
+
+    pass
+
+
+class NotAuthorized(Exception):
+    """Raised when a job is not authorized"""
+
+    pass
+
+
+class UnsafeComponentError(Exception):
+    """Raised when a component in the configuration is detected to be unsafe"""
+
+    pass
+
+
+class TaskExecutionError(Exception):
+    """Raised when a task execution failed"""
+
+    pass
+
+
+class NotReadyToEndRun(Exception):
+    """Raised when a component is not ready to end run"""
+
+    pass

@@ -12,15 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
+import json
+from enum import Enum
+from typing import Dict, List, Optional
 
-from .constants import ModelExchangeFormat
+from nvflare.app_common.data_exchange.constants import ExchangeFormat
+from nvflare.fuel.utils.config_factory import ConfigFactory
+
+
+class TransferType(str, Enum):
+    FULL = "FULL"
+    DIFF = "DIFF"
 
 
 class ConfigKey:
-    EXCHANGE_PATH = "exchange_path"
     EXCHANGE_FORMAT = "exchange_format"
     TRANSFER_TYPE = "transfer_type"
+    GLOBAL_EVAL = "global_eval"
+    TRAIN_WITH_EVAL = "train_with_eval"
+    TRAIN_TASK_NAME = "train_task_name"
+    EVAL_TASK_NAME = "eval_task_name"
+    SUBMIT_MODEL_TASK_NAME = "submit_model_task_name"
+    PIPE_NAME = "pipe_name"
+    PIPE_CLASS = "pipe_class"
+    PIPE_ARGS = "pipe_args"
+    LAUNCH_ONCE = "launch_once"
+    TOTAL_ROUNDS = "total_rounds"
+    SITE_NAME = "site_name"
+    JOB_ID = "job_id"
 
 
 class ClientConfig:
@@ -34,22 +53,45 @@ class ClientConfig:
         }
     """
 
-    def __init__(self, config: Dict):
-        for required_key in (ConfigKey.EXCHANGE_PATH, ConfigKey.EXCHANGE_FORMAT):
-            if required_key not in config:
-                raise RuntimeError(f"Missing required_key: {required_key} in config.")
-
-        config[ConfigKey.EXCHANGE_FORMAT] = ModelExchangeFormat(config[ConfigKey.EXCHANGE_FORMAT])
+    def __init__(self, config: Optional[Dict] = None):
+        if config is None:
+            config = {}
         self.config = config
+        if ConfigKey.EXCHANGE_FORMAT in self.config:
+            self.config[ConfigKey.EXCHANGE_FORMAT] = ExchangeFormat(self.config[ConfigKey.EXCHANGE_FORMAT])
 
     def get_config(self):
         return self.config
 
-    def get_exchange_path(self):
-        return self.config[ConfigKey.EXCHANGE_PATH]
+    def get_supported_topics(self) -> List[str]:
+        return [
+            self.config[k]
+            for k in [ConfigKey.TRAIN_TASK_NAME, ConfigKey.EVAL_TASK_NAME, ConfigKey.SUBMIT_MODEL_TASK_NAME]
+        ]
 
-    def get_exchange_format(self) -> ModelExchangeFormat:
+    def get_pipe_name(self) -> str:
+        return self.config[ConfigKey.PIPE_NAME]
+
+    def get_pipe_args(self) -> dict:
+        return self.config[ConfigKey.PIPE_ARGS]
+
+    def get_pipe_class(self) -> str:
+        return self.config[ConfigKey.PIPE_CLASS]
+
+    def get_exchange_format(self) -> ExchangeFormat:
         return self.config[ConfigKey.EXCHANGE_FORMAT]
 
     def get_transfer_type(self):
-        return self.config[ConfigKey.TRANSFER_TYPE]
+        return self.config.get(ConfigKey.TRANSFER_TYPE, "FULL")
+
+    def to_json(self, config_file: str):
+        with open(config_file, "w") as f:
+            json.dump(self.config, f)
+
+
+def from_file(config_file: str):
+    config = ConfigFactory.load_config(config_file)
+    if config is None:
+        raise RuntimeError(f"Load config file {config} failed.")
+
+    return ClientConfig(config=config.to_dict())

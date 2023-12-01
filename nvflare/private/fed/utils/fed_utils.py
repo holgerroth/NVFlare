@@ -18,11 +18,14 @@ import logging.config
 import os
 import sys
 from logging.handlers import RotatingFileHandler
-from multiprocessing.connection import Listener
 from typing import List
 
 from nvflare.apis.app_validation import AppValidator
-from nvflare.apis.fl_constant import FLContextKey, SiteType, WorkspaceConstants
+from nvflare.apis.client import Client
+from nvflare.apis.event_type import EventType
+from nvflare.apis.fl_component import FLContext
+from nvflare.apis.fl_constant import FLContextKey, FLMetaKey, SiteType, WorkspaceConstants
+from nvflare.apis.fl_exception import UnsafeComponentError
 from nvflare.apis.job_def import JobMetaKey
 from nvflare.apis.utils.decomposers import flare_decomposers
 from nvflare.apis.workspace import Workspace
@@ -31,10 +34,11 @@ from nvflare.fuel.f3.stats_pool import CsvRecordHandler, StatsPoolManager
 from nvflare.fuel.sec.audit import AuditService
 from nvflare.fuel.sec.authz import AuthorizationService
 from nvflare.fuel.sec.security_content_service import LoadResult, SecurityContentService
-from nvflare.private.defs import SSLConstants
+from nvflare.private.defs import RequestHeader, SSLConstants
+from nvflare.private.event import fire_event
 from nvflare.private.fed.utils.decomposers import private_decomposers
 from nvflare.private.privacy_manager import PrivacyManager, PrivacyService
-from nvflare.security.logging import secure_format_exception, secure_log_traceback
+from nvflare.security.logging import secure_format_exception
 from nvflare.security.security import EmptyAuthorizer, FLAuthorizer
 
 from .app_authz import AppAuthzService
@@ -47,28 +51,6 @@ def add_logfile_handler(log_file):
     file_handler.setLevel(main_handler.level)
     file_handler.setFormatter(main_handler.formatter)
     root_logger.addHandler(file_handler)
-
-
-def listen_command(listen_port, engine, execute_func, logger):
-    conn = None
-    listener = None
-    try:
-        address = ("localhost", listen_port)
-        listener = Listener(address, authkey="client process secret password".encode())
-        conn = listener.accept()
-
-        execute_func(conn, engine)
-
-    except Exception as e:
-        logger.exception(
-            f"Could not create the listener for this process on port: {listen_port}: {secure_format_exception(e)}."
-        )
-        secure_log_traceback(logger)
-    finally:
-        if conn:
-            conn.close()
-        if listener:
-            listener.close()
 
 
 def _check_secure_content(site_type: str) -> List[str]:
@@ -271,3 +253,80 @@ def split_gpus(gpus) -> [str]:
     result = gpus.split(",")
     result = [g.replace("^", ",") for g in result]
     return result
+
+
+def authorize_build_component(config_dict, config_ctx, node, fl_ctx: FLContext, event_handlers) -> str:
+    workspace = fl_ctx.get_prop(FLContextKey.WORKSPACE_OBJECT)
+    if not workspace:
+        raise RuntimeError("missing workspace object in fl_ctx")
+    job_id = fl_ctx.get_prop(FLContextKey.CURRENT_JOB_ID)
+    if not job_id:
+        raise RuntimeError("missing job id in fl_ctx")
+    meta = get_job_meta_from_workspace(workspace, job_id)
+    fl_ctx.set_prop(FLContextKey.JOB_META, meta, sticky=False, private=True)
+    fl_ctx.set_prop(FLContextKey.COMPONENT_CONFIG, config_dict, sticky=False, private=True)
+    fl_ctx.set_prop(FLContextKey.CONFIG_CTX, config_ctx, sticky=False, private=True)
+    fl_ctx.set_prop(FLContextKey.COMPONENT_NODE, node, sticky=False, private=True)
+
+    fire_event(EventType.BEFORE_BUILD_COMPONENT, event_handlers, fl_ctx)
+
+    err = fl_ctx.get_prop(FLContextKey.COMPONENT_BUILD_ERROR)
+    if err:
+        return err
+    # check exceptions
+    exceptions = fl_ctx.get_prop(FLContextKey.EXCEPTIONS)
+    if exceptions and isinstance(exceptions, dict):
+        for handler_name, ex in exceptions.items():
+            if isinstance(ex, UnsafeComponentError):
+                err = str(ex)
+                if not err:
+                    err = f"Unsafe component detected by {handler_name}"
+                return err
+    return ""
+
+
+def set_message_security_data(request, job, fl_ctx):
+    request.set_header(RequestHeader.SUBMITTER_NAME, job.meta.get(JobMetaKey.SUBMITTER_NAME))
+    request.set_header(RequestHeader.SUBMITTER_ORG, job.meta.get(JobMetaKey.SUBMITTER_ORG))
+    request.set_header(RequestHeader.SUBMITTER_ROLE, job.meta.get(JobMetaKey.SUBMITTER_ROLE))
+
+    request.set_header(RequestHeader.USER_NAME, job.meta.get(JobMetaKey.SUBMITTER_NAME))
+    request.set_header(RequestHeader.USER_ORG, job.meta.get(JobMetaKey.SUBMITTER_ORG))
+    request.set_header(RequestHeader.USER_ROLE, job.meta.get(JobMetaKey.SUBMITTER_ROLE))
+
+    request.set_header(RequestHeader.JOB_META, job.meta)
+
+
+def get_target_names(targets):
+    # validate targets
+    target_names = []
+    for t in targets:
+        if isinstance(t, str):
+            name = t
+        elif isinstance(t, Client):
+            name = t.name
+        else:
+            raise ValueError(f"invalid target in list: got {type(t)}")
+
+        if not name:
+            # ignore empty name
+            continue
+
+        if name not in target_names:
+            target_names.append(t)
+    return target_names
+
+
+def get_return_code(process, job_id, workspace):
+    run_dir = os.path.join(workspace, job_id)
+    rc_file = os.path.join(run_dir, FLMetaKey.PROCESS_RC_FILE)
+    try:
+        if os.path.exists(rc_file):
+            with open(rc_file, "r") as f:
+                return_code = int(f.readline())
+            os.remove(rc_file)
+        else:
+            return_code = process.poll()
+        return return_code
+    except Exception:
+        raise RuntimeError(f"Could not get the return_code of the {job_id} execution, process_id:{process.pid}")

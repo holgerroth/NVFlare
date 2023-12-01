@@ -11,17 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import os
 import shlex
 import subprocess
-import sys
 from typing import Optional
 
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
-from nvflare.app_common.abstract.launcher import Launcher
+from nvflare.app_common.abstract.launcher import Launcher, LauncherCompleteStatus
 
 
 class SubprocessLauncher(Launcher):
@@ -38,6 +36,7 @@ class SubprocessLauncher(Launcher):
         self._process = None
         self._script = script
         self._clean_up_script = clean_up_script
+        self._log_thread = None
 
     def initialize(self, fl_ctx: FLContext):
         self._app_dir = self.get_app_dir(fl_ctx)
@@ -47,11 +46,25 @@ class SubprocessLauncher(Launcher):
             command = self._script
             env = os.environ.copy()
             command_seq = shlex.split(command)
+            log_file = os.path.join(self._app_dir, f"{task_name}_logfile")
+
             self._process = subprocess.Popen(
-                command_seq, stdout=sys.stdout, stderr=subprocess.STDOUT, cwd=self._app_dir, env=env
+                command_seq,
+                stderr=subprocess.STDOUT,
+                cwd=self._app_dir,
+                env=env,
             )
+
             return True
         return False
+
+    def wait_task(self, task_name: str, fl_ctx: FLContext, timeout: Optional[float] = None) -> LauncherCompleteStatus:
+        if self._process:
+            return_code = self._process.wait(timeout)
+            if return_code == 0:
+                return LauncherCompleteStatus.SUCCESS
+            return LauncherCompleteStatus.FAILED
+        return LauncherCompleteStatus.SUCCESS
 
     def stop_task(self, task_name: str, fl_ctx: FLContext) -> None:
         if self._process:

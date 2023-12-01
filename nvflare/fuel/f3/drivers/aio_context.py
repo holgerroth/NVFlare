@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
-import logging
 import os
 import threading
 import time
 
+from nvflare.fuel.utils.obj_utils import get_logger
 from nvflare.security.logging import secure_format_exception
 
 
@@ -31,7 +31,7 @@ class AioContext:
         self.name = name
         self.loop = None
         self.ready = threading.Event()
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_logger(self)
         self.logger.debug(f"{os.getpid()}: ******** Created AioContext {name}")
 
     def get_event_loop(self):
@@ -42,16 +42,29 @@ class AioContext:
 
         return self.loop
 
+    def _handle_exception(self, loop, context):
+        try:
+            msg = context.get("exception", context["message"])
+            self.logger.debug(f"AIO Exception: {msg}")
+        except Exception as ex:
+            # ignore exception in the exception handler
+            self.logger.debug(f"exception in aio exception handler: {ex}")
+
     def run_aio_loop(self):
         self.logger.debug(f"{self.name}: started AioContext in thread {threading.current_thread().name}")
         # self.loop = asyncio.get_event_loop()
         self.loop = asyncio.new_event_loop()
+        self.loop.set_exception_handler(self._handle_exception)
         asyncio.set_event_loop(self.loop)
         self.logger.debug(f"{self.name}: got loop: {id(self.loop)}")
         self.ready.set()
         try:
             self.loop.run_forever()
-            self.loop.run_until_complete(self.loop.shutdown_asyncgens())
+            pending_tasks = asyncio.all_tasks(self.loop)
+            for t in [t for t in pending_tasks if not (t.done() or t.cancelled())]:
+                # give canceled tasks the last chance to run
+                self.loop.run_until_complete(t)
+            # self.loop.run_until_complete(self.loop.shutdown_asyncgens())
         except Exception as ex:
             self.logger.error(f"error running aio loop: {secure_format_exception(ex)}")
             raise ex

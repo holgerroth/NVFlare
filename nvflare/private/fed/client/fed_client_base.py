@@ -15,8 +15,6 @@
 import logging
 import threading
 import time
-from functools import partial
-from multiprocessing.dummy import Pool as ThreadPool
 from typing import List, Optional
 
 from nvflare.apis.filter import Filter
@@ -30,8 +28,6 @@ from nvflare.apis.signal import Signal
 from nvflare.fuel.f3.cellnet.cell import Cell
 from nvflare.fuel.f3.cellnet.fqcn import FQCN
 from nvflare.fuel.f3.cellnet.net_agent import NetAgent
-
-# from nvflare.fuel.f3.cellnet.new_cell import NewCell as Cell
 from nvflare.fuel.f3.drivers.driver_params import DriverParams
 from nvflare.fuel.f3.mpm import MainProcessMonitor as mpm
 from nvflare.fuel.utils.argument_utils import parse_vars
@@ -40,15 +36,6 @@ from nvflare.security.logging import secure_format_exception
 
 from .client_status import ClientStatus
 from .communicator import Communicator
-
-
-def _check_progress(remote_tasks):
-    if remote_tasks[0] is not None:
-        # shareable = fobs.loads(remote_tasks[0].payload)
-        shareable = remote_tasks[0].payload
-        return True, shareable.get_header(ServerCommandKey.TASK_NAME), shareable
-    else:
-        return False, None, None
 
 
 class FederatedClientBase:
@@ -106,6 +93,7 @@ class FederatedClientBase:
             cell=cell,
             client_register_interval=client_args.get("client_register_interval", 2.0),
             timeout=client_args.get("communication_timeout", 30.0),
+            maint_msg_timeout=client_args.get("maint_msg_timeout", 5.0),
         )
 
         self.secure_train = secure_train
@@ -242,17 +230,18 @@ class FederatedClientBase:
         # self.register()
         self.logger.info(f"Primary SP switched to new SSID: {self.ssid}")
 
-    def client_register(self, project_name):
+    def client_register(self, project_name, fl_ctx: FLContext):
         """Register the client to the FL server.
 
         Args:
             project_name: FL study project name.
+            register_data: customer defined client register data (in a dict)
+            fl_ctx: FLContext
+
         """
         if not self.token:
             try:
-                self.token, self.ssid = self.communicator.client_registration(
-                    self.client_name, self.servers, project_name
-                )
+                self.token, self.ssid = self.communicator.client_registration(self.client_name, project_name, fl_ctx)
                 if self.token is not None:
                     self.fl_ctx.set_prop(FLContextKey.CLIENT_NAME, self.client_name, private=False)
                     self.fl_ctx.set_prop(EngineConstant.FL_TOKEN, self.token, private=False)
@@ -265,31 +254,33 @@ class FederatedClientBase:
             except FLCommunicationError:
                 self.communicator.heartbeat_done = True
 
-    def fetch_execute_task(self, project_name, fl_ctx: FLContext):
+    def fetch_execute_task(self, project_name, fl_ctx: FLContext, timeout=None):
         """Fetch a task from the server.
 
         Args:
             project_name: FL study project name
             fl_ctx: FLContext
+            timeout: timeout for the getTask message sent tp server
 
         Returns:
             A CurrentTask message from server
         """
         try:
             self.logger.debug("Starting to fetch execute task.")
-            task = self.communicator.pull_task(self.servers, project_name, self.token, self.ssid, fl_ctx)
+            task = self.communicator.pull_task(project_name, self.token, self.ssid, fl_ctx, timeout=timeout)
 
             return task
         except FLCommunicationError as e:
             self.logger.info(secure_format_exception(e))
 
-    def push_execute_result(self, project_name, shareable: Shareable, fl_ctx: FLContext):
+    def push_execute_result(self, project_name, shareable: Shareable, fl_ctx: FLContext, timeout=None):
         """Submit execution results of a task to server.
 
         Args:
             project_name: FL study project name
             shareable: Shareable object
             fl_ctx: FLContext
+            timeout: how long to wait for reply from server
 
         Returns:
             A FederatedSummary message from the server.
@@ -298,7 +289,6 @@ class FederatedClientBase:
             self.logger.info("Starting to push execute result.")
             execute_task_name = fl_ctx.get_prop(FLContextKey.TASK_NAME)
             return_code = self.communicator.submit_update(
-                self.servers,
                 project_name,
                 self.token,
                 self.ssid,
@@ -306,6 +296,7 @@ class FederatedClientBase:
                 self.client_name,
                 shareable,
                 execute_task_name,
+                timeout=timeout,
             )
 
             return return_code
@@ -337,57 +328,38 @@ class FederatedClientBase:
         """
         return self.communicator.quit_remote(self.servers, project_name, self.token, self.ssid, fl_ctx)
 
+    def _get_project_name(self):
+        """Get name of the project that the site is part of.
+
+        Returns:
+
+        """
+        s = tuple(self.servers)  # self.servers is a dict of project_name => server config
+        return s[0]
+
     def heartbeat(self, interval):
         """Sends a heartbeat from the client to the server."""
-        pool = None
-        try:
-            pool = ThreadPool(len(self.servers))
-            return pool.map(partial(self.send_heartbeat, interval=interval), tuple(self.servers))
-        finally:
-            if pool:
-                pool.terminate()
+        return self.send_heartbeat(self._get_project_name(), interval)
 
-    def pull_task(self, fl_ctx: FLContext):
+    def pull_task(self, fl_ctx: FLContext, timeout=None):
         """Fetch remote models and update the local client's session."""
-        pool = None
-        try:
-            pool = ThreadPool(len(self.servers))
-            self.remote_tasks = pool.map(partial(self.fetch_execute_task, fl_ctx=fl_ctx), tuple(self.servers))
-            pull_success, task_name, shareable = _check_progress(self.remote_tasks)
-            # TODO: if some of the servers failed
-            return pull_success, task_name, shareable
-        finally:
-            if pool:
-                pool.terminate()
+        result = self.fetch_execute_task(self._get_project_name(), fl_ctx, timeout)
+        if result:
+            shareable = result.payload
+            return True, shareable.get_header(ServerCommandKey.TASK_NAME), shareable
+        else:
+            return False, None, None
 
-    def push_results(self, shareable: Shareable, fl_ctx: FLContext):
+    def push_results(self, shareable: Shareable, fl_ctx: FLContext, timeout=None):
         """Push the local model to multiple servers."""
-        pool = None
-        try:
-            pool = ThreadPool(len(self.servers))
-            return pool.map(partial(self.push_execute_result, shareable=shareable, fl_ctx=fl_ctx), tuple(self.servers))
-        finally:
-            if pool:
-                pool.terminate()
+        return self.push_execute_result(self._get_project_name(), shareable, fl_ctx, timeout)
 
-    def register(self):
+    def register(self, fl_ctx: FLContext):
         """Push the local model to multiple servers."""
-        pool = None
-        try:
-            pool = ThreadPool(len(self.servers))
-            return pool.map(self.client_register, tuple(self.servers))
-        finally:
-            if pool:
-                pool.terminate()
+        return self.client_register(self._get_project_name(), fl_ctx)
 
     def set_primary_sp(self, sp):
-        pool = None
-        try:
-            pool = ThreadPool(len(self.servers))
-            return pool.map(partial(self.set_sp, sp=sp), tuple(self.servers))
-        finally:
-            if pool:
-                pool.terminate()
+        return self.set_sp(self._get_project_name(), sp)
 
     def run_heartbeat(self, interval):
         """Periodically runs the heartbeat."""
@@ -398,6 +370,7 @@ class FederatedClientBase:
 
     def start_heartbeat(self, interval=30):
         heartbeat_thread = threading.Thread(target=self.run_heartbeat, args=[interval])
+        heartbeat_thread.daemon = True
         heartbeat_thread.start()
 
     def logout_client(self, fl_ctx: FLContext):
@@ -409,13 +382,7 @@ class FederatedClientBase:
         Returns: N/A
 
         """
-        pool = None
-        try:
-            pool = ThreadPool(len(self.servers))
-            return pool.map(partial(self.quit_remote, fl_ctx=fl_ctx), tuple(self.servers))
-        finally:
-            if pool:
-                pool.terminate()
+        return self.quit_remote(self._get_project_name(), fl_ctx)
 
     def set_client_engine(self, engine):
         self.engine = engine

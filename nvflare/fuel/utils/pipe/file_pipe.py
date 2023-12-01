@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,15 +29,14 @@ class FilePipe(Pipe):
         """Implementation of communication through the file system.
 
         Args:
-            root_path: root path
+            mode (Mode): Mode of the endpoint. A pipe has two endpoints.
+                An endpoint can be either the one that initiates communication or the one listening.
+            root_path (str): root path for this file pipe, folders and files will be created under this root_path
+                for communication.
+            file_check_interval (float): how often should to check the file exists.
         """
         super().__init__(mode=mode)
-        check_str("root_path", root_path)
         check_positive_number("file_check_interval", file_check_interval)
-
-        if not os.path.exists(root_path):
-            # create the root path
-            os.makedirs(root_path)
 
         self.root_path = root_path
         self.file_check_interval = file_check_interval
@@ -76,6 +75,12 @@ class FilePipe(Pipe):
     def open(self, name: str):
         if not self.accessor:
             raise RuntimeError("File accessor is not set. Make sure to set a FileAccessor before opening the pipe")
+
+        check_str("root_path", self.root_path)
+
+        if not os.path.exists(self.root_path):
+            # create the root path
+            os.makedirs(self.root_path)
 
         pipe_path = os.path.join(self.root_path, name)
 
@@ -261,8 +266,12 @@ class FilePipe(Pipe):
     def close(self):
         pipe_path = self.pipe_path
         self.pipe_path = None
-        if pipe_path and os.path.exists(pipe_path):
-            try:
-                shutil.rmtree(pipe_path)
-            except Exception:
-                pass
+        if self.mode == Mode.PASSIVE:
+            if pipe_path and os.path.exists(pipe_path):
+                try:
+                    shutil.rmtree(pipe_path)
+                except Exception:
+                    pass
+
+    def can_resend(self) -> bool:
+        return False

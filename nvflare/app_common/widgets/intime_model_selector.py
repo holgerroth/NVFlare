@@ -21,6 +21,7 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.app_event_type import AppEventType
+from nvflare.security.logging import secure_format_exception
 from nvflare.widgets.widget import Widget
 
 
@@ -31,6 +32,7 @@ class IntimeModelSelector(Widget):
         aggregation_weights=None,
         validation_metric_name=MetaKey.INITIAL_METRICS,
         key_metric: str = "val_accuracy",
+        negate_key_metric: bool = False,
     ):
         """Handler to determine if the model is globally best.
 
@@ -41,6 +43,7 @@ class IntimeModelSelector(Widget):
                 DXO meta properties (defaults to MetaKey.INITIAL_METRICS).
             key_metric: if metrics are a `dict`, `key_metric` can select the metric used for global model selection.
                 Defaults to "val_accuracy".
+            negate_key_metric: Whether to invert the key metric. Should be used if key metric is a loss. Defaults to `False`.
         """
         super().__init__()
 
@@ -49,6 +52,7 @@ class IntimeModelSelector(Widget):
         self.validation_metric_name = validation_metric_name
         self.aggregation_weights = aggregation_weights or {}
         self.key_metric = key_metric
+        self.negate_key_metric = negate_key_metric
 
         self.logger.info(f"model selection weights control: {aggregation_weights}")
         self._reset_stats()
@@ -77,8 +81,9 @@ class IntimeModelSelector(Widget):
             dxo = from_shareable(shareable)
         except Exception as e:
             self.log_exception(
-                fl_ctx, "shareable data is not a valid DXO. " "Received Exception: {secure_format_exception(e)}"
+                fl_ctx, f"shareable data is not a valid DXO. Received Exception: {secure_format_exception(e)}"
             )
+            return False
 
         if dxo.data_kind not in (DataKind.WEIGHT_DIFF, DataKind.WEIGHTS, DataKind.COLLECTION):
             self.log_debug(fl_ctx, "cannot handle {}".format(dxo.data_kind))
@@ -120,6 +125,9 @@ class IntimeModelSelector(Widget):
                 )
                 return False
 
+        if self.negate_key_metric:
+            validation_metric = -1.0 * validation_metric
+
         self.log_info(fl_ctx, f"validation metric {validation_metric} from client {client_name}")
 
         if self.weigh_by_local_iter:
@@ -147,6 +155,7 @@ class IntimeModelSelector(Widget):
             self.log_info(fl_ctx, f"new best validation metric at round {current_round}: {self.best_val_metric}")
 
             # Fire event to notify that the current global model is a new best
+            fl_ctx.set_prop(AppConstants.VALIDATION_RESULT, self.best_val_metric, private=True, sticky=False)
             self.fire_event(AppEventType.GLOBAL_BEST_MODEL_AVAILABLE, fl_ctx)
 
         self._reset_stats()

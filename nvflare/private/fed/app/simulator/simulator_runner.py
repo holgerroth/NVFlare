@@ -26,12 +26,14 @@ from argparse import Namespace
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Manager, Process
 from multiprocessing.connection import Client
+from urllib.parse import urlparse
 
 from nvflare.apis.fl_component import FLComponent
 from nvflare.apis.fl_constant import JobConstants, MachineStatus, RunProcessKey, WorkspaceConstants
 from nvflare.apis.job_def import ALL_SITES, JobMetaKey
 from nvflare.apis.utils.job_utils import convert_legacy_zipped_app_to_job
 from nvflare.apis.workspace import Workspace
+from nvflare.fuel.common.exit_codes import ProcessExitCode
 from nvflare.fuel.common.multi_process_executor_constants import CommunicationMetaData
 from nvflare.fuel.f3.mpm import MainProcessMonitor as mpm
 from nvflare.fuel.f3.stats_pool import StatsPoolManager
@@ -50,7 +52,7 @@ from nvflare.private.fed.simulator.simulator_app_runner import SimulatorServerAp
 from nvflare.private.fed.simulator.simulator_audit import SimulatorAuditor
 from nvflare.private.fed.simulator.simulator_const import SimulatorConstants
 from nvflare.private.fed.utils.fed_utils import add_logfile_handler, fobs_initialize, split_gpus
-from nvflare.security.logging import secure_format_exception
+from nvflare.security.logging import secure_format_exception, secure_log_traceback
 from nvflare.security.security import EmptyAuthorizer
 
 CLIENT_CREATE_POOL_SIZE = 200
@@ -220,6 +222,11 @@ class SimulatorRunner(FLComponent):
             simulator_server, self.server = self.deployer.create_fl_server(self.args)
             # self.services.deploy(self.args, grpc_args=simulator_server)
 
+            url = self.server.get_cell().get_root_url_for_child()
+            parsed_url = urlparse(url)
+            self.args.sp_target = parsed_url.netloc
+            self.args.sp_scheme = parsed_url.scheme
+
             self.logger.info("Deploy the Apps.")
             self._deploy_apps(job_name, data_bytes, meta)
 
@@ -227,6 +234,7 @@ class SimulatorRunner(FLComponent):
 
         except Exception as e:
             self.logger.error(f"Simulator setup error: {secure_format_exception(e)}")
+            secure_log_traceback()
             return False
 
     def validate_job_data(self):
@@ -348,7 +356,13 @@ class SimulatorRunner(FLComponent):
 
     def run_processs(self, return_dict):
         # run_status = self.simulator_run_main()
-        run_status = mpm.run(main_func=self.simulator_run_main, shutdown_grace_time=3, cleanup_grace_time=6)
+        try:
+            run_status = mpm.run(
+                main_func=self.simulator_run_main, run_dir=self.workspace, shutdown_grace_time=3, cleanup_grace_time=6
+            )
+        except Exception as e:
+            self.logger.error(f"Simulator main run with exception: {secure_format_exception(e)}")
+            run_status = ProcessExitCode.EXCEPTION
 
         return_dict["run_status"] = run_status
 
@@ -423,15 +437,16 @@ class SimulatorRunner(FLComponent):
 
         self.server.job_cell = self.server.create_job_cell(
             SimulatorConstants.JOB_NAME,
-            self.server.cell.get_root_url_for_child(),
-            self.server.cell.get_internal_listener_url(),
+            self.server.get_cell().get_root_url_for_child(),
+            self.server.get_cell().get_internal_listener_url(),
             False,
             None,
         )
         server_app_runner = SimulatorServerAppRunner(self.server)
         snapshot = None
+        kv_list = [f"secure_train={self.server.secure_train}"]
         server_app_runner.start_server_app(
-            workspace, self.args, app_server_root, self.args.job_id, snapshot, self.logger
+            workspace, self.args, app_server_root, self.args.job_id, snapshot, self.logger, kv_list=kv_list
         )
 
         # start = time.time()

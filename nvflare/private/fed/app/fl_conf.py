@@ -16,9 +16,10 @@
 
 import os
 import re
+import sys
 
 from nvflare.apis.fl_component import FLComponent
-from nvflare.apis.fl_constant import SiteType, SystemConfigs
+from nvflare.apis.fl_constant import FilterKey, SiteType, SystemConfigs
 from nvflare.apis.workspace import Workspace
 from nvflare.fuel.utils.argument_utils import parse_vars
 from nvflare.fuel.utils.config_service import ConfigService
@@ -47,6 +48,10 @@ class FLServerStarterConfiger(JsonConfigurator):
             workspace: the workspace object
             kv_list: key value pair list
         """
+        site_custom_folder = workspace.get_site_custom_dir()
+        if os.path.isdir(site_custom_folder):
+            sys.path.append(site_custom_folder)
+
         self.args = args
 
         base_pkgs = FL_PACKAGES
@@ -62,10 +67,16 @@ class FLServerStarterConfiger(JsonConfigurator):
 
         server_startup_file_path = workspace.get_server_startup_file_path()
         resource_config_path = workspace.get_resources_file_path()
+        config_files = [server_startup_file_path, resource_config_path]
+        if args.job_id:
+            # this is for job process
+            job_resources_file_path = workspace.get_job_resources_file_path()
+            if os.path.exists(job_resources_file_path):
+                config_files.append(job_resources_file_path)
 
         JsonConfigurator.__init__(
             self,
-            config_file_name=[server_startup_file_path, resource_config_path],
+            config_file_name=config_files,
             base_pkgs=base_pkgs,
             module_names=module_names,
             exclude_libs=True,
@@ -75,7 +86,7 @@ class FLServerStarterConfiger(JsonConfigurator):
         self.handlers = []
 
         self.workspace = workspace
-        self.server_config_file_names = [server_startup_file_path, resource_config_path]
+        self.server_config_file_names = config_files
 
         self.deployer = None
         self.app_validator = None
@@ -207,6 +218,10 @@ class FLClientStarterConfiger(JsonConfigurator):
             workspace: the workspace object
             kv_list: key value pair list
         """
+        site_custom_folder = workspace.get_site_custom_dir()
+        if os.path.isdir(site_custom_folder):
+            sys.path.append(site_custom_folder)
+
         self.args = args
 
         base_pkgs = FL_PACKAGES
@@ -222,10 +237,17 @@ class FLClientStarterConfiger(JsonConfigurator):
 
         client_startup_file_path = workspace.get_client_startup_file_path()
         resources_file_path = workspace.get_resources_file_path()
+        config_files = [client_startup_file_path, resources_file_path]
+
+        if args.job_id:
+            # this is for job process
+            job_resources_file_path = workspace.get_job_resources_file_path()
+            if os.path.exists(job_resources_file_path):
+                config_files.append(job_resources_file_path)
 
         JsonConfigurator.__init__(
             self,
-            config_file_name=[client_startup_file_path, resources_file_path],
+            config_file_name=config_files,
             base_pkgs=base_pkgs,
             module_names=module_names,
             exclude_libs=True,
@@ -235,7 +257,7 @@ class FLClientStarterConfiger(JsonConfigurator):
         self.handlers = []
 
         self.workspace = workspace
-        self.client_config_file_names = [client_startup_file_path, resources_file_path]
+        self.client_config_file_names = config_files
         self.base_deployer = None
         self.overseer_agent = None
         self.site_org = ""
@@ -408,7 +430,7 @@ class FLAdminClientStarterConfigurator(JsonConfigurator):
 
 
 class PrivacyConfiger(JsonConfigurator):
-    def __init__(self, workspace: Workspace, names_only: bool):
+    def __init__(self, workspace: Workspace, names_only: bool, is_server=False):
         """Uses the json configuration to start the FL admin client.
 
         Args:
@@ -420,6 +442,7 @@ class PrivacyConfiger(JsonConfigurator):
         self.components = {}
         self.current_scope = None
         self.names_only = names_only
+        self.is_server = is_server
 
         privacy_file_path = workspace.get_site_privacy_file_path()
         JsonConfigurator.__init__(
@@ -461,14 +484,24 @@ class PrivacyConfiger(JsonConfigurator):
 
             if re.search(r"^scopes.#[0-9]+\.task_data_filters\.#[0-9]+$", path):
                 f = self.build_component(element)
+                direction = element.get("direction")
+                if direction:
+                    direction = direction.lower()
+                else:
+                    direction = FilterKey.OUT if self.is_server else FilterKey.IN
                 if f:
-                    self.current_scope.add_task_data_filter(f)
+                    self.current_scope.add_task_data_filter(f, direction)
                 return
 
             if re.search(r"^scopes.#[0-9]+\.task_result_filters\.#[0-9]+$", path):
                 f = self.build_component(element)
+                direction = element.get("direction")
+                if direction:
+                    direction = direction.lower()
+                else:
+                    direction = FilterKey.IN if self.is_server else FilterKey.OUT
                 if f:
-                    self.current_scope.add_task_result_filter(f)
+                    self.current_scope.add_task_result_filter(f, direction)
                 return
 
             if re.search(r"^components\.#[0-9]+$", path):
@@ -492,13 +525,13 @@ class PrivacyConfiger(JsonConfigurator):
         )
 
 
-def create_privacy_manager(workspace: Workspace, names_only: bool):
+def create_privacy_manager(workspace: Workspace, names_only: bool, is_server=False):
     privacy_file_path = workspace.get_site_privacy_file_path()
     if not os.path.isfile(privacy_file_path):
         # privacy policy not defined
         mgr = PrivacyManager(scopes=None, default_scope_name=None, components=None)
     else:
-        configer = PrivacyConfiger(workspace, names_only)
+        configer = PrivacyConfiger(workspace, names_only, is_server=is_server)
         configer.configure()
         mgr = configer.privacy_manager
     return mgr

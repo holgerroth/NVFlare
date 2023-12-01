@@ -41,25 +41,7 @@ from nvflare.private.fed.utils.fed_utils import (
 from nvflare.security.logging import secure_format_exception, secure_log_traceback
 
 
-def main():
-    """FL Server program starting point."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--workspace", "-m", type=str, help="WORKSPACE folder", required=True)
-    parser.add_argument(
-        "--fed_server", "-s", type=str, help="an aggregation server specification json file", required=True
-    )
-    parser.add_argument("--app_root", "-r", type=str, help="App Root", required=True)
-    parser.add_argument("--job_id", "-n", type=str, help="job id", required=True)
-    parser.add_argument("--root_url", "-u", type=str, help="root_url", required=True)
-    parser.add_argument("--host", "-host", type=str, help="server host", required=True)
-    parser.add_argument("--port", "-port", type=str, help="service port", required=True)
-    parser.add_argument("--ssid", "-id", type=str, help="SSID", required=True)
-    parser.add_argument("--parent_url", "-p", type=str, help="parent_url", required=True)
-    parser.add_argument("--ha_mode", "-ha_mode", type=str, help="HA mode", required=True)
-
-    parser.add_argument("--set", metavar="KEY=VALUE", nargs="*")
-
-    args = parser.parse_args()
+def main(args):
     kv_list = parse_vars(args.set)
 
     config_folder = kv_list.get("config_folder", "")
@@ -79,10 +61,6 @@ def main():
     stop_event = threading.Event()
     workspace = Workspace(root_dir=args.workspace, site_name="server")
     set_stats_pool_config_for_job(workspace, args.job_id)
-
-    app_custom_folder = workspace.get_client_custom_dir()
-    if os.path.isdir(app_custom_folder):
-        sys.path.append(app_custom_folder)
 
     try:
         os.chdir(args.workspace)
@@ -115,7 +93,7 @@ def main():
             logger.critical("loglevel critical enabled")
 
         conf.configure()
-
+        event_handlers = conf.handlers
         deployer = conf.deployer
         secure_train = conf.cmd_vars.get("secure_train", False)
 
@@ -138,7 +116,9 @@ def main():
             thread = threading.Thread(target=monitor_parent_process, args=(server_app_runner, parent_pid, stop_event))
             thread.start()
 
-            server_app_runner.start_server_app(workspace, args, args.app_root, args.job_id, snapshot, logger, args.set)
+            server_app_runner.start_server_app(
+                workspace, args, args.app_root, args.job_id, snapshot, logger, args.set, event_handlers=event_handlers
+            )
         finally:
             if deployer:
                 deployer.close()
@@ -155,10 +135,32 @@ def main():
         raise e
 
 
+def parse_arguments():
+    """FL Server program starting point."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--workspace", "-m", type=str, help="WORKSPACE folder", required=True)
+    parser.add_argument(
+        "--fed_server", "-s", type=str, help="an aggregation server specification json file", required=True
+    )
+    parser.add_argument("--app_root", "-r", type=str, help="App Root", required=True)
+    parser.add_argument("--job_id", "-n", type=str, help="job id", required=True)
+    parser.add_argument("--root_url", "-u", type=str, help="root_url", required=True)
+    parser.add_argument("--host", "-host", type=str, help="server host", required=True)
+    parser.add_argument("--port", "-port", type=str, help="service port", required=True)
+    parser.add_argument("--ssid", "-id", type=str, help="SSID", required=True)
+    parser.add_argument("--parent_url", "-p", type=str, help="parent_url", required=True)
+    parser.add_argument("--ha_mode", "-ha_mode", type=str, help="HA mode", required=True)
+    parser.add_argument("--set", metavar="KEY=VALUE", nargs="*")
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
     """
     This is the program when starting the child process for running the NVIDIA FLARE server runner.
     """
     # main()
-    rc = mpm.run(main_func=main)
-    exit(rc)
+    args = parse_arguments()
+    run_dir = os.path.join(args.workspace, args.job_id)
+    rc = mpm.run(main_func=main, run_dir=run_dir, args=args)
+    sys.exit(rc)

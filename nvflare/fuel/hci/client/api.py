@@ -21,8 +21,9 @@ import time
 from datetime import datetime
 from typing import List, Optional
 
+from nvflare.fuel.hci.client.event import EventContext, EventHandler, EventPropKey, EventType
 from nvflare.fuel.hci.cmd_arg_utils import split_to_args
-from nvflare.fuel.hci.conn import Connection, receive_and_process
+from nvflare.fuel.hci.conn import Connection, receive_and_process, receive_bytes_and_process
 from nvflare.fuel.hci.proto import ConfirmMethod, InternalCommands, MetaKey, ProtoKey, make_error
 from nvflare.fuel.hci.reg import CommandEntry, CommandModule, CommandRegister
 from nvflare.fuel.hci.table import Table
@@ -55,28 +56,10 @@ class ResultKey(object):
     META = ProtoKey.META
 
 
-def session_event_cb_signature(event_type: str, info: str):
-    """
-    This defines the signature of session_event callback.
-    When creating the AdminAPI object, you can provide a session event callback function.
-    This function is called when a session event happens.
-
-    Args:
-        event_type: the event type
-        info: information of the event
-
-    Returns:
-
-    """
-    pass
-
-
 class _ServerReplyJsonProcessor(object):
     def __init__(self, ctx: CommandContext):
         if not isinstance(ctx, CommandContext):
             raise TypeError(f"ctx is not an instance of CommandContext. but get {type(ctx)}")
-        api = ctx.get_api()
-        self.debug = api.debug
         self.ctx = ctx
 
     def process_server_reply(self, resp):
@@ -87,8 +70,8 @@ class _ServerReplyJsonProcessor(object):
         Args:
             resp: The raw response that returns by the server.
         """
-        if self.debug:
-            print("DEBUG: Server Reply: {}".format(resp))
+        api = self.ctx.get_api()
+        api.debug("Server Reply: {}".format(resp))
 
         ctx = self.ctx
 
@@ -198,18 +181,6 @@ class _CmdListReplyProcessor(ReplyProcessor):
         api.server_cmd_received = True
 
 
-class SessionEventType(object):
-
-    WAIT_FOR_SERVER_ADDR = "wait_for_server_addr"
-    SERVER_ADDR_OBTAINED = "server_addr_obtained"
-    SESSION_CLOSED = "session_closed"  # close the current session
-    LOGIN_SUCCESS = "login_success"  # logged in to server
-    LOGIN_FAILURE = "login_failure"  # cannot login to server
-    TRYING_LOGIN = "trying_login"  # still try to log in
-    SP_ADDR_CHANGED = "sp_addr_changed"  # service provider address changed
-    SESSION_TIMEOUT = "session_timeout"  # server timed out current session
-
-
 _STATE_NAME_WAIT_FOR_SERVER_ADDR = "wait_for_server_addr"
 _STATE_NAME_LOGIN = "login"
 _STATE_NAME_OPERATE = "operate"
@@ -224,11 +195,11 @@ class _WaitForServerAddress(State):
 
     def execute(self, **kwargs):
         api = self.api
-        api.fire_session_event(SessionEventType.WAIT_FOR_SERVER_ADDR, "Trying to obtain server address")
+        api.fire_session_event(EventType.WAIT_FOR_SERVER_ADDR, "Trying to obtain server address")
         with api.new_addr_lock:
             if api.new_host and api.new_port and api.new_ssid:
                 api.fire_session_event(
-                    SessionEventType.SERVER_ADDR_OBTAINED, f"Obtained server address: {api.new_host}:{api.new_port}"
+                    EventType.SERVER_ADDR_OBTAINED, f"Obtained server address: {api.new_host}:{api.new_port}"
                 )
                 return _STATE_NAME_LOGIN
             else:
@@ -260,17 +231,19 @@ class _TryLogin(State):
 
     def execute(self, **kwargs):
         api = self.api
+        api.fire_session_event(EventType.BEFORE_LOGIN, "")
+
         result = api.auto_login()
         if result[ResultKey.STATUS] == APIStatus.SUCCESS:
             api.server_sess_active = True
             api.fire_session_event(
-                SessionEventType.LOGIN_SUCCESS, f"Logged into server at {api.host}:{api.port} with SSID: {api.ssid}"
+                EventType.LOGIN_SUCCESS, f"Logged into server at {api.host}:{api.port} with SSID: {api.ssid}"
             )
             return _STATE_NAME_OPERATE
 
         details = result.get(ResultKey.DETAILS, "")
         if details != _SESSION_LOGGING_OUT:
-            api.fire_session_event(SessionEventType.LOGIN_FAILURE, details)
+            api.fire_session_event(EventType.LOGIN_FAILURE, details)
 
         return FSM.STATE_NAME_EXIT
 
@@ -300,7 +273,7 @@ class _Operate(State):
 
         if new_host != cur_host or new_port != cur_port or cur_ssid != new_ssid:
             # need to re-login
-            api.fire_session_event(SessionEventType.SP_ADDR_CHANGED, f"Server address changed to {new_host}:{new_port}")
+            api.fire_session_event(EventType.SP_ADDR_CHANGED, f"Server address changed to {new_host}:{new_port}")
             return _STATE_NAME_LOGIN
 
         # check server session status
@@ -314,7 +287,7 @@ class _Operate(State):
             status = result[ResultKey.STATUS]
             if status in APIStatus.ERROR_INACTIVE_SESSION:
                 if details != _SESSION_LOGGING_OUT:
-                    api.fire_session_event(SessionEventType.SESSION_TIMEOUT, details)
+                    api.fire_session_event(EventType.SESSION_TIMEOUT, details)
 
                 # end the session
                 return FSM.STATE_NAME_EXIT
@@ -333,12 +306,12 @@ class AdminAPI(AdminAPISpec):
         upload_dir: str = "",
         download_dir: str = "",
         cmd_modules: Optional[List] = None,
-        poc: bool = False,
+        insecure: bool = False,
         debug: bool = False,
-        session_event_cb=None,
         session_timeout_interval=None,
         session_status_check_interval=None,
         auto_login_max_tries: int = 5,
+        event_handlers=None,
     ):
         """API to keep certs, keys and connection information and to execute admin commands through do_command.
 
@@ -351,9 +324,8 @@ class AdminAPI(AdminAPISpec):
             cmd_modules: command modules to load and register. Note that FileTransferModule is initialized here with upload_dir and download_dir if cmd_modules is None.
             service_finder: used to obtain the primary service provider to set the host and port of the active server
             user_name: Username to authenticate with FL server
-            poc: Whether to enable poc mode for using the proof of concept example without secure communication.
+            insecure: Whether to enable secure mode with secure communication.
             debug: Whether to print debug messages, which can help with diagnosing problems. False by default.
-            session_event_cb: the session event callback
             session_timeout_interval: if specified, automatically close the session after inactive for this long, unit is second
             session_status_check_interval: how often to check session status with server, unit is second
             auto_login_max_tries: maximum number of tries to auto-login.
@@ -378,6 +350,15 @@ class AdminAPI(AdminAPISpec):
         if cmd_module:
             cmd_modules.append(cmd_module)
 
+        if event_handlers:
+            if not isinstance(event_handlers, list):
+                raise TypeError(f"event_handlers must be a list but got {type(event_handlers)}")
+            for h in event_handlers:
+                if not isinstance(h, EventHandler):
+                    raise TypeError(f"item in event_handlers must be EventHandler but got {type(h)}")
+
+        self.event_handlers = event_handlers
+
         self.service_finder = service_finder
         self.host = None
         self.port = None
@@ -390,8 +371,8 @@ class AdminAPI(AdminAPISpec):
         self.new_addr_lock = threading.Lock()
 
         self.poc_key = None
-        self.poc = poc
-        if self.poc:
+        self.insecure = insecure
+        if self.insecure:
             self.poc_key = ApiPocValue.ADMIN
         else:
             if len(ca_cert) <= 0:
@@ -407,7 +388,7 @@ class AdminAPI(AdminAPISpec):
             self.service_finder.set_secure_context(
                 ca_cert_path=self.ca_cert, cert_path=self.client_cert, private_key_path=self.client_key
             )
-        self.debug = debug
+        self._debug = debug
         self.cmd_timeout = None
 
         # for login
@@ -434,10 +415,6 @@ class AdminAPI(AdminAPISpec):
         self.sess_monitor_thread = None
         self.sess_monitor_active = False
 
-        if session_event_cb is not None and not callable(session_event_cb):
-            raise RuntimeError("session_event_cb must be callable")
-        self.session_event_cb = session_event_cb
-
         # create the FSM for session monitoring
         if auto_login_max_tries < 0 or auto_login_max_tries > MAX_AUTO_LOGIN_TRIES:
             raise ValueError(f"auto_login_max_tries is out of range: [0, {MAX_AUTO_LOGIN_TRIES}]")
@@ -456,6 +433,16 @@ class AdminAPI(AdminAPISpec):
         self.service_finder.start(self._handle_sp_address_change)
         self._start_session_monitor()
 
+    def debug(self, msg):
+        if self._debug:
+            print(f"DEBUG: {msg}")
+
+    def fire_event(self, event_type: str, ctx: EventContext):
+        self.debug(f"firing event {event_type}")
+        if self.event_handlers:
+            for h in self.event_handlers:
+                h.handle_event(event_type, ctx)
+
     def set_command_timeout(self, timeout: float):
         if not isinstance(timeout, (int, float)):
             raise TypeError(f"timeout must be a number but got {type(timeout)}")
@@ -468,9 +455,16 @@ class AdminAPI(AdminAPISpec):
     def unset_command_timeout(self):
         self.cmd_timeout = None
 
-    def fire_session_event(self, event_type: str, msg: str):
-        if self.session_event_cb is not None:
-            self.session_event_cb(event_type, msg)
+    def _new_event_context(self):
+        ctx = EventContext()
+        ctx.set_prop(EventPropKey.USER_NAME, self.user_name)
+        return ctx
+
+    def fire_session_event(self, event_type: str, msg: str = ""):
+        ctx = self._new_event_context()
+        if msg:
+            ctx.set_prop(EventPropKey.MSG, msg)
+        self.fire_event(event_type, ctx)
 
     def _handle_sp_address_change(self, host: str, port: int, ssid: str):
         with self.addr_lock:
@@ -486,12 +480,20 @@ class AdminAPI(AdminAPISpec):
     def _try_auto_login(self):
         resp = None
         for i in range(self.auto_login_max_tries):
-            self.fire_session_event(SessionEventType.TRYING_LOGIN, "Trying to login, please wait ...")
+            try:
+                self.fire_session_event(EventType.TRYING_LOGIN, "Trying to login, please wait ...")
+            except Exception as ex:
+                print(f"exception handling event {EventType.TRYING_LOGIN}: {secure_format_exception(ex)}")
+                return {
+                    ResultKey.STATUS: APIStatus.ERROR_RUNTIME,
+                    ResultKey.DETAILS: f"exception handling event {EventType.TRYING_LOGIN}",
+                }
 
-            if self.poc:
-                resp = self.login_with_poc(username=self.user_name, poc_key=self.poc_key)
+            if self.insecure:
+                resp = self.login_with_insecure(username=self.user_name, poc_key=self.poc_key)
             else:
                 resp = self.login(username=self.user_name)
+
             if resp[ResultKey.STATUS] in [APIStatus.SUCCESS, APIStatus.ERROR_AUTHENTICATION, APIStatus.ERROR_CERT]:
                 return resp
             time.sleep(AUTO_LOGIN_INTERVAL)
@@ -505,8 +507,7 @@ class AdminAPI(AdminAPISpec):
     def auto_login(self):
         try:
             result = self._try_auto_login()
-            if self.debug:
-                print(f"DEBUG: login result is {result}")
+            self.debug(f"login result is {result}")
         except Exception as e:
             result = {
                 ResultKey.STATUS: APIStatus.ERROR_RUNTIME,
@@ -522,7 +523,7 @@ class AdminAPI(AdminAPISpec):
     def _load_client_cmds_from_module_specs(self, cmd_module_specs):
         if cmd_module_specs:
             for m in cmd_module_specs:
-                self.client_cmd_reg.register_module_spec(m, include_invisible=False)
+                self.client_cmd_reg.register_module_spec(m, include_invisible=True)
 
     def register_command(self, cmd_entry):
         self.all_cmds.append(cmd_entry.name)
@@ -537,8 +538,7 @@ class AdminAPI(AdminAPISpec):
         self.sess_monitor_active = False
         if self.sess_monitor_thread:
             self.sess_monitor_thread = None
-        if self.debug:
-            print("DEBUG: session monitor closed!")
+        self.debug("session monitor closed!")
 
     def check_session_status_on_server(self):
         return self.server_execute("_check_session")
@@ -579,7 +579,11 @@ class AdminAPI(AdminAPISpec):
             msg = f"exception occurred: {secure_format_exception(e)}"
 
         self.server_sess_active = False
-        self.fire_session_event(SessionEventType.SESSION_CLOSED, msg)
+        try:
+            self.fire_session_event(EventType.SESSION_CLOSED, msg)
+        except Exception as ex:
+            self.debug(f"exception occurred handling event {EventType.SESSION_CLOSED}: {secure_format_exception(ex)}")
+            pass
 
         # this is in the session_monitor thread - do not close the monitor, or we'll run into
         # "cannot join current thread" error!
@@ -662,12 +666,12 @@ class AdminAPI(AdminAPISpec):
 
         return self._login()
 
-    def login_with_poc(self, username: str, poc_key: str):
-        """Login using key for proof of concept example.
+    def login_with_insecure(self, username: str, poc_key: str):
+        """Login using key without certificates (POC has been updated so this should not be used for POC anymore).
 
         Args:
             username: Username
-            poc_key: key used for proof of concept admin login
+            poc_key: key used for insecure admin login
 
         Returns:
             A dict of login status and details
@@ -699,12 +703,29 @@ class AdminAPI(AdminAPISpec):
         if self.cmd_timeout:
             conn.update_meta({MetaKey.CMD_TIMEOUT: self.cmd_timeout})
 
+        custom_props = ctx.get_custom_props()
+        if custom_props:
+            conn.update_meta({MetaKey.CUSTOM_PROPS: custom_props})
+
         conn.close()
-        ok = receive_and_process(sock, process_json_func)
+        receive_bytes_func = ctx.get_bytes_receiver()
+        if receive_bytes_func is not None:
+            self.debug("receive_bytes_and_process ...")
+            ok = receive_bytes_and_process(sock, receive_bytes_func)
+            if ok:
+                ctx.set_command_result({"status": APIStatus.SUCCESS, "details": "OK"})
+            else:
+                ctx.set_command_result({"status": APIStatus.ERROR_RUNTIME, "details": "error receive_bytes"})
+        else:
+            self.debug("receive_and_process ...")
+            ok = receive_and_process(sock, process_json_func)
+
         if not ok:
             process_json_func(
                 make_error("Failed to communicate with Admin Server {} on {}".format(self.host, self.port))
             )
+        else:
+            self.debug("reply received!")
 
     def _try_command(self, cmd_ctx: CommandContext):
         """Try to execute a command on server side.
@@ -713,22 +734,38 @@ class AdminAPI(AdminAPISpec):
             cmd_ctx: The command to execute.
         """
         # process_json_func can't return data because how "receive_and_process" is written.
-        if self.debug:
-            print(f"DEBUG: sending command '{cmd_ctx.get_command()}'")
+        self.debug(f"sending command '{cmd_ctx.get_command()}'")
 
         json_processor = _ServerReplyJsonProcessor(cmd_ctx)
         process_json_func = json_processor.process_server_reply
         cmd_ctx.set_json_processor(json_processor)
 
+        event_ctx = self._new_event_context()
+        event_ctx.set_prop(EventPropKey.CMD_NAME, cmd_ctx.get_command_name())
+        event_ctx.set_prop(EventPropKey.CMD_CTX, cmd_ctx)
+
+        try:
+            self.fire_event(EventType.BEFORE_EXECUTE_CMD, event_ctx)
+        except Exception as ex:
+            secure_log_traceback()
+            process_json_func(
+                make_error(f"exception handling event {EventType.BEFORE_EXECUTE_CMD}: {secure_format_exception(ex)}")
+            )
+            return
+
+        # see whether any event handler has set "custom_props"
+        custom_props = event_ctx.get_prop(EventPropKey.CUSTOM_PROPS)
+        if custom_props:
+            cmd_ctx.set_custom_props(custom_props)
+
         with self.addr_lock:
             sp_host = self.host
             sp_port = self.port
 
-        if self.debug:
-            print(f"DEBUG: use server address {sp_host}:{sp_port}")
+        self.debug(f"use server address {sp_host}:{sp_port}")
 
         try:
-            if not self.poc:
+            if not self.insecure:
                 # SSL communication
                 ssl_ctx = ssl.create_default_context()
                 ssl_ctx.minimum_version = ssl.TLSVersion.TLSv1_2
@@ -743,12 +780,12 @@ class AdminAPI(AdminAPISpec):
                         ssock.connect((sp_host, sp_port))
                         self._send_to_sock(ssock, cmd_ctx)
             else:
-                # poc without certs
+                # without certs
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     sock.connect((sp_host, sp_port))
                     self._send_to_sock(sock, cmd_ctx)
         except Exception as e:
-            if self.debug:
+            if self._debug:
                 secure_log_traceback()
 
             process_json_func(
@@ -867,20 +904,23 @@ class AdminAPI(AdminAPISpec):
 
         return self.server_execute(command, cmd_entry=ent)
 
-    def server_execute(self, command, reply_processor=None, cmd_entry=None):
+    def server_execute(self, command, reply_processor=None, cmd_entry=None, cmd_ctx=None):
         if self.in_logout:
             return {ResultKey.STATUS: APIStatus.SUCCESS, ResultKey.DETAILS: "session is logging out"}
 
         args = split_to_args(command)
-        ctx = self._new_command_context(command, args, cmd_entry)
+        if cmd_ctx:
+            ctx = cmd_ctx
+        else:
+            ctx = self._new_command_context(command, args, cmd_entry)
+        ctx.set_command(command)
         start = time.time()
         ctx.set_reply_processor(reply_processor)
         self._try_command(ctx)
         secs = time.time() - start
         usecs = int(secs * 1000000)
 
-        if self.debug:
-            print(f"DEBUG: server_execute Done [{usecs} usecs] {datetime.now()}")
+        self.debug(f"server_execute Done [{usecs} usecs] {datetime.now()}")
 
         result = ctx.get_command_result()
         meta = ctx.get_meta()

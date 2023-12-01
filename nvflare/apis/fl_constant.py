@@ -101,6 +101,8 @@ class ReservedKey(object):
     JOB_DEPLOY_DETAIL = "__job_deploy_detail__"
     FATAL_SYSTEM_ERROR = "__fatal_system_error__"
     JOB_IS_UNSAFE = "__job_is_unsafe__"
+    CUSTOM_PROPS = "__custom_props__"
+    EXCEPTIONS = "__exceptions__"
 
 
 class FLContextKey(object):
@@ -114,6 +116,7 @@ class FLContextKey(object):
     EVENT_ORIGIN_SITE = ReservedKey.EVENT_ORIGIN_SITE
     EVENT_DATA = ReservedKey.EVENT_DATA
     EVENT_SCOPE = ReservedKey.EVENT_SCOPE
+    EXCEPTIONS = ReservedKey.EXCEPTIONS
     CLIENT_NAME = ReservedKey.CLIENT_NAME
     WORKSPACE_ROOT = ReservedKey.WORKSPACE_ROOT
     CURRENT_RUN = ReservedKey.RUN_NUM
@@ -138,6 +141,7 @@ class FLContextKey(object):
     CURRENT_JOB_ID = ReservedKey.CURRENT_JOB_ID
     JOB_RUN_NUMBER = ReservedKey.JOB_RUN_NUMBER
     JOB_DEPLOY_DETAIL = ReservedKey.JOB_DEPLOY_DETAIL
+    CUSTOM_PROPS = ReservedKey.CUSTOM_PROPS
     JOB_SCOPE_NAME = "__job_scope_name__"
     EFFECTIVE_JOB_SCOPE_NAME = "__effective_job_scope_name__"
     SCOPE_PROPERTIES = "__scope_props__"
@@ -149,13 +153,38 @@ class FLContextKey(object):
     JOB_PARTICIPANTS = "__job_participants"
     JOB_BLOCK_REASON = "__job_block_reason"  # why the job should be blocked from scheduling
     SSID = "__ssid__"
+    CLIENT_TOKEN = "__client_token"
+    AUTHORIZATION_RESULT = "_authorization_result"
+    AUTHORIZATION_REASON = "_authorization_reason"
+
+    CLIENT_REGISTER_DATA = "_client_register_data"
+    SECURITY_ITEMS = "_security_items"
+    COMMAND_NAME = "_command_name"
+    SITE_NAME = "__site_name"
+    USER_NAME = "__user_name"
+    USER_ORG = "__user_org"
+    USER_ROLE = "__user_role"
+    SUBMITTER_NAME = "_submitterName"
+    SUBMITTER_ORG = "_submitterOrg"
+    SUBMITTER_ROLE = "_submitterRole"
+    COMPONENT_BUILD_ERROR = "__component_build_error__"
+    COMPONENT_CONFIG = "__component_config__"
+    COMPONENT_NODE = "__component_node__"
+    CONFIG_CTX = "__config_ctx__"
+    FILTER_DIRECTION = "__filter_dir__"
+    ROOT_URL = "__root_url__"  # the URL for accessing the FL Server
+    NOT_READY_TO_END_RUN = "not_ready_to_end_run__"  # component sets this to indicate it's not ready to end run yet
 
 
 class ReservedTopic(object):
 
     END_RUN = "__end_run__"
     ABORT_ASK = "__abort_task__"
+    DO_TASK = "__do_task__"
     AUX_COMMAND = "__aux_command__"
+    SYNC_RUNNER = "__sync_runner__"
+    JOB_HEART_BEAT = "__job_heartbeat__"
+    TASK_CHECK = "__task_check__"
 
 
 class AdminCommandNames(object):
@@ -164,10 +193,12 @@ class AdminCommandNames(object):
     LIST_JOBS = "list_jobs"
     GET_JOB_META = "get_job_meta"
     DOWNLOAD_JOB = "download_job"
+    DOWNLOAD_JOB_FILE = "download_job_file"
     ABORT_JOB = "abort_job"
     DELETE_JOB = "delete_job"
     CLONE_JOB = "clone_job"
     DELETE_WORKSPACE = "delete_workspace"
+    CHECK_RESOURCES = "check_resources"
     DEPLOY_APP = "deploy_app"
     START_APP = "start_app"
     CHECK_STATUS = "check_status"
@@ -184,6 +215,7 @@ class AdminCommandNames(object):
     AUX_COMMAND = "aux_command"
     SYS_INFO = "sys_info"
     REPORT_RESOURCES = "report_resources"
+    REPORT_ENV = "report_env"
     SHOW_SCOPES = "show_scopes"
     CALL = "call"
     SHELL_PWD = "pwd"
@@ -287,6 +319,7 @@ class RunProcessKey(object):
     JOB_ID = "_job_id"
     PARTICIPANTS = "_participants"
     PROCESS_FINISHED = "_process_finished"
+    PROCESS_EXE_ERROR = "_process_exe_error"
     PROCESS_RETURN_CODE = "_process_return_code"
 
 
@@ -304,12 +337,15 @@ class SystemComponents(object):
     APP_DEPLOYER = "app_deployer"
     DEFAULT_APP_DEPLOYER = "default_app_deployer"
     JOB_META_VALIDATOR = "job_meta_validator"
+    FED_CLIENT = "fed_client"
+    RUN_MANAGER = "run_manager"
 
 
 class JobConstants:
     SERVER_JOB_CONFIG = "config_fed_server.json"
     CLIENT_JOB_CONFIG = "config_fed_client.json"
     META_FILE = "meta.json"
+    META = "meta"
 
 
 class WorkspaceConstants:
@@ -347,6 +383,7 @@ class WorkspaceConstants:
     DEFAULT_RESOURCES_CONFIG = RESOURCES_CONFIG + ".default"
     PRIVACY_CONFIG = "privacy.json"
     SAMPLE_PRIVACY_CONFIG = PRIVACY_CONFIG + ".sample"
+    JOB_RESOURCES_CONFIG = "job_resources.json"
 
     ADMIN_STARTUP_CONFIG = "fed_admin.json"
 
@@ -381,3 +418,52 @@ class FLMetaKey:
     TOTAL_ROUNDS = "total_rounds"
     JOB_ID = "job_id"
     SITE_NAME = "site_name"
+    PROCESS_RC_FILE = "_process_rc.txt"
+    SUBMIT_MODEL_NAME = "submit_model_name"
+
+
+class FilterKey:
+    IN = "in"
+    OUT = "out"
+    INOUT = "inout"
+    DELIMITER = "/"
+
+
+class ConfigVarName:
+    # These variables can be set in job config files (config_fed_server or config_fed_client)
+    RUNNER_SYNC_TIMEOUT = "runner_sync_timeout"  # client: runner sync message timeout
+    MAX_RUNNER_SYNC_TRIES = "max_runner_sync_tries"  # client: max number of runner sync attempts
+    TASK_CHECK_TIMEOUT = "task_check_timeout"  # client: timeout for task_check message (before submitting task)
+
+    # client: how long to wait before sending task_check again (if previous task_check fails)
+    TASK_CHECK_INTERVAL = "task_check_interval"
+
+    # client: how often to send job heartbeats
+    JOB_HEARTBEAT_INTERVAL = "job_heartbeat_interval"
+
+    # client and server: max time to wait for components to become ready for end-run
+    END_RUN_READINESS_TIMEOUT = "end_run_readiness_timeout"
+
+    # client and server: how long to wait before checking components end-run readiness again (if previous check fails)
+    END_RUN_READINESS_CHECK_INTERVAL = "end_run_readiness_check_interval"
+
+    # client: timeout for getTask requests
+    GET_TASK_TIMEOUT = "get_task_timeout"
+
+    # client: timeout for submitTaskResult requests
+    SUBMIT_TASK_RESULT_TIMEOUT = "submit_task_result_timeout"
+
+
+class SystemVarName:
+    """
+    These vars are automatically generated by FLARE and can be referenced in job config (config_fed_client and
+    config_fed_server). For example, you can reference SITE_NAME as "{SITE_NAME}" in your config.
+
+    To avoid potential conflict with user-defined var names, these var names are in UPPER CASE.
+    """
+
+    SITE_NAME = "SITE_NAME"  # name of client site or server
+    WORKSPACE = "WORKSPACE"  # directory of the workspace
+    JOB_ID = "JOB_ID"  # Job ID
+    ROOT_URL = "ROOT_URL"  # the URL of the Service Provider (server)
+    SECURE_MODE = "SECURE_MODE"  # whether the system is running in secure mode

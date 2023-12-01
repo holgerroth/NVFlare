@@ -27,9 +27,7 @@ Clone NVFLARE repo to get examples, switch main branch (latest stable branch)
 
 Note on branches:
 
-* The `dev <https://github.com/NVIDIA/NVFlare/tree/dev>`_ branch is the default (unstable) development branch
-
-* The `main <https://github.com/NVIDIA/NVFlare/tree/main>`_ branch is the stable branch, reflecting the latest release
+* The `main <https://github.com/NVIDIA/NVFlare/tree/main>`_ branch is the default (unstable) development branch
 
 * The 2.0, 2.1, 2.2, and 2.3 etc. branches are the branches for each major release and minor patches
 
@@ -147,7 +145,7 @@ and instructions for this can be found in the `NVIDIA Container Toolkit Install 
 
 A simple Dockerfile is used to capture the base requirements and dependencies.  In
 this case, we're building an environment that will support PyTorch-based workflows,
-in particular the `Hello PyTorch <https://github.com/NVIDIA/NVFlare/tree/main/examples/hello-pt>`_
+in particular the :github_nvflare_link:`Hello PyTorch <examples/hello-world/hello-pt>`
 example. The base for this build is the NGC PyTorch container.  On this base image,
 we will install the necessary dependencies and clone the NVIDIA FLARE GitHub
 source code into the root workspace directory.
@@ -162,7 +160,7 @@ Let's first create a folder called ``build`` and then create a file inside named
 
 Using any text editor to edit the Dockerfile and paste the following:
 
-.. literalinclude:: resources/Dockerfile.doc
+.. literalinclude:: resources/Dockerfile
     :language: dockerfile
 
 We can then build the new container by running docker build in the directory containing
@@ -205,8 +203,8 @@ NVFLARE can currently support running with the FL Simulator, POC mode, or Produc
 FL Simulator is lightweight and uses threads to simulate different clients.
 The code used for the simulator can be directly used in production mode.
 
-POC mode is an insecure deployment run locally on one machine without worry about TLS certificates. Each client 
-and Server are running on different processes
+POC mode is a quick way to get set up to run locally on one machine. The FL server and each client
+run on different processes or dockers.
 
 Production mode is secure with TLS certificates - depending the choice the deployment, you can further choose:
 
@@ -231,7 +229,7 @@ After installing the nvflare pip package, you have access to the NVFlare CLI inc
 The Simulator allows you to start a FLARE server and any number of connected clients on your local
 workstation or laptop, and to quickly deploy an application for testing and debugging.
 
-Basic usage for the FL Simulator is available with ``nvflare simulator -h``:
+Basic usage for the :ref:`FL Simulator <fl_simulator>` is available with ``nvflare simulator -h``:
 
 .. code-block:: shell
 
@@ -272,13 +270,21 @@ First, we need to clone the NVFlare repo to get the source code for the examples
 
   $ git clone https://github.com/NVIDIA/NVFlare.git
 
+
+Please make sure to switch to the correct branch that matches the NVFlare library version you installed.
+
+.. code-block:: shell
+
+  $ git switch [nvflare version]
+
+
 We can then copy the necessary files (the exercise code in the examples directory of the NVFlare repository)
 to a working directory:
 
 .. code-block:: shell
 
   mkdir simulator-example
-  cp -rf NVFlare/examples/hello-pt simulator-example/
+  cp -rf NVFlare/examples/hello-world/hello-pt simulator-example/
 
 The hello-pt application requires a few dependencies to be installed.  As in the installation section,
 we can install these in the Python virtual environment by running:
@@ -291,13 +297,13 @@ we can install these in the Python virtual environment by running:
 If using the Dockerfile above to run in a container, these dependencies have already been installed.
 
 Next, we can create a workspace for the Simulator to use for outputs of the application run, and launch
-the simulator using ``simulator-example/hello-pt`` as the input job directory.  In this example, we'll
+the simulator using ``simulator-example/hello-pt/jobs/hello-pt`` as the input job directory.  In this example, we'll
 run on two clients using two threads:
 
 .. code-block:: shell
 
   mkdir simulator-example/workspace
-  nvflare simulator -w simulator-example/workspace -n 2 -t 2 simulator-example/hello-pt
+  nvflare simulator -w simulator-example/workspace -n 2 -t 2 simulator-example/hello-pt/jobs/hello-pt
 
 Now you will see output streaming from the server and client processes as they execute the federated
 application.  Once the run completes, your workspace directory will contain the input application configuration
@@ -348,18 +354,12 @@ section.
 Setting Up the Application Environment in POC Mode
 ==================================================
 
-.. warning::
-
-    POC mode is not intended to be secure and should not be run in any type of production environment or any environment
-    where the server's ports are exposed. For actual deployment and even development, it is recommended to use a
-    :ref:`secure provisioned setup <provisioned_setup>` or :ref:`starting_fl_simulator`.
-
 To get started with a proof of concept (POC) setup after :ref:`installation`, run this command to generate a poc folder
 with an overseer, server, two clients, and one admin client:
 
 .. code-block:: shell
 
-    $ nvflare poc --prepare -n 2
+    $ nvflare poc prepare -n 2
 
 For more details, see :ref:`poc_command`.
 
@@ -373,17 +373,12 @@ to start the server and client systems and an admin console:
 
 .. code-block::
 
-  nvflare poc --start
+  nvflare poc start
 
 To start the server and client systems without an admin console:
 
 .. code-block::
 
-  nvflare poc --start -ex admin
+  nvflare poc start -ex admin@nvidia.com
 
 For more details, see :ref:`poc_command`.
-
-.. tip::
-
-   For anything more than the most basic proof of concept examples, it is recommended that you use a
-   :ref:`secure provisioned setup <provisioned_setup>`.

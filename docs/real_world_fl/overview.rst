@@ -131,10 +131,7 @@ Local host deployment
 
 Production mode, non-HA, secure, local
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-You can use the CLI provision command to generate a local production mode, where the server is either named “localhost” or the user needs
-to modify ``/etc/hosts`` and add the server name to the localhost alias. 
-
-Check out the files in the tutorials folder under examples: example/tutorials/tu_pres_start.sh and tu_post_start.sh to see how this is done.
+You can use the CLI provision command to generate a local production mode.
 
 Docker mode
 ^^^^^^^^^^^
@@ -264,7 +261,7 @@ Operate: Running federated learning as an administrator
 Running federated learning from the administration console
 ==========================================================
 With all connections between the FL server, FL clients, and administration consoles open and all of the parties
-started successfully as described in the preceding section, `Federated learning administration client`_,
+started successfully as described in the preceding section, `Federated Learning Administration Console`_,
 admin commands can be used to operate a federated learning project. The FLAdminAPI provides a way to programmatically
 issue commands to operate the system so it can be run with a script.
 

@@ -106,15 +106,15 @@ class TrainingCommandModule(CommandModule, CommandUtil):
             return err
         else:
             conn.append_string("FL app has been shutdown.")
-            conn.append_shutdown("Bye bye")
+            conn.append_shutdown("Goodbye!")
             return ""
 
     def _shutdown_app_on_clients(self, conn: Connection) -> bool:
         message = new_message(conn, topic=TrainingTopic.SHUTDOWN, body="", require_authz=True)
         clients = conn.get_prop(self.TARGET_CLIENT_TOKENS, None)
         if not clients:
-            conn.append_error("no clients to shutdown")
-            return False
+            # no clients to shut down - this is okay
+            return True
 
         replies = self.send_request_to_clients(conn, message)
         self.process_replies_to_table(conn, replies)
@@ -219,6 +219,10 @@ class TrainingCommandModule(CommandModule, CommandUtil):
                 conn.append_error(err, meta={MetaKey.SERVER_STATUS: MetaStatusValue.ERROR, MetaKey.INFO: err})
             else:
                 conn.append_string("Server scheduled for restart", meta={MetaKey.SERVER_STATUS: MetaStatusValue.OK})
+
+                # ask the admin client to shut down since its current session will become invalid after
+                # the server is restarted.
+                conn.append_shutdown("Goodbye!")
         elif target_type == self.TARGET_TYPE_CLIENT:
             clients = conn.get_prop(self.TARGET_CLIENT_TOKENS)
             if not clients:

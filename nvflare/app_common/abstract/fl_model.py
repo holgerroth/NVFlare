@@ -32,7 +32,6 @@ class FLModelConst:
     CURRENT_ROUND = "current_round"
     TOTAL_ROUNDS = "total_rounds"
     META = "meta"
-    AGGREGATION = "aggregation"
 
 
 class MetaKey(FLMetaKey):
@@ -42,7 +41,7 @@ class MetaKey(FLMetaKey):
 class FLModel:
     def __init__(
         self,
-        params_type: Union[None, str, ParamsType] = ParamsType.FULL,
+        params_type: Union[None, str, ParamsType] = None,
         params: Any = None,
         optimizer_params: Any = None,
         metrics: Optional[Dict] = None,
@@ -50,10 +49,12 @@ class FLModel:
         total_rounds: Optional[int] = None,
         meta: Optional[Dict] = None,
     ):
-        """
+        """FLModel is a standardize data structure for NVFlare to communicate with external systems.
+
         Args:
             params_type: type of the parameters. It only describes the "params".
                 If params_type is None, params need to be None.
+                If params is provided but params_type is not provided, then it will be treated as FULL.
             params: model parameters, for example: model weights for deep learning.
             optimizer_params: optimizer parameters.
                 For many cases, the optimizer parameters don't need to be transferred during FL training.
@@ -64,9 +65,17 @@ class FLModel:
                 None for inference.
             meta: metadata dictionary used to contain any key-value pairs to facilitate the process.
         """
-        FLModel.validate_params_type(params, params_type)
-        if params_type:
-            self.params_type = ParamsType(params_type)
+        if params_type is None:
+            if params is not None:
+                params_type = ParamsType.FULL
+        else:
+            params_type = ParamsType(params_type)
+
+        if params_type == ParamsType.FULL or params_type == ParamsType.DIFF:
+            if params is None:
+                raise ValueError(f"params must be provided when params_type is {params_type}")
+
+        self.params_type = params_type
         self.params = params
         self.optimizer_params = optimizer_params
         self.metrics = metrics
@@ -78,14 +87,6 @@ class FLModel:
         else:
             meta = {}
         self.meta = meta
-
-    @staticmethod
-    def validate_params_type(params: Any, params_type: Union[None, str, ParamsType]) -> None:
-        if params_type == ParamsType.FULL or params_type == ParamsType.DIFF:
-            if params is None:
-                raise ValueError(f"params must be provided when params_type is {params_type.value}")
-        if params is not None and params_type is None:
-            raise ValueError("params_type must be provided when params is not None.")
 
     def __str__(self):
         return (

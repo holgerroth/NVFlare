@@ -18,13 +18,15 @@ import time
 from nvflare.apis.client import Client
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_component import FLComponent
-from nvflare.apis.fl_constant import FLContextKey, ReservedKey, ReservedTopic, ReturnCode
+from nvflare.apis.fl_constant import FilterKey, FLContextKey, ReservedKey, ReservedTopic, ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.server_engine_spec import ServerEngineSpec
 from nvflare.apis.shareable import ReservedHeaderKey, Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.apis.utils.fl_context_utils import add_job_audit_event
+from nvflare.apis.utils.task_utils import apply_filters
 from nvflare.private.defs import SpecialTaskName, TaskConstant
+from nvflare.private.fed.tbi import TBI
 from nvflare.private.privacy_manager import Scope
 from nvflare.security.logging import secure_format_exception
 from nvflare.widgets.info_collector import GroupInfoCollector, InfoCollector
@@ -72,7 +74,14 @@ class ServerRunnerConfig(object):
             self.handlers.append(component)
 
 
-class ServerRunner(FLComponent):
+class ServerRunner(TBI):
+
+    ABORT_RETURN_CODES = [
+        ReturnCode.RUN_MISMATCH,
+        ReturnCode.TASK_UNKNOWN,
+        ReturnCode.UNSAFE_JOB,
+    ]
+
     def __init__(self, config: ServerRunnerConfig, job_id: str, engine: ServerEngineSpec):
         """Server runner class.
 
@@ -81,7 +90,7 @@ class ServerRunner(FLComponent):
             job_id (str): The number to distinguish each experiment
             engine (ServerEngineSpec): server engine
         """
-        FLComponent.__init__(self)
+        TBI.__init__(self)
         self.job_id = job_id
         self.config = config
         self.engine = engine
@@ -91,6 +100,22 @@ class ServerRunner(FLComponent):
         self.current_wf_index = 0
         self.status = "init"
         self.turn_to_cold = False
+        self._register_aux_message_handler(engine)
+
+    def _register_aux_message_handler(self, engine):
+        engine.register_aux_message_handler(
+            topic=ReservedTopic.SYNC_RUNNER, message_handle_func=self._handle_sync_runner
+        )
+
+        engine.register_aux_message_handler(
+            topic=ReservedTopic.JOB_HEART_BEAT, message_handle_func=self._handle_job_heartbeat
+        )
+
+        engine.register_aux_message_handler(topic=ReservedTopic.TASK_CHECK, message_handle_func=self._handle_task_check)
+
+    def _handle_sync_runner(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+        # simply ack
+        return make_reply(ReturnCode.OK)
 
     def _execute_run(self):
         while self.current_wf_index < len(self.config.workflows):
@@ -99,10 +124,10 @@ class ServerRunner(FLComponent):
                 with self.engine.new_context() as fl_ctx:
                     self.log_info(fl_ctx, "starting workflow {} ({}) ...".format(wf.id, type(wf.responder)))
 
+                    fl_ctx.set_prop(FLContextKey.WORKFLOW, wf.id, sticky=True)
                     wf.responder.initialize_run(fl_ctx)
 
                     self.log_info(fl_ctx, "Workflow {} ({}) started".format(wf.id, type(wf.responder)))
-                    fl_ctx.set_prop(FLContextKey.WORKFLOW, wf.id, sticky=True)
                     self.log_debug(fl_ctx, "firing event EventType.START_WORKFLOW")
                     self.fire_event(EventType.START_WORKFLOW, fl_ctx)
 
@@ -175,9 +200,14 @@ class ServerRunner(FLComponent):
                             timeout=0.0,
                             fl_ctx=fl_ctx,
                             optional=True,
+                            secure=False,
                         )
 
                         self.engine.persist_components(fl_ctx, completed=True)
+
+                    self.check_end_run_readiness(fl_ctx)
+
+                    # Now ready to end the run!
                     self.fire_event(EventType.END_RUN, fl_ctx)
                     self.log_info(fl_ctx, "END_RUN fired")
 
@@ -261,33 +291,21 @@ class ServerRunner(FLComponent):
             self.log_debug(fl_ctx, "firing event EventType.BEFORE_TASK_DATA_FILTER")
             self.fire_event(EventType.BEFORE_TASK_DATA_FILTER, fl_ctx)
 
-            # apply scope filters first
-            scope_object = fl_ctx.get_prop(FLContextKey.SCOPE_OBJECT)
-            filter_list = []
-            if scope_object:
-                assert isinstance(scope_object, Scope)
-                if scope_object.task_data_filters:
-                    filter_list.extend(scope_object.task_data_filters)
-
-            task_filter_list = self.config.task_data_filters.get(task_name)
-            if task_filter_list:
-                filter_list.extend(task_filter_list)
-
-            if filter_list:
-                for f in filter_list:
-                    try:
-                        task_data = f.process(task_data, fl_ctx)
-                    except Exception as e:
-                        self.log_exception(
-                            fl_ctx,
-                            "processing error in task data filter {}: {}; "
-                            "asked client to try again later".format(type(f), secure_format_exception(e)),
-                        )
-
-                        with self.wf_lock:
-                            if self.current_wf:
-                                self.current_wf.responder.handle_exception(task_id, fl_ctx)
-                        return self._task_try_again()
+            try:
+                filter_name = Scope.TASK_DATA_FILTERS_NAME
+                task_data = apply_filters(
+                    filter_name, task_data, fl_ctx, self.config.task_data_filters, task_name, FilterKey.OUT
+                )
+            except Exception as e:
+                self.log_exception(
+                    fl_ctx,
+                    "processing error in task data filter {}; "
+                    "asked client to try again later".format(secure_format_exception(e)),
+                )
+                with self.wf_lock:
+                    if self.current_wf:
+                        self.current_wf.responder.handle_exception(task_id, fl_ctx)
+                return self._task_try_again()
 
             self.log_debug(fl_ctx, "firing event EventType.AFTER_TASK_DATA_FILTER")
             self.fire_event(EventType.AFTER_TASK_DATA_FILTER, fl_ctx)
@@ -406,6 +424,15 @@ class ServerRunner(FLComponent):
             self.log_info(fl_ctx, "invalid result submission: not the same job id - dropped")
             return
 
+        rc = result.get_return_code(default=ReturnCode.OK)
+        if rc in self.ABORT_RETURN_CODES:
+            self.log_error(fl_ctx, f"aborting ServerRunner due to fatal return code {rc} from client {client.name}")
+            self.system_panic(
+                reason=f"Aborted job {self.job_id} due to fatal return code {rc} from client {client.name}",
+                fl_ctx=fl_ctx,
+            )
+            return
+
         result.set_header(ReservedHeaderKey.TASK_NAME, task_name)
         result.set_header(ReservedHeaderKey.TASK_ID, task_id)
         result.set_peer_props(peer_ctx.get_all_public_props())
@@ -430,29 +457,17 @@ class ServerRunner(FLComponent):
                 self.log_debug(fl_ctx, "firing event EventType.BEFORE_TASK_RESULT_FILTER")
                 self.fire_event(EventType.BEFORE_TASK_RESULT_FILTER, fl_ctx)
 
-                filter_list = []
-                scope_object = fl_ctx.get_prop(FLContextKey.SCOPE_OBJECT)
-                if scope_object and scope_object.task_result_filters:
-                    filter_list.extend(scope_object.task_result_filters)
-
-                task_filter_list = self.config.task_result_filters.get(task_name)
-                if task_filter_list:
-                    filter_list.extend(task_filter_list)
-
-                if filter_list:
-                    for f in filter_list:
-                        try:
-                            result = f.process(result, fl_ctx)
-                        except Exception as e:
-                            self.log_exception(
-                                fl_ctx,
-                                "Error processing in task result filter {}: {}".format(
-                                    type(f), secure_format_exception(e)
-                                ),
-                            )
-
-                            result = make_reply(ReturnCode.TASK_RESULT_FILTER_ERROR)
-                            break
+                try:
+                    filter_name = Scope.TASK_RESULT_FILTERS_NAME
+                    result = apply_filters(
+                        filter_name, result, fl_ctx, self.config.task_result_filters, task_name, FilterKey.IN
+                    )
+                except Exception as e:
+                    self.log_exception(
+                        fl_ctx,
+                        "processing error in task result filter {}; ".format(secure_format_exception(e)),
+                    )
+                    result = make_reply(ReturnCode.TASK_RESULT_FILTER_ERROR)
 
                 self.log_debug(fl_ctx, "firing event EventType.AFTER_TASK_RESULT_FILTER")
                 self.fire_event(EventType.AFTER_TASK_RESULT_FILTER, fl_ctx)
@@ -472,6 +487,31 @@ class ServerRunner(FLComponent):
                     fl_ctx,
                     "Error processing client result by {}: {}".format(self.current_wf.id, secure_format_exception(e)),
                 )
+
+    def _handle_job_heartbeat(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+        self.log_debug(fl_ctx, "received client job_heartbeat")
+        return make_reply(ReturnCode.OK)
+
+    def _handle_task_check(self, topic: str, request: Shareable, fl_ctx: FLContext) -> Shareable:
+        task_id = request.get_header(ReservedHeaderKey.TASK_ID)
+        if not task_id:
+            self.log_error(fl_ctx, f"missing {ReservedHeaderKey.TASK_ID} in task_check request")
+            return make_reply(ReturnCode.BAD_REQUEST_DATA)
+
+        self.log_debug(fl_ctx, f"received task_check on task {task_id}")
+
+        with self.wf_lock:
+            if self.current_wf is None or self.current_wf.responder is None:
+                self.log_info(fl_ctx, "no current workflow - dropped task_check.")
+                return make_reply(ReturnCode.TASK_UNKNOWN)
+
+            task = self.current_wf.responder.process_task_check(task_id=task_id, fl_ctx=fl_ctx)
+            if task:
+                self.log_debug(fl_ctx, f"task {task_id} is still good")
+                return make_reply(ReturnCode.OK)
+            else:
+                self.log_info(fl_ctx, f"task {task_id} is not found")
+                return make_reply(ReturnCode.TASK_UNKNOWN)
 
     def abort(self, fl_ctx: FLContext, turn_to_cold: bool = False):
         self.status = "done"

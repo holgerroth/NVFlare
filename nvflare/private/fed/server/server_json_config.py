@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import re
 
 from nvflare.apis.fl_component import FLComponent
-from nvflare.apis.fl_constant import SystemConfigs
+from nvflare.apis.fl_constant import SystemConfigs, SystemVarName
 from nvflare.apis.responder import Responder
 from nvflare.fuel.utils.argument_utils import parse_vars
 from nvflare.fuel.utils.config_service import ConfigService
@@ -43,7 +42,7 @@ class WorkFlow:
 
 
 class ServerJsonConfigurator(FedJsonConfigurator):
-    def __init__(self, config_file_name: str, args, kv_list=None, exclude_libs=True):
+    def __init__(self, config_file_name: str, args, app_root: str, kv_list=None, exclude_libs=True):
         """This class parses server config from json file.
 
         Args:
@@ -52,9 +51,23 @@ class ServerJsonConfigurator(FedJsonConfigurator):
         """
         self.config_file_name = config_file_name
         self.args = args
+        self.app_root = app_root
 
         base_pkgs = FL_PACKAGES
         module_names = FL_MODULES
+
+        if kv_list:
+            assert isinstance(kv_list, list), "cmd_vars must be list, but got {}".format(type(kv_list))
+            self.cmd_vars = parse_vars(kv_list)
+        else:
+            self.cmd_vars = {}
+
+        sys_vars = {
+            SystemVarName.JOB_ID: args.job_id,
+            SystemVarName.SITE_NAME: "server",
+            SystemVarName.WORKSPACE: args.workspace,
+            SystemVarName.SECURE_MODE: self.cmd_vars.get("secure_train", True),
+        }
 
         FedJsonConfigurator.__init__(
             self,
@@ -62,6 +75,8 @@ class ServerJsonConfigurator(FedJsonConfigurator):
             base_pkgs=base_pkgs,
             module_names=module_names,
             exclude_libs=exclude_libs,
+            is_server=True,
+            sys_vars=sys_vars,
         )
 
         if kv_list:
@@ -109,7 +124,7 @@ class ServerJsonConfigurator(FedJsonConfigurator):
             return
 
         if re.search(r"^workflows\.#[0-9]+$", path):
-            workflow = self.build_component(element)
+            workflow = self.authorize_and_build_component(element, config_ctx, node)
             if not isinstance(workflow, Responder):
                 raise ConfigError(
                     '"workflow" must be a Responder or Controller object, but got {}'.format(type(workflow))
@@ -141,8 +156,7 @@ class ServerJsonConfigurator(FedJsonConfigurator):
     def build_component(self, config_dict):
         t = super().build_component(config_dict)
         if isinstance(t, FLComponent):
-            if type(t).__name__ not in [type(h).__name__ for h in self.handlers]:
-                self.handlers.append(t)
+            self.handlers.append(t)
         return t
 
     def finalize_config(self, config_ctx: ConfigContext):
@@ -162,8 +176,13 @@ class ServerJsonConfigurator(FedJsonConfigurator):
         )
 
         ConfigService.initialize(
-            section_files={SystemConfigs.APPLICATION_CONF: os.path.basename(self.config_files[0])},
-            config_path=[self.args.workspace],
+            section_files={},
+            config_path=[self.app_root],
             parsed_args=self.args,
             var_dict=self.cmd_vars,
+        )
+
+        ConfigService.add_section(
+            section_name=SystemConfigs.APPLICATION_CONF,
+            data=self.config_data,
         )

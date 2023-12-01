@@ -59,7 +59,7 @@ To run the examples, we first download the dataset from the HIGGS link above, wh
 By default, we assume the dataset is downloaded, uncompressed, and stored in `~/dataset/HIGGS.csv`.
 
 > **_NOTE:_** If the dataset is downloaded in another place,
-> make sure to modify the corresponding `DATASET_PATH` inside `data_split_gen.sh`.
+> make sure to modify the corresponding `DATASET_PATH` inside `prepare_data.sh`.
 
 ### Data Split
 Since HIGGS dataset is already randomly recorded,
@@ -81,7 +81,7 @@ If the number of clients is large (e.g. 20), exponential split will be too aggre
 
 Data splits used in this example can be generated with
 ```
-bash data_split_gen.sh
+bash prepare_data.sh
 ```
 
 This will generate data splits for three client sizes: 2, 5 and 20, and 3 split conditions: uniform, square, and exponential.
@@ -97,7 +97,7 @@ Please follow the [Installation](https://nvflare.readthedocs.io/en/main/quicksta
 
 We then prepare the NVFlare job configs for different settings by running
 ```
-bash job_config_gen.sh
+bash prepare_job_config.sh
 ```
 
 This script modifies settings from base job configuration
@@ -128,7 +128,7 @@ The script will also generate 2 configs in `histogram-based/jobs` for histogram-
 - histogram-based training with uniform data split for 5 clients
 
 ## Run experiments for tree-based and histogram-based settings
-After you run the two scripts `data_split_gen.sh` and `job_config_gen.sh`,
+After you run the two scripts `prepare_data.sh` and `prepare_job_config.sh`,
 please go to sub-folder [tree-based](tree-based) for running tree-based algorithms,
 and sub-folder [histogram-based](histogram-based) for running histogram-based algorithms.
 
@@ -139,26 +139,13 @@ By default, CPU based training is used.
 If the CUDA is installed on the site, tree construction and prediction can be
 accelerated using GPUs.
 
-GPUs are enabled by using :code:`gpu_hist` as :code:`tree_method` parameter.
-For example,
-::
-              "xgboost_params": {
-                "max_depth": 8,
-                "eta": 0.1,
-                "objective": "binary:logistic",
-                "eval_metric": "auc",
-                "tree_method": "gpu_hist",
-                "gpu_id": 0,
-                "nthread": 16
-              }
-
-For GPU based training, edit `job_config_gen.sh` to change `TREE_METHOD="hist"` to `TREE_METHOD="gpu_hist"`.
-Then run the `job_config_gen.sh` again to generates new job configs for GPU-based training.
+To enable GPU accelerated training, in `config_fed_client.json` set `"use_gpus": true` and  `"tree_method": "hist"`. Then, in `FedXGBHistogramExecutor` we use the `device` parameter to map each rank to a GPU device ordinal in `xgb_params`. For a single GPU, assuming it has enough memory, we can map each rank to the same device with `params["device"] = f"cuda:0"`.
 
 ### Multi GPU support
 
-Multiple GPUs can be supported by running one NVFlare client for each GPU. Each client
-runs a different NVFlare app with the corresponding :code:`gpu_id` assigned.
+Multiple GPUs can be supported by running one NVFlare client for each GPU.
+
+In the `xgb_params`, we can set the `device` parameter to map each rank to a corresponding GPU device ordinal in with `params["device"] = f"cuda:{self.rank}"`
 
 Assuming there are 2 physical client sites, each with 2 GPUs (id 0 and 1).
 We can start 4 NVFlare client processes (site-1a, site-1b, site-2a, site-2b), one for each GPU.
@@ -183,7 +170,7 @@ The job layout looks like this,
     │       └── config_fed_client.json
     └── meta.json
 
-Each app is deployed to its own client site. Here is the :code:`meta.json`,
+Each app is deployed to its own client site. Here is the `meta.json`,
 ::
 
     {
@@ -227,5 +214,5 @@ Each app is deployed to its own client site. Here is the :code:`meta.json`,
     }
 
 For federated XGBoost, all clients must participate in the training. Therefore,
-:code:`min_clients` must equal to the number of clients.
+`min_clients` must equal to the number of clients.
 

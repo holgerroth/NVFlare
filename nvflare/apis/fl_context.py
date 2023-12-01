@@ -170,6 +170,19 @@ class FLContext(object):
             else:
                 return default
 
+    def get_custom_prop(self, key: str, default=None):
+        props = self.get_prop(ReservedKey.CUSTOM_PROPS)
+        if not props:
+            return default
+        return props.get(key, default)
+
+    def set_custom_prop(self, key: str, value):
+        props = self.get_prop(ReservedKey.CUSTOM_PROPS)
+        if not props:
+            props = {}
+            self.set_prop(ReservedKey.CUSTOM_PROPS, props, sticky=False, private=True)
+        props[key] = value
+
     def get_prop_detail(self, key):
         with _update_lock:
             if key in self.props:
@@ -180,12 +193,12 @@ class FLContext(object):
             else:
                 return None
 
-    def remove_prop(self, key: str):
+    def remove_prop(self, key: str, force_removal=False):
         if not isinstance(key, str):
             return
 
-        if key.startswith("__"):
-            # do not allow removal of reserved props!
+        if key.startswith("__") and not force_removal:
+            # do not allow removal of reserved props unless forced!
             return
 
         with _update_lock:

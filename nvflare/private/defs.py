@@ -88,6 +88,7 @@ class SysCommandTopic(object):
     SYS_INFO = "sys.info"
     SHELL = "sys.shell"
     REPORT_RESOURCES = "resource_manager.report_resources"
+    REPORT_ENV = "sys.report_env"
 
 
 class ControlCommandTopic(object):
@@ -144,6 +145,7 @@ class CellChannel:
     CLIENT_SUB_WORKER_COMMAND = "client_sub_worker_command"
     MULTI_PROCESS_EXECUTOR = "multi_process_executor"
     SIMULATOR_RUNNER = "simulator_runner"
+    RETURN_ONLY = "return_only"
 
 
 class CellChannelTopic:
@@ -155,6 +157,7 @@ class CellChannelTopic:
     HEART_BEAT = "heart_beat"
     EXECUTE_RESULT = "execute_result"
     FIRE_EVENT = "fire_event"
+    REPORT_JOB_FAILURE = "report_job_failure"
 
     SIMULATOR_WORKER_INIT = "simulator_worker_init"
 
@@ -174,6 +177,13 @@ class CellMessageHeaderKeys:
     JOB_IDS = "job_ids"
     MESSAGE = "message"
     ABORT_JOBS = "abort_jobs"
+
+
+class JobFailureMsgKey:
+
+    JOB_ID = "job_id"
+    CODE = "code"
+    REASON = "reason"
 
 
 def new_cell_message(headers: dict, payload=None):
