@@ -1,16 +1,14 @@
-
-from nvflare.app_common.workflows.base_fedavg import BaseFedAvg
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 from net import Net
-from nvflare import Job
 
 # (1) import nvflare client API
 import nvflare.client as flare
+from nvflare import Job
+from nvflare.app_common.workflows.base_fedavg import BaseFedAvg
 
 # (optional) set a fix place so we don't need to download everytime
 dataset_path = "/tmp/nvflare/data"
@@ -19,8 +17,10 @@ dataset_path = "/tmp/nvflare/data"
 
 
 """ SERVER CODE """
+
+
 class FedAvg(BaseFedAvg):
-    """Controller for FedAvg Workflow. """
+    """Controller for FedAvg Workflow."""
 
     def run(self) -> None:
         self.info("Start FedAvg.")
@@ -44,6 +44,8 @@ class FedAvg(BaseFedAvg):
 
 
 """ CLIENT CODE """
+
+
 def client_train(dataset_path="/tmp/nvflare/data", device="cuda:0"):
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
@@ -77,7 +79,6 @@ def client_train(dataset_path="/tmp/nvflare/data", device="cuda:0"):
         # (optional) calculate total steps
         steps = epochs * len(trainloader)
         for epoch in range(epochs):  # loop over the dataset multiple times
-
             running_loss = 0.0
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
@@ -140,8 +141,10 @@ def client_train(dataset_path="/tmp/nvflare/data", device="cuda:0"):
         # (8) send model back to NVFlare
         flare.send(output_model)
 
+
 def main():
     job = Job(name="cifar10_fedavg")
+
     wf = FedAvg(min_clients=n_clients, num_rounds=10)
     job.to(wf, "server")
 
@@ -151,6 +154,7 @@ def main():
 
     # run simulator
     job.simulate(threads=n_clients)
+
 
 if __name__ == "__main__":
     main()
