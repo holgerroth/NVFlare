@@ -24,6 +24,9 @@ from bionemo.model.utils import (
     setup_trainer,
 )
 
+# (0): import nvflare lightning api
+import nvflare.client.lightning as flare
+
 
 @hydra_runner(config_path=".", config_name="downstream_flip_scl")  # ESM
 # @hydra_runner(config_path="../prott5nv/conf", config_name="downstream_flip_sec_str") # ProtT5
@@ -49,21 +52,41 @@ def main(cfg) -> None:
                 metrics_args[name + "_MSE"] = {}
 
         model.add_metrics(metrics=metrics, metrics_args=metrics_args)
-        trainer.fit(model)
-        logging.info("************** Finished Training ***********")
-        if cfg.do_testing:
-            logging.info("************** Starting Testing ***********")
-            if "test" in cfg.model.data.dataset:
-                trainer.test(model)
-            else:
-                raise UserWarning(
-                    "Skipping testing, test dataset file was not provided. Please specify 'dataset.test' in yaml config"
-                )
-            logging.info("************** Finished Testing ***********")
-    else:
-        logging.info("************** Starting Preprocessing ***********")
-        preprocessor = FLIPPreprocess()
-        preprocessor.prepare_all_datasets(output_dir=cfg.model.data.preprocessed_data_path)
+
+        # (1): flare patch
+        flare.patch(trainer)
+
+        # (2): Add while loop to keep receiving the FLModel in each FL round.
+        # Note, after flare.patch the trainer.fit/validate will get the
+        # global model internally at each round.
+        while flare.is_running():
+            # (optional): get the FL system info
+            fl_sys_info = flare.system_info()
+            print("--- fl_sys_info ---")
+            print(fl_sys_info)
+
+            # (3) evaluate the current global model to allow server-side model selection.
+            print("--- validate global model ---")
+            trainer.validate(model)
+
+            # (4) Perform local training starting with the received global model.
+            print("--- train new model ---")
+
+            trainer.fit(model)
+            logging.info("************** Finished Training ***********")
+            if cfg.do_testing:
+                logging.info("************** Starting Testing ***********")
+                if "test" in cfg.model.data.dataset:
+                    trainer.test(model)
+                else:
+                    raise UserWarning(
+                        "Skipping testing, test dataset file was not provided. Please specify 'dataset.test' in yaml config"
+                    )
+                logging.info("************** Finished Testing ***********")
+        else:
+            logging.info("************** Starting Preprocessing ***********")
+            preprocessor = FLIPPreprocess()
+            preprocessor.prepare_all_datasets(output_dir=cfg.model.data.preprocessed_data_path)
 
 
 if __name__ == '__main__':
