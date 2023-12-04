@@ -23,7 +23,7 @@ trainer:
 
 exp_manager:
   name: ${name}
-  exp_dir: ${oc.env:BIONEMO_HOME}/results/nemo_experiments/${.name}/${.wandb_logger_kwargs.name}
+  exp_dir: /result/nemo_experiments/${.name}/${.wandb_logger_kwargs.name}
   explicit_log_dir: ${.exp_dir}
   create_wandb_logger: False
   create_tensorboard_logger: True
@@ -52,7 +52,7 @@ model:
   # model parallelism 
   micro_batch_size: 8 # NOTE: adjust to occupy ~ 90% of GPU memory
   tensor_model_parallel_size: 1  # model parallelism
-  pipeline_model_parallel_size: 1 # model parallelism. If enabled, you need to set data.dynamic_padding to False as pipeline parallelism requires fixed-length padding.
+  pipeline_model_parallel_size: 1
 
   # model architecture
   seq_length: 512 # FIXME: remove me (replaced by encoder_seq_length)
@@ -128,8 +128,6 @@ model:
     use_upsampling: True # if the data should be upsampled to max number of steps in the training
     seed: ${model.seed} # Random seed
     max_seq_length: ${model.seq_length} # Maximum input sequence length. Longer sequences are truncated
-    dynamic_padding: False # If True, each batch is padded to the maximum sequence length within that batch. 
-              #    Set it to False when model.pipeline_model_parallel_size > 1, as pipeline parallelism requires fixed-length padding.
 
   optim:
     name: fused_adam # fused optimizers used by Megatron model
@@ -147,7 +145,7 @@ model:
   dwnstr_task_validation:
     enabled: False
     dataset:
-      class: bionemo.model.core.dwnstr_task_callbacks.PerTokenPredictionCallback
+      class: PerTokenPredictionCallback
       task_type: token-level-classification
       infer_target: bionemo.model.protein.esm1nv.infer.ESM1nvInference
       max_seq_length: ${model.seq_length}
@@ -157,7 +155,7 @@ model:
       shuffle: True
       num_workers: 8
       task_name: secondary_structure
-      dataset_path: ${oc.env:BIONEMO_HOME}/data/FLIP/${model.dwnstr_task_validation.dataset.task_name}
+      dataset_path: /data/FLIP/${model.dwnstr_task_validation.dataset.task_name}
       dataset:
         train: x000
         test: x000
