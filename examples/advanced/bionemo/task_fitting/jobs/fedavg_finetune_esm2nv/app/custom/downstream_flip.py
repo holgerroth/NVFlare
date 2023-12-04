@@ -74,19 +74,20 @@ def main(cfg) -> None:
 
             trainer.fit(model)
             logging.info("************** Finished Training ***********")
-            if cfg.do_testing:
-                logging.info("************** Starting Testing ***********")
-                if "test" in cfg.model.data.dataset:
-                    trainer.test(model)
-                else:
-                    raise UserWarning(
-                        "Skipping testing, test dataset file was not provided. Please specify 'dataset.test' in yaml config"
-                    )
-                logging.info("************** Finished Testing ***********")
-        else:
-            logging.info("************** Starting Preprocessing ***********")
-            preprocessor = FLIPPreprocess()
-            preprocessor.prepare_all_datasets(output_dir=cfg.model.data.preprocessed_data_path)
+
+        if cfg.do_testing:
+            logging.info("************** Starting Testing ***********")
+            if "test" in cfg.model.data.dataset:
+                trainer.test(model)
+            else:
+                raise UserWarning(
+                    "Skipping testing, test dataset file was not provided. Please specify 'dataset.test' in yaml config"
+                )
+            logging.info("************** Finished Testing ***********")
+    else:
+        logging.info("************** Starting Preprocessing ***********")
+        preprocessor = FLIPPreprocess()
+        preprocessor.prepare_all_datasets(output_dir=cfg.model.data.preprocessed_data_path)
 
 
 if __name__ == '__main__':

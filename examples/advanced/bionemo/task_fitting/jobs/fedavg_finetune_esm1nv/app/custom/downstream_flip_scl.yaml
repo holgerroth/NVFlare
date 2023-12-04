@@ -8,10 +8,10 @@ target: bionemo.model.protein.esm1nv.ESM1nvModel # target class for protein mode
 infer_target: bionemo.model.protein.esm1nv.infer.ESM1nvInference # target inference class for protein model
 
 trainer:
-  devices: 2 # number of GPUs or CPUs
+  devices: 1 # number of GPUs or CPUs
   num_nodes: 1 
-  max_epochs: 10
-  val_check_interval: 10
+  max_epochs: 50
+  val_check_interval: 20
   limit_val_batches: 1 #1000 # number of batches in validation step, use fraction for fraction of data, 0 to disable
   limit_test_batches: 1 #1000 # number of batches in test step, use fraction for fraction of data, 0 to disable
 
@@ -21,9 +21,9 @@ exp_manager:
     name: ${name}_${model.data.task_name}_finetuning_encoder_frozen_${model.encoder_frozen}
 
 model:
-  encoder_frozen: True # encoder trainable or frozen
+  encoder_frozen: False # encoder trainable or frozen
   post_process: False # must be False for downstream task
-  micro_batch_size: 4 # 64 NOTE: adjust to occupy ~ 90% of GPU memory
+  micro_batch_size: 64 # NOTE: adjust to occupy ~ 90% of GPU memory
   global_batch_size: null # if null will be computed automatically
   tensor_model_parallel_size: 1  # model parallelism
   loss_func: CrossEntropyLoss
