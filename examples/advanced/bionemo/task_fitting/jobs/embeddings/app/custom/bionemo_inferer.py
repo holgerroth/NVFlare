@@ -116,9 +116,11 @@ class BioNeMoInferer(Executor):
 
         if self.cfg.model.data.data_impl == "csv_fields_mmap":
             dataset_paths = expand_dataset_paths(self.cfg.model.data.dataset_path, ext=".csv")
+            self.log_info(fl_ctx, f"Loading data from {dataset_paths}")
             ds = CSVFieldsMemmapDataset(dataset_paths, **self.cfg.model.data.data_impl_kwargs.get("csv_fields_mmap", {}))
         elif self.cfg.model.data.data_impl == "fasta_fields_mmap":
             dataset_paths = expand_dataset_paths(self.cfg.model.data.dataset_path, ext=".fasta")
+            self.log_info(fl_ctx, f"Loading data from {dataset_paths}")
             ds = FASTAFieldsMemmapDataset(dataset_paths, **self.cfg.model.data.data_impl_kwargs.get("fasta_fields_mmap", {}))
         else:
             raise ValueError(f'Unknown data_impl: {self.cfg.model.data.data_impl}')

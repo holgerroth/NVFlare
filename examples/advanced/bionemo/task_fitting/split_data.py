@@ -73,7 +73,7 @@ def partition_data(train_labels, label_names, num_sites, alpha):
 
     return site_idx, class_sum
 
-def split(proteins, num_sites, split_dir=".", alpha=1.0, seed=0):
+def split(proteins, num_sites, split_dir=".", alpha=1.0, seed=0, concat=False):
     np.random.seed(seed)
 
     train_proteins = []
@@ -111,8 +111,27 @@ def split(proteins, num_sites, split_dir=".", alpha=1.0, seed=0):
 
         df_split_train_proteins = list_to_dataframe(split_train_proteins)
         df_test_proteins = list_to_dataframe(test_proteins)
-        split_df = pd.concat([df_split_train_proteins, df_test_proteins])
-        split_df.to_csv(os.path.join(split_dir, f"data_{client_name}.csv"), index=False, columns=["id", "sequence", "TARGET", "SET"])
+
+        if concat:
+            split_df = pd.concat([df_split_train_proteins, df_test_proteins])
+            split_df.to_csv(os.path.join(split_dir, f"data_{client_name}.csv"), index=False, columns=["id", "sequence", "TARGET", "SET"])
+        else:
+            _split_dir = os.path.join(split_dir, "train")
+            if not os.path.isdir(_split_dir):
+                os.makedirs(_split_dir)
+            df_split_train_proteins.to_csv(os.path.join(_split_dir, f"data_train_{client_name}.csv"), index=False,
+                            columns=["id", "sequence", "TARGET", "SET"])
+            _split_dir = os.path.join(split_dir, "val")
+            if not os.path.isdir(_split_dir):
+                os.makedirs(_split_dir)
+            df_test_proteins.to_csv(os.path.join(_split_dir, f"data_val_{client_name}.csv"), index=False,
+                            columns=["id", "sequence", "TARGET", "SET"])
+            # validation & test are the same here!
+            _split_dir = os.path.join(split_dir, "test")
+            if not os.path.isdir(_split_dir):
+                os.makedirs(_split_dir)
+            df_test_proteins.to_csv(os.path.join(_split_dir, f"data_test_{client_name}.csv"), index=False,
+                            columns=["id", "sequence", "TARGET", "SET"])
 
         print(f"Saved {len(df_split_train_proteins)} training and {len(test_proteins)} testing proteins for {client_name}, "
-              f"({len(set(df_split_train_proteins['TARGET']))}/{len(set(df_test_proteins['TARGET']))} unique train/test classes.")
+              f"({len(set(df_split_train_proteins['TARGET']))}/{len(set(df_test_proteins['TARGET']))}) unique train/test classes.")

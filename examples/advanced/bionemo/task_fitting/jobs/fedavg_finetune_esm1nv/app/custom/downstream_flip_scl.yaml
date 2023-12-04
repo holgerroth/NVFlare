@@ -10,8 +10,8 @@ infer_target: bionemo.model.protein.esm1nv.infer.ESM1nvInference # target infere
 trainer:
   devices: 2 # number of GPUs or CPUs
   num_nodes: 1 
-  max_epochs: 20 
-  val_check_interval: 20
+  max_epochs: 10
+  val_check_interval: 10
   limit_val_batches: 1 #1000 # number of batches in validation step, use fraction for fraction of data, 0 to disable
   limit_test_batches: 1 #1000 # number of batches in test step, use fraction for fraction of data, 0 to disable
 
@@ -23,7 +23,7 @@ exp_manager:
 model:
   encoder_frozen: True # encoder trainable or frozen
   post_process: False # must be False for downstream task
-  micro_batch_size: 1 # 64 NOTE: adjust to occupy ~ 90% of GPU memory
+  micro_batch_size: 4 # 64 NOTE: adjust to occupy ~ 90% of GPU memory
   global_batch_size: null # if null will be computed automatically
   tensor_model_parallel_size: 1  # model parallelism
   loss_func: CrossEntropyLoss
@@ -32,14 +32,14 @@ model:
   data:
     task_name: scl # options: aav, bind, conservation, gb1, meltome, sav, scl, secondary_structure
     task_type: classification #'token-level-classification'  # alternative: classification, regression
-    preprocessed_data_path: ${oc.env:BIONEMO_HOME}/data/FLIP # path where all preprocessed FLIP datasets are saved
-    dataset_path: ${model.data.preprocessed_data_path}/${model.data.task_name} # path to a training data
+    preprocessed_data_path: /tmp/fasta # path where all preprocessed FLIP datasets are saved
+    dataset_path: ${model.data.preprocessed_data_path}/mixed_soft # path to a training data
     dataset:
-      train: x000
-      val: x000
-      test: x000
+      train: data_train_site-1
+      val: data_val_site-1
+      test: data_test_site-1
     sequence_column: "sequence" # name of column with protein sequence in csv file
-    target_column: ["scl_label"] #["3state", "resolved"] # names of label columns in csv file
+    target_column: ["TARGET"] #["3state", "resolved"] # names of label columns in csv file
     target_sizes: [10] # number of classes in each label for classifications or 1 for regression
     num_classes: 10
     num_workers: 8
