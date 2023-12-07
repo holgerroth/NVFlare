@@ -40,11 +40,11 @@ exp_manager:
   resume_ignore_no_checkpoint: True # leave as True, will start new training if resume_if_exists is True but no checkpoint exists
   create_checkpoint_callback: False  # Setting this to False so to avoid overwriting the model sent and received to the server
   checkpoint_callback_params:
-    monitor: val_loss
-    save_top_k: 10 # number of checkpoints to save
-    mode: min  # use min or max of monitored metric to select best checkpoints
+    monitor: val_TARGET_accuracy
+    save_top_k: 1 # number of checkpoints to save
+    mode: max  # use min or max of monitored metric to select best checkpoints
     always_save_nemo: False # saves nemo file during validation, not implemented for model parallel
-    filename: 'megatron_bert--{val_loss:.2f}-{step}-{consumed_samples}'
+    filename: 'esm1nv--{val_TARGET_accuracy:.4f}-{step}-{consumed_samples}'
     model_parallel_size: ${multiply:${model.tensor_model_parallel_size}, ${model.pipeline_model_parallel_size}}
 
 
