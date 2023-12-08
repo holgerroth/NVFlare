@@ -52,6 +52,7 @@ def main(cfg) -> None:
                 metrics_args[name + "_MSE"] = {}
 
         model.add_metrics(metrics=metrics, metrics_args=metrics_args)
+        print("model:", dir(model))
 
         # (1): flare patch
         flare.patch(trainer)
