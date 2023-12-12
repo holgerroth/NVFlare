@@ -19,7 +19,7 @@ trainer:
   accumulate_grad_batches: 1
   gradient_clip_val: 1.0
   benchmark: False
-  max_steps: 5000000
+  max_steps: -1
 
 exp_manager:
   name: ${name}

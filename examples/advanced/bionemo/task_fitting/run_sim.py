@@ -12,7 +12,8 @@ simulator = SimulatorRunner(
     job_folder="jobs/local_finetune_esm2nv",
     #workspace=f"/tmp/nvflare/bionemo/local_site1_finetune_esm2nv_alpha{split_alpha}_freeze_encoder3",
     #workspace=f"/tmp/nvflare/bionemo/local_site1_finetune_esm2nv_alpha{split_alpha}_freeze_encoder_large_ds_finetune",
-    workspace=f"/tmp/nvflare/bionemo/local_site1_finetune_esm2nv_alpha{split_alpha}_unfreeze_encoder_large_ds_dropout-0.25_hidden_dim-64_LR-0.00001_PARAMGROUPS_val_optim2_enclr1e-4",
+    workspace=f"/tmp/nvflare/bionemo/local_site1_finetune_esm2nv_alpha{split_alpha}_unfreeze_encoder_large_ds_dropout-0.25_hidden_dim-64_LR-0.00001_PARAMGROUPS_val_optim2_enclr1e-6",
+    #workspace=f"/tmp/nvflare/bionemo/local_site1_finetune_esm2nv_alpha{split_alpha}_freeze_encoder_large_ds_dropout-0.25_hidden_dim-64",
     n_clients=n_clients,
     threads=n_clients
 )

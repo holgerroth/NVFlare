@@ -3,8 +3,8 @@ defaults:
   - pretrain_esm2_650M
 do_training: True # set to false if data preprocessing steps must be completed
 do_testing: False # set to true to run evaluation on test data after training
-restore_from_path: ${oc.env:BIONEMO_HOME}/models/protein/esm2nv/esm2nv_650M_converted.nemo # path to nemo checkpoint of the protein model. Other options: esm2nv_3B_converted.nemo
-##restore_from_path: /tmp/nvflare/bionemo/local_site1_finetune_esm2nv_alpha100.0_freeze_encoder2/simulate_job/app_site-1/esm2nv_flip/esm2nv_flip_scl_finetuning_encoder_frozen_True/checkpoints/esm2nv_flip_model.nemo
+#restore_from_path: ${oc.env:BIONEMO_HOME}/models/protein/esm2nv/esm2nv_650M_converted.nemo # path to nemo checkpoint of the protein model. Other options: esm2nv_3B_converted.nemo
+restore_from_path: /data/Models/bionemo/esm2nv_650M_converted.nemo
 target: bionemo.model.protein.esm1nv.ESM2nvModel # target class for protein model
 ##target: bionemo.model.protein.downstream.FineTuneProteinModel # target class for finetuned protein model
 infer_target: bionemo.model.protein.esm1nv.infer.ESM1nvInference # target inference class for protein model
@@ -34,7 +34,7 @@ model:
   
   optim_param_groups:
     encoder_model:
-      lr: 1e-4
+      lr: 1e-6
     task_head:
       lr: 5e-4
     
@@ -42,7 +42,7 @@ model:
     task_name: scl # options: aav, bind, conservation, gb1, meltome, sav, scl, secondary_structure
     task_type: classification #'token-level-classification'  # alternative: classification, regression
     preprocessed_data_path: /tmp/fasta # path where all preprocessed FLIP datasets are saved
-    dataset_path: ${model.data.preprocessed_data_path}/mixed_soft3 # path to a training data
+    dataset_path: ${model.data.preprocessed_data_path}/mixed_soft # path to a training data
     dataset:
       train: data_train_site-1
       val: data_val_site-1
@@ -58,7 +58,7 @@ model:
   
   finetuning_optim: # optimizer parameters for downstream task model
     name: adam
-    #lr: 0.0005
+  #  lr: 0.0005
     betas:
       - 0.9
       - 0.999
