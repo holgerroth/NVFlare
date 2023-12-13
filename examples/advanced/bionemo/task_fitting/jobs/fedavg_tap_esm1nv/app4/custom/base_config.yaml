@@ -89,7 +89,7 @@ model:
 
 
   # miscellaneous
-  seed: 3
+  seed: 4
   use_cpu_initialization: False # Init weights on the CPU (slow for large model)
   onnx_safe: False # Use work-arounds for known problems with Torch ONNX exporter.
 

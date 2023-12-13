@@ -3,12 +3,13 @@ import pandas as pd
 import numpy as np
 from tdc.utils import retrieve_label_name_list
 from tdc.single_pred import Develop
+np.random.seed(1234)
 
 split_dir = "/tmp/data/tap"
 n_clients = 5
 do_break_chains = False
 do_clean_chains = True
-alpha = -1.0
+alpha = 1.0
 
 
 def clean_chains(df):

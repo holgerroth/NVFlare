@@ -89,7 +89,7 @@ model:
 
 
   # miscellaneous
-  seed: 1234
+  seed: 5
   use_cpu_initialization: False # Init weights on the CPU (slow for large model)
   onnx_safe: False # Use work-arounds for known problems with Torch ONNX exporter.
 
@@ -163,7 +163,7 @@ model:
       target_column: [ "3state", "resolved" ] # names of label columns in csv file
       target_sizes: [ 3, 2 ] # number of classes in each label
       mask_column: [ "resolved", null ] # names of mask columns in csv file, masks must be 0 or 1
-      random_seed: 1234
+      random_seed: ${model.seed}
       optim:
         name: adam
         lr: 0.0001
