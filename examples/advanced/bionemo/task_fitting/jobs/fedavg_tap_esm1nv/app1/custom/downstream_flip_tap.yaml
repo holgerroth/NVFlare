@@ -23,7 +23,7 @@ exp_manager:
 model:
   encoder_frozen: False # encoder trainable or frozen
   post_process: False # must be False for downstream task
-  micro_batch_size: 16 # NOTE: adjust to occupy ~ 90% of GPU memory
+  micro_batch_size: 8 # NOTE: adjust to occupy ~ 90% of GPU memory
   global_batch_size: null # if null will be computed automatically
   tensor_model_parallel_size: 1  # model parallelism
   loss_func: MSELoss
@@ -32,7 +32,7 @@ model:
 
   optim_param_groups:
     encoder_model:
-      lr: 1e-7
+      lr: 1e-6
     task_head:
       lr: 5e-4
 
@@ -46,7 +46,7 @@ model:
       val: tap_valid
       test: tap_test
     sequence_column: "Antibody" # name of column with protein sequence in csv file
-    target_column: ["CDR_Length"] #["3state", "resolved"] # names of label columns in csv file
+    target_column: ["PSH"] #["3state", "resolved"] # names of label columns in csv file
     target_sizes: [1] # number of classes in each label for classifications or 1 for regression
     num_workers: 8
     shuffle: True # shuffle training dataset

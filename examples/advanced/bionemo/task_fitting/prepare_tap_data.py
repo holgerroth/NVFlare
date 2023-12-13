@@ -6,7 +6,7 @@ from tdc.single_pred import Develop
 np.random.seed(1234)
 
 split_dir = "/tmp/data/tap"
-n_clients = 5
+n_clients = 4
 do_break_chains = False
 do_clean_chains = True
 alpha = 1.0
