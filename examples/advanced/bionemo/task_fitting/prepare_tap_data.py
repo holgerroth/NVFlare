@@ -7,7 +7,24 @@ from tdc.single_pred import Develop
 split_dir = "/tmp/data/tap"
 n_clients = 5
 do_break_chains = False
+do_clean_chains = True
 alpha = -1.0
+
+
+def clean_chains(df):
+    a = df["Antibody"]
+    b = []
+    for chains in a:
+        # split chains
+        chains = chains.replace("['", "").replace("']", "").replace("'\\n '", " ")
+        assert "'" not in chains
+        assert "[" not in chains
+        assert "]" not in chains
+        assert "\\n" not in chains
+        b.append(chains)
+    df["Antibody"] = b
+
+    return df
 
 
 def break_chains(df):
@@ -73,18 +90,23 @@ def main():
 
         if do_break_chains:
             client_train_df = break_chains(client_train_df)
+        if do_clean_chains:
+            client_train_df = clean_chains(client_train_df)
         client_train_dfs.append(client_train_df)
 
         _split_dir = os.path.join(split_dir, "train")
         if not os.path.isdir(_split_dir):
             os.makedirs(_split_dir)
-        train_df.to_csv(os.path.join(_split_dir, f"tap_{client_name}_train.csv"), index=False)
+        client_train_df.to_csv(os.path.join(_split_dir, f"tap_{client_name}_train.csv"), index=False)
         print(f"Save {len(client_train_df)} training proteins for {client_name} (frac={proportions[client_id]:0.3f})")
 
     # save full train, test, & valid
     if do_break_chains:
         train_df = break_chains(train_df)
         test_df = break_chains(test_df)
+    if do_clean_chains:
+        train_df = clean_chains(train_df)
+        test_df = clean_chains(test_df)
 
     _split_dir = os.path.join(split_dir, "train")
     if not os.path.isdir(_split_dir):

@@ -54,7 +54,7 @@ def main(cfg) -> None:
         model.add_metrics(metrics=metrics, metrics_args=metrics_args)
 
         # (1): flare patch
-        flare.patch(trainer)
+        flare.patch(trainer, load_state_dict_strict=False)
 
         # (2): Add while loop to keep receiving the FLModel in each FL round.
         # Note, after flare.patch the trainer.fit/validate will get the
