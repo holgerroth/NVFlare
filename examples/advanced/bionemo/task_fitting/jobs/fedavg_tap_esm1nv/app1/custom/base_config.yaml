@@ -13,7 +13,7 @@ trainer:
   replace_sampler_ddp: False # use NeMo Megatron samplers
   max_epochs: null # # use max_steps instead with NeMo Megatron model
   max_steps: 1000000 # consumed_samples = global_step * micro_batch_size * data_parallel_size * accumulate_grad_batches
-  log_every_n_steps: 10  # number of iterations between logging
+  log_every_n_steps: 1  # number of iterations between logging
   val_check_interval: 1500
   limit_val_batches: 50 # number of batches in validation step, use fraction for fraction of data, 0 to disable
   limit_test_batches: 500 # number of batches in test step, use fraction for fraction of data, 0 to disable

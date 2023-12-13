@@ -27,12 +27,12 @@ model:
   global_batch_size: null # if null will be computed automatically
   tensor_model_parallel_size: 1  # model parallelism
   loss_func: MSELoss
-  hidden_layer_size: 64
-  dropout: 0.25
+  hidden_layer_size: 128
+  dropout: 0.1
 
   optim_param_groups:
     encoder_model:
-      lr: 1e-6
+      lr: 1e-7
     task_head:
       lr: 5e-4
 
