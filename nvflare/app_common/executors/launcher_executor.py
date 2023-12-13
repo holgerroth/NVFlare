@@ -15,7 +15,7 @@
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from threading import Event
+from threading import Event, Lock
 from typing import Any, Optional
 
 from nvflare.apis.event_type import EventType
@@ -95,8 +95,8 @@ class LauncherExecutor(TaskExchanger):
         self._launcher_finish = Event()
         self._launcher_finish_time = None
         self._last_result_transfer_timeout = last_result_transfer_timeout
-        self._received_result = False
-        self._job_end = False
+        self._received_result = Event()
+        self._job_end = Event()
 
         self._thread_pool_executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix=self.__class__.__name__)
 
@@ -116,6 +116,7 @@ class LauncherExecutor(TaskExchanger):
         self._monitor_launcher_thread = None
         self._abort_signal = None
         self._current_task = None
+        self._lock = Lock()
 
     def initialize(self, fl_ctx: FLContext) -> None:
         self._init_launcher(fl_ctx)
@@ -133,7 +134,8 @@ class LauncherExecutor(TaskExchanger):
         elif event_type == EventType.END_RUN:
             if self.launcher is None:
                 raise RuntimeError("Launcher is None.")
-            self._job_end = True
+            with self._lock:
+                self._job_end.set()
             if self._abort_signal is not None:
                 self._abort_signal.trigger(f"{EventType.END_RUN} event received - telling external to stop")
             self.finalize(fl_ctx)
@@ -188,7 +190,8 @@ class LauncherExecutor(TaskExchanger):
         if check_result != "":
             self.log_error(fl_ctx, check_result)
             return False
-        self._received_result = True
+        with self._lock:
+            self._received_result.set()
         self._current_task = None
         return True
 
@@ -286,7 +289,7 @@ class LauncherExecutor(TaskExchanger):
     def _finalize_external_execution(
         self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal
     ) -> bool:
-        if self._job_end:
+        if self._job_end.is_set():
             ask_peer_end_success = self.ask_peer_to_end(fl_ctx)
             if not ask_peer_end_success:
                 return False
@@ -340,15 +343,16 @@ class LauncherExecutor(TaskExchanger):
             time.sleep(self._monitor_interval)
 
             # job end
-            if self._job_end:
+            if self._job_end.is_set():
                 break
 
             if self._abort_signal is not None and self._abort_signal.triggered:
-                self._job_end = True
+                with self._lock:
+                    self._job_end.set()
                 break
 
             # result has been received
-            if self._received_result:
+            if self._received_result.is_set():
                 self._clear_state()
                 continue
 
@@ -369,6 +373,7 @@ class LauncherExecutor(TaskExchanger):
                 self.log_error(fl_ctx, msg)
                 self._abort_signal.trigger(msg)
                 continue
+
             elif run_status == LauncherRunStatus.NOT_RUNNING:
                 self.pause_pipe_handler()
                 continue
@@ -381,7 +386,8 @@ class LauncherExecutor(TaskExchanger):
                 self.pause_pipe_handler()
                 if not self._launcher_finish.is_set():
                     self._launcher_finish_time = time.time()
-                    self._launcher_finish.set()
+                    with self._lock():
+                        self._launcher_finish.set()
                     self.log_info(
                         fl_ctx,
                         f"launcher completed {task_name} with status {run_status} at time {self._launcher_finish_time}",
@@ -402,7 +408,7 @@ class LauncherExecutor(TaskExchanger):
                 self._abort_signal.trigger(msg)
 
     def _clear_state(self):
-        self._launcher_finish_time = None
-        self._launcher_finish.clear()
-        self.clear_pipe()
-        self._received_result = False
+        with self._lock:
+            self._launcher_finish_time = None
+            self._launcher_finish.clear()
+            self._received_result.clear()

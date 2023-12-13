@@ -245,6 +245,7 @@ class TaskExchanger(Executor):
     def pause_pipe_handler(self):
         """Stops pipe_handler heartbeat."""
         self.pipe_handler.pause()
+        self.clear_pipe()
 
     def resume_pipe_handler(self):
         """Resumes pipe_handler heartbeat."""
