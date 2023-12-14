@@ -9,8 +9,8 @@ split_dir = "/tmp/data/tap"
 n_clients = 4
 do_break_chains = False
 do_clean_chains = True
+do_normalize = True
 alpha = 1.0
-
 
 def clean_chains(df):
     a = df["Antibody"]
@@ -76,6 +76,23 @@ def main():
         else:
             assert (test_df["Antibody_ID"] == split["test"]["Antibody_ID"]).all()
             test_df[label_name] = split["test"]["Y"]
+
+    if do_normalize:
+        total_df = pd.concat([train_df, test_df])
+        stats = {}
+        for label_name in label_list:
+            _mean = np.mean(total_df[label_name])
+            _std = np.std(total_df[label_name])
+            stats[label_name] = {"mean": _mean, "std": _std}
+
+            # normalize
+            total_df[label_name] = (total_df[label_name] - _mean) / _std
+            train_df[label_name] = (train_df[label_name] - _mean)/_std
+            test_df[label_name] = (test_df[label_name] - _mean)/_std
+            print(f"  ... normalize {label_name} from mean+-std {_mean:.3f}+-{_std:.3f} "
+                  f"to train: {np.mean(train_df[label_name]):.3f}+-{np.std(train_df[label_name]):.3f}"
+                  f"to test: {np.mean(test_df[label_name]):.3f}+-{np.std(test_df[label_name]):.3f}"
+                  f"to total: {np.mean(total_df[label_name]):.3f}+-{np.std(total_df[label_name]):.3f}")
 
     # split client train
     client_train_dfs = []
