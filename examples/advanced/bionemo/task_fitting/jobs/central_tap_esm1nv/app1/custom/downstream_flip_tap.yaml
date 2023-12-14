@@ -42,11 +42,11 @@ model:
     preprocessed_data_path: /tmp/data # path where all preprocessed FLIP datasets are saved
     dataset_path: ${model.data.preprocessed_data_path}/tap # path to a training data
     dataset:
-      train: tap_site-2_train
+      train: tap_full_train
       val: tap_valid
       test: tap_test
     sequence_column: "Antibody" # name of column with protein sequence in csv file
-    target_column: ["PPC"] #["3state", "resolved"] # names of label columns in csv file
+    target_column: ["PSH"] #["3state", "resolved"] # names of label columns in csv file
     target_sizes: [1] # number of classes in each label for classifications or 1 for regression
     num_workers: 8
     shuffle: True # shuffle training dataset
