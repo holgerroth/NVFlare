@@ -5,8 +5,9 @@ from tdc.utils import retrieve_label_name_list
 from tdc.single_pred import Develop
 np.random.seed(1234)
 
-split_dir = "/tmp/data/tap"
-n_clients = 4
+out_name = "sabdab_chen"
+split_dir = f"/tmp/data/{out_name}"
+n_clients = 8
 do_break_chains = False
 do_clean_chains = True
 do_normalize = False
@@ -18,7 +19,7 @@ def clean_chains(df):
     b = []
     for chains in a:
         # split chains
-        chains = chains.replace("['", "").replace("']", "").replace("'\\n '", " ")
+        chains = chains.replace("['", "").replace("']", "").replace("', '", " ")
         assert "'" not in chains
         assert "[" not in chains
         assert "]" not in chains
@@ -57,45 +58,12 @@ def break_chains(df):
 
 def main():
     seed = 0
-    label_list = retrieve_label_name_list('TAP')
-    train_df = None
-    test_df = None
 
-    for label_name in label_list:
-        data = Develop(name='TAP', label_name=label_name)
-        split = data.get_split()
+    data = Develop(name='SAbDab_Chen', path="/tmp/data")
+    split = data.get_split()
 
-        train_split = pd.concat([split["train"], split["valid"]])
-        if train_df is None:
-            train_df = train_split
-            train_df = train_df.rename(columns={"Y": label_name})
-        else:
-            assert (train_df["Antibody_ID"] == train_split["Antibody_ID"]).all()
-            train_df[label_name] = train_split["Y"]
-
-        if test_df is None:
-            test_df = pd.concat([test_df, split["test"]])
-            test_df = test_df.rename(columns={"Y": label_name})
-        else:
-            assert (test_df["Antibody_ID"] == split["test"]["Antibody_ID"]).all()
-            test_df[label_name] = split["test"]["Y"]
-
-    if do_normalize:
-        total_df = pd.concat([train_df, test_df])
-        stats = {}
-        for label_name in label_list:
-            _mean = np.mean(total_df[label_name])
-            _std = np.std(total_df[label_name])
-            stats[label_name] = {"mean": _mean, "std": _std}
-
-            # normalize
-            total_df[label_name] = (total_df[label_name] - _mean) / _std
-            train_df[label_name] = (train_df[label_name] - _mean)/_std
-            test_df[label_name] = (test_df[label_name] - _mean)/_std
-            print(f"  ... normalize {label_name} from mean+-std {_mean:.3f}+-{_std:.3f} "
-                  f"to train: {np.mean(train_df[label_name]):.3f}+-{np.std(train_df[label_name]):.3f}"
-                  f"to test: {np.mean(test_df[label_name]):.3f}+-{np.std(test_df[label_name]):.3f}"
-                  f"to total: {np.mean(total_df[label_name]):.3f}+-{np.std(total_df[label_name]):.3f}")
+    train_df = pd.concat([split["train"], split["valid"]])
+    test_df = split["test"]
 
     # split client train
     client_train_dfs = []
@@ -119,7 +87,7 @@ def main():
         _split_dir = os.path.join(split_dir, "train")
         if not os.path.isdir(_split_dir):
             os.makedirs(_split_dir)
-        client_train_df.to_csv(os.path.join(_split_dir, f"tap_{client_name}_train.csv"), index=False)
+        client_train_df.to_csv(os.path.join(_split_dir, f"{out_name}_{client_name}_train.csv"), index=False)
         print(f"Save {len(client_train_df)} training proteins for {client_name} (frac={proportions[client_id]:0.3f})")
 
     # save full train, test, & valid
@@ -133,15 +101,15 @@ def main():
     _split_dir = os.path.join(split_dir, "train")
     if not os.path.isdir(_split_dir):
         os.makedirs(_split_dir)
-    train_df.to_csv(os.path.join(_split_dir, f"tap_full_train.csv"), index=False)
+    train_df.to_csv(os.path.join(_split_dir, f"{out_name}_full_train.csv"), index=False)
     _split_dir = os.path.join(split_dir, "val")
     if not os.path.isdir(_split_dir):
         os.makedirs(_split_dir)
-    test_df.to_csv(os.path.join(_split_dir, f"tap_valid.csv"), index=False)
+    test_df.to_csv(os.path.join(_split_dir, f"{out_name}_valid.csv"), index=False)
     _split_dir = os.path.join(split_dir, "test")
     if not os.path.isdir(_split_dir):
         os.makedirs(_split_dir)
-    test_df.to_csv(os.path.join(_split_dir, f"tap_test.csv"), index=False)
+    test_df.to_csv(os.path.join(_split_dir, f"{out_name}_test.csv"), index=False)
 
     print(f"Saved {len(train_df)} training and {len(test_df)} testing proteins.")
 
