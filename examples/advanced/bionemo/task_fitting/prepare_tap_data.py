@@ -145,7 +145,7 @@ def main():
 
     print(f"Saved {len(train_df)} training and {len(test_df)} testing proteins.")
 
-    # TODO: measure overlap
+    # measure overlap
     d = np.nan * np.zeros((n_clients, n_clients))
     for i in range(n_clients):
         for j in range(n_clients):

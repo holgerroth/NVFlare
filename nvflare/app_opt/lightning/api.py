@@ -71,8 +71,7 @@ class FLCallback(Callback):
                 See https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.load_state_dict for details.
         """
         super(FLCallback, self).__init__()
-        #TODO: if not PROCESS_MODEL_REGISTRY:
-        #init(rank=str(rank))
+        init(rank=str(rank))
         self.train_with_evaluation = get_config().get(ConfigKey.TRAIN_WITH_EVAL, False)
         self.current_round = None
         self.metrics = None

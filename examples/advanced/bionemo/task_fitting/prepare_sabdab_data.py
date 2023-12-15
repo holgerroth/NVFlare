@@ -7,11 +7,11 @@ np.random.seed(1234)
 
 out_name = "sabdab_chen"
 split_dir = f"/tmp/data/{out_name}"
-n_clients = 8
+n_clients = 6
 do_break_chains = False
 do_clean_chains = True
 do_normalize = False
-alpha = 1.0
+alpha = 10.0
 
 
 def clean_chains(df):
@@ -112,8 +112,13 @@ def main():
     test_df.to_csv(os.path.join(_split_dir, f"{out_name}_test.csv"), index=False)
 
     print(f"Saved {len(train_df)} training and {len(test_df)} testing proteins.")
+    n_pos = np.sum(test_df['Y']==0)
+    n_neg = np.sum(test_df['Y']==1)
+    n = len(test_df)
+    print(f"Pos/Neg ratio: neg={n_neg}, pos={n_pos}: {n_pos/n_neg:0.3f}")
+    print(f"Trivial accuracy: {n_pos/n:0.3f}")
 
-    # TODO: measure overlap
+    # measure overlap
     d = np.nan * np.zeros((n_clients, n_clients))
     for i in range(n_clients):
         for j in range(n_clients):
