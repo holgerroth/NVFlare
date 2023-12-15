@@ -9,8 +9,9 @@ split_dir = "/tmp/data/tap"
 n_clients = 4
 do_break_chains = False
 do_clean_chains = True
-do_normalize = True
+do_normalize = False
 alpha = 1.0
+
 
 def clean_chains(df):
     a = df["Antibody"]
