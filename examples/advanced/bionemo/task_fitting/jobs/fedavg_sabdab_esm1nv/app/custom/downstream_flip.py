@@ -29,14 +29,36 @@ import nvflare.client.lightning as flare
 from nvflare.client.api import init
 
 micro_batch_size = 32
+
+# alpha 100.0
 val_check_intervals = {
-    "site-1": int(416/micro_batch_size),
-    "site-2": int(238/micro_batch_size),
-    "site-3": int(282/micro_batch_size),
-    "site-4": int(472/micro_batch_size),
-    "site-5": int(361/micro_batch_size),
-    "site-6": int(157/micro_batch_size)
+    "site-1": int(351/micro_batch_size),
+    "site-2": int(297/micro_batch_size),
+    "site-3": int(312/micro_batch_size),
+    "site-4": int(366/micro_batch_size),
+    "site-5": int(336/micro_batch_size),
+    "site-6": int(265/micro_batch_size)
 }
+
+# alpha 10.0
+# val_check_intervals = {
+#     "site-1": int(416/micro_batch_size),
+#     "site-2": int(238/micro_batch_size),
+#     "site-3": int(282/micro_batch_size),
+#     "site-4": int(472/micro_batch_size),
+#     "site-5": int(361/micro_batch_size),
+#     "site-6": int(157/micro_batch_size)
+# }
+
+# # alpha 1.0
+# val_check_intervals = {
+#     "site-1": int(80/micro_batch_size),
+#     "site-2": int(365/micro_batch_size),
+#     "site-3": int(216/micro_batch_size),
+#     "site-4": int(578/micro_batch_size),
+#     "site-5": int(568/micro_batch_size),
+#     "site-6": int(119/micro_batch_size)
+# }
 
 
 @hydra_runner(config_path=".", config_name="downstream_flip_sabdab")  # ESM
