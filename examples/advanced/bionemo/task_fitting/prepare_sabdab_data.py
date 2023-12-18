@@ -112,11 +112,13 @@ def main():
     test_df.to_csv(os.path.join(_split_dir, f"{out_name}_test.csv"), index=False)
 
     print(f"Saved {len(train_df)} training and {len(test_df)} testing proteins.")
-    n_pos = np.sum(test_df['Y']==0)
-    n_neg = np.sum(test_df['Y']==1)
-    n = len(test_df)
-    print(f"Pos/Neg ratio: neg={n_neg}, pos={n_pos}: {n_pos/n_neg:0.3f}")
-    print(f"Trivial accuracy: {n_pos/n:0.3f}")
+
+    for _set, _df in zip(["TRAIN", "TEST"], [train_df, test_df]):
+        n_pos = np.sum(_df['Y'] == 0)
+        n_neg = np.sum(_df['Y'] == 1)
+        n = len(_df)
+        print(f"  {_set} Pos/Neg ratio: neg={n_neg}, pos={n_pos}: {n_pos/n_neg:0.3f}")
+        print(f"  {_set} Trivial accuracy: {n_pos/n:0.3f}")
 
     # measure overlap
     d = np.nan * np.zeros((n_clients, n_clients))

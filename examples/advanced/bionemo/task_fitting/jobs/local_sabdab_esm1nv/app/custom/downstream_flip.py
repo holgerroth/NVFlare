@@ -28,7 +28,7 @@ from bionemo.model.utils import (
 import nvflare.client.lightning as flare
 from nvflare.client.api import init
 
-micro_batch_size = 16
+micro_batch_size = 32
 val_check_intervals = {
     "site-1": int(416/micro_batch_size),
     "site-2": int(238/micro_batch_size),
