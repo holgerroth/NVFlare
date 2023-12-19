@@ -17,6 +17,7 @@ import os
 from pprint import pprint
 import numpy as np
 import pandas as pd
+from scipy.stats import dirichlet
 
 def list_to_dataframe(data_list):
     data_dict = {}
@@ -40,7 +41,7 @@ def get_site_class_summary(train_labels, site_idx):
     return class_sum
 
 
-def partition_data(train_labels, label_names, num_sites, alpha):
+def partition_data(train_labels, label_names, num_sites, alpha, seed):
     min_size = 0
     N = len(train_labels)
     site_idx = {}
@@ -53,7 +54,7 @@ def partition_data(train_labels, label_names, num_sites, alpha):
         for k in label_names:
             idx_k = np.where(train_labels == k)[0]
             np.random.shuffle(idx_k)
-            proportions = np.random.dirichlet(np.repeat(alpha, num_sites))
+            proportions = dirichlet.rvs(np.repeat(alpha, num_sites), random_state=seed)
             # Balance
             proportions = np.array(
                 [p * (len(idx_j) < N / num_sites) for p, idx_j in zip(proportions, idx_batch)]
@@ -74,8 +75,6 @@ def partition_data(train_labels, label_names, num_sites, alpha):
     return site_idx, class_sum
 
 def split(proteins, num_sites, split_dir=".", alpha=1.0, seed=0, concat=False):
-    np.random.seed(seed)
-
     train_proteins = []
     train_labels = []
     test_proteins = []
@@ -88,7 +87,7 @@ def split(proteins, num_sites, split_dir=".", alpha=1.0, seed=0, concat=False):
     assert len(train_labels) > 0
     label_names = set(train_labels)
     print(f"Partition protein dataset with {len(label_names)} classes into {num_sites} sites with Dirichlet sampling under alpha {alpha}")
-    site_idx, class_sum = partition_data(train_labels, label_names, num_sites, alpha)
+    site_idx, class_sum = partition_data(train_labels, label_names, num_sites, alpha, seed)
     pprint(class_sum)
 
     # write summary info
