@@ -38,7 +38,7 @@ exp_manager:
     offline: True # set to True if there are issues uploading to WandB during training
   resume_if_exists: False # automatically resume if checkpoint exists
   resume_ignore_no_checkpoint: True # leave as True, will start new training if resume_if_exists is True but no checkpoint exists
-  create_checkpoint_callback: True # leave as True, use exp_manger for for checkpoints
+  create_checkpoint_callback: False # leave as True, use exp_manger for for checkpoints
   checkpoint_callback_params:
     monitor: val_TARGET_accuracy
     save_top_k: 1 # number of checkpoints to save

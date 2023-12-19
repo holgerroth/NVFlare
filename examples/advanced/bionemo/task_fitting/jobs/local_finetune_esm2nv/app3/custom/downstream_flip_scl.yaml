@@ -30,7 +30,8 @@ model:
   global_batch_size: null # if null will be computed automatically
   tensor_model_parallel_size: 1  # model parallelism
   loss_func: CrossEntropyLoss
-  hidden_layer_size: 256
+  hidden_layer_size: 512
+  dropout: 0.1
   
   data:
     task_name: scl # options: aav, bind, conservation, gb1, meltome, sav, scl, secondary_structure
