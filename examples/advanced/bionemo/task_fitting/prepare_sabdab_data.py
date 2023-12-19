@@ -11,7 +11,7 @@ n_clients = 6
 do_break_chains = False
 do_clean_chains = True
 do_normalize = False
-alpha = 10.0
+alpha = 100.0
 
 
 def clean_chains(df):
