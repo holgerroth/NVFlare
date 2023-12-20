@@ -40,10 +40,10 @@ FL_META_KEY = "__fl_meta__"
 def patch(trainer: pl.Trainer, restore_state: bool = True, load_state_dict_strict: bool = True):
     """Patch the lightning trainer for usage with NVFlare.
 
-        Args:
-            trainer: the PyTorch Lightning trainer.
-            restore_state: whether to restore optimizer and learning rate scheduler states. Defaults to `True`.
-            load_state_dict_strict: exposes `strict` argument of `torch.nn.Module.load_state_dict()` used load the received model. Defaults to `True`.
+    Args:
+        trainer: the PyTorch Lightning trainer.
+        restore_state: whether to restore optimizer and learning rate scheduler states. Defaults to `True`.
+        load_state_dict_strict: exposes `strict` argument of `torch.nn.Module.load_state_dict()` used load the received model. Defaults to `True`.
             See https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.load_state_dict for details.
     """
     fl_callback = FLCallback(rank=trainer.global_rank, load_state_dict_strict=load_state_dict_strict)
@@ -65,14 +65,14 @@ class FLCallback(Callback):
     def __init__(self, rank: int = 0, load_state_dict_strict: bool = True):
         """FL callback for lightning API.
 
-            Args:
-                rank: global rank of the PyTorch Lightning trainer.
-                load_state_dict_strict: exposes `strict` argument of `torch.nn.Module.load_state_dict()` used load the received model. Defaults to `True`.
+        Args:
+            rank: global rank of the PyTorch Lightning trainer.
+            load_state_dict_strict: exposes `strict` argument of `torch.nn.Module.load_state_dict()` used load the received model. Defaults to `True`.
                 See https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.load_state_dict for details.
         """
         super(FLCallback, self).__init__()
         init(rank=str(rank))
-        self.train_with_evaluation = get_config().get(ConfigKey.TRAIN_WITH_EVAL, False)
+        self.train_with_evaluation = get_config().get(ConfigKey.TASK_EXCHANGE, {}).get(ConfigKey.TRAIN_WITH_EVAL, False)
         self.current_round = None
         self.metrics = None
         self.total_local_epochs = 0

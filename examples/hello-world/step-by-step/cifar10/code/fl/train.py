@@ -95,6 +95,13 @@ def main():
         input_model = flare.receive()
         client_id = flare.system_info().get("site_name", None)
 
+        # Based on different "task" we will do different things
+        # for "train" task (flare.is_train()) we use the received model to do training and/or evaluation
+        # and send back updated model and/or evaluation metrics, if the "train_with_evaluation" is specified as True
+        # in the config_fed_client we will need to do evaluation and include the evaluation metrics
+        # for "evaluate" task (flare.is_evaluate()) we use the received model to do evaluation
+        # and send back the evaluation metrics
+        # for "submit_model" task (flare.is_submit_model()) we just need to send back the local model
         # (5) performing train task on received model
         if flare.is_train():
             print(f"({client_id}) round={input_model.current_round}/{input_model.total_rounds-1}")
