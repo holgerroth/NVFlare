@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+import utils
 import flwr as fl
 from flwr.common import Metrics
 
@@ -18,8 +19,13 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
 strategy = fl.server.strategy.FedAvg(evaluate_metrics_aggregation_fn=weighted_average)
 
 # Start Flower server
-fl.server.start_server(
+history = fl.server.start_server(
     server_address="0.0.0.0:8080",
-    config=fl.server.ServerConfig(num_rounds=100),
+    config=fl.server.ServerConfig(num_rounds=30),
     strategy=strategy,
+)
+
+utils.plot_metric_from_history(
+    hist=history,
+    save_plot_path=".",
 )
