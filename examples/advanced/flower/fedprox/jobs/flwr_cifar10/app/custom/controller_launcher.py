@@ -18,6 +18,7 @@ from nvflare.app_common.workflows.model_controller import ModelController
 from nvflare.app_common.abstract.launcher import Launcher, LauncherRunStatus
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
+from nvflare.app_common.app_constant import AppConstants, ValidateType
 from nvflare.fuel.utils.validation_utils import check_object_type
 
 
@@ -40,9 +41,14 @@ class ControllerLauncher(ModelController):
         - def run(self)
     """
 
-    def __init__(self, launcher_id):
+    def __init__(self,
+                 launcher_id,
+                 task_name=AppConstants.TASK_TRAIN
+    ):
         super().__init__()
         self._launcher_id = launcher_id
+        self._task_name = task_name
+        self.is_initialized = False
 
     def _init_launcher(self, fl_ctx: FLContext):
         engine = fl_ctx.get_engine()
@@ -51,18 +57,27 @@ class ControllerLauncher(ModelController):
             raise RuntimeError(f"Launcher can not be found using {self._launcher_id}")
         check_object_type(self._launcher_id, launcher, Launcher)
         self.launcher = launcher
+        self.is_initialized = True
 
     def run(self):
         self.info("Start Controller Launcher.")
 
-        self._init_launcher(self.fl_ctx)
+        if not self.is_initialized:
+            self._init_launcher(self.fl_ctx)
 
-        #self.launcher.launch_task("train", shareable=Shareable(), fl_ctx=self.fl_ctx, abort_signal=self.abort_signal)
         self.launcher.initialize(fl_ctx=self.fl_ctx)
 
         while True:
-            time.sleep(10)
-            print(f"Running task ... [{self.launcher._script}]")
-
+            time.sleep(10.0)
+            run_status = self.launcher.check_run_status(task_name=self._task_name, fl_ctx=self.fl_ctx)
+            if run_status == LauncherRunStatus.RUNNING:
+                print(f"Running ... [{self.launcher._script}]")
+            elif run_status == LauncherRunStatus.COMPLETE_SUCCESS:
+                print("run success")
+                break
+            else:
+                print(f"run failed or not start: {run_status}")
+                break
+        self.launcher.finalize(fl_ctx=self.fl_ctx)
         self.info("Stop Controller Launcher.")
 
