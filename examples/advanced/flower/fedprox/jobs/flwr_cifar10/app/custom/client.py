@@ -96,17 +96,15 @@ def load_data(node_id):
 # #############################################################################
 
 # Get node id
-#parser = argparse.ArgumentParser(description="Flower")
-#parser.add_argument(
-#    "--node-id",
-#    choices=[0, 1, 2],
-#    required=True,
-#    type=int,
-#    help="Partition of the dataset divided into 3 iid partitions created artificially.",
-#)
-#node_id = parser.parse_args().node_id
-node_id = np.random.randint(0,3)
-print(f"START FLOWER CLIENT [node_id={node_id}]")
+parser = argparse.ArgumentParser(description="Flower")
+parser.add_argument(
+    "--node-id",
+    choices=[0, 1, 2],
+    required=True,
+    type=int,
+    help="Partition of the dataset divided into 3 iid partitions created artificially.",
+)
+node_id = parser.parse_args().node_id
 
 # Load model and data (simple CNN, CIFAR-10)
 net = Net().to(DEVICE)
