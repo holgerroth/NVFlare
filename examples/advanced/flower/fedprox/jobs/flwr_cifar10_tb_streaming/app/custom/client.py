@@ -11,6 +11,11 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, ToTensor
 from tqdm import tqdm
 
+import nvflare.client as flare
+from nvflare.client.tracking import SummaryWriter
+writer = SummaryWriter()
+TRAIN_STEP = 0
+TEST_STEP = 0
 
 # #############################################################################
 # 1. Regular PyTorch pipeline: nn.Module, train, test, and DataLoader
@@ -40,24 +45,31 @@ class Net(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
-
 def train(net, trainloader, epochs):
     """Train the model on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+
+    global TRAIN_STEP
     for _ in range(epochs):
+        avg_loss = 0.0
         for batch in tqdm(trainloader, "Training"):
             images = batch["img"]
             labels = batch["label"]
             optimizer.zero_grad()
-            criterion(net(images.to(DEVICE)), labels.to(DEVICE)).backward()
+            loss = criterion(net(images.to(DEVICE)), labels.to(DEVICE))
+            loss.backward()
             optimizer.step()
+            avg_loss += loss.item()
+        writer.add_scalar("train_loss", avg_loss/len(trainloader), TRAIN_STEP)
+        TRAIN_STEP += 1
 
 
 def test(net, testloader):
     """Validate the model on the test set."""
     criterion = torch.nn.CrossEntropyLoss()
     correct, loss = 0, 0.0
+    global TEST_STEP
     with torch.no_grad():
         for batch in tqdm(testloader, "Testing"):
             images = batch["img"].to(DEVICE)
@@ -66,6 +78,9 @@ def test(net, testloader):
             loss += criterion(outputs, labels).item()
             correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
     accuracy = correct / len(testloader.dataset)
+    writer.add_scalar("test_loss", loss, TEST_STEP)
+    writer.add_scalar("test_accuracy", accuracy, TEST_STEP)
+    TEST_STEP += 1
     return loss, accuracy
 
 
@@ -122,7 +137,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(net, trainloader, epochs=4)
+        train(net, trainloader, epochs=1)
         return self.get_parameters(config={}), len(trainloader.dataset), {}
 
     def evaluate(self, parameters, config):
@@ -130,6 +145,13 @@ class FlowerClient(fl.client.NumPyClient):
         loss, accuracy = test(net, testloader)
         return loss, len(testloader.dataset), {"accuracy": accuracy}
 
+
+# initializes NVFlare interface
+flare.init()
+
+# get system information
+sys_info = flare.system_info()
+print(f"Flare system info is: {sys_info}")
 
 # Start Flower client
 fl.client.start_client(
