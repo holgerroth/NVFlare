@@ -14,6 +14,7 @@ from tqdm import tqdm
 import nvflare.client as flare
 from nvflare.client.tracking import SummaryWriter
 writer = SummaryWriter()
+
 TRAIN_STEP = 0
 TEST_STEP = 0
 
@@ -137,7 +138,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(net, trainloader, epochs=1)
+        train(net, trainloader, epochs=5)
         return self.get_parameters(config={}), len(trainloader.dataset), {}
 
     def evaluate(self, parameters, config):
