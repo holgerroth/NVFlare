@@ -79,7 +79,6 @@ def test(net, testloader):
             loss += criterion(outputs, labels).item()
             correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
     accuracy = correct / len(testloader.dataset)
-    writer.add_scalar("test_loss", loss, TEST_STEP)
     writer.add_scalar("test_accuracy", accuracy, TEST_STEP)
     TEST_STEP += 1
     return loss, accuracy
