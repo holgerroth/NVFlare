@@ -1,14 +1,16 @@
-#! /bin/bash
-## ---------------------------------------------------------------------------
-##
-## File: prepare_heart_disease_data.sh for Newton Raphson
-##
-## Created by Zhijin Li
-## E-mail:   <zhijinl@nvidia.com>
-##
-## Started on  Fri Apr 12 17:43:39 2024 Zhijin Li
-## Last update Sun Apr 14 23:18:03 2024 Zhijin Li
-## ---------------------------------------------------------------------------
+# Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -24,4 +26,4 @@ mkdir -p ${DATA_DIR}
 python3 ${FLAMBY_INSTALL_DIR}/flamby/datasets/fed_heart_disease/dataset_creation_scripts/download.py --output-folder ${DATA_DIR}
 
 # Convert data to numpy files
-${SCRIPT_DIR}/utils/convert_data_to_np.py ${DATA_DIR}
+python3 ${SCRIPT_DIR}/utils/convert_data_to_np.py ${DATA_DIR}

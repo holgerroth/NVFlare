@@ -26,7 +26,7 @@ This will install main dev branch of `NVFlare` and `FLamby`
 ## Download and prepare data
 
 ```
-./prepare_heart_disease_data.sh
+bash ./prepare_heart_disease_data.sh
 ```
 This downloads the heart disease dataset under
 `/tmp/flare/dataset/heart_disease_data/`
