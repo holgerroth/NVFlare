@@ -29,7 +29,7 @@ as:
 $$p(x) = \sigma(\beta \cdot x + \beta_{0})$$
 where $\sigma(.)$ denotes the sigmoid function. We can incorporate
 $\beta_{0}$ and $\beta$ into a single parameter vector $\theta =
-\(\beta_{0}, \beta\)$. Let $d$ be the number
+( \beta_{0},  \beta)$. Let $d$ be the number
 of features for each data sample $x$ and let $N$ be the number of data
 samples. We then have the matrix version of the above probability
 equation:
@@ -40,16 +40,16 @@ intercept $\theta_{0}$.
 
 The goal is to compute parameter vector $\theta$ that maximizes the
 below likelihood function:
-$$L(\theta) = \prod_{i=1}^{N} p(x_i)^{y_i} (1 - p(x_i)^{1-y_i})$$
+$$L_{\theta} = \prod_{i=1}^{N} p(x_i)^{y_i} (1 - p(x_i)^{1-y_i})$$
 
 The Newton Raphson method optimizes the likelihood function via
 quadratic approximation. Omitting the maths, the theoretical update
 formula for parameter vector $\theta$ is:
-$$\theta^{n+1} = \theta^{n} - H^{-1}_{\theta} \nabla L(\theta^{n})$$
+$$\theta^{n+1} = \theta^{n} - H_{\theta^{n}}^{-1} \nabla L_{\theta^{n}}$$
 where
 $$\nabla L(\theta^{n}) = X^{T}(y - p(X))$$
 is the gradient of the likelihood function, and
-$$H^{-1}_{\theta} = -X^{T} D X$$
+$$H = -X^{T} D X$$
 is the Hessian of the likelihood function, with $D$ a diagonal matrix
 where diagonal value at $(i,i)$ is $D(i,i) = p(x_i) (1 - p(x_i))$.
 
