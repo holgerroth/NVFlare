@@ -1,31 +1,46 @@
 # Federated Logistic Regression with Second-Order Newton Raphson optimization
 
-This example show-cases how to implement a federated binary
+This example shows how to implement a federated binary
 classification via logistic regression with second-order Newton
 Raphson optimization.
 
+The [UCI Heart Disease
+dataset](https://archive.ics.uci.edu/dataset/45/heart+disease) is
+used in this example. Scripts are provided to download and process the
+dataset as described
+[here](https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_heart_disease). This
+dataset contains samples from 4 sites, splitted into training and
+testing sets as described below:
+|site         | sample split                          |
+|-------------|---------------------------------------|
+|Cleveland    | train: 199 samples, test: 104 samples |
+|hungary      | train: 172 samples, test: 89 samples  |
+|Switzerland  | train: 30 samples, test: 16 samples   |
+|Long Beach V | train: 85 samples, test: 45 samples   |
+The number of features in each sample is 13.
+
 ## Introduction
 
-The optimization problem can be described as follows.
+The Newton Raphson optimization problem can be described as follows.
 
 In a binary classification task with logistic regression, the
 probability of a data sample $x$ classified as positive is formulated
 as:
 $$p(x) = \sigma(\beta \cdot x + \beta_{0})$$
 where $\sigma(.)$ denotes the sigmoid function. We can incorporate
-$\beta_{0}$ and $\beta$ into a single parameter vector \$theta =
+$\beta_{0}$ and $\beta$ into a single parameter vector $\theta =
 \(\beta_{0}, \beta\)$. Let $d$ be the number
 of features for each data sample $x$ and let $N$ be the number of data
 samples. We then have the matrix version of the above probability
 equation:
-$$p(X) = X \theta$$
-Here $X$ is the matrix of all samples, with shape $N x (d+1)$, having
-it's first column filled with value 1 to account for the intercept
-$\theta_{0}$.
+$$p(X) = \sigma( X \theta )$$
+Here $X$ is the matrix of all samples, with shape $N \times (d+1)$,
+having it's first column filled with value 1 to account for the
+intercept $\theta_{0}$.
 
-The goal is to compute parameter vector \$theta$ that maximizes the
+The goal is to compute parameter vector $\theta$ that maximizes the
 below likelihood function:
-$$L(\theta) = \prod_{1}^{N} p(x_i)^{y_i} (1 - p(x_i)^{1-y_i})$$
+$$L(\theta) = \prod_{i=1}^{N} p(x_i)^{y_i} (1 - p(x_i)^{1-y_i})$$
 
 The Newton Raphson method optimizes the likelihood function via
 quadratic approximation. Omitting the maths, the theoretical update
@@ -37,20 +52,6 @@ is the gradient of the likelihood function, and
 $$H^{-1}_{\theta} = -X^{T} D X$$
 is the Hessian of the likelihood function, with $D$ a diagonal matrix
 where diagonal value at $(i,i)$ is $D(i,i) = p(x_i) (1 - p(x_i))$.
-
-This example uses the (UCI Heart Disease
-dataset)[https://archive.ics.uci.edu/dataset/45/heart+disease],
-downloaded and processed as described
-(here)[https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_heart_disease]. this
-dataset contains samples from 4 sites, splitted into training and
-testing sets as described below:
-|site         | sample split                          |
-|-------------|---------------------------------------|
-|Cleveland    | train: 199 samples, test: 104 samples |
-|hungary      | train: 172 samples, test: 89 samples  |
-|Switzerland  | train: 30 samples, test: 16 samples   |
-|Long Beach V | train: 85 samples, test: 45 samples   |
-The number of features in each sample is 13.
 
 Using `nvflare`, this example was implemented as follows:
 - On the server side, a (custom
