@@ -17,6 +17,7 @@ testing sets as described below:
 |hungary      | train: 172 samples, test: 89 samples  |
 |Switzerland  | train: 30 samples, test: 16 samples   |
 |Long Beach V | train: 85 samples, test: 45 samples   |
+
 The number of features in each sample is 13.
 
 ## Introduction
@@ -47,27 +48,33 @@ quadratic approximation. Omitting the maths, the theoretical update
 formula for parameter vector $\theta$ is:
 $$\theta^{n+1} = \theta^{n} - H_{\theta^{n}}^{-1} \nabla L_{\theta^{n}}$$
 where
-$$\nabla L(\theta^{n}) = X^{T}(y - p(X))$$
-is the gradient of the likelihood function, and
-$$H = -X^{T} D X$$
+$$\nabla L_{\theta^{n}} = X^{T}(y - p(X))$$
+is the gradient of the likelihood function, with $y$ being the vector
+of ground truth for sample data matrix $X$,  and
+$$H_{\theta^{n}} = -X^{T} D X$$
 is the Hessian of the likelihood function, with $D$ a diagonal matrix
 where diagonal value at $(i,i)$ is $D(i,i) = p(x_i) (1 - p(x_i))$.
 
-Using `nvflare`, this example was implemented as follows:
-- On the server side, a (custom
-  workflow)[./job/newton_raphson/app/custom/newton_raphson_workflow.py]
+In federated Newton Raphson optimization, each client will compute its
+own gradient $\nabla L_{\theta^{n}}$ and Hessian $H_{\theta^{n}}$
+based on local training samples. A server will aggregate the gradients
+and Hessians computed from all clients, and perform the update of
+parameter $\theta$ based on the theoretical update formula described
+above. Using `nvflare`, this was implemented as follows:
+- On the server side, a [custom
+  workflow](./job/newton_raphson/app/custom/newton_raphson_workflow.py)
   was implemented, inheriting the
-  (`BaseFedAvg`)[https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/base_fedavg.py]
+  [`BaseFedAvg`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/base_fedavg.py)
   class. The custom workflow recieves gradient and Hessian from each
   client computed during local training, then performs aggregation
   using a custom aggregation function, and finally updates the global
   model based on the theoretical update formula. The implementation of
   server side workflow was based on the new recommanded **Workflow
   Controller**
-  (`WFController`)[https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/wf_controller.py],
+  ([`WFController`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/wf_controller.py)),
   which decouples communication logic from workflow logic.
-- On the client side, the implementation was based on the (`Client
-  API`)[https://nvflare.readthedocs.io/en/main/programming_guide/execution_api_type.html#client-api]. This
+- On the client side, the implementation was based on the [`Client
+  API`](https://nvflare.readthedocs.io/en/main/programming_guide/execution_api_type.html#client-api). This
   allows user to add minimum `nvflare`-specific codes to turn a
   typical centralized training script to a federated client side
   local training script. During local training, each client receives a
@@ -86,10 +93,10 @@ Using `nvflare`, this example was implemented as follows:
 A (centralized training script)[./train_centralized.py] is also
 provided, which allows for comparing the federated Newton Raphson
 optimization versus the centralized version. In the centralized
-version, training data samples from all 4 sites were concatenated into a single
-matrix, used to optimize the model parameters. The the optimized model
-was then tested separately on testing data samples of the 4
-sites. Accuracy and precision were measured as  metrics.
+version, training data samples from all 4 sites were concatenated into
+a single matrix, used to optimize the model parameters. The
+optimized model was then tested separately on testing data samples of
+the 4 sites, using accuracy and precision as metrics.
 
 ## Set Up Environment & Install Dependencies
 
@@ -114,7 +121,7 @@ bash ./prepare_heart_disease_data.sh
 This will download the heart disease dataset under
 `/tmp/flare/dataset/heart_disease_data/`
 
-## Launch Centralized Training
+## Centralized Logistic Regression
 
 Launch the following script:
 ```
@@ -160,7 +167,10 @@ accuracy: 0.6
 precision: 0.9047619047619048
 ```
 
-## Run Federated Newton Raphson in simulator mode
+## Federated Logistic Regression
+
+Execute the following command to launch federated logistic
+regression. This will run in `nvflare`'s simulator mode.
 ```
 nvflare simulator -w ./workspace -n 4 -t 4 job/newton_raphson/
 ```
@@ -169,3 +179,7 @@ Accuracy and precision for each site can be viewed in Tensorboard:
 ```
 tensorboard --logdir=./workspace/simulate_job/tb_events
 ```
+As can be seen from the figure below, per-site evaluation metrics in
+federated logistic regression are on-par with the centralized version.
+
+<img src="./figs/tb-metrics.png" alt="Tensorboard metrics server"/>
