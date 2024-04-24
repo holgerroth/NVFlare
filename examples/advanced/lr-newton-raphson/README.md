@@ -1,8 +1,7 @@
-# Federated Logistic Regression with Second-Order Newton Raphson optimization
+# Federated Logistic Regression with Second-Order Newton-Raphson optimization
 
 This example shows how to implement a federated binary
-classification via logistic regression with second-order Newton
-Raphson optimization.
+classification via logistic regression with second-order Newton-Raphson optimization.
 
 The [UCI Heart Disease
 dataset](https://archive.ics.uci.edu/dataset/45/heart+disease) is
@@ -22,7 +21,7 @@ The number of features in each sample is 13.
 
 ## Introduction
 
-The Newton Raphson optimization problem can be described as follows.
+The Newton-Raphson optimization problem can be described as follows.
 
 In a binary classification task with logistic regression, the
 probability of a data sample $x$ classified as positive is formulated
@@ -43,7 +42,7 @@ The goal is to compute parameter vector $\theta$ that maximizes the
 below likelihood function:
 $$L_{\theta} = \prod_{i=1}^{N} p(x_i)^{y_i} (1 - p(x_i)^{1-y_i})$$
 
-The Newton Raphson method optimizes the likelihood function via
+The Newton-Raphson method optimizes the likelihood function via
 quadratic approximation. Omitting the maths, the theoretical update
 formula for parameter vector $\theta$ is:
 $$\theta^{n+1} = \theta^{n} - H_{\theta^{n}}^{-1} \nabla L_{\theta^{n}}$$
@@ -55,43 +54,102 @@ $$H_{\theta^{n}} = -X^{T} D X$$
 is the Hessian of the likelihood function, with $D$ a diagonal matrix
 where diagonal value at $(i,i)$ is $D(i,i) = p(x_i) (1 - p(x_i))$.
 
-In federated Newton Raphson optimization, each client will compute its
+In federated Newton-Raphson optimization, each client will compute its
 own gradient $\nabla L_{\theta^{n}}$ and Hessian $H_{\theta^{n}}$
 based on local training samples. A server will aggregate the gradients
 and Hessians computed from all clients, and perform the update of
 parameter $\theta$ based on the theoretical update formula described
-above. Using `nvflare`, this was implemented as follows:
-- On the server side, a [custom
-  workflow](./job/newton_raphson/app/custom/newton_raphson_workflow.py)
-  was implemented, inheriting the
-  [`BaseFedAvg`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/base_fedavg.py)
-  class. The custom workflow recieves gradient and Hessian from each
-  client computed during local training, then performs aggregation
-  using a custom aggregation function, and finally updates the global
-  model based on the theoretical update formula. The implementation of
-  server side workflow was based on the new recommanded **Workflow
-  Controller**
-  ([`WFController`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/wf_controller.py)),
-  which decouples communication logic from workflow logic.
-- On the client side, the implementation was based on the [`Client
-  API`](https://nvflare.readthedocs.io/en/main/programming_guide/execution_api_type.html#client-api). This
-  allows user to add minimum `nvflare`-specific codes to turn a
-  typical centralized training script to a federated client side
-  local training script. During local training, each client receives a
-  copy of the global model, sent by the server. Then each client
-  computes it's gradient and Hessian based on local training data,
-  using their respective theoretical formula described above, and send
-  the computed results to server for aggregation. Each client site
-  corresponds to a site listed in the data table above.
-- The global model is merely a numpy array representing parameter
-  vector $\theta$. All gradients and Hessians are computed and
-  aggregated on-the-fly.
-- Before each round of local training, accuracy and precision were
-  measured on local test data of each client site, and then streamed
-  to the server, saved in tensorboard readble format.
+above.
+
+## Implementation
+
+Using `nvflare`, The federated logistic regression with Newton-Raphson
+optimization is implemented as follows.
+
+On the server side, all workflow logics are implemented in
+class `FedAvgNewtonRaphson`, which can be found
+[here](job/newton_raphson/app/custom/newton_raphson_workflow.py). The
+`FedAvgNewtonRaphson` class inherits from the
+[`BaseFedAvg`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/base_fedavg.py)
+class, which itself inherits from the **Workflow Controller**
+([`WFController`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/wf_controller.py))
+class. This is the preferrable approach to implement a custom
+workflow, since `WFController` decouples communication logic from
+actual workflow (training & validation) logic. The mandatory
+method to override in `WFController` is the
+[`run()`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/wf_controller.py#L37)
+method, where the orchestration of server-side workflow actually
+happens. The implementation of `run()` method in
+[`FedAvgNewtonRaphson`](job/newton_raphson/app/custom/newton_raphson_workflow.py)
+is similar to the classic
+[`FedAvg`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/fedavg.py#L44):
+- Initialize the global model, this is acheived through method `load_model()`
+  from base class
+  [`ModelController`](https://github.com/NVIDIA/NVFlare/blob/fa4d00f76848fe4eb356dcde417c136047eeab36/nvflare/app_common/workflows/model_controller.py#L292),
+  which relies on the
+  [`ModelPersistor`](https://nvflare.readthedocs.io/en/main/glossary.html#persistor). A
+  custom
+  [`NewtonRaphsonModelPersistor`](job/newton_raphson/app/custom/newton_raphson_persistor.py)
+  is implemented in this example, which is based on the
+  [`NPModelPersistor`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/np/np_model_persistor.py)
+  for numpy data, since the _model_ in the case of logistic regression
+  is just the parameter vector $\theta$ that can be represented by a
+  numpy array. Only the `__init__` method needs to be re-implemented
+  to provide a proper initialization for the global parameter vector
+  $\theta$.
+- During each training round, the global model will be sent to the
+  list of participating clients to perform a training task. This is
+  done using the
+  [`send_model()`](https://github.com/NVIDIA/NVFlare/blob/d6827bca96d332adb3402ceceb4b67e876146067/nvflare/app_common/workflows/model_controller.py#L99)
+  method under the hood, from the `ModelController` base class. Once
+  the clients finish their local training, results will be collected
+  and sent back to server as
+  [`FLModel`](https://nvflare.readthedocs.io/en/main/programming_guide/fl_model.html#flmodel)s.
+- Results sent by clients contain their locally computed gradient and
+  Hessian. A [custom aggregation
+  function](job/newton_raphson/app/custom/newton_raphson_workflow.py#L111)
+  is implemented to get the averaged gradient and Hessian, and compute
+  the Newton-Raphson update for the global parameter vector $\theta$,
+  based on the theoretical formula shown above. The averaging of
+  gradient and Hessian is based on the
+  [`WeightedAggregationHelper`](https://github.com/NVIDIA/NVFlare/blob/fa4d00f76848fe4eb356dcde417c136047eeab36/nvflare/app_common/aggregators/weighted_aggregation_helper.py#L20),
+  which weighs the contribution from each client based on the number
+  of local training samples. The aggregated Newton-Raphson update is
+  returned as an `FLModel`.
+- After getting the aggregated Newton-Raphson update, an
+  [`update_model()`](job/newton_raphson/app/custom/newton_raphson_workflow.py#L172)
+  method is implemented to actually apply the Newton-Raphson update to
+  the global model.
+- The last step is to save the updated global model, again through
+  the `NewtonRaphsonModelPersistor`.
+
+
+On the client side, the local training logic is implemented
+[here](job/newton_raphson/app/custom/newton_raphson_train.py). The
+implementation is based on the [`Client
+API`](https://nvflare.readthedocs.io/en/main/programming_guide/execution_api_type.html#client-api). This
+allows user to add minimum `nvflare`-specific codes to turn a typical
+centralized training script to a federated client side local training
+script.
+- During local training, each client receives a copy of the global
+  model, sent by the server, using `flare.receive()` API. The recieved
+  global model is an instance of `FLModel`.
+- A local validation is first performed, where validation metrics
+  (accuracy and precision) are streamed to server using the
+  [`SummaryWriter`](https://nvflare.readthedocs.io/en/main/apidocs/nvflare.client.tracking.html#nvflare.client.tracking.SummaryWriter). The
+  streamed metrics can be loaded and visualized using tensorboard.
+  class.
+- Then each client computes it's gradient and Hessian based on local
+  training data, using their respective theoretical formula described
+  above. This is implemented in the
+  [`train_newton_raphson()`](job/newton_raphson/app/custom/newton_raphson_train.py#L82)
+  method. Each client then sends the computed results (always in
+  `FLModel` format) to server for aggregation, using `flare.send()`
+  API.
+Each client site corresponds to a site listed in the data table above.
 
 A (centralized training script)[./train_centralized.py] is also
-provided, which allows for comparing the federated Newton Raphson
+provided, which allows for comparing the federated Newton-Raphson
 optimization versus the centralized version. In the centralized
 version, training data samples from all 4 sites were concatenated into
 a single matrix, used to optimize the model parameters. The

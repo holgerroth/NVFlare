@@ -163,7 +163,7 @@ def main():
 
   while flare.is_running():
 
-    # Receive global model from server.
+    # Receive global model (FLModel) from server.
     global_model = flare.receive()
 
     curr_round = global_model.current_round
@@ -173,7 +173,8 @@ def main():
            'global model: {}').format(
              curr_round, site_name, global_model))
 
-    # Receive global message from server.
+    # Get the weights, aka parameter theta for
+    # logistic regression.
     global_weights = global_model.params[NPConstants.NUMPY_KEY]
     print('[ROUND {}] - global model weights: {}'.format(
       curr_round, global_weights))

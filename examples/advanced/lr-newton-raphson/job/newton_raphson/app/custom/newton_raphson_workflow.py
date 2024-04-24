@@ -77,7 +77,7 @@ class FedAvgNewtonRaphson(BaseFedAvg):
 
       # Send training task and current global model to clients.
       #
-      # A `task` isntance will be created, and because sending it
+      # A `task` isntance will be created, and sent
       # to clients, the model is first converted to a shareable
       # and is attached to the task.
       #
