@@ -109,7 +109,7 @@ is similar to the classic
   [`FLModel`](https://nvflare.readthedocs.io/en/main/programming_guide/fl_model.html#flmodel)s.
 - Results sent by clients contain their locally computed gradient and
   Hessian. A [custom aggregation
-  function](job/newton_raphson/app/custom/newton_raphson_workflow.py)
+  function](job/newton_raphson/app/custom/newton_raphson_workflow.py#L111)
   is implemented to get the averaged gradient and Hessian, and compute
   the Newton-Raphson update for the global parameter vector $\theta$,
   based on the theoretical formula shown above. The averaging of
@@ -147,6 +147,7 @@ script.
   method. Each client then sends the computed results (always in
   `FLModel` format) to server for aggregation, using `flare.send()`
   API.
+
 Each client site corresponds to a site listed in the data table above.
 
 A [centralized training script](./train_centralized.py) is also
@@ -156,6 +157,14 @@ version, training data samples from all 4 sites were concatenated into
 a single matrix, used to optimize the model parameters. The
 optimized model was then tested separately on testing data samples of
 the 4 sites, using accuracy and precision as metrics.
+
+Comparing the federated [client-side training
+code](job/newton_raphson/app/custom/newton_raphson_train.py) with the
+centralized [training code](./train_centralized.py), we can see that
+the training logic remains similar: load data, perform training
+(Newton-Raphson updates), and valid trained model. The only added
+differences in the federated code are related to interaction with the
+FL system, such as receiving and send `FLModel`.
 
 ## Set Up Environment & Install Dependencies
 
