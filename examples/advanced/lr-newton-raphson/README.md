@@ -13,7 +13,7 @@ testing sets as described below:
 |site         | sample split                          |
 |-------------|---------------------------------------|
 |Cleveland    | train: 199 samples, test: 104 samples |
-|hungary      | train: 172 samples, test: 89 samples  |
+|Hungary      | train: 172 samples, test: 89 samples  |
 |Switzerland  | train: 30 samples, test: 16 samples   |
 |Long Beach V | train: 85 samples, test: 45 samples   |
 
@@ -21,7 +21,9 @@ The number of features in each sample is 13.
 
 ## Introduction
 
-The Newton-Raphson optimization problem can be described as follows.
+The [Newton-Raphson
+optimization](https://en.wikipedia.org/wiki/Newton%27s_method) problem
+can be described as follows.
 
 In a binary classification task with logistic regression, the
 probability of a data sample $x$ classified as positive is formulated
@@ -85,7 +87,7 @@ is similar to the classic
 [`FedAvg`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/fedavg.py#L44):
 - Initialize the global model, this is acheived through method `load_model()`
   from base class
-  [`ModelController`](https://github.com/NVIDIA/NVFlare/blob/fa4d00f76848fe4eb356dcde417c136047eeab36/nvflare/app_common/workflows/model_controller.py#L292),
+  [`ModelController`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/model_controller.py#L292),
   which relies on the
   [`ModelPersistor`](https://nvflare.readthedocs.io/en/main/glossary.html#persistor). A
   custom
@@ -100,19 +102,19 @@ is similar to the classic
 - During each training round, the global model will be sent to the
   list of participating clients to perform a training task. This is
   done using the
-  [`send_model()`](https://github.com/NVIDIA/NVFlare/blob/d6827bca96d332adb3402ceceb4b67e876146067/nvflare/app_common/workflows/model_controller.py#L99)
-  method under the hood, from the `ModelController` base class. Once
+  [`send_model_and_wait()`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/workflows/wf_controller.py#L41)
+  method. Once
   the clients finish their local training, results will be collected
   and sent back to server as
   [`FLModel`](https://nvflare.readthedocs.io/en/main/programming_guide/fl_model.html#flmodel)s.
 - Results sent by clients contain their locally computed gradient and
   Hessian. A [custom aggregation
-  function](job/newton_raphson/app/custom/newton_raphson_workflow.py#L111)
+  function](./job/newton_raphson/app/custom/newton_raphson_workflow.py#L111)
   is implemented to get the averaged gradient and Hessian, and compute
   the Newton-Raphson update for the global parameter vector $\theta$,
   based on the theoretical formula shown above. The averaging of
   gradient and Hessian is based on the
-  [`WeightedAggregationHelper`](https://github.com/NVIDIA/NVFlare/blob/fa4d00f76848fe4eb356dcde417c136047eeab36/nvflare/app_common/aggregators/weighted_aggregation_helper.py#L20),
+  [`WeightedAggregationHelper`](https://github.com/NVIDIA/NVFlare/blob/main/nvflare/app_common/aggregators/weighted_aggregation_helper.py#L20),
   which weighs the contribution from each client based on the number
   of local training samples. The aggregated Newton-Raphson update is
   returned as an `FLModel`.
@@ -121,7 +123,7 @@ is similar to the classic
   method is implemented to actually apply the Newton-Raphson update to
   the global model.
 - The last step is to save the updated global model, again through
-  the `NewtonRaphsonModelPersistor`.
+  the `NewtonRaphsonModelPersistor` using `save_model()`.
 
 
 On the client side, the local training logic is implemented
@@ -132,13 +134,12 @@ allows user to add minimum `nvflare`-specific codes to turn a typical
 centralized training script to a federated client side local training
 script.
 - During local training, each client receives a copy of the global
-  model, sent by the server, using `flare.receive()` API. The recieved
+  model, sent by the server, using `flare.receive()` API. The received
   global model is an instance of `FLModel`.
 - A local validation is first performed, where validation metrics
   (accuracy and precision) are streamed to server using the
   [`SummaryWriter`](https://nvflare.readthedocs.io/en/main/apidocs/nvflare.client.tracking.html#nvflare.client.tracking.SummaryWriter). The
   streamed metrics can be loaded and visualized using tensorboard.
-  class.
 - Then each client computes it's gradient and Hessian based on local
   training data, using their respective theoretical formula described
   above. This is implemented in the
@@ -148,7 +149,7 @@ script.
   API.
 Each client site corresponds to a site listed in the data table above.
 
-A (centralized training script)[./train_centralized.py] is also
+A [centralized training script](./train_centralized.py) is also
 provided, which allows for comparing the federated Newton-Raphson
 optimization versus the centralized version. In the centralized
 version, training data samples from all 4 sites were concatenated into
@@ -191,7 +192,7 @@ centralized training script, which can be specified by the `--solver`
 argument:
 - One is using `sklearn.LogisticRegression` with `newton-cholesky`
   solver
-- the other one is manually implemented using the theoretical update
+- The other one is manually implemented using the theoretical update
   formulas described above.
 
 Both implementations were tested to converge in 4 iterations and to
