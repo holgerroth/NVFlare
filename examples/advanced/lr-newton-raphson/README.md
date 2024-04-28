@@ -109,7 +109,7 @@ is similar to the classic
   [`FLModel`](https://nvflare.readthedocs.io/en/main/programming_guide/fl_model.html#flmodel)s.
 - Results sent by clients contain their locally computed gradient and
   Hessian. A [custom aggregation
-  function](./job/newton_raphson/app/custom/newton_raphson_workflow.py#L111)
+  function](job/newton_raphson/app/custom/newton_raphson_workflow.py#L111)
   is implemented to get the averaged gradient and Hessian, and compute
   the Newton-Raphson update for the global parameter vector $\theta$,
   based on the theoretical formula shown above. The averaging of
