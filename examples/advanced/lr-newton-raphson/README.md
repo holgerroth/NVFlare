@@ -193,7 +193,7 @@ This will download the heart disease dataset under
 
 Launch the following script:
 ```
-./train_centralized.py --solver custom
+python ./train_centralized.py --solver custom
 ```
 
 Two implementations of logistic regression are provided in the
