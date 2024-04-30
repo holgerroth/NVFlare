@@ -245,7 +245,7 @@ nvflare simulator -w ./workspace -n 4 -t 4 job/newton_raphson/
 
 Accuracy and precision for each site can be viewed in Tensorboard:
 ```
-tensorboard --logdir=./workspace/simulate_job/tb_events
+tensorboard --logdir=./workspace/server/simulate_job/tb_events
 ```
 As can be seen from the figure below, per-site evaluation metrics in
 federated logistic regression are on-par with the centralized version.
