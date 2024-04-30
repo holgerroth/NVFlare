@@ -1,3 +1,2 @@
 flamby @ git+https://github.com/owkin/FLamby.git@main
-nvflare-nightly @ git+https://github.com/NVIDIA/NVFlare.git@main
 wget==3.2

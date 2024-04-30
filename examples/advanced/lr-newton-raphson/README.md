@@ -168,17 +168,10 @@ FL system, such as receiving and send `FLModel`.
 
 ## Set Up Environment & Install Dependencies
 
-Create & activate a virtual environment
-```
-virtualenv -p python3 ./venv
-source ./venv/bin/activate
-```
-
-Install dependencies
-```
-pip install -r requirements.txt
-```
-This will install main dev branch of `NVFlare` and `FLamby`
+Follow instructions
+[here](https://github.com/NVIDIA/NVFlare/tree/main/examples#set-up-a-virtual-environment)
+to set up a virtual environment for `nvflare` examples and install
+dependencies for this example.
 
 ## Download and prepare data
 
