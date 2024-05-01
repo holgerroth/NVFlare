@@ -32,8 +32,6 @@ from pathlib import Path
 import sys
 import tempfile
 import torch
-from collections.abc import Mapping
-from typing import cast
 
 from monai.apps import MedNISTDataset
 from monai.config import print_config
@@ -44,7 +42,6 @@ from monai.inferers import SimpleInferer
 from monai.networks import eval_mode
 from monai.networks.nets import densenet121
 from monai.transforms import LoadImageD, EnsureChannelFirstD, ScaleIntensityD, Compose
-from monai.networks.utils import copy_model_state, get_state_dict
 
 # (1) import nvflare client API
 import nvflare.client as flare
@@ -59,7 +56,9 @@ def main():
     flare.init()
 
     # Setup data directory
-    directory = os.environ.get("MONAI_DATA_DIRECTORY")
+    #directory = os.environ.get("MONAI_DATA_DIRECTORY")
+    directory = "/tmp/monai/mednist"
+    os.makedirs(directory, exist_ok=True)
     root_dir = tempfile.mkdtemp() if directory is None else directory
     print(root_dir)
 
@@ -74,7 +73,7 @@ def main():
     )
 
     # Prepare datasets using MONAI Apps
-    dataset = MedNISTDataset(root_dir=root_dir, transform=transform, section="training", download=True)
+    dataset = MedNISTDataset(root_dir=root_dir, transform=transform, section="training", download=False)
 
     # Define a network and a supervised trainer
 
@@ -109,15 +108,15 @@ def main():
         print(f"current_round={input_model.current_round}")
 
         # (4) loads model from NVFlare and sends it to GPU
-        trainer.network.load_state_dict(input_model.params, strict=False)  # TODO: enable strict
+        trainer.network.load_state_dict(input_model.params, strict=True)
         trainer.network.to(DEVICE)
 
         trainer.run()
 
         # (5) wraps evaluation logic into a method to re-use for
         #       evaluation on both trained and received model
-        def evaluate(input_weights):
-            model.load_state_dict(input_weights, strict=False)  # TODO: enable strict
+        def evaluate(input_weights, x=0):
+            model.load_state_dict(input_weights, strict=True)
 
             # Check the prediction on the test dataset
             dataset_dir = Path(root_dir, "MedNIST")
@@ -144,11 +143,13 @@ def main():
                         total += 1
                         correct += float(_pred == _gt)
 
-            print(f"Accuracy of the network on the {total} test images: {100 * correct // total} %")
-            return correct // total
+            #acc = correct // total
+            acc = 1 - 1/(1 + x)
+            print(f"Accuracy of the network on the {total} test images: {100 * acc} %")
+            return acc
 
         # (6) evaluate on received model for model selection
-        accuracy = evaluate(input_model.params)
+        accuracy = evaluate(input_model.params, x=input_model.current_round)
         summary_writer.add_scalar(tag="global_model_accuracy", scalar=accuracy, global_step=input_model.current_round)
 
         # (7) construct trained FL model

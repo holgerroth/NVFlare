@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base_fedavg import BaseFedAvg
+from monai.networks.nets import densenet121
+
+from nvflare.app_common.workflows.base_fedavg import BaseFedAvg
+from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
 
 
-class FedAvg(BaseFedAvg):
-    """Controller for FedAvg Workflow. *Note*: This class is based on the `WFController`.
+class FedAvgMONAI(BaseFedAvg):
+    """Controller for FedAvg Workflow. *Note*: This class is based on the experimental `ModelController`.
     Implements [FederatedAveraging](https://arxiv.org/abs/1602.05629).
 
     Provides the implementations for the `run` routine, controlling the main workflow:
@@ -29,7 +32,6 @@ class FedAvg(BaseFedAvg):
             Workflow starts to wait for `wait_time_after_min_received`. Note that the workflow will move forward
             when all available clients have responded regardless of this value. Defaults to 1000.
         num_rounds (int, optional): The total number of training rounds. Defaults to 5.
-        start_round (int, optional): The starting round number.
         persistor_id (str, optional): ID of the persistor component. Defaults to "persistor".
         ignore_result_error (bool, optional): whether this controller can proceed if client result has errors.
             Defaults to False.
@@ -44,24 +46,26 @@ class FedAvg(BaseFedAvg):
     def run(self) -> None:
         self.info("Start FedAvg.")
 
-        model = self.load_model()
-        model.start_round = self.start_round
-        model.total_rounds = self.num_rounds
+        monai_model = densenet121(spatial_dims=2, in_channels=1, out_channels=6)
 
-        for self.current_round in range(self.start_round, self.start_round + self.num_rounds):
-            self.info(f"Round {self.current_round} started.")
-            model.current_round = self.current_round
+        init_weights = {}
+        for k, v in monai_model.state_dict().items():
+            init_weights[k] = v.cpu().numpy()
+        self.model = FLModel(params_type=ParamsType.FULL, params=init_weights)
 
-            clients = self.sample_clients(self.min_clients)
+        for self._current_round in range(self._num_rounds):
+            self.info(f"Round {self._current_round} started.")
 
-            results = self.send_model_and_wait(targets=clients, data=model)
+            clients = self.sample_clients(self._min_clients)
+
+            results = self.send_model_and_wait(targets=clients, data=self.model)
 
             aggregate_results = self.aggregate(
                 results, aggregate_fn=None
             )  # if no `aggregate_fn` provided, default `WeightedAggregationHelper` is used
 
-            model = self.update_model(model, aggregate_results)
+            self.update_model(aggregate_results)
 
-            self.save_model(model)
+            self.save_model()
 
         self.info("Finished FedAvg.")
