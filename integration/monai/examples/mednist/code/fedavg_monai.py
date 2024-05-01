@@ -43,6 +43,12 @@ class FedAvgMONAI(BaseFedAvg):
             If n is 0 then no persist.
     """
 
+    def param_sum(self, params):
+        s = 0
+        for k, v in params.items():
+            s += v.sum()
+        return s
+
     def run(self) -> None:
         self.info("Start FedAvg.")
 
@@ -51,21 +57,26 @@ class FedAvgMONAI(BaseFedAvg):
         init_weights = {}
         for k, v in monai_model.state_dict().items():
             init_weights[k] = v.cpu().numpy()
-        self.model = FLModel(params_type=ParamsType.FULL, params=init_weights)
+        model = FLModel(params_type=ParamsType.FULL, params=init_weights)
+        model.current_round = self._current_round
 
         for self._current_round in range(self._num_rounds):
             self.info(f"Round {self._current_round} started.")
 
             clients = self.sample_clients(self._min_clients)
 
-            results = self.send_model_and_wait(targets=clients, data=self.model)
+            print("$$$$$$$$$ Server BEGIN ROUND", model.current_round, self.param_sum(model.params))
+            results = self.send_model_and_wait(targets=clients, data=model)
 
             aggregate_results = self.aggregate(
                 results, aggregate_fn=None
             )  # if no `aggregate_fn` provided, default `WeightedAggregationHelper` is used
 
-            self.update_model(aggregate_results)
+            model = aggregate_results
+            model.current_round = self._current_round
 
-            self.save_model()
+            print("$$$$$$$$$ Server END ROUND", model.current_round, self.param_sum(model.params))
+
+            #self.save_model()
 
         self.info("Finished FedAvg.")
