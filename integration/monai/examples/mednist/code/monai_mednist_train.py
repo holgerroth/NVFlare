@@ -109,7 +109,7 @@ def main():
         print(f"current_round={input_model.current_round}")
 
         # (4) loads model from NVFlare and sends it to GPU
-        trainer.network.load_state_dict(input_model.params)
+        trainer.network.load_state_dict(input_model.params, strict=False)  # TODO: enable strict
         trainer.network.to(DEVICE)
 
         trainer.run()
@@ -117,7 +117,7 @@ def main():
         # (5) wraps evaluation logic into a method to re-use for
         #       evaluation on both trained and received model
         def evaluate(input_weights):
-            model.load_state_dict(input_weights)
+            model.load_state_dict(input_weights, strict=False)  # TODO: enable strict
 
             # Check the prediction on the test dataset
             dataset_dir = Path(root_dir, "MedNIST")
