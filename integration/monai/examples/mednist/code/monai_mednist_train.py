@@ -32,7 +32,6 @@ from pathlib import Path
 import sys
 import tempfile
 import torch
-from copy import deepcopy
 
 from monai.apps import MedNISTDataset
 from monai.config import print_config
@@ -53,48 +52,6 @@ import nvflare.client as flare
 from tracking import SummaryWriter
 
 print_config()
-
-
-def param_sum(params):
-    s = 0
-    for k, v in params.items():
-        s += v.sum()
-    return s
-
-
-# (5) wraps evaluation logic into a method to re-use for
-#       evaluation on both trained and received model
-def evaluate(DEVICE, transform, root_dir, model, input_weights, x=0):
-    model.load_state_dict(input_weights, strict=True)
-
-    # Check the prediction on the test dataset
-    dataset_dir = Path(root_dir, "MedNIST")
-    class_names = sorted(f"{x.name}" for x in dataset_dir.iterdir() if x.is_dir())
-    testdata = MedNISTDataset(root_dir=root_dir, transform=transform, section="test", download=False,
-                              runtime_cache=True)
-    correct = 0
-    total = 0
-    max_items_to_print = 10
-    _print = 0
-    with eval_mode(model):
-        for item in DataLoader(testdata, batch_size=512, num_workers=0):  # changed to do batch processing
-            prob = np.array(model(item["image"].to(DEVICE)).detach().to("cpu"))
-            pred = [class_names[p] for p in prob.argmax(axis=1)]
-            gt = item["class_name"]
-            # changed the logic a bit from tutorial to compute accuracy on full test set
-            # but only print for some.
-            for _gt, _pred in zip(gt, pred):
-                if _print < max_items_to_print:
-                    print(f"Class prediction is {_pred}. Ground-truth: {_gt}")
-                    _print += 1
-
-                # compute accuracy
-                total += 1
-                correct += float(_pred == _gt)
-
-    acc = correct // total
-    print(f"Accuracy of the network on the {total} test images: {100 * acc} %")
-    return acc
 
 
 def main():
@@ -119,14 +76,14 @@ def main():
     )
 
     # Prepare datasets using MONAI Apps
-    dataset = MedNISTDataset(root_dir=root_dir, transform=transform, section="training", download=False)
+    dataset = MedNISTDataset(root_dir=root_dir, transform=transform, section="training", download=True)
 
     # Define a network and a supervised trainer
 
     # If available, we use GPU to speed things up.
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-    max_epochs = 10  # rather than 5 epochs, we run 5 FL rounds with 1 local epoch each.
+    max_epochs = 1  # rather than 5 epochs, we run 5 FL rounds with 1 local epoch each.
     model = densenet121(spatial_dims=2, in_channels=1, out_channels=6).to(DEVICE)
 
     train_loader = DataLoader(dataset, batch_size=512, shuffle=True, num_workers=4)
@@ -163,7 +120,6 @@ def main():
         # (3) receives FLModel from NVFlare
         input_model = flare.receive()
         print(f"current_round={input_model.current_round}")
-        print("$$$$$$$$$ CLIENT BEGIN ROUND", input_model.current_round, param_sum(input_model.params))
 
         # (4) loads model from NVFlare and sends it to GPU
         trainer.network.load_state_dict(input_model.params, strict=True)
@@ -176,8 +132,44 @@ def main():
 
         trainer.run()
 
+        # (5) wraps evaluation logic into a method to re-use for
+        #       evaluation on both trained and received model
+        def evaluate(input_weights):
+            # reinstantiate the model for evaluation
+            model = densenet121(spatial_dims=2, in_channels=1, out_channels=6).to(DEVICE)
+            model.load_state_dict(input_weights, strict=True)
+
+            # Check the prediction on the test dataset
+            dataset_dir = Path(root_dir, "MedNIST")
+            class_names = sorted(f"{x.name}" for x in dataset_dir.iterdir() if x.is_dir())
+            testdata = MedNISTDataset(root_dir=root_dir, transform=transform, section="test", download=False,
+                                      runtime_cache=True)
+            correct = 0
+            total = 0
+            max_items_to_print = 10
+            _print = 0
+            with eval_mode(model):
+                for item in DataLoader(testdata, batch_size=512, num_workers=0):  # changed to do batch processing
+                    prob = np.array(model(item["image"].to(DEVICE)).detach().to("cpu"))
+                    pred = [class_names[p] for p in prob.argmax(axis=1)]
+                    gt = item["class_name"]
+                    # changed the logic a bit from tutorial to compute accuracy on full test set
+                    # but only print for some.
+                    for _gt, _pred in zip(gt, pred):
+                        if _print < max_items_to_print:
+                            print(f"Class prediction is {_pred}. Ground-truth: {_gt}")
+                            _print += 1
+
+                        # compute accuracy
+                        total += 1
+                        correct += float(_pred == _gt)
+
+            acc = correct // total
+            print(f"Accuracy of the network on the {total} test images: {100 * acc} %")
+            return acc
+
         # (6) evaluate on received model for model selection
-        accuracy = evaluate(DEVICE, transform, root_dir, deepcopy(model), input_model.params, x=0)
+        accuracy = evaluate(input_model.params)
         summary_writer.add_scalar("global_model_accuracy", accuracy, input_model.current_round)
 
         # (7) construct trained FL model
@@ -187,10 +179,8 @@ def main():
             meta={"NUM_STEPS_CURRENT_ROUND": steps},
         )
 
-        print("$$$$$$$$$ CLIENT END ROUND", output_model.current_round, param_sum(output_model.params))
         # (8) send model back to NVFlare
         flare.send(output_model)
-
 
 
 if __name__ == "__main__":

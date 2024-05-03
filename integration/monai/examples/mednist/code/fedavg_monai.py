@@ -58,12 +58,12 @@ class FedAvgMONAI(BaseFedAvg):
         for k, v in monai_model.state_dict().items():
             init_weights[k] = v.cpu().numpy()
         model = FLModel(params_type=ParamsType.FULL, params=init_weights)
-        model.current_round = self._current_round
+        model.current_round = self.current_round
 
-        for self._current_round in range(self._num_rounds):
-            self.info(f"Round {self._current_round} started.")
+        for self.current_round in range(self.num_rounds):
+            self.info(f"Round {self.current_round} started.")
 
-            clients = self.sample_clients(self._min_clients)
+            clients = self.sample_clients(self.min_clients)
 
             print("$$$$$$$$$ Server BEGIN ROUND", model.current_round, self.param_sum(model.params))
             results = self.send_model_and_wait(targets=clients, data=model)
@@ -73,7 +73,7 @@ class FedAvgMONAI(BaseFedAvg):
             )  # if no `aggregate_fn` provided, default `WeightedAggregationHelper` is used
 
             model = aggregate_results
-            model.current_round = self._current_round
+            model.current_round = self.current_round
 
             print("$$$$$$$$$ Server END ROUND", model.current_round, self.param_sum(model.params))
 
