@@ -1,3 +1,12 @@
+import torch
+import random
+import numpy as np
+SEED = 0
+torch.manual_seed(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+
+import uuid
 from flwr.client import ClientApp, NumPyClient
 
 from task import (
@@ -15,12 +24,15 @@ from task import (
 net = Net().to(DEVICE)
 trainloader, testloader = load_data()
 
+site_name = str(uuid.uuid4())
+print("###### SITE_NAME", site_name)
+
 
 # Define FlowerClient and client_fn
 class FlowerClient(NumPyClient):
     def fit(self, parameters, config):
         set_weights(net, parameters)
-        results = train(net, trainloader, testloader, epochs=1, device=DEVICE)
+        results = train(net, trainloader, testloader, epochs=1, device=DEVICE, site_name=site_name)
         return get_weights(net), len(trainloader.dataset), results
 
     def evaluate(self, parameters, config):

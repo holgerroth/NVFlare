@@ -1,3 +1,11 @@
+import torch
+import random
+import numpy as np
+SEED = 0
+torch.manual_seed(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+
 from typing import List, Tuple
 
 from flwr.server import ServerApp, ServerConfig
@@ -44,7 +52,7 @@ strategy = FedAvg(
 
 
 # Define config
-config = ServerConfig(num_rounds=3)
+config = ServerConfig(num_rounds=10)
 
 
 # Flower ServerApp

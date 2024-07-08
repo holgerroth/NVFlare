@@ -1,3 +1,4 @@
+import os.path
 from collections import OrderedDict
 from logging import INFO
 
@@ -42,7 +43,7 @@ def load_data():
     return DataLoader(trainset, batch_size=32, shuffle=True), DataLoader(testset)
 
 
-def train(net, trainloader, valloader, epochs, device):
+def train(net, trainloader, valloader, epochs, device, site_name):
     """Train the model on the training set."""
     log(INFO, "Starting training...")
     net.to(device)  # move model to GPU if available
@@ -59,6 +60,13 @@ def train(net, trainloader, valloader, epochs, device):
 
     train_loss, train_acc = test(net, trainloader)
     val_loss, val_acc = test(net, valloader)
+
+    log_file = f"/tmp/nvflare_hashseed/flwr_in_flare_{site_name}_seed0_run2.csv"
+    #log_file = f"/tmp/nvflare_hashseed/flwr_alone_{site_name}_seed0.csv"
+    log_dir = os.path.dirname(log_file)
+    os.makedirs(log_dir, exist_ok=True)
+    with open(log_file, "a") as f:
+        f.write(f"{train_loss},{train_acc},{val_loss},{val_acc}\n")
 
     results = {
         "train_loss": train_loss,
