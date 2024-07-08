@@ -24,5 +24,5 @@ pip install -r requirements.txt
 
 Next, we run 2 Flower clients and Flower Server in parallel using NVFlare's simulator.
 ```bash
-nvflare simulator jobs/hello-flwr-pt -n 2 -t 2 -w /tmp/nvflare/flwr
+export PYTHONHASHSEED=0; nvflare simulator jobs/hello-flwr-pt -n 2 -t 2 -w /tmp/nvflare/flwr
 ```

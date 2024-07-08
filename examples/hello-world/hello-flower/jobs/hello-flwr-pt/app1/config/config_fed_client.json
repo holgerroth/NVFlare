@@ -6,7 +6,7 @@
       "executor": {
         "path": "nvflare.app_opt.flower.executor.FlowerExecutor",
         "args": {
-          "client_app": "client:app"
+          "client_app": "client1:app"
         }
       }
     }

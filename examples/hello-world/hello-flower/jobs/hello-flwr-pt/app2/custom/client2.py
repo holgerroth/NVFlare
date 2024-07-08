@@ -1,12 +1,17 @@
 import torch
+torch.use_deterministic_algorithms(True)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 import random
 import numpy as np
+
 SEED = 0
+LOG_FILE = "/tmp/nvflare_reproduce/flwr_in_flare_client2.csv"
+
 torch.manual_seed(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
 
-import uuid
 from flwr.client import ClientApp, NumPyClient
 
 from task import (
@@ -19,20 +24,16 @@ from task import (
     test,
 )
 
-
 # Load model and data (simple CNN, CIFAR-10)
 net = Net().to(DEVICE)
 trainloader, testloader = load_data()
-
-site_name = str(uuid.uuid4())
-print("###### SITE_NAME", site_name)
 
 
 # Define FlowerClient and client_fn
 class FlowerClient(NumPyClient):
     def fit(self, parameters, config):
         set_weights(net, parameters)
-        results = train(net, trainloader, testloader, epochs=1, device=DEVICE, site_name=site_name)
+        results = train(net, trainloader, testloader, epochs=1, device=DEVICE, log_file=LOG_FILE)
         return get_weights(net), len(trainloader.dataset), results
 
     def evaluate(self, parameters, config):

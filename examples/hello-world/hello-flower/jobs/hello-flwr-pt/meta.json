@@ -3,8 +3,8 @@
   "resource_spec": {},
   "min_clients" : 2,
   "deploy_map": {
-    "app": [
-      "@ALL"
-    ]
+    "server": ["server"],
+    "app1": ["site-1"],
+    "app2": ["site-2"]
   }
 }
