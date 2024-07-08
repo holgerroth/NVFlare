@@ -46,7 +46,7 @@ class FlowerClientApplet(CLIApplet):
             raise RuntimeError("invalid workspace")
 
         custom_dir = ws.get_app_custom_dir(fl_ctx.get_job_id())
-        cmd = f"flower-client-app --insecure --grpc-adapter --server {addr} --dir {custom_dir} {self.client_app}"
+        cmd = f"flower-client-app --insecure --grpc-adapter --superlink {addr} --dir {custom_dir} {self.client_app}"
         self.logger.info(f"starting flower client app: {cmd}")
         return cmd, None, None
 
@@ -106,7 +106,7 @@ class FlowerServerApplet(Applet):
 
         self._superlink_process = self._start_process("superlink", superlink_cmd)
         if not self._superlink_process:
-            raise RuntimeError(f"cannot start superlink process")
+            raise RuntimeError("cannot start superlink process")
 
         # start the server app
         app_cmd = f"flower-server-app --insecure --server {driver_addr} --dir {custom_dir} {self.server_app}"
@@ -115,7 +115,7 @@ class FlowerServerApplet(Applet):
             # stop the superlink
             self._superlink_process.kill()
             self._superlink_process = None
-            raise RuntimeError(f"cannot start server_app process")
+            raise RuntimeError("cannot start server_app process")
 
     @staticmethod
     def _stop_process(p):
@@ -125,7 +125,7 @@ class FlowerServerApplet(Applet):
             except:
                 pass
 
-    def stop(self):
+    def stop(self, timeout=0.0):
         self._stop_process(self._app_process)
         self._app_process = None
 

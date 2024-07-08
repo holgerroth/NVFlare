@@ -14,7 +14,7 @@
 from abc import abstractmethod
 
 from nvflare.apis.fl_context import FLContext
-from nvflare.apis.shareable import ReturnCode, Shareable
+from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 from nvflare.app_common.tie.connector import Connector
 from nvflare.app_common.tie.connector import Constant as TieConstant
@@ -138,8 +138,4 @@ class FlowerClientConnector(Connector):
         )
         if not isinstance(reply, Shareable):
             raise RuntimeError(f"invalid reply for op {op}: expect Shareable but got {type(reply)}")
-
-        rc = reply.get_return_code()
-        if rc != ReturnCode.OK:
-            raise RuntimeError(f"error reply for op {op}: {rc=}")
         return reply
