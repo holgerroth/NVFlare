@@ -13,6 +13,7 @@
 # limitations under the License.
 import shlex
 import subprocess
+import time
 
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.workspace import Workspace
@@ -107,6 +108,8 @@ class FlowerServerApplet(Applet):
         self._superlink_process = self._start_process("superlink", superlink_cmd)
         if not self._superlink_process:
             raise RuntimeError("cannot start superlink process")
+
+        time.sleep(5)
 
         # start the server app
         app_cmd = f"flower-server-app --insecure --superlink {driver_addr} --dir {custom_dir} {self.server_app}"
