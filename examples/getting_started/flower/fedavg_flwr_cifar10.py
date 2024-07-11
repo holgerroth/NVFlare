@@ -31,10 +31,9 @@ if __name__ == "__main__":
 
     # Add flwr server code
     job.to("server.py", "server")
-    job.to("task.py", "server")
 
     # Add clients
-    for i in range(n_clients):
+    for i in range(1, n_clients+1):
         executor = FlowerExecutor(
             client_app="client:app"
         )
@@ -42,7 +41,6 @@ if __name__ == "__main__":
 
         # Add flwr client code
         job.to("client.py", f"site-{i}")
-        job.to("task.py", f"site-{i}")
 
     job.export_job("/tmp/nvflare/jobs/job_config")
     job.simulator_run("/tmp/nvflare/jobs/workdir")
