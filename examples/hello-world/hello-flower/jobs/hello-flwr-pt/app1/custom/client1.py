@@ -6,8 +6,8 @@ import random
 import numpy as np
 
 SEED = 0
-#LOG_FILE = "/tmp/nvflare_reproduce/flwr_in_flare_client1.csv"
-LOG_FILE = "/tmp/nvflare_reproduce/flwr_alone_client1.csv"
+LOG_FILE = "/tmp/nvflare_reproduce/flwr_in_flare_client1.csv"
+#LOG_FILE = "/tmp/nvflare_reproduce/flwr_alone_client1.csv"
 
 torch.manual_seed(SEED)
 random.seed(SEED)
