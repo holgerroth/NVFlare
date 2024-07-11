@@ -2,6 +2,8 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 
+DPI = 300
+
 flwr_in_flare_files = ["./flwr_in_flare_client1.csv", "./flwr_in_flare_client2.csv"]
 flwr_alone_files = ["./flwr_alone_client1.csv", "./flwr_alone_client2.csv"]
 
@@ -29,10 +31,15 @@ df_in_flare = read_files(flwr_in_flare_files, names=clients, tag="Flower in NVFl
 df_alone = read_files(flwr_alone_files, names=clients, tag="Flower Alone")
 
 # plot
-plt.subplot(1, 2, 1)
+#plt.subplot(1, 2, 1)
+plt.figure()
 sns.lineplot(data=df_alone, x="Round", y="Train Loss", hue="Client")
-plt.title("Flower Alone")
-plt.subplot(1, 2, 2)
+#plt.title("Flower Alone")
+#plt.subplot(1, 2, 2)
+plt.savefig("flwr_alone.pdf", dpi=DPI)
+
+plt.figure()
 sns.lineplot(data=df_in_flare, x="Round", y="Train Loss", hue="Client")
-plt.title("Flower in NVFlare")
-plt.show()
+#plt.title("Flower in NVFlare")
+plt.savefig("flwr_in_flare.pdf", dpi=DPI)
+#plt.show()
