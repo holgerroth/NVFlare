@@ -29,6 +29,8 @@ from nvflare.client.model_registry import ModelRegistry
 from nvflare.fuel.utils import fobs
 from nvflare.fuel.utils.import_utils import optional_import
 from nvflare.fuel.utils.pipe.pipe import Pipe
+from nvflare.fuel.utils.pipe.file_pipe import FilePipe
+from nvflare.fuel.utils.constants import Mode
 
 
 def _create_client_config(config: str) -> ClientConfig:
@@ -92,9 +94,16 @@ class ExProcessClientAPI(APISpec):
                 if client_config.get_exchange_format() == ExchangeFormat.PYTORCH:
                     _register_tensor_decomposer()
 
-                pipe, task_channel_name = _create_pipe_using_config(
-                    client_config=client_config, section=ConfigKey.TASK_EXCHANGE
-                )
+                if ConfigKey.TASK_EXCHANGE in client_config.config:
+                    pipe, task_channel_name = _create_pipe_using_config(
+                        client_config=client_config, section=ConfigKey.TASK_EXCHANGE
+                    )
+                else:
+                    task_channel_name = "task"
+                    pipe = FilePipe(
+                        mode=Mode.PASSIVE,
+                        root_path="/tmp/nvflare/pipe"
+                    )
                 metric_pipe, metric_channel_name = None, ""
                 if ConfigKey.METRICS_EXCHANGE in client_config.config:
                     metric_pipe, metric_channel_name = _create_pipe_using_config(

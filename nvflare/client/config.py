@@ -133,7 +133,8 @@ class ClientConfig:
         return self.config[section][ConfigKey.PIPE][ConfigKey.CLASS_NAME]
 
     def get_exchange_format(self) -> str:
-        return self.config[ConfigKey.TASK_EXCHANGE][ConfigKey.EXCHANGE_FORMAT]
+        #return self.config[ConfigKey.TASK_EXCHANGE][ConfigKey.EXCHANGE_FORMAT]
+        return self.config.get(ConfigKey.TASK_EXCHANGE, {}).get(ConfigKey.EXCHANGE_FORMAT, "")
 
     def get_transfer_type(self) -> str:
         return self.config.get(ConfigKey.TASK_EXCHANGE, {}).get(ConfigKey.TRANSFER_TYPE, "FULL")
@@ -155,6 +156,8 @@ class ClientConfig:
 def from_file(config_file: str):
     config = ConfigFactory.load_config(config_file)
     if config is None:
+        print("$$$$$$$$ getcwd", os.getcwd())
+        print("$$$$$$$$ config_file", config_file)
         raise RuntimeError(f"Load config file {config_file} failed")
 
     return ClientConfig(config=config.to_dict())
