@@ -1,6 +1,7 @@
 {
     "format_version": 2,
     "DATA_ROOT": "/tmp/data/mixed_soft",
+    "INFERENCE_RESULT_ROOT": "/tmp/nvflare/bionemo/embeddings",
     "AGGREGATION_EPOCHS": 10,
     "executors": [
         {
@@ -26,6 +27,7 @@
             "path": "bionemo_mlp_learner.BioNeMoMLPLearner",
             "args": {
                 "data_root": "{DATA_ROOT}",
+                "inference_result_root": "{INFERENCE_RESULT_ROOT}",
                 "aggregation_epochs": "{AGGREGATION_EPOCHS}",
                 "lr": 1e-5
             }
