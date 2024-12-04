@@ -7,12 +7,23 @@
       ],
       "executor": {
         "id": "inference_executor",
-        "path": "bionemo_inferer.BioNeMoInferer",
-        "args": {}
+        "path": "bionemo_launcher.BioNeMoLauncher",
+        "args": {
+            "launcher_id": "launcher"
+        }
       }
     }
   ],
   "task_result_filters": [],
   "task_data_filters": [],
-  "components": []
+  "components": [
+      {
+          "id": "launcher",
+          "path": "nvflare.app_common.launchers.subprocess_launcher.SubprocessLauncher",
+          "args": {
+             "script": "infer_esm2 --checkpoint-path /root/.cache/bionemo/0798767e843e3d54315aef91934d28ae7d8e93c2849d5fcfbdf5fac242013997-esm2_650M_nemo2.tar.gz.untar --data-path /tmp/data/mixed_soft/data_site-1.csv --results-path ./inference_results.pt --precision fp32 --include-embeddings --include-logits --include-input-ids",
+             "launch_once": true
+          }          
+      }
+  ]
 }
