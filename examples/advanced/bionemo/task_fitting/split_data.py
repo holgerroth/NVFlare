@@ -159,6 +159,6 @@ def split(proteins, num_sites, split_dir=".", alpha=1.0, seed=0, concat=False):
             )
 
         print(
-            f"Saved {len(df_split_train_proteins)} training and {len(test_proteins)} testing proteins for {client_name}, "
+            f"Saved {len(df_split_train_proteins)} training and {len(df_test_proteins)} testing proteins for {client_name}, "
             f"({len(set(df_split_train_proteins['labels']))}/{len(set(df_test_proteins['labels']))}) unique train/test classes."
         )

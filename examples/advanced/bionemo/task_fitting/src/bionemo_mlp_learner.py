@@ -38,8 +38,8 @@ from nvflare.app_common.utils.fl_model_utils import FLModelUtils
 class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearner
     def __init__(
         self,
-        data_root: str,
-        inference_result_root: str,
+        data_path: str,
+        inference_result: str,
         aggregation_epochs: int = 1,
         lr: float = 1e-3,
         central: bool = False,
@@ -51,8 +51,8 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         """Simple CIFAR-10 Trainer.
 
         Args:
-            data_root: data file root with labels.
-            inference_result_root: inference results root directory.
+            data_path: data file with labels in csv format.
+            inference_result: inference results in torch format.
             aggregation_epochs: the number of training epochs for a round. Defaults to 1.
             lr: local learning rate. Float number. Defaults to 1e-2.
             central: Bool. Whether to simulate central training. Default False.
@@ -69,8 +69,8 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         super().__init__()
         # trainer init happens at the very beginning, only the basic info regarding the trainer is set here
         # the actual run has not started at this point
-        self.data_root = data_root
-        self.inference_result_root = inference_result_root
+        self.data_path = data_path
+        self.inference_result = inference_result
         self.aggregation_epochs = aggregation_epochs
         self.lr = lr
         self.best_acc = 0.0
@@ -120,33 +120,23 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
             self.writer = SummaryWriter(self.app_root)
 
         # Read embeddings
-        #/tmp/nvflare/bionemo/embeddings/site-1/simulate_job/app_site-1/inference_results.pt  TODO: use single output directory for inference results
-        data_filename = os.path.join(self.inference_result_root, self.site_name, "simulate_job", f"app_{self.site_name}", "inference_results.pt")
-        results = torch.load(data_filename)
+        results = torch.load(self.inference_result)
         protein_embeddings = results['embeddings']
         self.info(f"Loaded {len(protein_embeddings)} embeddings")
 
         # Read labels
-        labels_filename = os.path.join(self.data_root, f"data_{self.site_name}.csv")
-        labels = pd.read_csv(labels_filename).astype(str)
+        labels = pd.read_csv(self.data_path).astype(str)
 
         # Prepare the data for training
-        #for embedding, label in zip(protein_embeddings, labels):
         for index, label in labels.iterrows():
-            if index < len(protein_embeddings):  # inference might have skipped a protein if batch size > 1 was used
-                embedding = protein_embeddings[index].numpy()
-                # get label entry from pandas dataframe
-                #label = labels.loc[labels["id"] == str(embedding_id)]
-                #print("embedding_id.shape", embedding_id.shape)
-                #print("embedding_id", embedding_id)
-                #print("label", label)
-                #print("embedding", embedding)
-                if label["SET"] == "train":
-                    self.X_train.append(embedding)
-                    self.y_train.append(label["labels"])
-                elif label["SET"] == "test":
-                    self.X_test.append(embedding)
-                    self.y_test.append(label["labels"])
+            embedding = protein_embeddings[index].numpy()
+            # get label entry from pandas dataframe
+            if label["SET"] == "train":
+                self.X_train.append(embedding)
+                self.y_train.append(label["labels"])
+            elif label["SET"] == "test":
+                self.X_test.append(embedding)
+                self.y_test.append(label["labels"])
 
         assert len(self.X_train) > 0
         assert len(self.X_test) > 0
