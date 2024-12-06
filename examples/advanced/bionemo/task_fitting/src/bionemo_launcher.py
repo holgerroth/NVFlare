@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import time
+import torch
 
 from nvflare.apis.dxo import MetaKey, DXO, from_shareable
 from nvflare.apis.event_type import EventType
@@ -67,14 +69,28 @@ class BioNeMoLauncher(Executor):
             if task_name == self._task_name:        
                 if not self.is_initialized:
                     self._init_launcher(fl_ctx)
-        
+
                 success = self._launch_script(fl_ctx)
         
                 if success:
-                    n_sequences = 1  # TODO: get from inference command
-                    
+                    # Get results path from inference script arguments
+                    args = self.launcher._script.split()
+                    results_path = args[args.index("--results-path")+1]
+                    if os.path.isfile(results_path):
+                        self.log_info(fl_ctx, f"Get result info from: {results_path}")
+                        results = torch.load(results_path)
+
+                        result_shapes = {}
+                        for k, v in results.items():
+                            if v is not None:
+                                result_shapes[k] = list(v.shape)  # turn torch Size type into a simple list for sharing with server
+
+                        n_sequences = len(results["embeddings"])
+                    else:
+                        n_sequences, result_shapes = "n/a", "n/a"
+
                     # Prepare a DXO for our updated model. Create shareable and return
-                    data_info = {BioNeMoConstants.NUMBER_SEQUENCES: n_sequences}
+                    data_info = {BioNeMoConstants.NUMBER_SEQUENCES: n_sequences, BioNeMoConstants.RESULT_SHAPES: result_shapes}
             
                     outgoing_dxo = DXO(data_kind=BioNeMoConstants.DATA_INFO, data=data_info)
                     return outgoing_dxo.to_shareable()
