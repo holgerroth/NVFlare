@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
 import os
 
 from nvflare.apis.fl_constant import FLContextKey, SystemConfigs
@@ -19,8 +18,9 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.workspace import Workspace
 from nvflare.fuel.f3.cellnet.fqcn import FQCN
 from nvflare.fuel.utils.config_service import ConfigService
+from nvflare.fuel.utils.log_utils import get_module_logger
 from nvflare.private.admin_defs import Message
-from nvflare.private.defs import CellChannel, EngineConstant, RequestHeader, TrainingTopic, new_cell_message
+from nvflare.private.defs import CellChannel, RequestHeader, TrainingTopic, new_cell_message
 from nvflare.private.fed.app.fl_conf import create_privacy_manager
 from nvflare.private.fed.client.client_json_config import ClientJsonConfigurator
 from nvflare.private.fed.client.client_run_manager import ClientRunManager
@@ -34,7 +34,7 @@ from nvflare.private.privacy_manager import PrivacyService
 
 class ClientAppRunner(Runner):
 
-    logger = logging.getLogger("ClientAppRunner")
+    logger = get_module_logger(__module__, __qualname__)
 
     def __init__(self, time_out=60.0) -> None:
         super().__init__()
@@ -71,7 +71,6 @@ class ClientAppRunner(Runner):
     @staticmethod
     def _set_fl_context(fl_ctx: FLContext, app_root, args, workspace, secure_train):
         fl_ctx.set_prop(FLContextKey.CLIENT_NAME, args.client_name, private=False)
-        fl_ctx.set_prop(EngineConstant.FL_TOKEN, args.token, private=False)
         fl_ctx.set_prop(FLContextKey.WORKSPACE_ROOT, args.workspace, private=True)
         fl_ctx.set_prop(FLContextKey.ARGS, args, sticky=True)
         fl_ctx.set_prop(FLContextKey.APP_ROOT, app_root, private=True, sticky=True)

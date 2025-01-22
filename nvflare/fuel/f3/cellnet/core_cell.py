@@ -43,12 +43,13 @@ from nvflare.fuel.f3.cellnet.utils import decode_payload, encode_payload, format
 from nvflare.fuel.f3.comm_config import CommConfigurator
 from nvflare.fuel.f3.communicator import Communicator, MessageReceiver
 from nvflare.fuel.f3.connection import Connection
-from nvflare.fuel.f3.drivers.driver_params import DriverParams
+from nvflare.fuel.f3.drivers.driver_params import ConnectionSecurity, DriverParams
 from nvflare.fuel.f3.drivers.net_utils import enhance_credential_info
 from nvflare.fuel.f3.endpoint import Endpoint, EndpointMonitor, EndpointState
 from nvflare.fuel.f3.message import Message
 from nvflare.fuel.f3.mpm import MainProcessMonitor
 from nvflare.fuel.f3.stats_pool import StatsPoolManager
+from nvflare.fuel.utils.log_utils import get_obj_logger
 from nvflare.security.logging import secure_format_exception, secure_format_traceback
 
 _CHANNEL = "cellnet.channel"
@@ -155,7 +156,7 @@ class _BulkSender:
         self.messages = []
         self.last_send_time = 0
         self.lock = threading.Lock()
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_obj_logger(self)
 
     def queue_message(self, channel: str, topic: str, message: Message):
         if self.secure:
@@ -318,7 +319,7 @@ class CoreCell(MessageReceiver, EndpointMonitor):
 
         comm_configurator = CommConfigurator()
         self._name = self.__class__.__name__
-        self.logger = logging.getLogger(self._name)
+        self.logger = get_obj_logger(self)
         self.max_msg_size = comm_configurator.get_max_message_size()
         self.comm_configurator = comm_configurator
 
@@ -326,6 +327,16 @@ class CoreCell(MessageReceiver, EndpointMonitor):
         if err:
             raise ValueError(f"Invalid FQCN '{fqcn}': {err}")
 
+        # Determine the value of 'secure' based on configured connection_security in credentials.
+        # If configured, use it; otherwise keep the original value of 'secure'.
+        conn_security = credentials.get(DriverParams.CONNECTION_SECURITY.value)
+        if conn_security:
+            if conn_security == ConnectionSecurity.INSECURE:
+                secure = False
+            else:
+                secure = True
+
+        self.logger.debug(f"connection secure: {secure}")
         self.my_info = FqcnInfo(FQCN.normalize(fqcn))
         self.secure = secure
         self.logger.debug(f"{self.my_info.fqcn}: max_msg_size={self.max_msg_size}")
@@ -395,6 +406,7 @@ class CoreCell(MessageReceiver, EndpointMonitor):
         self.communicator.register_message_receiver(app_id=self.APP_ID, receiver=self)
         self.communicator.register_monitor(monitor=self)
         self.req_reg = Registry()
+        self.in_filter_reg = Registry()  # for any incoming messages
         self.in_req_filter_reg = Registry()  # for request received
         self.out_reply_filter_reg = Registry()  # for reply going out
         self.out_req_filter_reg = Registry()  # for request sent
@@ -979,6 +991,11 @@ class CoreCell(MessageReceiver, EndpointMonitor):
         message.payload = self.credential_manager.decrypt(origin_cert, message.payload)
         if len(message.payload) != payload_len:
             raise RuntimeError(f"Payload size changed after decryption {len(message.payload)} <> {payload_len}")
+
+    def add_incoming_filter(self, channel: str, topic: str, cb, *args, **kwargs):
+        if not callable(cb):
+            raise ValueError(f"specified incoming_filter {type(cb)} is not callable")
+        self.in_filter_reg.append(channel, topic, Callback(cb, args, kwargs))
 
     def add_incoming_request_filter(self, channel: str, topic: str, cb, *args, **kwargs):
         if not callable(cb):
@@ -1844,6 +1861,19 @@ class CoreCell(MessageReceiver, EndpointMonitor):
         self.received_msg_counter_pool.increment(
             category=self._stats_category(message), counter_name=_CounterName.RECEIVED
         )
+
+        # invoke incoming filters
+        channel = message.get_header(MessageHeaderKey.CHANNEL, "")
+        topic = message.get_header(MessageHeaderKey.TOPIC, "")
+        in_filters = self.in_filter_reg.find(channel, topic)
+        if in_filters:
+            self.logger.debug(f"{self.my_info.fqcn}: invoking incoming filters")
+            assert isinstance(in_filters, list)
+            for f in in_filters:
+                assert isinstance(f, Callback)
+                reply = self._try_cb(message, f.cb, *f.args, **f.kwargs)
+                if reply:
+                    return reply
 
         if msg_type == MessageType.REQ and self.message_interceptor is not None:
             reply = self._try_cb(

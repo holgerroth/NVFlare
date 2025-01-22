@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import copy
-import logging
 import os
 import re
 import shutil
@@ -33,6 +32,7 @@ from nvflare.apis.fl_constant import (
     RunProcessKey,
     ServerCommandKey,
     ServerCommandNames,
+    SiteType,
     SnapshotKey,
     WorkspaceConstants,
 )
@@ -40,7 +40,7 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.fl_snapshot import RunSnapshot
 from nvflare.apis.impl.job_def_manager import JobDefManagerSpec
 from nvflare.apis.job_def import Job
-from nvflare.apis.job_launcher_spec import JobLauncherSpec
+from nvflare.apis.job_launcher_spec import JobLauncherSpec, JobProcessArgs
 from nvflare.apis.shareable import ReturnCode, Shareable, make_reply
 from nvflare.apis.streaming import ConsumerFactory, ObjectProducer, StreamableEngine, StreamContext
 from nvflare.apis.utils.fl_context_utils import gen_new_peer_ctx, get_serializable_data
@@ -51,10 +51,18 @@ from nvflare.fuel.f3.cellnet.defs import ReturnCode as CellMsgReturnCode
 from nvflare.fuel.f3.cellnet.fqcn import FQCN
 from nvflare.fuel.f3.message import Message as CellMessage
 from nvflare.fuel.utils.argument_utils import parse_vars
+from nvflare.fuel.utils.log_utils import get_obj_logger
 from nvflare.fuel.utils.zip_utils import zip_directory_to_bytes
 from nvflare.private.admin_defs import Message, MsgHeader
 from nvflare.private.aux_runner import AuxMsgTarget
-from nvflare.private.defs import CellChannel, CellMessageHeaderKeys, RequestHeader, TrainingTopic, new_cell_message
+from nvflare.private.defs import (
+    AUTH_CLIENT_NAME_FOR_SJ,
+    CellChannel,
+    CellMessageHeaderKeys,
+    RequestHeader,
+    TrainingTopic,
+    new_cell_message,
+)
 from nvflare.private.fed.server.server_json_config import ServerJsonConfigurator
 from nvflare.private.fed.utils.fed_utils import (
     get_job_launcher,
@@ -109,7 +117,7 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
 
         self.executor = ThreadPoolExecutor(max_workers=workers)
         self.lock = Lock()
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_obj_logger(self)
 
         self.asked_to_stop = False
         self.snapshot_persistor = snapshot_persistor
@@ -119,7 +127,7 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
         self.kv_list = parse_vars(args.set)
 
     def _get_server_app_folder(self):
-        return WorkspaceConstants.APP_PREFIX + "server"
+        return WorkspaceConstants.APP_PREFIX + SiteType.SERVER
 
     def _get_client_app_folder(self, client_name):
         return WorkspaceConstants.APP_PREFIX + client_name
@@ -171,7 +179,7 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
         if job.job_id in self.run_processes.keys():
             return f"Server run: {job.job_id} already started."
         else:
-            workspace = Workspace(root_dir=self.args.workspace, site_name="server")
+            workspace = Workspace(root_dir=self.args.workspace, site_name=SiteType.SERVER)
             app_root = workspace.get_app_dir(job.job_id)
             if not os.path.exists(app_root):
                 return "Server app does not exist. Please deploy the server app before starting."
@@ -220,11 +228,55 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
             restore_snapshot = True
         else:
             restore_snapshot = False
-        fl_ctx.set_prop(FLContextKey.SNAPSHOT, restore_snapshot, private=True, sticky=False)
+
+        # Job process args are the same for all job launchers! Letting each job launcher compute the job
+        # args would be error-prone and would require access to internal server components (
+        # e.g. cell, server_state, self.server, etc.), which violates component layering.
+        #
+        # We prepare job process args here and save the prepared result in the fl_ctx.
+        # This way, the job launcher won't need to compute these args again.
+        # The job launcher will only need to use the args properly to launch the job process!
+        #
+        # Each arg is a tuple of (arg_option, arg_value).
+        # Note that the arg_option is fixed for each arg, and is not launcher specific!
+        workspace_obj: Workspace = fl_ctx.get_prop(FLContextKey.WORKSPACE_OBJECT)
+        args = fl_ctx.get_prop(FLContextKey.ARGS)
+        server = fl_ctx.get_prop(FLContextKey.SITE_OBJ)
+        job_id = job.job_id
+        app_root = workspace_obj.get_app_dir(job_id)
+        cell = server.cell
+        server_state = server.server_state
+        command_options = ""
+        for t in args.set:
+            command_options += " " + t
+        command_options += f" restore_snapshot={restore_snapshot} print_conf=True"
+        args.set.append("print_conf=True")
+        args.set.append(f"restore_snapshot={restore_snapshot}")
+
+        # create token and signature for SJ
+        token = job_id  # use the run_number as the auth token
+        client_name = AUTH_CLIENT_NAME_FOR_SJ
+        signature = self.server.sign_auth_token(client_name, token)
+
+        job_args = {
+            JobProcessArgs.JOB_ID: ("-n", job_id),
+            JobProcessArgs.EXE_MODULE: ("-m", "nvflare.private.fed.app.server.runner_process"),
+            JobProcessArgs.WORKSPACE: ("-m", args.workspace),
+            JobProcessArgs.STARTUP_CONFIG_FILE: ("-s", "fed_server.json"),
+            JobProcessArgs.APP_ROOT: ("-r", app_root),
+            JobProcessArgs.HA_MODE: ("--ha_mode", server.ha_mode),
+            JobProcessArgs.AUTH_TOKEN: ("-t", token),
+            JobProcessArgs.TOKEN_SIGNATURE: ("-ts", signature),
+            JobProcessArgs.PARENT_URL: ("-p", str(cell.get_internal_listener_url())),
+            JobProcessArgs.ROOT_URL: ("-u", str(cell.get_root_url_for_child())),
+            JobProcessArgs.SERVICE_HOST: ("--host", str(server_state.host)),
+            JobProcessArgs.SERVICE_PORT: ("--port", str(server_state.service_port)),
+            JobProcessArgs.SSID: ("--ssid", str(server_state.ssid)),
+            JobProcessArgs.OPTIONS: ("--set", command_options),
+        }
+        fl_ctx.set_prop(key=FLContextKey.JOB_PROCESS_ARGS, value=job_args, private=True, sticky=False)
         job_handle = job_launcher.launch_job(job.meta, fl_ctx)
         self.logger.info(f"Launch job_id: {job.job_id}  with job launcher: {type(job_launcher)} ")
-
-        args = fl_ctx.get_prop(FLContextKey.ARGS)
 
         if not job_clients:
             job_clients = self.client_manager.clients
@@ -405,7 +457,7 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
         Returns:
 
         """
-        self.logger.info("initialize_comm called!")
+        self.logger.debug("initialize_comm called!")
         self.cell = cell
         if self.run_manager:
             # Note that the aux_runner is created with the self.run_manager as the "engine".
@@ -469,7 +521,7 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
         return os.path.join(self.server.admin_server.file_upload_dir, app_name)
 
     def deploy_app_to_server(self, run_destination: str, app_name: str, app_staging_path: str) -> str:
-        return self.deploy_app(run_destination, app_name, WorkspaceConstants.APP_PREFIX + "server")
+        return self.deploy_app(run_destination, app_name, WorkspaceConstants.APP_PREFIX + SiteType.SERVER)
 
     def get_workspace(self) -> Workspace:
         return self.run_manager.get_workspace()
@@ -556,7 +608,7 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
         )
 
     def _get_aux_msg_target(self, name: str):
-        if name.lower() == "server":
+        if name.lower() == SiteType.SERVER:
             return AuxMsgTarget.server_target()
 
         c = self.get_client_from_name(name)
@@ -860,6 +912,21 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
 
         return f"reset the server error stats for job: {job_id}"
 
+    def configure_job_log(self, job_id, data) -> str:
+        error = None
+        try:
+            error = self.send_command_to_child_runner_process(
+                job_id=job_id,
+                command_name=AdminCommandNames.CONFIGURE_JOB_LOG,
+                command_data=data,
+            )
+        except Exception as ex:
+            err = f"Failed to configure_job_log for JOB: {job_id}: {secure_format_exception(ex)}"
+            self.logger.error(err)
+            return err
+
+        return error
+
     def _send_admin_requests(self, requests, fl_ctx: FLContext, timeout_secs=10) -> List[ClientReply]:
         return self.server.admin_server.send_requests(requests, fl_ctx, timeout_secs=timeout_secs)
 
@@ -867,7 +934,7 @@ class ServerEngine(ServerEngineInternalSpec, StreamableEngine):
         requests = {}
         for site_name, resource_requirements in resource_reqs.items():
             # assume server resource is unlimited
-            if site_name == "server":
+            if site_name == SiteType.SERVER:
                 continue
             request = self._make_message_for_check_resource(job, resource_requirements, fl_ctx)
 

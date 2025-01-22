@@ -23,16 +23,18 @@ import threading
 from nvflare.apis.fl_constant import ConfigVarName, JobConstants, SiteType, SystemConfigs
 from nvflare.apis.workspace import Workspace
 from nvflare.fuel.common.excepts import ConfigError
+from nvflare.fuel.f3.message import Message as CellMessage
 from nvflare.fuel.f3.mpm import MainProcessMonitor as mpm
+from nvflare.fuel.sec.authn import add_authentication_headers
 from nvflare.fuel.utils.argument_utils import parse_vars
 from nvflare.fuel.utils.config_service import ConfigService
-from nvflare.private.defs import AppFolderConstants
+from nvflare.fuel.utils.log_utils import configure_logging, get_script_logger
+from nvflare.private.defs import AUTH_CLIENT_NAME_FOR_SJ, AppFolderConstants, CellMessageHeaderKeys
 from nvflare.private.fed.app.fl_conf import FLServerStarterConfiger
 from nvflare.private.fed.app.utils import monitor_parent_process
 from nvflare.private.fed.server.server_app_runner import ServerAppRunner
 from nvflare.private.fed.server.server_state import HotState
 from nvflare.private.fed.utils.fed_utils import (
-    add_logfile_handler,
     create_stats_pool_files_for_job,
     fobs_initialize,
     register_ext_decomposers,
@@ -61,7 +63,7 @@ def main(args):
     # get parent process id
     parent_pid = os.getppid()
     stop_event = threading.Event()
-    workspace = Workspace(root_dir=args.workspace, site_name="server")
+    workspace = Workspace(root_dir=args.workspace, site_name=SiteType.SERVER)
     set_stats_pool_config_for_job(workspace, args.job_id)
     secure_train = kv_list.get("secure_train", False)
 
@@ -77,9 +79,8 @@ def main(args):
             args=args,
             kv_list=args.set,
         )
-        log_file = workspace.get_app_log_file_path(args.job_id)
-        add_logfile_handler(log_file)
-        logger = logging.getLogger("runner_process")
+        configure_logging(workspace, workspace.get_run_dir(args.job_id))
+        logger = get_script_logger()
         logger.info("Runner_process started.")
 
         log_level = os.environ.get("FL_LOG_LEVEL", "")
@@ -109,6 +110,11 @@ def main(args):
             server.cell = server.create_job_cell(
                 args.job_id, args.root_url, args.parent_url, secure_train, server_config
             )
+
+            # set filter to add additional auth headers
+            server.cell.core_cell.add_outgoing_reply_filter(channel="*", topic="*", cb=_add_auth_headers, config=args)
+            server.cell.core_cell.add_outgoing_request_filter(channel="*", topic="*", cb=_add_auth_headers, config=args)
+
             server.server_state = HotState(host=args.host, port=args.port, ssid=args.ssid)
 
             snapshot = None
@@ -133,21 +139,30 @@ def main(args):
                 logger.warning(err)
 
     except ConfigError as e:
-        logger = logging.getLogger("runner_process")
+        logger = get_script_logger()
         logger.exception(f"ConfigError: {secure_format_exception(e)}")
         secure_log_traceback(logger)
         raise e
+
+
+def _add_auth_headers(message: CellMessage, config):
+    message.set_header(CellMessageHeaderKeys.SSID, config.ssid)
+    add_authentication_headers(
+        message,
+        client_name=AUTH_CLIENT_NAME_FOR_SJ,
+        auth_token=config.job_id,
+        token_signature=config.token_signature,
+    )
 
 
 def parse_arguments():
     """FL Server program starting point."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--workspace", "-m", type=str, help="WORKSPACE folder", required=True)
-    parser.add_argument(
-        "--fed_server", "-s", type=str, help="an aggregation server specification json file", required=True
-    )
+    parser.add_argument("--fed_server", "-s", type=str, help="server config json file", required=True)
     parser.add_argument("--app_root", "-r", type=str, help="App Root", required=True)
     parser.add_argument("--job_id", "-n", type=str, help="job id", required=True)
+    parser.add_argument("--token_signature", "-ts", type=str, help="auth token signature", required=True)
     parser.add_argument("--root_url", "-u", type=str, help="root_url", required=True)
     parser.add_argument("--host", "-host", type=str, help="server host", required=True)
     parser.add_argument("--port", "-port", type=str, help="service port", required=True)

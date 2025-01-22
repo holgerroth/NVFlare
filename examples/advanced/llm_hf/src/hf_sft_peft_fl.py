@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import datasets
 import numpy as np
 import torch
 from peft import LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft_model_state_dict, utils
-from transformers import AutoModelForCausalLM, AutoTokenizer, trainer_utils
+from transformers import AutoModelForCausalLM, trainer_utils
 from trl import SFTConfig, SFTTrainer
 
 import nvflare.client as flare
@@ -68,6 +68,12 @@ def main():
         type=str,
         default="SFT",
         help="training mode, SFT or PEFT, default to SFT",
+    )
+    parser.add_argument(
+        "--message_mode",
+        type=str,
+        default="numpy",
+        help="message mode, numpy or tensor, default to numpy",
     )
     parser.add_argument("--local_epoch", type=int, default=1)
     parser.add_argument("--clean_up", type=int, default=0)
@@ -120,11 +126,6 @@ def main():
         model = get_peft_model(model, peft_config)
     model.config.pretraining_tp = 1
 
-    # Set tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"
-
     # Training arguments
     train_args = SFTConfig(
         output_dir=args.output_path,
@@ -153,8 +154,6 @@ def main():
         train_dataset=dataset_train,
         eval_dataset=dataset_valid,
         peft_config=peft_config,
-        tokenizer=tokenizer,
-        packing=False,
         formatting_func=format_instruction,
         args=train_args,
     )
@@ -232,8 +231,10 @@ def main():
             for key in list(out_param.keys()):
                 out_param["model." + key] = out_param.pop(key).cpu()
 
-        # cast out_param to float32 preparing for communication
-        out_param = {k: v.to(torch.float32) for k, v in out_param.items()}
+        if args.message_mode.lower() == "numpy":
+            # cast out_param to float32 preparing for communication with numpy
+            # otherwise do nothing
+            out_param = {k: v.to(torch.float32) for k, v in out_param.items()}
 
         # construct trained FL model
         output_model = flare.FLModel(

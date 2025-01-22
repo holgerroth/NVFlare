@@ -13,7 +13,6 @@
 # limitations under the License.
 import copy
 import json
-import logging.config
 import os
 import shlex
 import shutil
@@ -36,6 +35,7 @@ from nvflare.apis.fl_constant import (
     MachineStatus,
     RunnerTask,
     RunProcessKey,
+    SiteType,
     SystemConfigs,
     SystemVarName,
     WorkspaceConstants,
@@ -52,6 +52,7 @@ from nvflare.fuel.sec.audit import AuditService
 from nvflare.fuel.utils.argument_utils import parse_vars
 from nvflare.fuel.utils.config_service import ConfigService
 from nvflare.fuel.utils.gpu_utils import get_host_gpu_ids
+from nvflare.fuel.utils.log_utils import apply_log_config
 from nvflare.fuel.utils.network_utils import get_open_ports
 from nvflare.fuel.utils.zip_utils import split_path, unzip_all_from_bytes, zip_directory_to_bytes
 from nvflare.private.defs import AppFolderConstants
@@ -63,8 +64,6 @@ from nvflare.private.fed.simulator.simulator_app_runner import SimulatorServerAp
 from nvflare.private.fed.simulator.simulator_audit import SimulatorAuditor
 from nvflare.private.fed.simulator.simulator_const import SimulatorConstants
 from nvflare.private.fed.utils.fed_utils import (
-    add_custom_dir_to_path,
-    add_logfile_handler,
     custom_fobs_initialize,
     get_simulator_app_root,
     nvflare_fobs_initialize,
@@ -73,6 +72,7 @@ from nvflare.private.fed.utils.fed_utils import (
 )
 from nvflare.security.logging import secure_format_exception, secure_log_traceback
 from nvflare.security.security import EmptyAuthorizer
+from nvflare.utils.job_launcher_utils import add_custom_dir_to_path
 
 CLIENT_CREATE_POOL_SIZE = 200
 POOL_STATS_DIR = "pool_stats"
@@ -88,6 +88,7 @@ class SimulatorRunner(FLComponent):
         n_clients=None,
         threads=None,
         gpu=None,
+        log_config=None,
         max_clients=100,
         end_run_for_all=False,
     ):
@@ -99,6 +100,7 @@ class SimulatorRunner(FLComponent):
         self.n_clients = n_clients
         self.threads = threads
         self.gpu = gpu
+        self.log_config = None
         self.max_clients = max_clients
         self.end_run_for_all = end_run_for_all
 
@@ -124,9 +126,19 @@ class SimulatorRunner(FLComponent):
                 f" {os.path.join(running_dir, self.workspace)}"
             )
         self.workspace = os.path.join(running_dir, self.workspace)
+        if log_config:
+            self.log_config = os.path.join(running_dir, log_config)
 
     def _generate_args(
-        self, job_folder: str, workspace: str, clients=None, n_clients=None, threads=None, gpu=None, max_clients=100
+        self,
+        job_folder: str,
+        workspace: str,
+        clients=None,
+        n_clients=None,
+        threads=None,
+        gpu=None,
+        log_config=None,
+        max_clients=100,
     ):
         args = Namespace(
             job_folder=job_folder,
@@ -135,6 +147,7 @@ class SimulatorRunner(FLComponent):
             n_clients=n_clients,
             threads=threads,
             gpu=gpu,
+            log_config=log_config,
             max_clients=max_clients,
         )
         args.set = []
@@ -142,7 +155,14 @@ class SimulatorRunner(FLComponent):
 
     def setup(self):
         self.args = self._generate_args(
-            self.job_folder, self.workspace, self.clients, self.n_clients, self.threads, self.gpu, self.max_clients
+            self.job_folder,
+            self.workspace,
+            self.clients,
+            self.n_clients,
+            self.threads,
+            self.gpu,
+            self.log_config,
+            self.max_clients,
         )
 
         if self.args.clients:
@@ -152,12 +172,19 @@ class SimulatorRunner(FLComponent):
                 for i in range(self.args.n_clients):
                     self.client_names.append("site-" + str(i + 1))
 
-        log_config_file_path = os.path.join(self.args.workspace, "local", WorkspaceConstants.LOGGING_CONFIG)
-        if not os.path.isfile(log_config_file_path):
-            log_config_file_path = os.path.join(os.path.dirname(__file__), WorkspaceConstants.LOGGING_CONFIG)
-        logging.config.fileConfig(fname=log_config_file_path, disable_existing_loggers=False)
+        if self.args.log_config:
+            log_config_file_path = self.args.log_config
+            if not os.path.isfile(log_config_file_path):
+                self.logger.error(f"log_config: {log_config_file_path} is not a valid file path")
+                return False
+        else:
+            log_config_file_path = os.path.join(self.args.workspace, "local", WorkspaceConstants.LOGGING_CONFIG)
+            if not os.path.isfile(log_config_file_path):
+                log_config_file_path = os.path.join(os.path.dirname(__file__), WorkspaceConstants.LOGGING_CONFIG)
 
-        self.args.log_config = None
+        with open(log_config_file_path, "r") as f:
+            dict_config = json.load(f)
+
         self.args.config_folder = "config"
         self.args.job_id = SimulatorConstants.JOB_NAME
         self.args.client_config = os.path.join(self.args.config_folder, JobConstants.CLIENT_JOB_CONFIG)
@@ -177,9 +204,9 @@ class SimulatorRunner(FLComponent):
         self._cleanup_workspace()
         init_security_content_service(self.args.workspace)
 
-        os.makedirs(os.path.join(self.simulator_root, "server"))
-        log_file = os.path.join(self.simulator_root, "server", WorkspaceConstants.LOG_FILE_NAME)
-        add_logfile_handler(log_file)
+        os.makedirs(os.path.join(self.simulator_root, SiteType.SERVER))
+
+        apply_log_config(dict_config, os.path.join(self.simulator_root, SiteType.SERVER))
 
         try:
             data_bytes, job_name, meta = self.validate_job_data()
@@ -257,8 +284,8 @@ class SimulatorRunner(FLComponent):
             self.logger.info("Deploy the Apps.")
             self._deploy_apps(job_name, data_bytes, meta, log_config_file_path)
 
-            server_workspace = os.path.join(self.args.workspace, "server")
-            workspace = Workspace(root_dir=server_workspace, site_name="server")
+            server_workspace = os.path.join(self.args.workspace, SiteType.SERVER)
+            workspace = Workspace(root_dir=server_workspace, site_name=SiteType.SERVER)
             custom_fobs_initialize(workspace)
 
             decomposer_module = ConfigService.get_str_var(
@@ -318,7 +345,7 @@ class SimulatorRunner(FLComponent):
         client_names = []
         for _, participants in meta.get(JobMetaKey.DEPLOY_MAP, {}).items():
             for p in participants:
-                if p.upper() != ALL_SITES and p != "server":
+                if p.upper() != ALL_SITES and p != SiteType.SERVER:
                     client_names.append(p)
         return client_names
 
@@ -348,11 +375,11 @@ class SimulatorRunner(FLComponent):
 
             for app_name, participants in meta.get(JobMetaKey.DEPLOY_MAP).items():
                 if len(participants) == 1 and participants[0].upper() == ALL_SITES:
-                    participants = ["server"]
+                    participants = [SiteType.SERVER]
                     participants.extend([client for client in self.client_names])
 
                 for p in participants:
-                    if p == "server" or p in self.client_names:
+                    if p == SiteType.SERVER or p in self.client_names:
                         app_root = get_simulator_app_root(self.simulator_root, p)
                         self._setup_local_startup(log_config_file_path, os.path.join(self.simulator_root, p))
                         app = os.path.join(temp_job_folder, app_name)
@@ -519,7 +546,7 @@ class SimulatorRunner(FLComponent):
         os.makedirs(startup, exist_ok=True)
         local = os.path.join(args.workspace, WorkspaceConstants.SITE_FOLDER_NAME)
         os.makedirs(local, exist_ok=True)
-        workspace = Workspace(root_dir=args.workspace, site_name="server")
+        workspace = Workspace(root_dir=args.workspace, site_name=SiteType.SERVER)
 
         self.server.job_cell = self.server.create_job_cell(
             SimulatorConstants.JOB_NAME,
@@ -667,9 +694,14 @@ class SimulatorClientRunner(FLComponent):
     def do_one_task(self, client, num_of_threads, gpu, lock, timeout=60.0, task_name=RunnerTask.TASK_EXEC):
         open_port = get_open_ports(1)[0]
         client_workspace = os.path.join(self.args.workspace, client.client_name)
-        logging_config = os.path.join(
-            self.args.workspace, client.client_name, "local", WorkspaceConstants.LOGGING_CONFIG
-        )
+        if self.args.log_config:
+            logging_config = self.args.log_config
+            if not os.path.isfile(logging_config):
+                raise ValueError(f"log_config: {logging_config} is not a valid file path")
+        else:
+            logging_config = os.path.join(
+                self.args.workspace, client.client_name, "local", WorkspaceConstants.LOGGING_CONFIG
+            )
         decomposer_module = ConfigService.get_str_var(
             name=ConfigVarName.DECOMPOSER_MODULE, conf=SystemConfigs.RESOURCES_CONF
         )
@@ -707,9 +739,10 @@ class SimulatorClientRunner(FLComponent):
             command += " --gpu " + str(gpu)
         new_env = os.environ.copy()
         add_custom_dir_to_path(app_custom_folder, new_env)
-        if self.server_custom_folder:
+        if os.path.isdir(self.server_custom_folder):
             python_paths = new_env[SystemVarName.PYTHONPATH].split(os.pathsep)
-            python_paths.remove(self.server_custom_folder)
+            if self.server_custom_folder in python_paths:
+                python_paths.remove(self.server_custom_folder)
             new_env[SystemVarName.PYTHONPATH] = os.pathsep.join(python_paths)
 
         _ = subprocess.Popen(shlex.split(command, True), preexec_fn=os.setsid, env=new_env)

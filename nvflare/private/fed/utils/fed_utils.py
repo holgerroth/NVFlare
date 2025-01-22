@@ -11,45 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
 import importlib
 import json
-import logging
-import logging.config
 import os
 import pkgutil
 import sys
 import warnings
-from logging.handlers import RotatingFileHandler
-from typing import Any, List, Union
+from typing import List, Union
 
 from nvflare.apis.app_validation import AppValidator
 from nvflare.apis.client import Client
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_component import FLContext
-from nvflare.apis.fl_constant import (
-    ConfigVarName,
-    FLContextKey,
-    FLMetaKey,
-    JobConstants,
-    SiteType,
-    SystemVarName,
-    WorkspaceConstants,
-)
+from nvflare.apis.fl_constant import ConfigVarName, FLContextKey, FLMetaKey, JobConstants, SiteType, WorkspaceConstants
 from nvflare.apis.fl_exception import UnsafeComponentError
 from nvflare.apis.job_def import JobMetaKey
 from nvflare.apis.job_launcher_spec import JobLauncherSpec
 from nvflare.apis.utils.decomposers import flare_decomposers
 from nvflare.apis.workspace import Workspace
 from nvflare.app_common.decomposers import common_decomposers
-from nvflare.fuel.data_event.data_bus import DataBus
 from nvflare.fuel.f3.stats_pool import CsvRecordHandler, StatsPoolManager
 from nvflare.fuel.sec.audit import AuditService
 from nvflare.fuel.sec.authz import AuthorizationService
 from nvflare.fuel.sec.security_content_service import LoadResult, SecurityContentService
 from nvflare.fuel.utils import fobs
 from nvflare.fuel.utils.fobs.fobs import register_custom_folder
-from nvflare.fuel.utils.validation_utils import check_str
 from nvflare.private.defs import RequestHeader, SSLConstants
 from nvflare.private.event import fire_event
 from nvflare.private.fed.utils.decomposers import private_decomposers
@@ -59,46 +45,6 @@ from nvflare.security.security import EmptyAuthorizer, FLAuthorizer
 
 from ..simulator.simulator_const import SimulatorConstants
 from .app_authz import AppAuthzService
-
-
-def add_logfile_handler(log_file: str):
-    """Adds a log file handler to the root logger.
-
-    The purpose for this is to handle dynamic log file locations.
-
-    If a handler named errorFileHandler is found, it will be used as a template to
-    create a new handler for writing to the error log file at the same directory as log_file.
-    The original errorFileHandler will be removed and replaced by the new handler.
-
-    Each log file will be rotated when it reaches 20MB.
-
-    Args:
-        log_file (str): log file path
-    """
-    root_logger = logging.getLogger()
-    configured_handlers = root_logger.handlers
-    main_handler = root_logger.handlers[0]
-    file_handler = RotatingFileHandler(log_file, maxBytes=20 * 1024 * 1024, backupCount=10)
-    file_handler.setLevel(main_handler.level)
-    file_handler.setFormatter(main_handler.formatter)
-    root_logger.addHandler(file_handler)
-
-    configured_error_handler = None
-    for handler in configured_handlers:
-        if handler.get_name() == "errorFileHandler":
-            configured_error_handler = handler
-            break
-
-    if not configured_error_handler:
-        return
-
-    error_log_file = os.path.join(os.path.dirname(log_file), WorkspaceConstants.ERROR_LOG_FILE_NAME)
-    error_file_handler = RotatingFileHandler(error_log_file, maxBytes=20 * 1024 * 1024, backupCount=10)
-    error_file_handler.setLevel(configured_error_handler.level)
-    error_file_handler.setFormatter(configured_error_handler.formatter)
-
-    root_logger.addHandler(error_file_handler)
-    root_logger.removeHandler(configured_error_handler)
 
 
 def _check_secure_content(site_type: str) -> List[str]:
@@ -260,12 +206,6 @@ def create_job_processing_context_properties(workspace: Workspace, job_id: str) 
 
 def find_char_positions(s, ch):
     return [i for i, c in enumerate(s) if c == ch]
-
-
-def configure_logging(workspace: Workspace):
-    log_config_file_path = workspace.get_log_config_file_path()
-    assert os.path.isfile(log_config_file_path), f"missing log config file {log_config_file_path}"
-    logging.config.fileConfig(fname=log_config_file_path, disable_existing_loggers=False)
 
 
 def get_scope_info():
@@ -475,13 +415,6 @@ def get_simulator_app_root(simulator_root, site_name):
     return os.path.join(simulator_root, site_name, SimulatorConstants.JOB_NAME, "app_" + site_name)
 
 
-def add_custom_dir_to_path(app_custom_folder, new_env):
-    """Util method to add app_custom_folder into the sys.path and carry into the child process."""
-    sys_path = copy.copy(sys.path)
-    sys_path.append(app_custom_folder)
-    new_env[SystemVarName.PYTHONPATH] = os.pathsep.join(sys_path)
-
-
 def extract_participants(participants_list):
     participants = []
     for item in participants_list:
@@ -495,54 +428,6 @@ def extract_participants(participants_list):
     return participants
 
 
-def extract_job_image(job_meta, site_name):
-    deploy_map = job_meta.get(JobMetaKey.DEPLOY_MAP, {})
-    for _, participants in deploy_map.items():
-        for item in participants:
-            if isinstance(item, dict):
-                sites = item.get(JobConstants.SITES)
-                if site_name in sites:
-                    return item.get(JobConstants.JOB_IMAGE)
-    return None
-
-
-def _scope_prop_key(scope_name: str, key: str):
-    return f"{scope_name}::{key}"
-
-
-def set_scope_prop(scope_name: str, key: str, value: Any):
-    """Save the specified property of the specified scope (globally).
-
-    Args:
-        scope_name: name of the scope
-        key: key of the property to be saved
-        value: value of property
-
-    Returns: None
-
-    """
-    check_str("scope_name", scope_name)
-    check_str("key", key)
-    data_bus = DataBus()
-    data_bus.put_data(_scope_prop_key(scope_name, key), value)
-
-
-def get_scope_prop(scope_name: str, key: str) -> Any:
-    """Get the value of a specified property from the specified scope.
-
-    Args:
-        scope_name: name of the scope
-        key: key of the scope
-
-    Returns:
-
-    """
-    check_str("scope_name", scope_name)
-    check_str("key", key)
-    data_bus = DataBus()
-    return data_bus.get_data(_scope_prop_key(scope_name, key))
-
-
 def get_job_launcher(job_meta: dict, fl_ctx: FLContext) -> JobLauncherSpec:
     engine = fl_ctx.get_engine()
 
@@ -550,7 +435,7 @@ def get_job_launcher(job_meta: dict, fl_ctx: FLContext) -> JobLauncherSpec:
         # Remove the potential not cleaned up JOB_LAUNCHER
         job_launcher_ctx.remove_prop(FLContextKey.JOB_LAUNCHER)
         job_launcher_ctx.set_prop(FLContextKey.JOB_META, job_meta, private=True, sticky=False)
-        engine.fire_event(EventType.GET_JOB_LAUNCHER, job_launcher_ctx)
+        engine.fire_event(EventType.BEFORE_JOB_LAUNCH, job_launcher_ctx)
 
         job_launcher = job_launcher_ctx.get_prop(FLContextKey.JOB_LAUNCHER)
         if not (job_launcher and isinstance(job_launcher, list)):

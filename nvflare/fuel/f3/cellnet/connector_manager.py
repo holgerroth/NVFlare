@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
 import os
 import time
 from typing import Union
@@ -21,6 +20,7 @@ from nvflare.fuel.f3.cellnet.defs import ConnectorRequirementKey
 from nvflare.fuel.f3.cellnet.fqcn import FqcnInfo
 from nvflare.fuel.f3.comm_config import CommConfigurator
 from nvflare.fuel.f3.communicator import CommError, Communicator, Mode
+from nvflare.fuel.utils.log_utils import get_obj_logger
 from nvflare.security.logging import secure_format_exception, secure_format_traceback
 
 _KEY_RESOURCES = "resources"
@@ -39,10 +39,11 @@ class _Defaults:
 
 
 class ConnectorData:
-    def __init__(self, handle, connect_url: str, active: bool):
+    def __init__(self, handle, connect_url: str, active: bool, params: dict):
         self.handle = handle
         self.connect_url = connect_url
         self.active = active
+        self.params = params
 
     def get_connection_url(self):
         return self.connect_url
@@ -55,7 +56,7 @@ class ConnectorManager:
 
     def __init__(self, communicator: Communicator, secure: bool, comm_configurator: CommConfigurator):
         self._name = self.__class__.__name__
-        self.logger = logging.getLogger(self._name)
+        self.logger = get_obj_logger(self)
 
         self.communicator = communicator
         self.secure = secure
@@ -192,19 +193,19 @@ class ConnectorManager:
 
         try:
             if active:
-                handle = self.communicator.add_connector(url, Mode.ACTIVE, ssl_required)
+                handle, conn_params = self.communicator.add_connector(url, Mode.ACTIVE, ssl_required)
                 connect_url = url
             elif url:
-                handle = self.communicator.add_connector(url, Mode.PASSIVE, ssl_required)
+                handle, conn_params = self.communicator.add_connector(url, Mode.PASSIVE, ssl_required)
                 connect_url = url
             else:
                 self.logger.info(f"{os.getpid()}: Try start_listener Listener resources: {reqs}")
-                handle, connect_url = self.communicator.start_listener(scheme, reqs)
+                handle, connect_url, conn_params = self.communicator.start_listener(scheme, reqs)
                 self.logger.debug(f"{os.getpid()}: ############ dynamic listener at {connect_url}")
                 # Kludge: to wait for listener ready and avoid race
                 time.sleep(0.5)
 
-            return ConnectorData(handle, connect_url, active)
+            return ConnectorData(handle, connect_url, active, conn_params)
         except CommError as ex:
             self.logger.error(f"Failed to get connector: {secure_format_exception(ex)}")
             return None

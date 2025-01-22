@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
 import re
 import shutil
@@ -31,14 +30,16 @@ from nvflare.apis.workspace import Workspace
 from nvflare.fuel.f3.cellnet.cell import Cell
 from nvflare.fuel.f3.cellnet.defs import CellChannel, MessageHeaderKey, ReturnCode
 from nvflare.fuel.f3.message import Message as CellMessage
+from nvflare.fuel.utils.log_utils import get_obj_logger
 from nvflare.private.aux_runner import AuxMsgTarget, AuxRunner
-from nvflare.private.defs import ERROR_MSG_PREFIX, ClientStatusKey, EngineConstant, new_cell_message
+from nvflare.private.defs import ERROR_MSG_PREFIX, ClientStatusKey, new_cell_message
 from nvflare.private.event import fire_event
 from nvflare.private.fed.server.job_meta_validator import JobMetaValidator
 from nvflare.private.fed.utils.app_deployer import AppDeployer
 from nvflare.private.fed.utils.fed_utils import security_close
 from nvflare.private.stream_runner import ObjectStreamer
 from nvflare.security.logging import secure_format_exception, secure_log_traceback
+from nvflare.widgets.fed_event import ClientFedEventRunner
 
 from .client_engine_internal_spec import ClientEngineInternalSpec
 from .client_executor import JobExecutor
@@ -96,8 +97,10 @@ class ClientEngine(ClientEngineInternalSpec, StreamableEngine):
 
         if workers < 1:
             raise ValueError("workers must >= 1")
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_obj_logger(self)
         self.fl_components = [x for x in self.client.components.values() if isinstance(x, FLComponent)]
+
+        self.fl_components.append(ClientFedEventRunner())
 
     def fire_event(self, event_type: str, fl_ctx: FLContext):
         fire_event(event=event_type, handlers=self.fl_components, ctx=fl_ctx)
@@ -197,11 +200,11 @@ class ClientEngine(ClientEngineInternalSpec, StreamableEngine):
             secure=secure,
         )
 
-        self.logger.info(f"got aux reply: {reply}")
-
         if len(reply) > 0:
+            self.logger.info(f"got aux reply: {reply}")
             return next(iter(reply.values()))
         else:
+            self.logger.debug("no reply from the server aux message response.")
             return Shareable()
 
     def stream_objects(
@@ -347,14 +350,6 @@ class ClientEngine(ClientEngineInternalSpec, StreamableEngine):
         if not os.path.exists(app_root):
             return f"{ERROR_MSG_PREFIX}: Client app does not exist. Please deploy it before starting client."
 
-        app_custom_folder = os.path.join(app_root, "custom")
-        if os.path.isdir(app_custom_folder):
-            try:
-                sys.path.index(app_custom_folder)
-            except ValueError:
-                _remove_custom_path()
-                sys.path.append(app_custom_folder)
-
         self.logger.info("Starting client app. rank: {}".format(self.rank))
 
         self.client_executor.start_app(
@@ -362,7 +357,6 @@ class ClientEngine(ClientEngineInternalSpec, StreamableEngine):
             job_id,
             job_meta,
             self.args,
-            app_custom_folder,
             allocated_resource,
             token,
             resource_manager,
@@ -376,23 +370,6 @@ class ClientEngine(ClientEngineInternalSpec, StreamableEngine):
 
     def get_client_name(self):
         return self.client.client_name
-
-    def _write_token_file(self, job_id, open_port):
-        token_file = os.path.join(self.args.workspace, EngineConstant.CLIENT_TOKEN_FILE)
-        if os.path.exists(token_file):
-            os.remove(token_file)
-        with open(token_file, "wt") as f:
-            f.write(
-                "%s\n%s\n%s\n%s\n%s\n%s\n"
-                % (
-                    self.client.token,
-                    self.client.ssid,
-                    job_id,
-                    self.client.client_name,
-                    open_port,
-                    list(self.client.servers.values())[0]["target"],
-                )
-            )
 
     def abort_app(self, job_id: str) -> str:
         status = self.client_executor.get_status(job_id)
@@ -473,11 +450,21 @@ class ClientEngine(ClientEngineInternalSpec, StreamableEngine):
     def get_errors(self, job_id):
         return self.client_executor.get_errors(job_id)
 
+    def configure_job_log(self, job_id, config):
+        return self.client_executor.configure_job_log(job_id, config)
+
     def reset_errors(self, job_id):
         self.client_executor.reset_errors(job_id)
 
     def get_all_job_ids(self):
         return self.client_executor.get_run_processes_keys()
+
+    def fire_and_forget_aux_request(
+        self, topic: str, request: Shareable, fl_ctx: FLContext, optional=False, secure=False
+    ) -> dict:
+        return self.send_aux_request(
+            topic=topic, request=request, timeout=0.0, fl_ctx=fl_ctx, optional=optional, secure=secure
+        )
 
 
 def shutdown_client(federated_client, touch_file):

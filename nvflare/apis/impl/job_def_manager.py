@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import datetime
 import os
 import pathlib
@@ -237,6 +236,27 @@ class SimpleJobDefManager(JobDefManagerSpec):
         except StorageException:
             return None
 
+    def set_client_data(self, jid: str, data: Union[bytes, str], client_name: str, data_type: str, fl_ctx: FLContext):
+        store = self._get_job_store(fl_ctx)
+        data_object_type = f"{data_type}_{client_name}"
+        store.update_object(self.job_uri(jid), data, data_object_type)
+
+    def get_client_data(self, jid: str, client_name: str, data_type: str, fl_ctx: FLContext) -> Optional[bytes]:
+        store = self._get_job_store(fl_ctx)
+        data_object_type = f"{data_type}_{client_name}"
+        try:
+            data_data = store.get_data(self.job_uri(jid), data_object_type)
+            return data_data
+        except StorageException:
+            return None
+
+    def list_components(self, jid: str, fl_ctx: FLContext) -> List[str]:
+        store = self._get_job_store(fl_ctx)
+        self.log_debug(
+            fl_ctx, f"list_components called for {jid}: {store.list_components_of_object(self.job_uri(jid))}"
+        )
+        return store.list_components_of_object(self.job_uri(jid))
+
     def set_status(self, jid: str, status: RunStatus, fl_ctx: FLContext):
         meta = {JobMetaKey.STATUS.value: status.value}
         store = self._get_job_store(fl_ctx)
@@ -351,6 +371,17 @@ class SimpleJobDefManager(JobDefManagerSpec):
     def get_storage_for_download(
         self, jid: str, download_dir: str, component: str, download_file: str, fl_ctx: FLContext
     ):
+        """Prepares the specified component of the job for download at the specified directory
+
+        The component is prepared for download at download_dir/jid/download_file.
+
+        Args:
+            jid: job ID
+            download_dir: directory to download the component to
+            component: component name
+            download_file: file name to save the downloaded component
+            fl_ctx: FLContext
+        """
         store = self._get_job_store(fl_ctx)
         os.makedirs(os.path.join(download_dir, jid), exist_ok=True)
         destination_file = os.path.join(download_dir, jid, download_file)
