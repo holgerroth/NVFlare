@@ -129,7 +129,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
 
         # Prepare the data for training
         for index, label in labels.iterrows():
-            embedding = protein_embeddings[index].numpy()
+            embedding = protein_embeddings[index].to(torch.float32).numpy()
             # get label entry from pandas dataframe
             if label["SET"] == "train":
                 self.X_train.append(embedding)
