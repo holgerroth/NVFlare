@@ -57,12 +57,6 @@ SUPPORTED_DATASETS = {
     "InMemoryPerTokenValueDataset": InMemoryPerTokenValueDataset,
 }
 
-# (1) import nvflare client API
-#import nvflare.client as flare
-
-# (2) initializes NVFlare client API
-#flare.init()
-
 # (1) import nvflare lightning client API
 import nvflare.client.lightning as flare
 
@@ -169,6 +163,7 @@ def train_model(
         average_in_collective (bool): average in collective
         grad_reduce_in_fp32 (bool): gradient reduction in fp32
     """
+    print("XXXXXX starting train_model")
     # Create the result directory if it does not exist.
     result_dir.mkdir(parents=True, exist_ok=True)
 
@@ -182,6 +177,7 @@ def train_model(
         pipeline_model_parallel_size=pipeline_model_parallel_size,
     )
 
+    print("XXXXXX starting MegatronStrategy")
     strategy = nl.MegatronStrategy(
         tensor_model_parallel_size=tensor_model_parallel_size,
         pipeline_model_parallel_size=pipeline_model_parallel_size,
@@ -233,6 +229,8 @@ def train_model(
             )
         )
 
+    print("XXXXXX starting Trainer")
+
     trainer = nl.Trainer(
         devices=devices,
         max_steps=num_steps,
@@ -251,7 +249,9 @@ def train_model(
             autocast_enabled=False,
         ),
     )
-    
+    # (2) patch the lightning trainer
+    flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
+
     tokenizer = get_tokenizer()
 
     # Initialize the data module.
@@ -317,27 +317,25 @@ def train_model(
         ckpt_callback=checkpoint_callback,
     )
 
-    # (2) patch the lightning trainer
-    flare.patch(trainer)
+    # (3) receives FLModel from NVFlare
+    # Note that we don't need to pass this input_model to trainer
+    # because after flare.patch the trainer.fit/validate will get the
+    # global model internally
+    input_model = flare.receive()
+    print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}]\n")
     
-    while flare.is_running():
-        # (3) receives FLModel from NVFlare
-        # Note that we don't need to pass this input_model to trainer
-        # because after flare.patch the trainer.fit/validate will get the
-        # global model internally
-        input_model = flare.receive()
-        print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}]\n")
-        
-        llm.train(
-            model=module,
-            data=data_module,
-            trainer=trainer,
-            log=nemo_logger,
-            resume=resume.AutoResume(
-                resume_if_exists=resume_if_exists,  # Looks for the -last checkpoint to continue training.
-                resume_ignore_no_checkpoint=True,  # When false this will throw an error with no existing checkpoint.
-            ),
-        )
+    llm.train(
+        model=module,
+        data=data_module,
+        trainer=trainer,
+        log=None, #nemo_logger,
+        resume=None #resume.AutoResume(
+            #resume_if_exists=resume_if_exists,  # Looks for the -last checkpoint to continue training.
+            #resume_ignore_no_checkpoint=True,  # When false this will throw an error with no existing checkpoint.
+        #),
+    )
+
+    flare.shutdown()
 
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
         
@@ -691,5 +689,3 @@ def get_parser():
 
 if __name__ == "__main__":
     finetune_esm2_entrypoint()
-
-    

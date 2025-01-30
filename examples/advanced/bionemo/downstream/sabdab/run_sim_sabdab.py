@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nvflare import SimulatorRunner
+from nvflare.job_config.script_runner import BaseScriptRunner
 
 # Choose from one of the available jobs
 job_name = "central_sabdab_esm1nv"
@@ -28,6 +28,7 @@ n_clients = 1
 
 
 import argparse
+import logging
 
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
@@ -35,17 +36,33 @@ from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.dxo import DataKind
+from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
+from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 
-class SendFilter(DXOFilter):
+class ReceiveFilter(DXOFilter):
     def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
         # support weight and weight_diff data kinds
         data_kinds = [DataKind.WEIGHTS, DataKind.WEIGHT_DIFF]
         super().__init__(supported_data_kinds=data_kinds, data_kinds_to_filter=data_kinds)
         
     def process_dxo(self, dxo, shareable, fl_ctx):    
-        print("#######sending dxo", dxo)
-        asdafsd
+        #self.logger.info(f"#######RECEIVING DXO: {dxo}")
+        print(f"#######RECEIVING DXO: {dxo}")
+        return dxo
+
+
+class SendFilter(DXOFilter):
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        # support weight and weight_diff data kinds
+        data_kinds = [DataKind.WEIGHTS, DataKind.WEIGHT_DIFF]
+        super().__init__(supported_data_kinds=data_kinds, data_kinds_to_filter=data_kinds)
+        
+    def process_dxo(self, dxo, shareable, fl_ctx):    
+        #self.logger.info(f"#######SENDING DXO: {dxo}")
+        print(f"#######SENDING DXO: {dxo}")
         return dxo
 
 
@@ -61,6 +78,7 @@ def main(n_clients, num_rounds, train_script):
         num_rounds=num_rounds,
     )
     job.to_server(controller)
+    #job.to_server(PTFileModelPersistor(), id="persistor")
 
     checkpoint_path = "/root/.cache/bionemo/2957b2c36d5978d0f595d6f1b72104b312621cf0329209086537b613c1c96d16-esm2_hf_converted_8m_checkpoint.tar.gz.untar"
     
@@ -69,20 +87,24 @@ def main(n_clients, num_rounds, train_script):
     
     # Add clients
     for i in range(n_clients):
-        runner = ScriptRunner(script=train_script, script_args=f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --experiment-name {job.name} --num-steps 10 --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 5e-3 --lr-multiplier 1e2 --scale-lr-layer regression_head --result-dir . --micro-batch-size 2 --num-gpus 1 --precision bf16-mixed",
+        client_name = f"site-{i+1}"
+        runner = BaseScriptRunner(script=train_script,
                              launch_external_process=True,
-                             params_exchange_format="pytorch")
-        job.to(runner, f"site-{i}")
-        job.to(SendFilter(), f"site-{i}", tasks=["train"], filter_type=FilterType.TASK_RESULT)
+                             framework="pytorch",
+                             params_exchange_format="pytorch",
+                             launcher=SubprocessLauncher(script=f"python custom/{train_script} --restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --experiment-name {job.name} --num-steps 10 --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 5e-3 --lr-multiplier 1e2 --scale-lr-layer regression_head --result-dir . --micro-batch-size 2 --num-gpus 1 --precision bf16-mixed", launch_once=False))
+        job.to(runner, client_name)
+        job.to(ReceiveFilter(), client_name, tasks=["*"], filter_type=FilterType.TASK_DATA)
+        job.to(SendFilter(), client_name, tasks=["*"], filter_type=FilterType.TASK_RESULT)
 
-    # job.export_job("/tmp/nvflare/jobs/job_config")
+    job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu="0")  # run all clients on the same GPU
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_clients", type=int, help="Number of clients", required=False, default=1)
-    parser.add_argument("--num_rounds", type=str, help="Number of rounds", required=False, default=3)
-    parser.add_argument("--train_script", type=str, help="Training script", required=False, default="finetune_esm2.py")
+    parser.add_argument("--num_rounds", type=str, help="Number of rounds", required=False, default=30)
+    parser.add_argument("--train_script", type=str, help="Training script", required=False, default="finetune_esm2.py")  # TODO: "finetune_esm2.py"
 
     args = parser.parse_args()    
     
