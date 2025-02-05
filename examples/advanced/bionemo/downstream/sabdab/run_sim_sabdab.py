@@ -48,7 +48,7 @@ class ReceiveFilter(DXOFilter):
         super().__init__(supported_data_kinds=data_kinds, data_kinds_to_filter=data_kinds)
         
     def process_dxo(self, dxo, shareable, fl_ctx):    
-        #self.logger.info(f"#######RECEIVING DXO: {dxo}")
+        self.logger.info(f"#######RECEIVING DXO: {dxo}")
         print(f"#######RECEIVING DXO: {dxo}")
         return dxo
 
@@ -61,7 +61,7 @@ class SendFilter(DXOFilter):
         super().__init__(supported_data_kinds=data_kinds, data_kinds_to_filter=data_kinds)
         
     def process_dxo(self, dxo, shareable, fl_ctx):    
-        #self.logger.info(f"#######SENDING DXO: {dxo}")
+        self.logger.info(f"#######SENDING DXO: {dxo}")
         print(f"#######SENDING DXO: {dxo}")
         return dxo
 
@@ -89,10 +89,10 @@ def main(n_clients, num_rounds, train_script):
     for i in range(n_clients):
         client_name = f"site-{i+1}"
         runner = BaseScriptRunner(script=train_script,
+                                  script_args=f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 3 --experiment-name {job.name} --num-steps 10 --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --encoder-frozen --lr 5e-3 --lr-multiplier 1e2 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 2 --precision bf16-mixed",
                              launch_external_process=True,
                              framework="pytorch",
-                             params_exchange_format="pytorch",
-                             launcher=SubprocessLauncher(script=f"python custom/{train_script} --restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --experiment-name {job.name} --num-steps 10 --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 5e-3 --lr-multiplier 1e2 --scale-lr-layer regression_head --result-dir . --micro-batch-size 2 --num-gpus 1 --precision bf16-mixed", launch_once=False))
+                             params_exchange_format="pytorch")
         job.to(runner, client_name)
         job.to(ReceiveFilter(), client_name, tasks=["*"], filter_type=FilterType.TASK_DATA)
         job.to(SendFilter(), client_name, tasks=["*"], filter_type=FilterType.TASK_RESULT)

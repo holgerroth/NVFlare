@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#DOCKER_IMAGE="nvcr.io/nvidia/clara/bionemo-framework:2.2"
+#DOCKER_IMAGE="nvcr.io/nvidia/clara/bionemo-framework:2.3@sha256:715388e62a55ee55f3f0796174576299b121ca9f95d3b83d2b397f7501b21061"
 DOCKER_IMAGE="nvcr.io/nvidia/clara/bionemo-framework:nightly"
 
 GPU="all"

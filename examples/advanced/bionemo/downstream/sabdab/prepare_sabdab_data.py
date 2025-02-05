@@ -81,6 +81,7 @@ def main():
     for s in ["train", "valid", "test"]:
         split[s] = split[s].rename(columns={"Antibody": "sequences"})
         split[s] = split[s].rename(columns={"Y": "labels"})
+        split[s]["labels"] = split[s]["labels"].map({0: "neg", 1: "pos"})
 
     train_df = pd.concat([split["train"], split["valid"]])
     test_df = split["test"]
@@ -117,7 +118,7 @@ def main():
     if do_clean_chains:
         train_df = clean_chains(train_df)
         test_df = clean_chains(test_df)
-
+    
     _split_dir = os.path.join(split_dir, "train")
     if not os.path.isdir(_split_dir):
         os.makedirs(_split_dir)
@@ -134,8 +135,8 @@ def main():
     print(f"Saved {len(train_df)} training and {len(test_df)} testing proteins.")
 
     for _set, _df in zip(["TRAIN", "TEST"], [train_df, test_df]):
-        n_pos = np.sum(_df["labels"] == 0)
-        n_neg = np.sum(_df["labels"] == 1)
+        n_pos = np.sum(_df["labels"] == "pos")
+        n_neg = np.sum(_df["labels"] == "neg")
         n = len(_df)
         print(f"  {_set} Pos/Neg ratio: neg={n_neg}, pos={n_pos}: {n_pos / n_neg:0.3f}")
         print(f"  {_set} Trivial accuracy: {n_pos / n:0.3f}")
