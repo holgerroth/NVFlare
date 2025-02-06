@@ -29,7 +29,7 @@ n_clients = 1
 
 import argparse
 import logging
-
+from bionemo.core.data.load import load
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
@@ -40,73 +40,56 @@ from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 
-class ReceiveFilter(DXOFilter):
-    def __init__(self):
-        self.logger = logging.getLogger(self.__class__.__name__)
-        # support weight and weight_diff data kinds
-        data_kinds = [DataKind.WEIGHTS, DataKind.WEIGHT_DIFF]
-        super().__init__(supported_data_kinds=data_kinds, data_kinds_to_filter=data_kinds)
-        
-    def process_dxo(self, dxo, shareable, fl_ctx):    
-        self.logger.info(f"#######RECEIVING DXO: {dxo}")
-        print(f"#######RECEIVING DXO: {dxo}")
-        return dxo
+def main(args):
+    val_data_path = "/tmp/data/sabdab_chen/val/sabdab_chen_valid.csv"
 
-
-class SendFilter(DXOFilter):
-    def __init__(self):
-        self.logger = logging.getLogger(self.__class__.__name__)
-        # support weight and weight_diff data kinds
-        data_kinds = [DataKind.WEIGHTS, DataKind.WEIGHT_DIFF]
-        super().__init__(supported_data_kinds=data_kinds, data_kinds_to_filter=data_kinds)
-        
-    def process_dxo(self, dxo, shareable, fl_ctx):    
-        self.logger.info(f"#######SENDING DXO: {dxo}")
-        print(f"#######SENDING DXO: {dxo}")
-        return dxo
-
-
-def main(n_clients, num_rounds, train_script):
     # Create BaseFedJob with initial model
     job = BaseFedJob(
-      name="central_sabdab_esm2nv"
+      name=f"{args.exp_name}_sabdab_esm2_{args.model}"
     )
 
     # Define the controller and send to server
     controller = FedAvg(
-        num_clients=n_clients,
-        num_rounds=num_rounds,
+        num_clients=args.num_clients,
+        num_rounds=args.num_rounds,
     )
     job.to_server(controller)
-    #job.to_server(PTFileModelPersistor(), id="persistor")
+    #job.to_server(PTFileModelPersistor(), id="persistor")  # TODO: load ckpt
 
-    checkpoint_path = "/root/.cache/bionemo/2957b2c36d5978d0f595d6f1b72104b312621cf0329209086537b613c1c96d16-esm2_hf_converted_8m_checkpoint.tar.gz.untar"
-    
-    train_data_path = "/tmp/data/sabdab_chen/train/sabdab_chen_full_train.csv"
-    val_data_path = "/tmp/data/sabdab_chen/val/sabdab_chen_valid.csv"
+    checkpoint_path = load(f"esm2/{args.model}:2.0")
+    print(f"Don {args.model} to {checkpoint_path}")
     
     # Add clients
-    for i in range(n_clients):
+    for i in range(args.num_clients):
         client_name = f"site-{i+1}"
-        runner = BaseScriptRunner(script=train_script,
-                                  script_args=f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 3 --experiment-name {job.name} --num-steps 10 --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --encoder-frozen --lr 5e-3 --lr-multiplier 1e2 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 2 --precision bf16-mixed",
+        if "central" in args.exp_name:
+            print("Simulating central training...")
+            assert args.num_clients == 1, "Use num_clients=1 for simulating 'central' training setting."
+            assert args.num_rounds == 1, "Use num_rounds=1 for simulating 'central' training setting."
+            train_data_path = "/tmp/data/sabdab_chen/train/sabdab_chen_full_train.csv"
+        else: # local or fedavg setting
+            train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_full_{client_name}.csv"            
+        
+        runner = BaseScriptRunner(script=args.train_script,
+                                  script_args=f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 5e-3 --lr-multiplier 1e2 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 8 --precision bf16-mixed",
                              launch_external_process=True,
                              framework="pytorch",
                              params_exchange_format="pytorch")
         job.to(runner, client_name)
-        job.to(ReceiveFilter(), client_name, tasks=["*"], filter_type=FilterType.TASK_DATA)
-        job.to(SendFilter(), client_name, tasks=["*"], filter_type=FilterType.TASK_RESULT)
 
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu="0")  # run all clients on the same GPU
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_clients", type=int, help="Number of clients", required=False, default=1)
-    parser.add_argument("--num_rounds", type=str, help="Number of rounds", required=False, default=30)
-    parser.add_argument("--train_script", type=str, help="Training script", required=False, default="finetune_esm2.py")  # TODO: "finetune_esm2.py"
+    parser.add_argument("--num_clients", type=int, help="Number of clients", required=False, default=1)
+    parser.add_argument("--num_rounds", type=int, help="Number of rounds", required=False, default=30)
+    parser.add_argument("--local_steps", type=str, help="Number of rounds", required=False, default=10)
+    parser.add_argument("--train_script", type=str, help="Training script", required=False, default="finetune_esm2.py")
+    parser.add_argument("--exp_name", type=str, help="Job name prefix", required=False, default="fedavg")
+    parser.add_argument("--model", choices=["8m", "650m"], help="ESM2 model", required=False, default="8m")
 
     args = parser.parse_args()    
     
-    main(args.n_clients, args.num_rounds, args.train_script)
+    main(args)
     
