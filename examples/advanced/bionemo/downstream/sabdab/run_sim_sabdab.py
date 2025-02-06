@@ -12,23 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nvflare.job_config.script_runner import BaseScriptRunner
-
-# Choose from one of the available jobs
-job_name = "central_sabdab_esm1nv"
-n_clients = 1
-# job_name = "local_sabdab_esm1nv"; n_clients = 6
-# job_name = "fedavg_sabdab_esm1nv"; n_clients = 6
-
-#simulator = SimulatorRunner(
-#    job_folder=f"jobs/{job_name}", workspace=f"/tmp/nvflare/results/{job_name}", n_clients=n_clients, threads=n_clients
-#)
-#run_status = simulator.run()
-#print("Simulator finished with run_status", run_status)
-
-
 import argparse
 import logging
+
 from bionemo.core.data.load import load
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
@@ -41,8 +27,6 @@ from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 
 def main(args):
-    val_data_path = "/tmp/data/sabdab_chen/val/sabdab_chen_valid.csv"
-
     # Create BaseFedJob with initial model
     job = BaseFedJob(
       name=f"{args.exp_name}_sabdab_esm2_{args.model}"
@@ -62,6 +46,10 @@ def main(args):
     # Add clients
     for i in range(args.num_clients):
         client_name = f"site-{i+1}"
+
+        # define data paths
+        # We use the same validation set for each client to make their metrics comparable
+        val_data_path = "/tmp/data/sabdab_chen/val/sabdab_chen_valid.csv"
         if "central" in args.exp_name:
             print("Simulating central training...")
             assert args.num_clients == 1, "Use num_clients=1 for simulating 'central' training setting."
@@ -69,9 +57,10 @@ def main(args):
             train_data_path = "/tmp/data/sabdab_chen/train/sabdab_chen_full_train.csv"
         else: # local or fedavg setting
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
-        
-        runner = BaseScriptRunner(script=args.train_script,
-                                  script_args=f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-5 --lr-multiplier 50 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 16 --precision bf16-mixed",
+
+        # Define training script runner
+        runner = ScriptRunner(script=args.train_script,
+                                  script_args=f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-5 --lr-multiplier 50 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision bf16-mixed",
                              launch_external_process=True,
                              framework="pytorch",
                              params_exchange_format="pytorch")
