@@ -22,7 +22,6 @@ from lightning.pytorch.callbacks import Callback, LearningRateMonitor, RichModel
 from megatron.core.distributed import DistributedDataParallelConfig
 from megatron.core.optimizer import OptimizerConfig
 from nemo import lightning as nl
-from nemo.collections import llm
 from nemo.lightning import resume
 from nemo.lightning.pytorch import callbacks as nl_callbacks
 from nemo.lightning.pytorch.optim import MegatronOptimizerModule
@@ -329,17 +328,6 @@ def train_model(
         wandb_config=wandb_config,
         ckpt_callback=checkpoint_callback,
     )
-
-    #llm.train(
-    #    model=module,
-    #    data=data_module,
-    #    trainer=trainer,
-    #    log=nemo_logger,
-    #    resume=resume.AutoResume(
-    #        resume_if_exists=resume_if_exists,  # Looks for the -last checkpoint to continue training.
-    #        resume_ignore_no_checkpoint=True,  # When false this will throw an error with no existing checkpoint.
-    #    ),
-    #)
 
     # (2) patch the lightning trainer
     flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
