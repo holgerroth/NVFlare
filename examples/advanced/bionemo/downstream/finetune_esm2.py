@@ -333,6 +333,11 @@ def train_model(
 
     # (2) patch the lightning trainer
     flare.patch(trainer, restore_state=False, load_state_dict_strict=False)    
+    print("########### trainer.callbacks", trainer.callbacks)
+
+    print("########### BEFORE TRAIN module.cpu().state_dict().keys()", module.cpu().state_dict().keys())
+    #print("########### BEFORE TRAIN trainer.model.cpu().state_dict().keys()", trainer.model.cpu().state_dict().keys())
+    #print("########### BEFORE TRAIN 'module.classification_head.linear_layers.1.weight'", module.cpu().state_dict()['module.classification_head.linear_layers.1.weight'])
 
     llm.train(
         model=module,
@@ -342,6 +347,12 @@ def train_model(
         resume=None, # don't resume from the local checkpoint in FL setting. We are loading the global model. 
     )
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
+
+    print("1########### AFTER TRAIN module.cpu().state_dict().keys()", list(module.cpu().state_dict().keys())[0])
+    print("1########### AFTER TRAIN 'module.classification_head.linear_layers.1.weight'", module.cpu().state_dict()['module.classification_head.linear_layers.1.weight'].sum())
+    print("2########### AFTER TRAIN trainer.model.cpu().state_dict().keys()", list(trainer.model.cpu().state_dict().keys())[0])
+    print("2########### AFTER TRAIN '0.module.classification_head.linear_layers.1.weight'", trainer.model.cpu().state_dict()['0.module.classification_head.linear_layers.1.weight'].sum())
+    
     return ckpt_path, metric_tracker, trainer
 
 

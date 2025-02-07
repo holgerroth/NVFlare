@@ -54,7 +54,7 @@ def main(args):
         if "central" in args.exp_name:
             print("Simulating central training...")
             assert args.num_clients == 1, "Use num_clients=1 for simulating 'central' training setting."
-            assert args.num_rounds == 1, "Use num_rounds=1 for simulating 'central' training setting."
+            #assert args.num_rounds == 1, "Use num_rounds=1 for simulating 'central' training setting."
             train_data_path = "/tmp/data/sabdab_chen/train/sabdab_chen_full_train.csv"
         else: # local or fedavg setting
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
