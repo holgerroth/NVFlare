@@ -23,6 +23,7 @@ from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.dxo import DataKind
 from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
+from nvflare.job_config.script_runner import BaseScriptRunner
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 
@@ -32,6 +33,9 @@ def main(args):
       name=f"{args.exp_name}_sabdab_esm2_{args.model}"
     )
 
+    checkpoint_path = load(f"esm2/{args.model}:2.0")
+    print(f"Downloading {args.model} to {checkpoint_path}")
+    
     # Define the controller and send to server
     controller = FedAvg(
         num_clients=args.num_clients,
@@ -39,9 +43,6 @@ def main(args):
     )
     job.to_server(controller)
     #job.to_server(PTFileModelPersistor(), id="persistor")  # TODO: load ckpt
-
-    checkpoint_path = load(f"esm2/{args.model}:2.0")
-    print(f"Don {args.model} to {checkpoint_path}")
     
     # Add clients
     for i in range(args.num_clients):
@@ -58,12 +59,17 @@ def main(args):
         else: # local or fedavg setting
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
 
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-5 --lr-multiplier 50 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision bf16-mixed --save-top-k 1"
+        print(f"Running {args.train_script} with args: {script_args}")
+        
         # Define training script runner
-        runner = ScriptRunner(script=args.train_script,
-                                  script_args=f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-5 --lr-multiplier 50 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision bf16-mixed",
+        runner = BaseScriptRunner(script=args.train_script,
                              launch_external_process=True,
                              framework="pytorch",
-                             params_exchange_format="pytorch")
+                             params_exchange_format="pytorch",
+                             launcher=SubprocessLauncher(script=f"python custom/{args.train_script} {script_args}", 
+                                                         launch_once=False)
+                                 )
         job.to(runner, client_name)
 
     job.export_job("./exported_jobs")

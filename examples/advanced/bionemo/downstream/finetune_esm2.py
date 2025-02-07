@@ -22,6 +22,7 @@ from lightning.pytorch.callbacks import Callback, LearningRateMonitor, RichModel
 from megatron.core.distributed import DistributedDataParallelConfig
 from megatron.core.optimizer import OptimizerConfig
 from nemo import lightning as nl
+from nemo.collections import llm
 from nemo.lightning import resume
 from nemo.lightning.pytorch import callbacks as nl_callbacks
 from nemo.lightning.pytorch.optim import MegatronOptimizerModule
@@ -40,6 +41,7 @@ from bionemo.llm.model.biobert.lightning import biobert_lightning_module
 from bionemo.llm.model.biobert.model import BioBertConfig
 from bionemo.llm.utils.datamodule_utils import float_or_int_or_none, infer_global_batch_size
 from bionemo.llm.utils.logger_utils import WandbConfig, setup_nemo_lightning_logger
+
 
 # Resue parser and config constants from bionemo
 from bionemo.esm2.scripts.finetune_esm2 import get_parser, SUPPORTED_CONFIGS, SUPPORTED_DATASETS
@@ -330,11 +332,18 @@ def train_model(
     )
 
     # (2) patch the lightning trainer
-    flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
+    flare.patch(trainer, restore_state=False, load_state_dict_strict=False)    
 
-    while flare.is_running():
-        trainer.fit(module, data_module)
-    
+    llm.train(
+        model=module,
+        data=data_module,
+        trainer=trainer,
+        log=nemo_logger,
+        resume=resume.AutoResume(
+            resume_if_exists=resume_if_exists,  # Looks for the -last checkpoint to continue training.
+            resume_ignore_no_checkpoint=True,  # When false this will throw an error with no existing checkpoint.
+        ),
+    )
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
     return ckpt_path, metric_tracker, trainer
 
