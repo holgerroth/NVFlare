@@ -339,10 +339,7 @@ def train_model(
         data=data_module,
         trainer=trainer,
         log=nemo_logger,
-        resume=resume.AutoResume(
-            resume_if_exists=resume_if_exists,  # Looks for the -last checkpoint to continue training.
-            resume_ignore_no_checkpoint=True,  # When false this will throw an error with no existing checkpoint.
-        ),
+        resume=None, # don't resume from the local checkpoint in FL setting. We are loading the global model. 
     )
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
     return ckpt_path, metric_tracker, trainer
@@ -419,3 +416,6 @@ def finetune_esm2_entrypoint():
 
 if __name__ == "__main__":
     finetune_esm2_entrypoint()
+
+    flare.shutdown()
+

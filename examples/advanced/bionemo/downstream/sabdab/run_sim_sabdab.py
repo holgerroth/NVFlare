@@ -59,6 +59,7 @@ def main(args):
         else: # local or fedavg setting
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
 
+        # define training script arguments
         script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-5 --lr-multiplier 50 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision bf16-mixed --save-top-k 1"
         print(f"Running {args.train_script} with args: {script_args}")
         
