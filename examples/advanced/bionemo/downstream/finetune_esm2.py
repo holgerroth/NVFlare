@@ -22,6 +22,7 @@ from lightning.pytorch.callbacks import Callback, LearningRateMonitor, RichModel
 from megatron.core.distributed import DistributedDataParallelConfig
 from megatron.core.optimizer import OptimizerConfig
 from nemo import lightning as nl
+from nemo.collections import llm
 from nemo.lightning import resume
 from nemo.lightning.pytorch import callbacks as nl_callbacks
 from nemo.lightning.pytorch.optim import MegatronOptimizerModule
@@ -43,7 +44,6 @@ from bionemo.llm.utils.logger_utils import WandbConfig, setup_nemo_lightning_log
 
 # Resue parser and config constants from bionemo
 from bionemo.esm2.scripts.finetune_esm2 import get_parser, SUPPORTED_CONFIGS, SUPPORTED_DATASETS
-
 
 # (1) import nvflare lightning client API
 import nvflare.client.lightning as flare
@@ -332,9 +332,25 @@ def train_model(
     # (2) patch the lightning trainer
     flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
 
-    while flare.is_running():
-        trainer.fit(module, data_module)
-    
+    while flare.is_running():    
+        # (3) receives FLModel from NVFlare
+        # Note that we don't need to pass this input_model to trainer
+        # because after flare.patch the trainer.fit/validate will get the
+        # global model internally
+        input_model = flare.receive()
+        print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
+        
+        llm.train(
+            model=module,
+            data=data_module,
+            trainer=trainer,
+            log=nemo_logger,
+            resume=resume.AutoResume(
+                resume_if_exists=resume_if_exists,  # Looks for the -last checkpoint to continue training.
+                resume_ignore_no_checkpoint=True,  # When false this will throw an error with no existing checkpoint.
+            ),
+        )
+        
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
     return ckpt_path, metric_tracker, trainer
 
@@ -410,3 +426,4 @@ def finetune_esm2_entrypoint():
 
 if __name__ == "__main__":
     finetune_esm2_entrypoint()
+
