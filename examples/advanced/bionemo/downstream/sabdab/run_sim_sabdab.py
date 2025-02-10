@@ -62,13 +62,15 @@ def main(args):
         # define training script arguments
         script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-5 --lr-multiplier 50 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision bf16-mixed --save-top-k 1"
         print(f"Running {args.train_script} with args: {script_args}")
+
+        ddp_config = "--nnodes=1 --nproc_per_node=1 --master_port=7777"
         
         # Define training script runner
         runner = BaseScriptRunner(script=args.train_script,
                              launch_external_process=True,
                              framework="pytorch",
                              params_exchange_format="pytorch",
-                             launcher=SubprocessLauncher(script=f"python custom/{args.train_script} {script_args}", 
+                             launcher=SubprocessLauncher(script=f"python3 -m torch.distributed.run {ddp_config} custom/{args.train_script} {script_args}", 
                                                          launch_once=False)
                                  )
         job.to(runner, client_name)
