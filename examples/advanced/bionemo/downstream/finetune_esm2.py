@@ -15,6 +15,7 @@
 # Copied and adapted for NVFlare from https://github.com/NVIDIA/bionemo-framework/blob/main/sub-packages/bionemo-esm2/src/bionemo/esm2/scripts/finetune_esm2.py
 
 import argparse
+import torch.optim as optim
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Type, get_args
 
@@ -312,38 +313,24 @@ def train_model(
     module = biobert_lightning_module(config=config, tokenizer=tokenizer, optimizer=optimizer)
 
     # Configure our custom Checkpointer
-    checkpoint_callback = nl_callbacks.ModelCheckpoint(
-        save_last=save_last_checkpoint,
-        monitor=metric_to_monitor_for_checkpoints,  # "val_loss",
-        save_top_k=save_top_k,
-        every_n_train_steps=val_check_interval,
-        always_save_context=True,  # Enables the .nemo file-like checkpointing where all IOMixins are under SerDe
-        filename="checkpoint-{step}-{consumed_samples}",  # Including step and consumed_samples in the checkpoint filename prevents duplicate filenames and bugs related to this.
-    )
+    #checkpoint_callback = nl_callbacks.ModelCheckpoint(
+    #    save_last=save_last_checkpoint,
+    #    monitor=metric_to_monitor_for_checkpoints,  # "val_loss",
+    #    save_top_k=save_top_k,
+    #    every_n_train_steps=val_check_interval,
+    #    always_save_context=True,  # Enables the .nemo file-like checkpointing where all IOMixins are under SerDe
+    #    filename="checkpoint-{step}-{consumed_samples}",  # Including step and consumed_samples in the checkpoint filename prevents duplicate filenames and bugs related to this.
+    #)
 
     # Setup the logger and train the model
-    nemo_logger = setup_nemo_lightning_logger(
-        root_dir=result_dir,
-        name=experiment_name,
-        initialize_tensorboard_logger=create_tensorboard_logger,
-        wandb_config=wandb_config,
-        ckpt_callback=None, #checkpoint_callback,  # TODO: add back!
-    )
+    #nemo_logger = setup_nemo_lightning_logger(
+    #    root_dir=result_dir,
+    #    name=experiment_name,
+    #    initialize_tensorboard_logger=create_tensorboard_logger,
+    #    wandb_config=wandb_config,
+    #    ckpt_callback=None, #checkpoint_callback,  # TODO: add back!
+    #)
 
-    app_state = _setup(
-        model=module,
-        data=data_module,
-        trainer=trainer,
-        log=None, #nemo_logger,  # TODO: add back!
-        resume=None, #resume.AutoResume(
-            #resume_if_exists=resume_if_exists,  # Looks for the -last checkpoint to continue training.
-            #resume_ignore_no_checkpoint=True,  # When false this will throw an error with no existing checkpoint.
-        #),
-        optim=None,  # These already configured in the model but required input arguments
-        tokenizer=None,
-        model_transform=None,
-    )
-    
     # (2) patch the lightning trainer
     flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
 
@@ -355,14 +342,15 @@ def train_model(
         input_model = flare.receive()
         print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
         
-        #llm.train(
-        #    model=module,
-        #    data=data_module,
-        #    trainer=trainer,
-        #    log=nemo_logger,
-        #    resume=None,
-        #)
-        trainer.fit(module, data_module)
+        llm.train(
+            model=module,
+            data=data_module,
+            trainer=trainer,
+            log=None, #nemo_logger,
+            resume=None,
+        )
+
+        ####trainer.fit(module, data_module)
         
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
     return ckpt_path, metric_tracker, trainer
