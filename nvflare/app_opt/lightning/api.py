@@ -17,6 +17,7 @@ from typing import Dict
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from torch import Tensor
+import logging
 
 from nvflare.app_common.abstract.fl_model import FLModel, MetaKey
 from nvflare.app_opt.pt.decomposers import TensorDecomposer
@@ -108,6 +109,7 @@ class FLCallback(Callback):
         self._is_evaluation = False
         self._is_submit_model = False
         self._load_state_dict_strict = load_state_dict_strict
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def reset_state(self, trainer):
         """Resets the state.
@@ -130,10 +132,10 @@ class FLCallback(Callback):
 
             # for next round
             trainer.num_sanity_val_steps = 0  # Turn off sanity validation steps in following rounds of FL
-            if self.total_local_epochs and self.max_epochs_per_round is not None:
-                trainer.fit_loop.max_epochs = self.max_epochs_per_round + self.total_local_epochs
-            if self.total_local_steps and self.max_steps_per_round is not None:
-                trainer.fit_loop.epoch_loop.max_steps = self.max_steps_per_round + self.total_local_steps
+            #####if self.total_local_epochs and self.max_epochs_per_round is not None:
+            #####    trainer.fit_loop.max_epochs = self.max_epochs_per_round + self.total_local_epochs
+            #####if self.total_local_steps and self.max_steps_per_round is not None:
+            ####    trainer.fit_loop.epoch_loop.max_steps = self.max_steps_per_round + self.total_local_steps
 
         # resets attributes
         self.metrics = None
@@ -153,7 +155,13 @@ class FLCallback(Callback):
         if MetaKey.NUM_STEPS_CURRENT_ROUND not in fl_meta:
             fl_meta[MetaKey.NUM_STEPS_CURRENT_ROUND] = trainer.estimated_stepping_batches
         if self._is_training:
+            #print("1####### pl_module.cpu().state_dict()", pl_module.cpu().state_dict().keys())
+            print("1###### module.classification_head.linear_layers.1.weight", pl_module.cpu().state_dict()['module.classification_head.linear_layers.1.weight'].sum())
+            #print("2####### pl_module.module.module.cpu().state_dict()", pl_module.module.module.cpu().state_dict().keys())
+            #print("2###### embedding.word_embeddings.weight", pl_module.module.module.cpu().state_dict()['embedding.word_embeddings.weight'].sum())            
+            ### doesnt work print("3####### pl_module.module.cpu().state_dict()", pl_module.module.cpu().state_dict().keys())
             model = FLModel(params=pl_module.cpu().state_dict(), meta=fl_meta)
+            ####model = FLModel(params=pl_module.module.module.cpu().state_dict(), meta=fl_meta)
             if self.train_with_evaluation:
                 if self.metrics is None:
                     raise RuntimeError(
@@ -162,6 +170,25 @@ class FLCallback(Callback):
                 model.metrics = self.metrics
             self._send_model(model)
             self.reset_state(trainer)
+
+    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
+        params = pl_module.state_dict()
+        sum = 0.0
+        layers = 0
+        for k, v in params.items():
+            if isinstance(v, Tensor) and "head" in k:
+                sum += v.sum().abs()
+                layers += 1
+        print(f"========     Current pl_module params in {layers} layers: {sum} ======")
+
+        #params = trainer.model.state_dict()
+        #sum = 0.0
+        #layers = 0
+        #for k, v in params.items():
+        #    if isinstance(v, Tensor) and "head" in k:
+        #        sum += v.sum().abs()
+        #        layers += 1
+        #print(f"======== Current trainer.model params in {layers} layers: {sum} ======")        
 
     def on_validation_start(self, trainer, pl_module):
         # receive the global model and update the local model with global model
@@ -184,7 +211,23 @@ class FLCallback(Callback):
         model = self._receive_model(trainer)
         if model:
             if model.params:
-                pl_module.load_state_dict(model.params, strict=self._load_state_dict_strict)
+                new_params = model.params
+                new_params = {}  # TODO: Remove module. keys to match key mapping!
+                _i = 0
+                for k, v in model.params.items():
+                   if isinstance(v, Tensor):
+                       new_key = "module." + k
+                       new_params[new_key] = v                
+                       if _i == 0:
+                           print(f"############## Renamed param to {new_key}")
+                           _i += 1
+                load_result = pl_module.load_state_dict(new_params, strict=self._load_state_dict_strict)
+                missing_keys, unexpected_keys = load_result[0], load_result[1]
+                if len(missing_keys) > 0:
+                   self.logger.warning(f"There were missing keys when loading the global state_dict: {missing_keys}")
+                if len(unexpected_keys) > 0:
+                   self.logger.warning(f"There were unexpected keys when loading the global state_dict: {unexpected_keys}")
+                   raise ValueError("state_dict loading error")
             if model.current_round is not None:
                 self.current_round = model.current_round
 
@@ -208,6 +251,7 @@ class FLCallback(Callback):
 
     def _send_model(self, output_model: FLModel):
         try:
+            print("############ Send output_model", list(output_model.params.keys())[0])
             send(output_model, clear_cache=False)
         except Exception as e:
             raise RuntimeError(f"failed to send FL model: {e}")
