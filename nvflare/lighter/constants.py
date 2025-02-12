@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from nvflare.apis.fl_constant import ConnectionSecurity
 
 
 class WorkDir:
@@ -26,11 +27,13 @@ class ParticipantType:
     CLIENT = "client"
     ADMIN = "admin"
     OVERSEER = "overseer"
+    RELAY = "relay"
 
 
 class PropKey:
     API_VERSION = "api_version"
     NAME = "name"
+    HOST = "host"
     DESCRIPTION = "description"
     ROLE = "role"
     HOST_NAMES = "host_names"
@@ -43,21 +46,31 @@ class PropKey:
     OVERSEER_END_POINT = "overseer_end_point"
     ADMIN_PORT = "admin_port"
     FED_LEARN_PORT = "fed_learn_port"
-    DOCKER_COMM_PORT = "docker_comm_port"
     ALLOW_ERROR_SENDING = "allow_error_sending"
     CONN_SECURITY = "connection_security"
     CUSTOM_CA_CERT = "custom_ca_cert"
+    SCHEME = "scheme"
+    RUN_IN_DOCKER = "run_in_docker"
+
+    # the following are internal properties added by builders during provision
+    PARENT = "parent"
+    FQCN = "__fqcn__"
+    FQSN = "__fqsn__"
+    COMM_CONFIG_ARGS = "__comm_config_args__"
 
 
 class CtxKey(WorkDir, PropKey):
     PROJECT = "__project__"
     TEMPLATE = "__template__"
     PROVISION_MODE = "__provision_model__"
+    LOGGER = "__logger__"
     LAST_PROD_STAGE = "last_prod_stage"
     TEMPLATE_FILES = "template_files"
     SERVER_NAME = "server_name"
     ROOT_CERT = "root_cert"
     ROOT_PRI_KEY = "root_pri_key"
+    RELAY_MAP = "relay_map"
+    CLIENT_MAP = "client_map"
 
 
 class ProvisionMode:
@@ -66,10 +79,9 @@ class ProvisionMode:
 
 
 class ConnSecurity:
-    CLEAR = "clear"
-    INSECURE = "insecure"
-    TLS = "tls"
-    MTLS = "mtls"
+    CLEAR = ConnectionSecurity.CLEAR
+    TLS = ConnectionSecurity.TLS
+    MTLS = ConnectionSecurity.MTLS
 
 
 class AdminRole:
@@ -90,7 +102,9 @@ class TemplateSectionKey:
     START_CLIENT_SH = "start_cln_sh"
     DOCKER_BUILD_SH = "docker_build_sh"
     DOCKER_SERVER_SH = "docker_svr_sh"
+    DOCKER_LAUNCHER_SERVER_SH = "docker_launcher_svr_sh"
     DOCKER_CLIENT_SH = "docker_cln_sh"
+    DOCKER_LAUNCHER_CLIENT_SH = "docker_launcher_cln_sh"
     DOCKER_ADMIN_SH = "docker_adm_sh"
     GUNICORN_CONF_PY = "gunicorn_conf_py"
     START_OVERSEER_SH = "start_ovsr_sh"
@@ -111,12 +125,15 @@ class TemplateSectionKey:
     FED_ADMIN = "fed_admin"
     COMPOSE_YAML = "compose_yaml"
     DOCKERFILE = "dockerfile"
+    LAUNCHER_DOCKERFILE = "launcher_dockerfile"
     HELM_CHART_CHART = "helm_chart_chart"
     HELM_CHART_VALUES = "helm_chart_values"
     HELM_CHART_SERVICE_OVERSEER = "helm_chart_service_overseer"
     HELM_CHART_SERVICE_SERVER = "helm_chart_service_server"
     HELM_CHART_DEPLOYMENT_OVERSEER = "helm_chart_deployment_overseer"
     HELM_CHART_DEPLOYMENT_SERVER = "helm_chart_deployment_server"
+    RELAY_RESOURCES_JSON = "relay_resources_json"
+    FED_RELAY = "fed_relay"
 
 
 class ProvFileName:
@@ -124,7 +141,8 @@ class ProvFileName:
     SUB_START_SH = "sub_start.sh"
     PRIVILEGE_YML = "privilege.yml"
     DOCKER_BUILD_SH = "docker_build.sh"
-    DOCKER_SH = "start_docker.sh"
+    DOCKER_SH = "docker.sh"
+    DOCKER_LAUNCHER_SH = "docker_launcher.sh"
     GUNICORN_CONF_PY = "gunicorn.conf.py"
     FED_SERVER_JSON = "fed_server.json"
     FED_CLIENT_JSON = "fed_client.json"
@@ -142,6 +160,7 @@ class ProvFileName:
     ENV = ".env"
     COMPOSE_BUILD_DIR = "nvflare_compose"
     DOCKERFILE = "Dockerfile"
+    LAUNCHER_DOCKERFILE = "Dockerfile.launcher"
     REQUIREMENTS_TXT = "requirements.txt"
     SERVER_CONTEXT_TENSEAL = "server_context.tenseal"
     CLIENT_CONTEXT_TENSEAL = "client_context.tenseal"
@@ -152,9 +171,19 @@ class ProvFileName:
     VALUES_YAML = "values.yaml"
     HELM_CHART_TEMPLATES_DIR = "templates"
     CUSTOM_CA_CERT_FILE_NAME = "customRootCA.pem"
+    RELAY_RESOURCES_JSON = "relay__resources.json"
+    FED_RELAY_JSON = "fed_relay.json"
 
 
 class CertFileBasename:
     CLIENT = "client"
     SERVER = "server"
     OVERSEER = "overseer"
+
+
+class CommConfigArg:
+    SCHEME = "scheme"
+    HOST = "host"
+    PORT = "port"
+    CONN_GEN = "conn_gen"
+    CONN_SEC = "conn_sec"

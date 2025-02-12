@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Union
 import grpc
 
 from nvflare.fuel.f3.comm_config import CommConfigurator
+from nvflare.fuel.f3.comm_config_utils import requires_secure_connection
 from nvflare.fuel.f3.comm_error import CommError
 from nvflare.fuel.f3.connection import Connection
 from nvflare.fuel.f3.drivers.driver import ConnectorInfo
@@ -145,7 +146,7 @@ class Servicer(StreamerServicer):
             self.logger.debug(f"SERVER created connection in thread {ct.name}")
             self.server.driver.add_connection(connection)
             self.logger.debug(f"SERVER created read_loop thread in thread {ct.name}")
-            t = threading.Thread(target=connection.read_loop, args=(request_iterator,), daemon=True)
+            t = threading.Thread(target=connection.read_loop, args=(request_iterator,), name="grpc_reader", daemon=True)
             t.start()
             yield from connection.generate_output()
         except Exception as ex:
@@ -274,7 +275,7 @@ class GrpcDriver(BaseDriver):
 
     @staticmethod
     def get_urls(scheme: str, resources: dict) -> (str, str):
-        secure = resources.get(DriverParams.SECURE)
+        secure = requires_secure_connection(resources)
         if secure:
             if use_aio_grpc():
                 scheme = "nagrpcs"

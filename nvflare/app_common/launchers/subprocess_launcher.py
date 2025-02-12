@@ -15,7 +15,7 @@
 import os
 import shlex
 import subprocess
-from threading import Thread
+from threading import Lock, Thread
 from typing import Optional
 
 from nvflare.apis.fl_constant import FLContextKey
@@ -27,18 +27,78 @@ from nvflare.fuel.utils.log_utils import get_obj_logger
 from nvflare.utils.job_launcher_utils import add_custom_dir_to_path
 
 
+def get_line(buffer: bytearray):
+    """Read a line from the binary buffer. It treats all combinations of \n and \r as line breaks.
+
+    Args:
+        buffer: A binary buffer
+
+    Returns:
+        (line, remaining): Return the first line as str and the remaining buffer.
+        line is None if no newline found
+
+    """
+    size = len(buffer)
+    r = buffer.find(b"\r")
+    if r < 0:
+        r = size + 1
+    n = buffer.find(b"\n")
+    if n < 0:
+        n = size + 1
+    index = min(r, n)
+
+    if index >= size:
+        return None, buffer
+
+    # if \r and \n are adjacent, treat them as one
+    if abs(r - n) == 1:
+        index = index + 1
+
+    line = buffer[:index].decode().rstrip()
+    if index >= size - 1:
+        remaining = bytearray()
+    else:
+        remaining = buffer[index + 1 :]
+    return line, remaining
+
+
 def log_subprocess_output(process, logger):
-    for c in iter(process.stdout.readline, b""):
-        logger.info(c.decode().rstrip())
+
+    buffer = bytearray()
+    while True:
+        chunk = process.stdout.read1(4096)
+        if not chunk:
+            break
+        buffer = buffer + chunk
+
+        while True:
+            line, buffer = get_line(buffer)
+            if line is None:
+                break
+
+            if line:
+                logger.info(line)
+
+    if buffer:
+        logger.info(buffer.decode())
 
 
 class SubprocessLauncher(Launcher):
-    def __init__(self, script: str, launch_once: bool = True, clean_up_script: Optional[str] = None):
+    def __init__(
+        self,
+        script: str,
+        launch_once: Optional[bool] = True,
+        clean_up_script: Optional[str] = None,
+        shutdown_timeout: Optional[float] = None,
+    ):
         """Initializes the SubprocessLauncher.
 
         Args:
             script (str): Script to be launched using subprocess.
+            launch_once (bool): Whether the external process will be launched only once at the beginning or on each task.
             clean_up_script (Optional[str]): Optional clean up script to be run after the main script execution.
+            shutdown_timeout (float): If provided, will wait for this number of seconds before shutdown.
+                None means never times out.
         """
         super().__init__()
 
@@ -47,6 +107,8 @@ class SubprocessLauncher(Launcher):
         self._script = script
         self._launch_once = launch_once
         self._clean_up_script = clean_up_script
+        self._shutdown_timeout = shutdown_timeout
+        self._lock = Lock()
         self.logger = get_obj_logger(self)
 
     def initialize(self, fl_ctx: FLContext):
@@ -68,40 +130,46 @@ class SubprocessLauncher(Launcher):
             self._stop_external_process()
 
     def _start_external_process(self, fl_ctx: FLContext):
-        if self._process is None:
-            command = self._script
-            env = os.environ.copy()
-            env["CLIENT_API_TYPE"] = "EX_PROCESS_API"
+        with self._lock:
+            if self._process is None:
+                command = self._script
+                env = os.environ.copy()
+                env["CLIENT_API_TYPE"] = "EX_PROCESS_API"
 
-            workspace = fl_ctx.get_prop(FLContextKey.WORKSPACE_OBJECT)
-            job_id = fl_ctx.get_prop(FLContextKey.CURRENT_JOB_ID)
-            app_custom_folder = workspace.get_app_custom_dir(job_id)
-            add_custom_dir_to_path(app_custom_folder, env)
+                workspace = fl_ctx.get_prop(FLContextKey.WORKSPACE_OBJECT)
+                job_id = fl_ctx.get_prop(FLContextKey.CURRENT_JOB_ID)
+                app_custom_folder = workspace.get_app_custom_dir(job_id)
+                add_custom_dir_to_path(app_custom_folder, env)
 
-            command_seq = shlex.split(command)
-            self._process = subprocess.Popen(
-                command_seq, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=self._app_dir, env=env
-            )
-            self._log_thread = Thread(target=log_subprocess_output, args=(self._process, self.logger))
-            self._log_thread.start()
+                command_seq = shlex.split(command)
+                self._process = subprocess.Popen(
+                    command_seq, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=self._app_dir, env=env
+                )
+                self._log_thread = Thread(target=log_subprocess_output, args=(self._process, self.logger))
+                self._log_thread.start()
 
     def _stop_external_process(self):
-        if self._process:
-            self._process.terminate()
-            self._process.wait()
-            self._log_thread.join()
-            if self._clean_up_script:
-                command_seq = shlex.split(self._clean_up_script)
-                process = subprocess.Popen(command_seq, cwd=self._app_dir)
-                process.wait()
-            self._process = None
+        with self._lock:
+            if self._process:
+                try:
+                    self._process.wait(self._shutdown_timeout)
+                except subprocess.TimeoutExpired:
+                    pass
+                self._process.terminate()
+                self._log_thread.join()
+                if self._clean_up_script:
+                    command_seq = shlex.split(self._clean_up_script)
+                    process = subprocess.Popen(command_seq, cwd=self._app_dir)
+                    process.wait()
+                self._process = None
 
     def check_run_status(self, task_name: str, fl_ctx: FLContext) -> str:
-        if self._process is None:
-            return LauncherRunStatus.NOT_RUNNING
-        return_code = self._process.poll()
-        if return_code is None:
-            return LauncherRunStatus.RUNNING
-        if return_code == 0:
-            return LauncherRunStatus.COMPLETE_SUCCESS
-        return LauncherRunStatus.COMPLETE_FAILED
+        with self._lock:
+            if self._process is None:
+                return LauncherRunStatus.NOT_RUNNING
+            return_code = self._process.poll()
+            if return_code is None:
+                return LauncherRunStatus.RUNNING
+            if return_code == 0:
+                return LauncherRunStatus.COMPLETE_SUCCESS
+            return LauncherRunStatus.COMPLETE_FAILED

@@ -17,12 +17,11 @@ import os
 from typing import Any, Dict, Optional, Tuple
 
 from nvflare.apis.analytix import AnalyticsDataType
-from nvflare.apis.fl_constant import FLMetaKey, SecureTrainConst
+from nvflare.apis.fl_constant import ConnPropKey, FLMetaKey
 from nvflare.apis.utils.analytix_utils import create_analytic_dxo
 from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.client.api_spec import APISpec
 from nvflare.client.config import ClientConfig, ConfigKey, ExchangeFormat, from_file
-from nvflare.client.constants import CLIENT_API_CONFIG
 from nvflare.client.flare_agent import FlareAgentException
 from nvflare.client.flare_agent_with_fl_model import FlareAgentWithFLModel
 from nvflare.client.model_registry import ModelRegistry
@@ -39,9 +38,18 @@ def _create_client_config(config: str) -> ClientConfig:
         raise ValueError(f"config should be a string but got: {type(config)}")
 
     site_name = client_config.get_site_name()
-    conn_sec = client_config.get_connection_security()
-    if conn_sec:
-        set_scope_property(site_name, SecureTrainConst.CONNECTION_SECURITY, conn_sec)
+
+    root_conn_props = client_config.get_root_conn_props()
+    if root_conn_props:
+        set_scope_property(site_name, ConnPropKey.ROOT_CONN_PROPS, root_conn_props)
+
+    cp_conn_props = client_config.get_cp_conn_props()
+    if cp_conn_props:
+        set_scope_property(site_name, ConnPropKey.CP_CONN_PROPS, cp_conn_props)
+
+    relay_conn_props = client_config.get_relay_conn_props()
+    if relay_conn_props:
+        set_scope_property(site_name, ConnPropKey.RELAY_CONN_PROPS, relay_conn_props)
 
     # get message auth info and put them into Databus for CellPipe to use
     auth_token = client_config.get_auth_token()
@@ -65,16 +73,18 @@ def _create_pipe_using_config(client_config: ClientConfig, section: str) -> Tupl
 
 
 class ExProcessClientAPI(APISpec):
-    def __init__(self):
-        self.process_model_registry = None
+    def __init__(self, config_file: str):
+        self.model_registry = None
         self.logger = get_obj_logger(self)
         self.receive_called = False
+        self.config_file = config_file
+        self.flare_agent = None
 
     def get_model_registry(self) -> ModelRegistry:
         """Gets the ModelRegistry."""
-        if self.process_model_registry is None:
+        if self.model_registry is None:
             raise RuntimeError("needs to call init method first")
-        return self.process_model_registry
+        return self.model_registry
 
     def init(self, rank: Optional[str] = None):
         """Initializes NVFlare Client API environment.
@@ -87,12 +97,11 @@ class ExProcessClientAPI(APISpec):
         if rank is None:
             rank = os.environ.get("RANK", "0")
 
-        if self.process_model_registry:
+        if self.model_registry:
             self.logger.warning("Warning: called init() more than once. The subsequence calls are ignored")
             return
 
-        config_file = f"config/{CLIENT_API_CONFIG}"
-        client_config = _create_client_config(config=config_file)
+        client_config = _create_client_config(config=self.config_file)
 
         flare_agent = None
         try:
@@ -124,7 +133,8 @@ class ExProcessClientAPI(APISpec):
                 )
                 flare_agent.start()
 
-            self.process_model_registry = ModelRegistry(client_config, rank, flare_agent)
+            self.model_registry = ModelRegistry(client_config, rank, flare_agent)
+            self.flare_agent = flare_agent
         except Exception as e:
             self.logger.error(f"flare.init failed: {e}")
             raise e
@@ -206,3 +216,7 @@ class ExProcessClientAPI(APISpec):
         model_registry = self.get_model_registry()
         model_registry.clear()
         self.receive_called = False
+
+    def shutdown(self):
+        if self.flare_agent:
+            self.flare_agent.stop()

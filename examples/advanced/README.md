@@ -18,7 +18,7 @@ Please also install "./requirements.txt" in each example folder.
   and [homomorphic encryption](https://developer.nvidia.com/blog/federated-learning-with-homomorphic-encryption/).
 * [Federated XGBoost](./xgboost/README.md)
   * Includes examples of [histogram-based](./xgboost/histogram-based/README.md) algorithm, [tree-based](./xgboost/tree-based/README.md).
-    Tree-based algorithms also includes [bagging](./xgboost/tree-based/jobs/bagging_base) and [cyclic](./xgboost/tree-based/jobs/cyclic_base) approaches.
+    Tree-based algorithms also include [bagging](./xgboost/tree-based/jobs/bagging_base) and [cyclic](./xgboost/tree-based/jobs/cyclic_base) approaches.
 
 ## Traditional ML examples
 * [Federated Linear Model with Scikit-learn](./sklearn-linear/README.md)
@@ -43,6 +43,10 @@ Please also install "./requirements.txt" in each example folder.
 ## Swarm Learning
 * [Swarm Learning](./swarm_learning/README.md)
    * Example of swarm learning with NVIDIA FLARE using PyTorch with the CIFAR-10 dataset.
+
+## Distributed Optimization / P2P algorithms
+* [Distributed Optimization](./distributed_optimization/README.md)
+   * Example of using the low-level NVFlare APIs to implement and run P2P distributed optimization algorithms.
 
 ## Vertical Federated Learning
 * [Vertical Federated Learning](./vertical_federated_learning/README.md)

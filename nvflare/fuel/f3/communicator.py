@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import atexit
+import copy
 import logging
 import os
 import weakref
@@ -27,7 +28,6 @@ from nvflare.fuel.f3.drivers.net_utils import parse_url
 from nvflare.fuel.f3.endpoint import Endpoint, EndpointMonitor
 from nvflare.fuel.f3.message import Message, MessageReceiver
 from nvflare.fuel.f3.sfm.conn_manager import ConnManager, Mode
-from nvflare.security.logging import secure_format_exception
 
 log = logging.getLogger(__name__)
 _running_instances = weakref.WeakSet()
@@ -86,9 +86,8 @@ class Communicator:
         try:
             _running_instances.remove(self)
         except KeyError as ex:
-            log.error(
-                f"Logical error, communicator {self.local_endpoint.name} is not started: {secure_format_exception(ex)}"
-            )
+            # For weak-ref set, the entry may be removed automatically if no other ref so this is not an error
+            log.debug(f"Weak-ref for Communicator {self.local_endpoint.name} is already removed")
 
         log.debug(f"Communicator endpoint: {self.local_endpoint.name} has stopped")
 
@@ -154,13 +153,14 @@ class Communicator:
 
         self.conn_manager.register_message_receiver(app_id, receiver)
 
-    def add_connector(self, url: str, mode: Mode, secure: bool = False) -> (str, dict):
+    def add_connector(self, url: str, mode: Mode, secure: bool = False, resources=None) -> (str, dict):
         """Load a connector. The driver is selected based on the URL
 
         Args:
             url: The url to listen on or connect to, like "https://0:443". Use 0 for empty host
             mode: Active for connecting, Passive for listening
             secure: True if SSL is required.
+            resources: extra resources for creating connection
 
         Returns:
             A tuple of (A handle that can be used to delete connector, connector params)
@@ -177,6 +177,8 @@ class Communicator:
             raise CommError(CommError.NOT_SUPPORTED, f"No driver found for URL {url}")
 
         params = parse_url(url)
+        if resources:
+            params.update(resources)
         return self.add_connector_advanced(driver_class(), mode, params, secure, False), params
 
     def start_listener(self, scheme: str, resources: dict) -> (str, str, dict):
@@ -201,7 +203,9 @@ class Communicator:
             raise CommError(CommError.NOT_SUPPORTED, f"No driver found for scheme {scheme}")
 
         connect_url, listening_url = driver_class.get_urls(scheme, resources)
-        params = parse_url(listening_url)
+        extra_params = parse_url(listening_url)
+        params = copy.copy(resources)
+        params.update(extra_params)
 
         handle = self.add_connector_advanced(driver_class(), Mode.PASSIVE, params, False, True)
 
@@ -225,9 +229,13 @@ class Communicator:
         Raises:
             CommError: If any errors
         """
-
+        original_conn_sec = params.get(DriverParams.CONNECTION_SECURITY)
         if self.local_endpoint.conn_props:
             params.update(self.local_endpoint.conn_props)
+
+        if original_conn_sec:
+            # we do not allow the connection sec to be overwritten by the endpoint's conn_props
+            params[DriverParams.CONNECTION_SECURITY] = original_conn_sec
 
         params[DriverParams.SECURE] = secure
         handle = self.conn_manager.add_connector(driver, params, mode)
