@@ -347,20 +347,25 @@ def train_model(
         # because after flare.patch the trainer.fit/validate will get the
         # global model internally
 
-        # make sure the data loaders are reshuffling the data each round
-        seed = random.randint(0, 10000)
-        seed_everything(seed) 
-        
         input_model = flare.receive()
-        print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params), Training with seed {seed}]\n")
-        
-        llm.train(
-            model=module,
-            data=data_module,
-            trainer=trainer,
-            log=nemo_logger,
-            resume=None,
-        )
+        print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
+
+        if input_model.current_round == 0:
+            # Use llm.train only in first round as it includes additional setup
+            llm.train(
+                model=module,
+                data=data_module,
+                trainer=trainer,
+                log=nemo_logger,
+                resume=None,
+            )
+        else:
+            # make sure the data loaders are reshuffling the data each round
+            seed = random.randint(0, 10000)
+            seed_everything(seed) 
+            print("Resetting seed {seed}")
+            
+            trainer.fit(module, data_module)
 
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
     return ckpt_path, metric_tracker, trainer

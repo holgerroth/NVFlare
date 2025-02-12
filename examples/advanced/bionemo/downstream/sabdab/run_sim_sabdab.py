@@ -57,9 +57,9 @@ def main(args):
             train_data_path = "/tmp/data/sabdab_chen/train/sabdab_chen_full_train.csv"
         else: # local or fedavg setting
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
-
+        
         # define training script arguments
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-6 --lr-multiplier 1e3 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision fp32 --save-top-k 1" # --tensor-model-parallel-size 2" # bf16-mixed
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {int(args.local_steps/2)} --log-every-n-steps {int(args.local_steps/2)} --lr 1e-6 --lr-multiplier 1e-3 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision fp32 --save-top-k 1"
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_clients", type=int, help="Number of clients", required=False, default=1)
     parser.add_argument("--num_rounds", type=int, help="Number of rounds", required=False, default=30)
-    parser.add_argument("--local_steps", type=str, help="Number of rounds", required=False, default=10)
+    parser.add_argument("--local_steps", type=int, help="Number of rounds", required=False, default=10)
     parser.add_argument("--train_script", type=str, help="Training script", required=False, default="../finetune_esm2.py")
     parser.add_argument("--exp_name", type=str, help="Job name prefix", required=False, default="fedavg")
     parser.add_argument("--model", choices=["8m", "650m", "3b"], help="ESM2 model", required=False, default="8m")
