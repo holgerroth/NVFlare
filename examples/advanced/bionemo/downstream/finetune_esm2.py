@@ -14,6 +14,8 @@
 
 # Copied and adapted for NVFlare from https://github.com/NVIDIA/bionemo-framework/blob/main/sub-packages/bionemo-esm2/src/bionemo/esm2/scripts/finetune_esm2.py
 
+from pytorch_lightning import seed_everything
+import random
 import argparse
 import torch.optim as optim
 from pathlib import Path
@@ -196,7 +198,7 @@ def train_model(
         find_unused_parameters=True,
         gradient_as_bucket_view=True,
         ckpt_include_optimizer=True,
-        ckpt_async_save=True,
+        ckpt_async_save=False,  # Don't use True as a new FL round might conflict with previous async saving of ckpt.
         ckpt_parallel_load=True,
     )
 
@@ -312,24 +314,29 @@ def train_model(
 
     module = biobert_lightning_module(config=config, tokenizer=tokenizer, optimizer=optimizer)
 
-    # Configure our custom Checkpointer
-    #checkpoint_callback = nl_callbacks.ModelCheckpoint(
-    #    save_last=save_last_checkpoint,
-    #    monitor=metric_to_monitor_for_checkpoints,  # "val_loss",
-    #    save_top_k=save_top_k,
-    #    every_n_train_steps=val_check_interval,
-    #    always_save_context=True,  # Enables the .nemo file-like checkpointing where all IOMixins are under SerDe
-    #    filename="checkpoint-{step}-{consumed_samples}",  # Including step and consumed_samples in the checkpoint filename prevents duplicate filenames and bugs related to this.
-    #)
+    #If client should save best local checkpoints, set to `save_local_ckpt=True`,  
+    save_local_ckpt = False
+    if save_local_ckpt:
+        # Configure our custom Checkpointer
+        checkpoint_callback = nl_callbacks.ModelCheckpoint(
+            save_last=save_last_checkpoint,
+            monitor=metric_to_monitor_for_checkpoints,  # "val_loss",
+            save_top_k=save_top_k,
+            every_n_train_steps=val_check_interval,
+            always_save_context=True,  # Enables the .nemo file-like checkpointing where all IOMixins are under SerDe
+            filename="checkpoint-{step}-{consumed_samples}",  # Including step and consumed_samples in the checkpoint filename prevents duplicate filenames and bugs related to this.
+        )
+    else:
+        checkpoint_callback = None
 
     # Setup the logger and train the model
-    #nemo_logger = setup_nemo_lightning_logger(
-    #    root_dir=result_dir,
-    #    name=experiment_name,
-    #    initialize_tensorboard_logger=create_tensorboard_logger,
-    #    wandb_config=wandb_config,
-    #    ckpt_callback=None, #checkpoint_callback,  # TODO: add back!
-    #)
+    nemo_logger = setup_nemo_lightning_logger(
+        root_dir=result_dir,
+        name=experiment_name,
+        initialize_tensorboard_logger=create_tensorboard_logger,
+        wandb_config=wandb_config,
+        ckpt_callback=checkpoint_callback
+    )
 
     # (2) patch the lightning trainer
     flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
@@ -339,19 +346,22 @@ def train_model(
         # Note that we don't need to pass this input_model to trainer
         # because after flare.patch the trainer.fit/validate will get the
         # global model internally
+
+        # make sure the data loaders are reshuffling the data each round
+        seed = random.randint(0, 10000)
+        seed_everything(seed) 
+        
         input_model = flare.receive()
-        print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
+        print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params), Training with seed {seed}]\n")
         
         llm.train(
             model=module,
             data=data_module,
             trainer=trainer,
-            log=None, #nemo_logger,
+            log=nemo_logger,
             resume=None,
         )
 
-        ####trainer.fit(module, data_module)
-        
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
     return ckpt_path, metric_tracker, trainer
 

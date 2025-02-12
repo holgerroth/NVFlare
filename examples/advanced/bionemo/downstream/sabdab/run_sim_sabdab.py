@@ -59,7 +59,7 @@ def main(args):
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
 
         # define training script arguments
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-5 --lr-multiplier 50 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision fp32 --save-top-k 1"  #  bf16-mixed
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 1e-6 --lr-multiplier 1e3 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision fp32 --save-top-k 1"  #  bf16-mixed
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     parser.add_argument("--local_steps", type=str, help="Number of rounds", required=False, default=10)
     parser.add_argument("--train_script", type=str, help="Training script", required=False, default="../finetune_esm2.py")
     parser.add_argument("--exp_name", type=str, help="Job name prefix", required=False, default="fedavg")
-    parser.add_argument("--model", choices=["8m", "650m"], help="ESM2 model", required=False, default="8m")
+    parser.add_argument("--model", choices=["8m", "650m", "3b"], help="ESM2 model", required=False, default="8m")
     parser.add_argument("--sim_gpus", type=str, help="GPU indexes to simulate clients, e.g., '0,1,2,3' if you want to run 4 clients, each on a separate GPU. By default run all clients on the same GPU 0.", required=False, default="0")
 
     args = parser.parse_args()    
