@@ -15,7 +15,9 @@
 # Copied and adapted for NVFlare from https://github.com/NVIDIA/bionemo-framework/blob/main/sub-packages/bionemo-esm2/src/bionemo/esm2/scripts/finetune_esm2.py
 
 import argparse
+import random
 from pathlib import Path
+from lightning import seed_everything
 from typing import Dict, List, Optional, Sequence, Tuple, Type, get_args
 
 from lightning.pytorch.callbacks import Callback, LearningRateMonitor, RichModelSummary
@@ -369,6 +371,11 @@ def train_model(
         input_model = flare.receive()
         print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
 
+        # (4) evaluate the current global model to allow server-side model selection
+        print("--- validate global model ---")
+        trainer.validate(module, datamodule=data_module)
+
+        # perform local training starting with the received global model
         if input_model.current_round == 0:
             # Use llm.train only in first round as it includes additional setup
             llm.train(
@@ -384,7 +391,7 @@ def train_model(
             seed_everything(seed) 
             print("Resetting seed {seed}")
             
-            trainer.fit(module, data_module)
+            trainer.fit(module, datamodule=data_module)
             
     ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
     return ckpt_path, metric_tracker, trainer

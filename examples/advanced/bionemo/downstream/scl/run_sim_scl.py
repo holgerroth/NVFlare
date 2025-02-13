@@ -53,7 +53,7 @@ def main(args):
         val_data_path = f"/tmp/data/mixed_soft/val/data_val_{client_name}.csv"
                       
         # define training script arguments
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {int(args.local_steps/2)} --log-every-n-steps {int(args.local_steps/2)} --lr 1e-6 --lr-multiplier 1e-3 --scale-lr-layer classification_head --result-dir . --micro-batch-size 32 --precision fp32 --save-top-k 1"
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {int(args.local_steps/2)} --log-every-n-steps {int(args.local_steps/2)} --lr 1e-3 --lr-multiplier 10 --scale-lr-layer classification_head --result-dir . --micro-batch-size 32 --precision fp32 --save-top-k 1"
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
