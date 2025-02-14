@@ -197,7 +197,7 @@ def train_model(
         find_unused_parameters=True,
         gradient_as_bucket_view=True,
         ckpt_include_optimizer=True,
-        ckpt_async_save=True,
+        ckpt_async_save=False,  # do not use `ckpt_async_save=True` as the checkpoint might still be saved while the next round already removed that saving directory
         ckpt_parallel_load=True,
     )
 
@@ -360,7 +360,7 @@ def train_model(
     )
 
     # (2) patch the lightning trainer
-    flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
+    flare.patch(trainer, restore_state=False, load_state_dict_strict=False, update_fit_loop=False)
 
     while flare.is_running():    
         # (3) receives FLModel from NVFlare
@@ -372,10 +372,11 @@ def train_model(
         print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
 
         # (4) evaluate the current global model to allow server-side model selection
-        print("--- validate global model ---")
-        trainer.validate(module, datamodule=data_module)
+        #print("--- validate global model ---")
+        #trainer.validate(module, datamodule=data_module)
 
         # perform local training starting with the received global model
+        print("--- train new model ---")
         if input_model.current_round == 0:
             # Use llm.train only in first round as it includes additional setup
             llm.train(
