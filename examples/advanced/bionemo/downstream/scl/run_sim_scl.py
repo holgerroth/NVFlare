@@ -20,7 +20,7 @@ from bionemo.core.data.load import load
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
-from nvflare.job_config.script_runner import ScriptRunner
+from nvflare.job_config.script_runner import ScriptRunner, BaseScriptRunner
 from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.dxo import DataKind
 from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
@@ -60,17 +60,24 @@ def main(args):
                       
         # define training script arguments
         # {int(args.local_steps/2)}
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 100 --log-every-n-steps 100 --lr 5e-4 --result-dir . --micro-batch-size 8 --precision fp32 --save-top-k 1 --encoder-frozen" # bf16-mixed
+        precision = "bf16-mixed"
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {args.local_steps} --log-every-n-steps 1 --lr 5e-4 --result-dir . --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen"
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
-        runner = ScriptRunner(script=args.train_script,
-                             script_args=script_args,
+#        runner = ScriptRunner(script=args.train_script,
+#                             script_args=script_args,
+#                             launch_external_process=True,
+#                             framework="pytorch",
+#                             params_exchange_format="pytorch")
+        runner = BaseScriptRunner(script=args.train_script,
                              launch_external_process=True,
                              framework="pytorch",
-                             params_exchange_format="pytorch")
+                             params_exchange_format="pytorch",
+                             launcher=SubprocessLauncher(script=f"python3 custom/{args.train_script} {script_args}", 
+                                                         launch_once=False))
         job.to(runner, client_name)
-        job.to(BioNeMoParamsFilter(), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
+        job.to(BioNeMoParamsFilter(precision=precision), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
 
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)

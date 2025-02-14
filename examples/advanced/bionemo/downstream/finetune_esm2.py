@@ -14,6 +14,7 @@
 
 # Copied and adapted for NVFlare from https://github.com/NVIDIA/bionemo-framework/blob/main/sub-packages/bionemo-esm2/src/bionemo/esm2/scripts/finetune_esm2.py
 
+import os
 import argparse
 import random
 from pathlib import Path
@@ -352,6 +353,19 @@ def train_model(
     else:
         checkpoint_callback = None
 
+    # (2) patch the lightning trainer
+    flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
+
+    # (3) receives FLModel from NVFlare
+    # Note that we don't need to pass this input_model to trainer
+    # because after flare.patch the trainer.fit/validate will get the
+    # global model internally
+
+    input_model = flare.receive()
+    print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
+    # use a unique result directory for each round
+    result_dir = os.path.join(result_dir, f"round{input_model.current_round}")
+    
     # Setup the logger and train the model
     nemo_logger = setup_nemo_lightning_logger(
         root_dir=result_dir,
@@ -361,42 +375,27 @@ def train_model(
         ckpt_callback=checkpoint_callback,
     )
 
-    # (2) patch the lightning trainer
-    flare.patch(trainer, restore_state=False, load_state_dict_strict=False, update_fit_loop=False)
+    # (4) evaluate the current global model to allow server-side model selection
+    #print("--- validate global model ---")
+    #trainer.validate(module, datamodule=data_module)
 
-    while flare.is_running():    
-        # (3) receives FLModel from NVFlare
-        # Note that we don't need to pass this input_model to trainer
-        # because after flare.patch the trainer.fit/validate will get the
-        # global model internally
+    # make sure the data loaders are reshuffling the data each round
+    #seed_everything(input_model.current_round) 
+    #print(f"Resetting seed {input_model.current_round}")
+    
+    # perform local training starting with the received global model
+    llm.train(
+        model=module,
+        data=data_module,
+        trainer=trainer,
+        log=nemo_logger,
+        resume=None,
+        )
 
-        input_model = flare.receive()
-        print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
-
-        # (4) evaluate the current global model to allow server-side model selection
-        #print("--- validate global model ---")
-        #trainer.validate(module, datamodule=data_module)
-
-        # perform local training starting with the received global model
-        print("--- train new model ---")
-        if input_model.current_round == 0:
-            # Use llm.train only in first round as it includes additional setup
-            llm.train(
-                model=module,
-                data=data_module,
-                trainer=trainer,
-                log=nemo_logger,
-                resume=None,
-            )
-        else:
-            # make sure the data loaders are reshuffling the data each round
-            seed = random.randint(0, 10000)
-            seed_everything(seed) 
-            print("Resetting seed {seed}")
-            
-            trainer.fit(module, datamodule=data_module)
-            
-    ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
+    if checkpoint_callback:
+        ckpt_path = Path(checkpoint_callback.last_model_path.replace(".ckpt", ""))
+    else:
+        ckpt_path = None
     return ckpt_path, metric_tracker, trainer
 
 
@@ -471,3 +470,5 @@ def finetune_esm2_entrypoint():
 
 if __name__ == "__main__":
     finetune_esm2_entrypoint()
+    flare.shutdown()
+
