@@ -84,21 +84,21 @@ def main():
         # rename columns to fit BioNeMo convention of "sequences" and "labels"
         for s in ["train", "valid", "test"]:
             split[s] = split[s].rename(columns={"Antibody": "sequences"})
-
+        
         train_split = pd.concat([split["train"], split["valid"]])
         if train_df is None:
             train_df = train_split
-            train_df = train_df.rename(columns={"labels": label_name})
+            train_df = train_df.rename(columns={"Y": label_name})
         else:
             assert (train_df["Antibody_ID"] == train_split["Antibody_ID"]).all()
-            train_df[label_name] = train_split["labels"]
+            train_df[label_name] = train_split["Y"]
 
         if test_df is None:
             test_df = pd.concat([test_df, split["test"]])
-            test_df = test_df.rename(columns={"labels": label_name})
+            test_df = test_df.rename(columns={"Y": label_name})
         else:
             assert (test_df["Antibody_ID"] == split["test"]["Antibody_ID"]).all()
-            test_df[label_name] = split["test"]["labels"]
+            test_df[label_name] = split["test"]["Y"]
 
     if do_normalize:
         total_df = pd.concat([train_df, test_df])
@@ -128,10 +128,9 @@ def main():
         print("Uniform sampling")
         proportions = n_clients * [1 / n_clients]
 
-    for client_id, label_name in zip(range(n_clients), label_list):
+    for client_id in range(n_clients):
         client_name = f"site-{client_id + 1}"
         client_train_df = train_df.sample(frac=proportions[client_id], replace=False, random_state=seed + client_id)
-        client_train_df = client_train_df.rename(columns={label_name: "labels"})
 
         if do_break_chains:
             client_train_df = break_chains(client_train_df)
@@ -142,32 +141,29 @@ def main():
         _split_dir = os.path.join(split_dir, "train")
         if not os.path.isdir(_split_dir):
             os.makedirs(_split_dir)
-        client_train_df.to_csv(os.path.join(_split_dir, f"tap_{client_name}_{label_name}_train.csv"), index=False)
-        print(f"Save {len(client_train_df)} training proteins for {client_name}_{label_name} (frac={proportions[client_id]:0.3f})")
+        client_train_df.to_csv(os.path.join(_split_dir, f"tap_{client_name}_train.csv"), index=False)
+        print(f"Save {len(client_train_df)} training proteins for {client_name} (frac={proportions[client_id]:0.3f})")
 
-        # save full train, test, & valid
-        train_df = train_df.rename(columns={label_name: "labels"})
-        test_df = test_df.rename(columns={label_name: "labels"})
-        
-        if do_break_chains:
-            train_df = break_chains(train_df)
-            test_df = break_chains(test_df)
-        if do_clean_chains:
-            train_df = clean_chains(train_df)
-            test_df = clean_chains(test_df)
-    
-        _split_dir = os.path.join(split_dir, "train")
-        if not os.path.isdir(_split_dir):
-            os.makedirs(_split_dir)
-        train_df.to_csv(os.path.join(_split_dir, f"tap_full_train_{label_name}.csv"), index=False)
-        _split_dir = os.path.join(split_dir, "val")
-        if not os.path.isdir(_split_dir):
-            os.makedirs(_split_dir)
-        test_df.to_csv(os.path.join(_split_dir, f"tap_valid_{label_name}.csv"), index=False)
-        _split_dir = os.path.join(split_dir, "test")
-        if not os.path.isdir(_split_dir):
-            os.makedirs(_split_dir)
-        test_df.to_csv(os.path.join(_split_dir, f"tap_test_{label_name}.csv"), index=False)
+    # save full train, test, & valid
+    if do_break_chains:
+        train_df = break_chains(train_df)
+        test_df = break_chains(test_df)
+    if do_clean_chains:
+        train_df = clean_chains(train_df)
+        test_df = clean_chains(test_df)
+
+    _split_dir = os.path.join(split_dir, "train")
+    if not os.path.isdir(_split_dir):
+        os.makedirs(_split_dir)
+    train_df.to_csv(os.path.join(_split_dir, "tap_full_train.csv"), index=False)
+    _split_dir = os.path.join(split_dir, "val")
+    if not os.path.isdir(_split_dir):
+        os.makedirs(_split_dir)
+    test_df.to_csv(os.path.join(_split_dir, "tap_valid.csv"), index=False)
+    _split_dir = os.path.join(split_dir, "test")
+    if not os.path.isdir(_split_dir):
+        os.makedirs(_split_dir)
+    test_df.to_csv(os.path.join(_split_dir, "tap_test.csv"), index=False)
 
     print(f"Saved {len(train_df)} training and {len(test_df)} testing proteins.")
 
