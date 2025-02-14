@@ -41,6 +41,7 @@ class BioNeMoMLPModelPersistor(PTFileModelPersistor):
         best_global_model_file_name=DefaultCheckpointFileName.BEST_GLOBAL_MODEL,
         source_ckpt_file_full_name=None,
         filter_id: str = None,
+        embedding_dimensions: int = 320  # embedding dimensions of ESM2-8m
     ):
         """Persist sklearn-based model to/from file system.
 
@@ -50,12 +51,14 @@ class BioNeMoMLPModelPersistor(PTFileModelPersistor):
             source_ckpt_file_full_name (str, optional): full file name for source model checkpoint file. Defaults to None.
             filter_id: Optional string that defines a filter component that is applied to prepare the model to be saved,
                 e.g. for serialization of custom Python objects.
+            embedding_dimensions: embedding dimensions of ESM2 model. Defaults to 320, the embedding dimensions of ESM2-8m.
         Raises:
             ValueError: when source_ckpt_file_full_name does not exist
         """
         super().__init__(
             filter_id=filter_id,
         )
+        self.embedding_dimensions = embedding_dimensions
         self.model = MLPClassifier(solver="adam", hidden_layer_sizes=(512, 256, 128), random_state=10, max_iter=1)
         self.log_dir = None
         self.ckpt_preload_path = None
@@ -87,7 +90,7 @@ class BioNeMoMLPModelPersistor(PTFileModelPersistor):
         ]
         _X, _y = [], []
         for label in class_labels:
-            _X.append(np.random.rand(1280))  # embedding dimensions of ESM2-650m
+            _X.append(np.random.rand(self.embedding_dimensions))
             _y.append(label)
         self.model.fit(_X, _y)
         self.log_info(

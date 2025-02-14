@@ -42,6 +42,7 @@ class BioNeMoMLPJob(FedJob):
         intime_model_selector: Optional[IntimeModelSelector] = None,
         convert_to_fed_event: Optional[ConvertToFedEvent] = None,
         analytics_receiver: Optional[AnalyticsReceiver] = None,
+        embedding_dimensions: int = 320  # embedding dimensions of ESM2-8m
     ):
         """PyTorch BaseFedJob.
 
@@ -65,6 +66,7 @@ class BioNeMoMLPJob(FedJob):
                 if not provided, a ConvertToFedEvent object will be created.
             analytics_receiver (AnlyticsReceiver, optional): Receive analytics.
                 If not provided, a TBAnalyticsReceiver will be configured.
+            embedding_dimensions: embedding dimensions of ESM2 model. Defaults to 320, the embedding dimensions of ESM2-8m.
         """
         super().__init__(
             name=name,
@@ -103,7 +105,7 @@ class BioNeMoMLPJob(FedJob):
             obj=analytics_receiver,
         )
 
-        self.to_server(id="persistor", obj=BioNeMoMLPModelPersistor())
+        self.to_server(id="persistor", obj=BioNeMoMLPModelPersistor(embedding_dimensions=embedding_dimensions))
         
         self.to_server(id="locator", obj=PTFileModelLocator(pt_persistor_id="persistor"))
 

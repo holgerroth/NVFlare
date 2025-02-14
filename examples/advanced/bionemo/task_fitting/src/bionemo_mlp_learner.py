@@ -46,9 +46,9 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         analytic_sender_id: str = "analytic_sender",
         batch_size: int = 128,
         num_workers: int = 0,
-        warm_start: bool = True,
+        embedding_dimensions: int = 320  # embedding dimensions of ESM2-8m
     ):
-        """Simple CIFAR-10 Trainer.
+        """BioNeMo MLP Trainer.
 
         Args:
             data_path: data file with labels in csv format.
@@ -60,7 +60,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
                 If configured, TensorBoard events will be fired. Defaults to "analytic_sender".
             batch_size: batch size for training and validation.
             num_workers: number of workers for data loaders.
-            warm_start: Use `True` in federated learning and `False` when simulating local training only.
+            embedding_dimensions: embedding dimensions of ESM2 model. Defaults to 320, the embedding dimensions of ESM2-8m.
 
         Returns:
             an FLModel with the updated local model differences after running `train()`, the metrics after `validate()`,
@@ -78,7 +78,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.analytic_sender_id = analytic_sender_id
-        self.warm_start = warm_start
+        self.embedding_dimensions = embedding_dimensions
 
         self.sim_local = strtobool(os.getenv("SIM_LOCAL", "False"))
 
@@ -167,7 +167,7 @@ class BioNeMoMLPLearner(ModelLearner):  # does not support CIFAR10ScaffoldLearne
         ]
         _X, _y = [], []
         for label in class_labels:
-            _X.append(np.random.rand(1280))  # embedding dimensions of ESM2-650m
+            _X.append(np.random.rand(self.embedding_dimensions))
             _y.append(label)
         self.model.partial_fit(_X, _y, classes=class_labels)
 
