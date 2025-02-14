@@ -77,7 +77,7 @@ def main():
     data = Develop(name="SAbDab_Chen", path="/tmp/data")
     split = data.get_split()
 
-    # rename columns to fit BioNeMo convetion of "sequences" and "labels"
+    # rename columns to fit BioNeMo convention of "sequences" and "labels"
     for s in ["train", "valid", "test"]:
         split[s] = split[s].rename(columns={"Antibody": "sequences"})
         split[s] = split[s].rename(columns={"Y": "labels"})

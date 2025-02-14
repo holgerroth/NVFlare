@@ -15,6 +15,7 @@
 import argparse
 import logging
 
+from nvflare import FedJob, FilterType
 from bionemo.core.data.load import load
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
@@ -24,6 +25,11 @@ from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.dxo import DataKind
 from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
+
+import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), "..")) # include parent folder in path
+from bionemo_params_filter import BioNeMoParamsFilter
 
 
 def main(args):
@@ -53,7 +59,8 @@ def main(args):
         val_data_path = f"/tmp/data/mixed_soft/val/data_val_{client_name}.csv"
                       
         # define training script arguments
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.0 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 10 --log-every-n-steps 10 --lr 5e-5 --result-dir . --micro-batch-size 8 --precision bf16-mixed --save-top-k 1 --encoder-frozen"
+        # {int(args.local_steps/2)}
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval 100 --log-every-n-steps 100 --lr 5e-4 --result-dir . --micro-batch-size 8 --precision fp32 --save-top-k 1 --encoder-frozen" # bf16-mixed
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
@@ -63,6 +70,7 @@ def main(args):
                              framework="pytorch",
                              params_exchange_format="pytorch")
         job.to(runner, client_name)
+        job.to(BioNeMoParamsFilter(), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
 
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)
