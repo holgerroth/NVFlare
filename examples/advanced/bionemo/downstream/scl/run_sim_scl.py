@@ -57,19 +57,19 @@ def main(args):
         # We use the same validation set for each client to make their metrics comparable
         train_data_path = f"/tmp/data/mixed_soft/train/data_train_{client_name}.csv" 
         val_data_path = f"/tmp/data/mixed_soft/val/data_val_{client_name}.csv"
-                      
+
+        if args.num_rounds > 1: # assume FL and set validation only at the end of round
+            val_check_interval = args.local_steps
+        else:
+            val_check_interval = int(args.local_steps/10) # 10 times per training
+        
         # define training script arguments
-        # {int(args.local_steps/2)}
-        precision = "bf16-mixed"
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {args.local_steps} --log-every-n-steps 1 --lr 5e-4 --result-dir . --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen"
+        #precision = "bf16-mixed"
+        precision = "fp32"
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --result-dir . --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen --limit-val-batches 1.0"
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
-#        runner = ScriptRunner(script=args.train_script,
-#                             script_args=script_args,
-#                             launch_external_process=True,
-#                             framework="pytorch",
-#                             params_exchange_format="pytorch")
         runner = BaseScriptRunner(script=args.train_script,
                              launch_external_process=True,
                              framework="pytorch",
@@ -77,7 +77,7 @@ def main(args):
                              launcher=SubprocessLauncher(script=f"python3 custom/{args.train_script} {script_args}", 
                                                          launch_once=False))
         job.to(runner, client_name)
-        job.to(BioNeMoParamsFilter(precision=precision), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
+        job.to(BioNeMoParamsFilter(precision), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
 
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)

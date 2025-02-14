@@ -254,6 +254,29 @@ def train_model(
         ),
     )
 
+    # (2) patch the lightning trainer
+    flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
+
+    # (3) receives FLModel from NVFlare
+    # Note that we don't need to pass this input_model to trainer
+    # because after flare.patch the trainer.fit/validate will get the
+    # global model internally
+    input_model = flare.receive()
+    print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
+    # use a unique result directory for each round
+    result_dir = os.path.join(result_dir, f"round{input_model.current_round}")
+
+    # add a learning rate decay for each round
+    if input_model.current_round > 0:
+        lr_step_reduce = 2.0  # TODO: make lr_step_reduce configurable
+        new_lr = lr/(input_model.current_round*lr_step_reduce)
+        new_lr_multiplier = lr_multiplier/(input_model.current_round*lr_step_reduce)
+        print(f"Reduce lr {lr} by {input_model.current_round*lr_step_reduce}: {new_lr}")
+    else:
+        new_lr = lr
+        new_lr_multiplier = lr_multiplier
+              
+    # remaining bionemo training code
     tokenizer = get_tokenizer()
 
     # Initialize the data module.
@@ -322,7 +345,7 @@ def train_model(
 
     optimizer = MegatronOptimizerModule(
         config=OptimizerConfig(
-            lr=lr,
+            lr=new_lr,
             optimizer="adam",  # fused_adam not supported
             use_distributed_optimizer=True,
             weight_decay=0.01,
@@ -334,7 +357,7 @@ def train_model(
     # to bypass serialization of lambda fn scale_lr_condition as part of optimizer configuration
     if scale_lr_layer:
         optimizer.scale_lr_cond = lambda name, param: scale_lr_layer in name
-        optimizer.lr_mult = lr_multiplier
+        optimizer.lr_mult = new_lr_multiplier
 
     module = biobert_lightning_module(config=config, tokenizer=tokenizer, optimizer=optimizer)
 
@@ -352,19 +375,6 @@ def train_model(
         )
     else:
         checkpoint_callback = None
-
-    # (2) patch the lightning trainer
-    flare.patch(trainer, restore_state=False, load_state_dict_strict=False)
-
-    # (3) receives FLModel from NVFlare
-    # Note that we don't need to pass this input_model to trainer
-    # because after flare.patch the trainer.fit/validate will get the
-    # global model internally
-
-    input_model = flare.receive()
-    print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
-    # use a unique result directory for each round
-    result_dir = os.path.join(result_dir, f"round{input_model.current_round}")
     
     # Setup the logger and train the model
     nemo_logger = setup_nemo_lightning_logger(
@@ -379,10 +389,6 @@ def train_model(
     #print("--- validate global model ---")
     #trainer.validate(module, datamodule=data_module)
 
-    # make sure the data loaders are reshuffling the data each round
-    #seed_everything(input_model.current_round) 
-    #print(f"Resetting seed {input_model.current_round}")
-    
     # perform local training starting with the received global model
     llm.train(
         model=module,
