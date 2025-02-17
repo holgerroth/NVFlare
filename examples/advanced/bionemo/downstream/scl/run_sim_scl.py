@@ -35,7 +35,7 @@ from bionemo_params_filter import BioNeMoParamsFilter
 def main(args):
     # Create BaseFedJob with initial model
     job = BaseFedJob(
-      name=f"{args.exp_name}_sabdab_esm2_{args.model}"
+      name=f"{args.exp_name}_scl_esm2_{args.model}"
     )
 
     # Define the controller and send to server

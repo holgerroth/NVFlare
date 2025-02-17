@@ -268,7 +268,7 @@ def train_model(
 
     # add a learning rate decay for each round
     if input_model.current_round > 0:
-        lr_step_reduce = 2.0  # TODO: make lr_step_reduce configurable
+        lr_step_reduce = 1.2  # TODO: make lr_step_reduce configurable
         new_lr = lr/(input_model.current_round*lr_step_reduce)
         new_lr_multiplier = lr_multiplier/(input_model.current_round*lr_step_reduce)
         print(f"Reduce lr {lr} by {input_model.current_round*lr_step_reduce}: {new_lr}")
@@ -384,11 +384,7 @@ def train_model(
         wandb_config=wandb_config,
         ckpt_callback=checkpoint_callback,
     )
-
-    # (4) evaluate the current global model to allow server-side model selection
-    #print("--- validate global model ---")
-    #trainer.validate(module, datamodule=data_module)
-
+    
     # perform local training starting with the received global model
     llm.train(
         model=module,
