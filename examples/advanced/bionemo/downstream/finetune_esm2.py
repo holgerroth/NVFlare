@@ -14,7 +14,6 @@
 
 # Copied and adapted for NVFlare from https://github.com/NVIDIA/bionemo-framework/blob/main/sub-packages/bionemo-esm2/src/bionemo/esm2/scripts/finetune_esm2.py
 
-import os
 import shutil
 import argparse
 import random
@@ -173,10 +172,6 @@ def train_model(
         grad_reduce_in_fp32 (bool): gradient reduction in fp32
     """
     # Create the result directory if it does not exist.
-    #keep_last_only = True  # TODO: make configurable
-    #if keep_last_only:
-    #    if result_dir.is_dir():
-    #        shutil.rmtree(result_dir)
     result_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup the strategy and trainer
@@ -270,8 +265,17 @@ def train_model(
     print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
     # use a unique result directory for each round
 
-    result_dir = os.path.join(result_dir, f"round{input_model.current_round}")
+    # Remove previous checkpoints to preserve disk space
+    keep_last_ckpt_only = True  # TODO: make configurable
+    if keep_last_ckpt_only:
+        previous_ckpt_dir = result_dir / f"round{input_model.current_round-1}" / experiment_name / "dev" / "checkpoints"
+        if previous_ckpt_dir.is_dir():
+            print(f"Removing previous checkpoint directory {previous_ckpt_dir}")
+            shutil.rmtree(previous_ckpt_dir)          
 
+    # create output folder for this round
+    result_dir = result_dir / f"round{input_model.current_round}"
+    
     # add a learning rate decay for each round
     if input_model.current_round > 0:
         lr_step_reduce = 1.05  # TODO: make lr_step_reduce configurable
@@ -280,7 +284,7 @@ def train_model(
         print(f"Reduce lr {lr} by {input_model.current_round*lr_step_reduce}: {new_lr}")
     else:
         new_lr = lr
-        new_lr_multiplier = lr_multiplier
+        new_lr_multiplier = lr_multiplier      
               
     # remaining bionemo training code
     tokenizer = get_tokenizer()
