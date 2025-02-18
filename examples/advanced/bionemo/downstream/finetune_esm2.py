@@ -293,7 +293,11 @@ def train_model(
     train_dataset = dataset_class.from_csv(train_data_path, task_type=task_type)
     valid_dataset = dataset_class.from_csv(valid_data_path, task_type=task_type)
     if task_type == "classification":
-        valid_dataset.label_tokenizer = train_dataset.label_tokenizer
+        label_dataset = "/tmp/data/mixed_soft/classification_data_labels.csv"
+        print(f"Use custom label tokenizer based on {label_dataset}")
+        label_dataset = dataset_class.from_csv(label_dataset, task_type=task_type)
+        train_dataset.label_tokenizer = label_dataset.label_tokenizer
+        valid_dataset.label_tokenizer = label_dataset.label_tokenizer
         
     data_module = ESM2FineTuneDataModule(
         train_dataset=train_dataset,
@@ -478,8 +482,7 @@ def finetune_esm2_entrypoint():
         average_in_collective=not args.no_average_in_collective,
         grad_reduce_in_fp32=args.grad_reduce_in_fp32,
     )
-
-
+    
 if __name__ == "__main__":
     finetune_esm2_entrypoint()
     flare.shutdown()

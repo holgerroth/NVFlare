@@ -26,6 +26,7 @@ from nvflare.apis.dxo import DataKind
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 import os
+import pandas as pd
 import sys
 sys.path.append(os.path.join(os.getcwd(), "..")) # include parent folder in path
 from bionemo_params_filter import BioNeMoParamsFilter
@@ -47,10 +48,13 @@ def main(args):
     checkpoint_path = load(f"esm2/{args.model}:2.0")
     print(f"Downloaded {args.model} to {checkpoint_path}")
 
+    # Define artificial data to create label tokenizer
+    create_label_data()
+    
     # Add clients
     for i in range(args.num_clients):
         client_name = f"site-{i+1}"
-
+        
         # define data paths
         # We use the same validation set for each client to make their metrics comparable
         train_data_path = f"/tmp/data/mixed_soft/train/data_train_{client_name}.csv" 
@@ -59,7 +63,7 @@ def main(args):
         if args.num_rounds > 1: # assume FL and set validation only at the end of round
             val_check_interval = args.local_steps
         else:
-            val_check_interval = int(args.local_steps/10) # 10 times per training
+            val_check_interval = int(args.local_steps/20) # 20 times per training
         
         # define training script arguments
         #precision = "bf16-mixed"
@@ -80,6 +84,37 @@ def main(args):
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)
 
+def create_label_data():
+    artificial_sequences = [
+        "TLILGWSDKLGSLLNQLAIANESLGGGTIAVMAERDKEDMELDIGKMEFDFKGTSVI",
+        "LYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
+        "GRFNVWLGGNESKIRQVLKAVKEIGVSPTLFAVYEKN",
+        "DELTALGGLLHDIGKPVQRAGLYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
+        "KLGSLLNQLAIANESLGGGTIAVMAERDKEDMELDIGKMEFDFKGTSVI",
+        "LFGAIGNAISAIHGQSAVEELVDAFVGGARISSAFPYSGDTYYLPKP",
+        "LGGLLHDIGKPVQRAGLYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
+        "LYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
+        "ISAIHGQSAVEELVDAFVGGARISSAFPYSGDTYYLPKP",
+        "SGSKASSDSQDANQCCTSCEDNAPATSYCVECSEPLCETCVEAHQRVKYTKDHTVRSTGPAKT",
+    ]
+    artificial_labels = ['Cell_membrane',
+            'Cytoplasm',
+            'Endoplasmic_reticulum',
+            'Extracellular',
+            'Golgi_apparatus',
+            'Lysosome',
+            'Mitochondrion',
+            'Nucleus',
+            'Peroxisome',
+            'Plastid']
+    data = [(seq, label) for seq, label in zip(artificial_sequences, artificial_labels)]
+    
+    # Create a DataFrame
+    df = pd.DataFrame(data, columns=["sequences", "labels"])
+    
+    # Save the DataFrame to a CSV file
+    df.to_csv("/tmp/data/mixed_soft/classification_data_labels.csv", index=False)       
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_clients", type=int, help="Number of clients", required=False, default=1)
