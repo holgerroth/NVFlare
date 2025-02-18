@@ -23,7 +23,6 @@ from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import ScriptRunner, BaseScriptRunner
 from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.dxo import DataKind
-from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 import os
@@ -44,11 +43,10 @@ def main(args):
         num_rounds=args.num_rounds,
     )
     job.to_server(controller)
-    #job.to_server(PTFileModelPersistor(), id="persistor")  # TODO: load ckpt
 
     checkpoint_path = load(f"esm2/{args.model}:2.0")
-    print(f"Don {args.model} to {checkpoint_path}")
-    
+    print(f"Downloaded {args.model} to {checkpoint_path}")
+
     # Add clients
     for i in range(args.num_clients):
         client_name = f"site-{i+1}"
@@ -66,7 +64,7 @@ def main(args):
         # define training script arguments
         #precision = "bf16-mixed"
         precision = "fp32"
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --result-dir . --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen --limit-val-batches 1.0"
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --result-dir bionemo --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen --limit-val-batches 1.0"
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner

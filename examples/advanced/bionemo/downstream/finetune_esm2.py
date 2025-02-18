@@ -15,6 +15,7 @@
 # Copied and adapted for NVFlare from https://github.com/NVIDIA/bionemo-framework/blob/main/sub-packages/bionemo-esm2/src/bionemo/esm2/scripts/finetune_esm2.py
 
 import os
+import shutil
 import argparse
 import random
 from pathlib import Path
@@ -172,6 +173,10 @@ def train_model(
         grad_reduce_in_fp32 (bool): gradient reduction in fp32
     """
     # Create the result directory if it does not exist.
+    #keep_last_only = True  # TODO: make configurable
+    #if keep_last_only:
+    #    if result_dir.is_dir():
+    #        shutil.rmtree(result_dir)
     result_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup the strategy and trainer
@@ -264,11 +269,12 @@ def train_model(
     input_model = flare.receive()
     print(f"\n[Current Round={input_model.current_round}, Site = {flare.get_site_name()}, Global model = {input_model} ({len(input_model.params)} params)]\n")
     # use a unique result directory for each round
+
     result_dir = os.path.join(result_dir, f"round{input_model.current_round}")
 
     # add a learning rate decay for each round
     if input_model.current_round > 0:
-        lr_step_reduce = 1.2  # TODO: make lr_step_reduce configurable
+        lr_step_reduce = 1.05  # TODO: make lr_step_reduce configurable
         new_lr = lr/(input_model.current_round*lr_step_reduce)
         new_lr_multiplier = lr_multiplier/(input_model.current_round*lr_step_reduce)
         print(f"Reduce lr {lr} by {input_model.current_round*lr_step_reduce}: {new_lr}")
