@@ -82,7 +82,7 @@ def main(args):
         job.to(BioNeMoParamsFilter(precision), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
 
     job.export_job("./exported_jobs")
-    job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)
+    job.simulator_run(f"/tmp/nvflare/bionemo/scl/{job.name}", gpu=args.sim_gpus)
 
 
 if __name__ == "__main__":

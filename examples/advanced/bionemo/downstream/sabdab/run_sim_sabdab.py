@@ -66,7 +66,10 @@ def main(args):
             val_check_interval = int(args.local_steps/20) # 20 times per training
         else: # local or fedavg setting
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
-            val_check_interval = args.local_steps
+            if args.num_rounds > 1:
+                val_check_interval = args.local_steps
+            else:
+                val_check_interval = int(args.local_steps/20) # 20 times per training
         
         # define training script arguments
         #precision = "bf16-mixed"
@@ -85,7 +88,7 @@ def main(args):
         job.to(BioNeMoParamsFilter(precision), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
 
     job.export_job("./exported_jobs")
-    job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)
+    job.simulator_run(f"/tmp/nvflare/bionemo/sabdab/{job.name}", gpu=args.sim_gpus)
 
 
 if __name__ == "__main__":

@@ -110,6 +110,7 @@ def train_model(
     overlap_param_gather: bool = True,
     average_in_collective: bool = True,
     grad_reduce_in_fp32: bool = False,
+    label_column: str = "labels",
     classes: List[str] = None
 ) -> Tuple[Path, Callback | None, nl.Trainer]:
     """Train an ESM2 model on UR data.
@@ -292,8 +293,8 @@ def train_model(
     tokenizer = get_tokenizer()
 
     # Initialize the data module.
-    train_dataset = dataset_class.from_csv(train_data_path, task_type=task_type)
-    valid_dataset = dataset_class.from_csv(valid_data_path, task_type=task_type)
+    train_dataset = dataset_class.from_csv(train_data_path, task_type=task_type, label_column=label_column)
+    valid_dataset = dataset_class.from_csv(valid_data_path, task_type=task_type, label_column=label_column)
     if task_type == "classification":
         if classes:
             if not isinstance(classes, List):
@@ -501,6 +502,7 @@ def finetune_esm2_entrypoint():
         overlap_param_gather=not args.no_overlap_param_gather,
         average_in_collective=not args.no_average_in_collective,
         grad_reduce_in_fp32=args.grad_reduce_in_fp32,
+        label_column=args.label_column,
         classes=classes
     )
     
