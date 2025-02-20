@@ -15,15 +15,21 @@
 import argparse
 import logging
 
+from nvflare import FedJob, FilterType
 from bionemo.core.data.load import load
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
-from nvflare.job_config.script_runner import ScriptRunner
+from nvflare.job_config.script_runner import ScriptRunner, BaseScriptRunner
 from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.dxo import DataKind
-from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
+
+import os
+import pandas as pd
+import sys
+sys.path.append(os.path.join(os.getcwd(), "..")) # include parent folder in path
+from bionemo_params_filter import BioNeMoParamsFilter
 
 
 def main(args):
@@ -38,40 +44,49 @@ def main(args):
         num_rounds=args.num_rounds,
     )
     job.to_server(controller)
-    #job.to_server(PTFileModelPersistor(), id="persistor")  # TODO: load ckpt
 
     checkpoint_path = load(f"esm2/{args.model}:2.0")
-    print(f"Don {args.model} to {checkpoint_path}")
+    print(f"Downloaded {args.model} to {checkpoint_path}")
+
+    # Define unique strings describing the classes for classification so we can use the same label vocabulary on each client.
+    classes = "pos,neg"
     
     # Add clients
     for i in range(args.num_clients):
         client_name = f"site-{i+1}"
-
+        
         # define data paths
         # We use the same validation set for each client to make their metrics comparable
         val_data_path = "/tmp/data/sabdab_chen/val/sabdab_chen_valid.csv"
         if "central" in args.exp_name:
             print("Simulating central training...")
             assert args.num_clients == 1, "Use num_clients=1 for simulating 'central' training setting."
-            #assert args.num_rounds == 1, "Use num_rounds=1 for simulating 'central' training setting."
+            assert args.num_rounds == 1, "Use num_rounds=1 for simulating 'central' training setting."
             train_data_path = "/tmp/data/sabdab_chen/train/sabdab_chen_full_train.csv"
+            val_check_interval = int(args.local_steps/20) # 20 times per training
         else: # local or fedavg setting
             train_data_path = f"/tmp/data/sabdab_chen/train/sabdab_chen_{client_name}_train.csv"            
+            val_check_interval = args.local_steps
         
         # define training script arguments
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.25 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {int(args.local_steps/2)} --log-every-n-steps {int(args.local_steps/2)} --lr 1e-6 --lr-multiplier 1e3 --scale-lr-layer classification_head --result-dir .  --micro-batch-size 32 --precision fp32 --save-top-k 1"
+        #precision = "bf16-mixed"
+        precision = "fp32"
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 2 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --lr-multiplier 1e3 --scale-lr-layer classification_head --result-dir bionemo --micro-batch-size 64 --precision {precision} --save-top-k 1 --limit-val-batches 1.0 --classes {classes}"
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
-        runner = ScriptRunner(script=args.train_script,
-                             script_args=script_args,
+        runner = BaseScriptRunner(script=args.train_script,
                              launch_external_process=True,
                              framework="pytorch",
-                             params_exchange_format="pytorch")
+                             params_exchange_format="pytorch",
+                             launcher=SubprocessLauncher(script=f"python3 custom/{args.train_script} {script_args}", 
+                                                         launch_once=False))
         job.to(runner, client_name)
+        job.to(BioNeMoParamsFilter(precision), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
 
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -86,4 +101,4 @@ if __name__ == "__main__":
     args = parser.parse_args()    
     
     main(args)
-    
+                

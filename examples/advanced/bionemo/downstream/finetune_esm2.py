@@ -171,7 +171,7 @@ def train_model(
         overlap_param_gather (bool): overlap parameter gather
         average_in_collective (bool): average in collective
         grad_reduce_in_fp32 (bool): gradient reduction in fp32
-        classes (List[str]): unique strings describing the classes for classification. Used to build the same label vocabulary on each client. Should be comma-separated list of strings, e.g. ['Pos', 'Neg'].
+        classes (List[str]): unique strings describing the classes for classification. Used to build the same label vocabulary on each client. Should be comma-separated list of strings, e.g. ['pos', 'neg'].
     """
     # Create the result directory if it does not exist.
     result_dir.mkdir(parents=True, exist_ok=True)
@@ -429,7 +429,7 @@ def finetune_esm2_entrypoint():
         type=str,
         required=False,
         default=None,
-        help="Unique strings describing the classes for classification. Used to build the same label vocabulary on each client. Should be comma separate list of strings, e.g. 'Pos,Neg'",
+        help="Unique strings describing the classes for classification. Used to build the same label vocabulary on each client. Should be comma separate list of strings, e.g. 'pos,neg'",
     )    
     args = parser.parse_args()
 
