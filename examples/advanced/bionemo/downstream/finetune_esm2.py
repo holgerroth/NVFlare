@@ -110,6 +110,7 @@ def train_model(
     overlap_param_gather: bool = True,
     average_in_collective: bool = True,
     grad_reduce_in_fp32: bool = False,
+    classes: List[str] = None
 ) -> Tuple[Path, Callback | None, nl.Trainer]:
     """Train an ESM2 model on UR data.
 
@@ -170,6 +171,7 @@ def train_model(
         overlap_param_gather (bool): overlap parameter gather
         average_in_collective (bool): average in collective
         grad_reduce_in_fp32 (bool): gradient reduction in fp32
+        classes (List[str]): unique strings describing the classes for classification. Used to build the same label vocabulary on each client. Should be comma-separated list of strings, e.g. ['Pos', 'Neg'].
     """
     # Create the result directory if it does not exist.
     result_dir.mkdir(parents=True, exist_ok=True)
@@ -293,11 +295,12 @@ def train_model(
     train_dataset = dataset_class.from_csv(train_data_path, task_type=task_type)
     valid_dataset = dataset_class.from_csv(valid_data_path, task_type=task_type)
     if task_type == "classification":
-        label_dataset = "/tmp/data/mixed_soft/classification_data_labels.csv"
-        print(f"Use custom label tokenizer based on {label_dataset}")
-        label_dataset = dataset_class.from_csv(label_dataset, task_type=task_type)
-        train_dataset.label_tokenizer = label_dataset.label_tokenizer
-        valid_dataset.label_tokenizer = label_dataset.label_tokenizer
+        if classes:
+            if not isinstance(classes, List):
+                raise ValueError(f"classes is expected to be list of strings but received {type(classes)}: {classes}")
+            train_dataset.label_tokenizer.build_vocab([classes])
+            print(f"Build custom label tokenizer based on label classes: {classes}")
+        valid_dataset.label_tokenizer = train_dataset.label_tokenizer
         
     data_module = ESM2FineTuneDataModule(
         train_dataset=train_dataset,
@@ -419,7 +422,24 @@ def finetune_esm2_entrypoint():
     """Entrypoint for running ESM2 finetuning."""
     # 1. get arguments
     parser = get_parser()
+
+    # Add some FL specific arguments
+    parser.add_argument(
+        "--classes",
+        type=str,
+        required=False,
+        default=None,
+        help="Unique strings describing the classes for classification. Used to build the same label vocabulary on each client. Should be comma separate list of strings, e.g. 'Pos,Neg'",
+    )    
     args = parser.parse_args()
+
+    if args.classes:
+        if args.task_type != "classification":
+            parser.error("Use --classes argument only with --task-type 'classification'")
+        classes = args.classes.split(",")
+    else:
+        classes = None
+        
 
     # to avoid padding for single value labels:
     if args.min_seq_length is not None and args.datset_class is InMemorySingleValueDataset:
@@ -481,6 +501,7 @@ def finetune_esm2_entrypoint():
         overlap_param_gather=not args.no_overlap_param_gather,
         average_in_collective=not args.no_average_in_collective,
         grad_reduce_in_fp32=args.grad_reduce_in_fp32,
+        classes=classes
     )
     
 if __name__ == "__main__":

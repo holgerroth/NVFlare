@@ -48,8 +48,8 @@ def main(args):
     checkpoint_path = load(f"esm2/{args.model}:2.0")
     print(f"Downloaded {args.model} to {checkpoint_path}")
 
-    # Define artificial data to create label tokenizer
-    create_label_data()
+    # Define unique strings describing the classes for classification so we can use the same label vocabulary on each client.
+    classes = "Cell_membrane,Cytoplasm,Endoplasmic_reticulum,Extracellular,Golgi_apparatus,Lysosome,Mitochondrion,Nucleus,Peroxisome,Plastid"
     
     # Add clients
     for i in range(args.num_clients):
@@ -68,7 +68,7 @@ def main(args):
         # define training script arguments
         #precision = "bf16-mixed"
         precision = "fp32"
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --result-dir bionemo --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen --limit-val-batches 1.0"
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --result-dir bionemo --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen --limit-val-batches 1.0 --classes {classes}"
         print(f"Running {args.train_script} with args: {script_args}")
         
         # Define training script runner
@@ -84,37 +84,7 @@ def main(args):
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/results/{job.name}", gpu=args.sim_gpus)
 
-def create_label_data():
-    artificial_sequences = [
-        "TLILGWSDKLGSLLNQLAIANESLGGGTIAVMAERDKEDMELDIGKMEFDFKGTSVI",
-        "LYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
-        "GRFNVWLGGNESKIRQVLKAVKEIGVSPTLFAVYEKN",
-        "DELTALGGLLHDIGKPVQRAGLYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
-        "KLGSLLNQLAIANESLGGGTIAVMAERDKEDMELDIGKMEFDFKGTSVI",
-        "LFGAIGNAISAIHGQSAVEELVDAFVGGARISSAFPYSGDTYYLPKP",
-        "LGGLLHDIGKPVQRAGLYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
-        "LYSGDHSTQGARFLRDLAENTGRAEYELLSLF",
-        "ISAIHGQSAVEELVDAFVGGARISSAFPYSGDTYYLPKP",
-        "SGSKASSDSQDANQCCTSCEDNAPATSYCVECSEPLCETCVEAHQRVKYTKDHTVRSTGPAKT",
-    ]
-    artificial_labels = ['Cell_membrane',
-            'Cytoplasm',
-            'Endoplasmic_reticulum',
-            'Extracellular',
-            'Golgi_apparatus',
-            'Lysosome',
-            'Mitochondrion',
-            'Nucleus',
-            'Peroxisome',
-            'Plastid']
-    data = [(seq, label) for seq, label in zip(artificial_sequences, artificial_labels)]
-    
-    # Create a DataFrame
-    df = pd.DataFrame(data, columns=["sequences", "labels"])
-    
-    # Save the DataFrame to a CSV file
-    df.to_csv("/tmp/data/mixed_soft/classification_data_labels.csv", index=False)       
-    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_clients", type=int, help="Number of clients", required=False, default=1)
