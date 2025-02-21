@@ -21,15 +21,13 @@ from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import ScriptRunner, BaseScriptRunner
-from nvflare.apis.dxo_filter import DXOFilter
-from nvflare.apis.dxo import DataKind
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 import os
 import pandas as pd
 import sys
 sys.path.append(os.path.join(os.getcwd(), "..")) # include parent folder in path
-from bionemo_params_filter import BioNeMoParamsFilter
+from bionemo_filters import BioNeMoParamsFilter, BioNeMoExcludeParamsFilter
 
 
 def main(args):
@@ -59,7 +57,6 @@ def main(args):
         val_data_path = "/tmp/data/tap/val/tap_valid.csv"
         if "central" in args.exp_name:
             print("Simulating central training...")
-            assert args.num_clients == 1, "Use num_clients=1 for simulating 'central' training setting."
             assert args.num_rounds == 1, "Use num_rounds=1 for simulating 'central' training setting."
             train_data_path = "/tmp/data/tap/train/tap_full_train.csv"
             val_check_interval = int(args.local_steps/20) # 20 times per training
@@ -85,6 +82,7 @@ def main(args):
                                                          launch_once=False))
         job.to(runner, client_name)
         job.to(BioNeMoParamsFilter(precision), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_DATA)
+        job.to(BioNeMoExcludeParamsFilter(exclude_vars="regression_head"), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_RESULT)  # do not share the regression head with the server; each client will train their personal endpoint in this example
 
     job.export_job("./exported_jobs")
     job.simulator_run(f"/tmp/nvflare/bionemo/tap/{job.name}", gpu=args.sim_gpus)

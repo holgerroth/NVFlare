@@ -21,15 +21,13 @@ from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import ScriptRunner, BaseScriptRunner
-from nvflare.apis.dxo_filter import DXOFilter
-from nvflare.apis.dxo import DataKind
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
 
 import os
 import pandas as pd
 import sys
 sys.path.append(os.path.join(os.getcwd(), "..")) # include parent folder in path
-from bionemo_params_filter import BioNeMoParamsFilter
+from bionemo_filters import BioNeMoParamsFilter
 
 
 def main(args):
