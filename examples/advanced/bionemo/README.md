@@ -14,7 +14,7 @@ In this repo you will find two notebooks under the `task_fitting` and `downstrea
 ## Requirements
 
 Download and run the [BioNeMo docker container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/clara/containers/bionemo-framework).
-> **Note:** The examples here were tested with `nvcr.io/nvidia/clara/bionemo-framework:2.1`
+> **Note:** The examples here were tested with `nvcr.io/nvidia/clara/bionemo-framework:2.4`
 
 We recommend following the [Quickstart Guide](https://docs.nvidia.com/bionemo-framework/latest/access-startup.html?highlight=docker) 
 on how to get the BioNeMo container. 
