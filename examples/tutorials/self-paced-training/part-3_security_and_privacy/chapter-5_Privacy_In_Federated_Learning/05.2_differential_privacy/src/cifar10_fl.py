@@ -62,7 +62,7 @@ def main(target_epsilon,max_grad_norm):
 
     # Optionally add DP engine
     if target_epsilon:
-        target_delta=1e-5 #1/(len(trainloader)*batch_size) # "The target δ of the (ϵ,δ)-differential privacy guarantee. Generally, it should be set to be less than the inverse of the size of the training dataset" (from https://opacus.ai/tutorials/building_image_classifier).
+        target_delta=1/(len(trainloader)*batch_size) # "The target δ of the (ϵ,δ)-differential privacy guarantee. Generally, it should be set to be less than the inverse of the size of the training dataset" (from https://opacus.ai/tutorials/building_image_classifier).
         print(f"Adding privacy engine with epsilon={target_epsilon}, delta={target_delta}")
         privacy_engine = PrivacyEngine()
         net, optimizer, trainloader = privacy_engine.make_private_with_epsilon(

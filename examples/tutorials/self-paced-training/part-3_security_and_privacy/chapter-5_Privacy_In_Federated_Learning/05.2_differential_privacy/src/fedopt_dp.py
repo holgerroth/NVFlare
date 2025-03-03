@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
+
 from typing import Union
 
 import torch
+from opacus import PrivacyEngine
 
+from nvflare.app_opt.pt.fedopt_ctl import FedOpt
 from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.security.logging import secure_format_exception
 
 
-class FedOpt(FedAvg):
+class FedOptDP(FedOpt):
     def __init__(
         self,
         *args,
@@ -36,6 +38,9 @@ class FedOpt(FedAvg):
             "args": {"T_max": 3, "eta_min": 0.9},
         },
         device=None,
+        target_epsilon=None,
+        target_delta: float=1e-5,
+        max_grad_norm: float=1.0,
         **kwargs,
     ):
         """Implement the FedOpt algorithm. Based on FedAvg ModelController.
@@ -51,20 +56,19 @@ class FedOpt(FedAvg):
             lr_scheduler_args: dictionary of server-side learning rate scheduler arguments, with keys of 'lr_scheduler_path' and 'args.
             device: specify the device to run server-side optimization, e.g. "cpu" or "cuda:0"
                 (will default to cuda if available and no device is specified).
-
+            target_epsilon: Target epsilon to be achieved, a metric of privacy loss at differential changes in data. "The target δ of the (ϵ,δ)-differential privacy guarantee. Generally, it should be set to be less than the inverse of the size of the training dataset" (from https://opacus.ai/tutorials/building_image_classifier).
+            target_delta: Target delta to be achieved. Probability of information being leaked.
+            max_grad_norm: The maximum norm of the per-sample gradients. Any gradient with norm
+                higher than this will be clipped to this value.
         Raises:
             TypeError: when any of input arguments does not have correct type
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(source_model=source_model,optimizer_args=optimizer_args,lr_scheduler_args=lr_scheduler_args, *args, **kwargs)
 
-        self.source_model = source_model
-        self.optimizer_args = optimizer_args
-        self.lr_scheduler_args = lr_scheduler_args
-        self.device = device
-
-        self.torch_model = None
-        self.optimizer = None
-        self.lr_scheduler = None
+        # privacy args
+        self.target_epsilon = target_epsilon
+        self.target_delta = target_delta
+        self.max_grad_norm = max_grad_norm
 
     def run(self):
         if self.device is None:
@@ -111,67 +115,19 @@ class FedOpt(FedAvg):
             self.exception(error_msg)
             self.panic(error_msg)
             return
-
+        
+        # add privacy
+        if self.target_epsilon:
+            print(f"Adding privacy engine with epsilon={self.target_epsilon}, delta={self.target_delta}")
+            privacy_engine = PrivacyEngine()
+            net, optimizer, trainloader = privacy_engine.make_private_with_epsilon(
+                module=net,
+                optimizer=optimizer,
+                data_loader=trainloader,
+                target_epsilon=self.target_epsilon,
+                target_delta=self.target_delta, 
+                epochs=self.num_rounds,
+                max_grad_norm=self.max_grad_norm
+            )   
+        
         super().run()
-
-    def optimizer_update(self, model_diff):
-        """Updates the global model using the specified optimizer.
-
-        Args:
-            model_diff: the aggregated model differences from clients.
-
-        Returns:
-            The updated PyTorch model state dictionary.
-
-        """
-        self.torch_model.train()
-        self.optimizer.zero_grad()
-
-        # Apply the update to the model. We must multiply weights_delta by -1.0 to
-        # view it as a gradient that should be applied to the server_optimizer.
-        updated_params = []
-        for name, param in self.torch_model.named_parameters():
-            if name in model_diff:
-                param.grad = torch.tensor(-1.0 * model_diff[name]).to(self.device)
-                updated_params.append(name)
-
-        self.optimizer.step()
-        if self.lr_scheduler is not None:
-            self.lr_scheduler.step()
-
-        return self.torch_model.state_dict(), updated_params
-
-    def update_model(self, global_model: FLModel, aggr_result: FLModel):
-        model_diff = aggr_result.params
-
-        start = time.time()
-        weights, updated_params = self.optimizer_update(model_diff)
-        secs = time.time() - start
-
-        # convert to numpy dict of weights
-        start = time.time()
-        for key in weights:
-            weights[key] = weights[key].detach().cpu().numpy()
-        secs_detach = time.time() - start
-
-        # update unnamed parameters such as batch norm layers if there are any using the averaged update
-        n_fedavg = 0
-        for key, value in model_diff.items():
-            if key not in updated_params:
-                weights[key] = global_model.params[key] + value
-                n_fedavg += 1
-
-        self.info(
-            f"FedOpt ({type(self.optimizer)} {self.device}) server model update "
-            f"round {self.current_round}, "
-            f"{type(self.lr_scheduler)} "
-            f"lr: {self.optimizer.param_groups[-1]['lr']}, "
-            f"fedopt layers: {len(updated_params)}, "
-            f"fedavg layers: {n_fedavg}, "
-            f"update: {secs} secs., detach: {secs_detach} secs.",
-        )
-
-        global_model.params = weights
-        global_model.meta = aggr_result.meta
-
-        return global_model
