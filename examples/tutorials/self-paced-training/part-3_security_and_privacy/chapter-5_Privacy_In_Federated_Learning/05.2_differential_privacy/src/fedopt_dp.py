@@ -16,7 +16,7 @@
 from typing import Union
 
 import torch
-from opacus import PrivacyEngine
+from copy import deepcopy
 
 from nvflare.app_opt.pt.fedopt_ctl import FedOpt
 from nvflare.app_common.abstract.fl_model import FLModel
@@ -63,7 +63,16 @@ class FedOptDP(FedOpt):
         Raises:
             TypeError: when any of input arguments does not have correct type
         """
-        super().__init__(source_model=source_model,optimizer_args=optimizer_args,lr_scheduler_args=lr_scheduler_args, *args, **kwargs)
+        FedAvg.__init__(self, *args, **kwargs)
+
+        self.source_model = source_model
+        self.optimizer_args = optimizer_args
+        self.lr_scheduler_args = lr_scheduler_args
+        self.device = device
+
+        self.torch_model = None
+        self.optimizer = None
+        self.lr_scheduler = None
 
         # privacy args
         self.target_epsilon = target_epsilon
@@ -118,16 +127,52 @@ class FedOptDP(FedOpt):
         
         # add privacy
         if self.target_epsilon:
-            print(f"Adding privacy engine with epsilon={self.target_epsilon}, delta={self.target_delta}")
-            privacy_engine = PrivacyEngine()
-            net, optimizer, trainloader = privacy_engine.make_private_with_epsilon(
-                module=net,
-                optimizer=optimizer,
-                data_loader=trainloader,
-                target_epsilon=self.target_epsilon,
-                target_delta=self.target_delta, 
-                epochs=self.num_rounds,
-                max_grad_norm=self.max_grad_norm
-            )   
+            try:
+                # Following https://github.com/pytorch/opacus/blob/main/Migration_Guide.md for using Opacus without data loader
+                self.target_delta = 1e-5  # TODO: make configurable
+
+                print(f"Adding privacy engine with epsilon={self.target_epsilon}, delta={self.target_delta}")
+                # initialize privacy accountant
+                from opacus.accountants import RDPAccountant
+                self.accountant = RDPAccountant()
+
+                # wrap model
+                from opacus import GradSampleModule
+                self.torch_model = GradSampleModule(self.torch_model)
+
+                # wrap optimizer
+                from opacus.optimizers import DPOptimizer
+                self.optimizer = DPOptimizer(
+                optimizer=self.optimizer,
+                noise_multiplier=1.0, # same as make_private arguments
+                max_grad_norm=1.0, # same as make_private arguments
+                expected_batch_size=1 # if you're averaging your gradients, you need to know the denominator
+                )
+
+                # attach accountant to track privacy for an optimizer
+                self.optimizer.attach_step_hook(
+                    self.accountant.get_optimizer_hook_fn(
+                    # this is an important parameter for privacy accounting. Should be equal to batch_size / len(dataset)
+                    sample_rate=self.target_delta
+                    )
+                )
+                print("accountant added")
+            except Exception as e:
+                error_msg = f"Exception while adding privacy: {secure_format_exception(e)}"
+                self.exception(error_msg)
+                self.panic(error_msg)
+                return
         
-        super().run()
+        FedAvg.run(self)  # run the standard FedAvg run routine
+
+    def update_model(self, global_model: FLModel, aggr_result: FLModel):
+        # Opacus adds "_module." prefix to state dict. Add it here to match optimizer's state dict
+        dp_aggr_result = deepcopy(aggr_result)
+        for k, v in aggr_result.params.items():
+            dp_aggr_result.params[f"_module.{k}"] = v
+
+        global_model = super().update_model(global_model, dp_aggr_result)
+        epsilon = self.accountant.get_epsilon(self.target_delta)
+        print(f"Training with privacy (ε = {epsilon:.2f}, δ = {self.target_delta})")
+        return global_model
+    

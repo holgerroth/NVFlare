@@ -125,7 +125,8 @@ class FedOpt(FedAvg):
 
         """
         self.torch_model.train()
-        self.optimizer.zero_grad()
+        #self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=False)
 
         # Apply the update to the model. We must multiply weights_delta by -1.0 to
         # view it as a gradient that should be applied to the server_optimizer.
@@ -134,19 +135,29 @@ class FedOpt(FedAvg):
             if name in model_diff:
                 param.grad = torch.tensor(-1.0 * model_diff[name]).to(self.device)
                 updated_params.append(name)
+                print("set grad", name)
+            else:
+                print("no grad", name)
+        #print("self.optimizer.grad_samples")
+        #print("self.optimizer.grad_samples", self.optimizer.grad_samples)
+        ###self.optimizer.grad_samples = updated_params
 
+        print("$$$$$$$$ optimizer_update 1")
         self.optimizer.step()
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
+        print("$$$$$$$$ optimizer_update 2")
 
         return self.torch_model.state_dict(), updated_params
 
     def update_model(self, global_model: FLModel, aggr_result: FLModel):
+        print("$$$$$$$$ update_model 1")
         model_diff = aggr_result.params
 
         start = time.time()
         weights, updated_params = self.optimizer_update(model_diff)
         secs = time.time() - start
+        print("$$$$$$$$ update_model 2")
 
         # convert to numpy dict of weights
         start = time.time()

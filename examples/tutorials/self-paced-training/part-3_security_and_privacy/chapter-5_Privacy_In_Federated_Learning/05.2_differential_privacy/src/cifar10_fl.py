@@ -177,6 +177,7 @@ def main(target_epsilon,max_grad_norm):
         )
         # (8) send model back to NVFlare
         flare.send(output_model)
+        print(f"Return output_model {output_model}")
 
 
 if __name__ == "__main__":
