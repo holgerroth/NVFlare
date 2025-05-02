@@ -42,19 +42,33 @@ You can check the rsult using, e.g.
 cat /tmp/nvflare/carbon_footprint/site-0/emissions.csv
 ```
 
+The FL server also collects the results of all clients. These can be shown via
+
+```bash
+cat /tmp/nvflare/carbon_footprint/server/client_emissions.csv
+```
+
 ## Plotting the Results
+
 
 To visualize the carbon emissions data from all clients:
 
 1. Run the plotting script:
 ```bash
-python plot_emissions.py --base_dir="/tmp/nvflare/carbon_footprint"
+python plot_emissions.py --emissions_csv_file /tmp/nvflare/carbon_footprint/server/client_emissions.csv
 ```
 
-This will generate a plot showing the cumulative carbon emissions over time for each client. The plot will be saved as `carbon_emissions_plot.png` in the current directory.
+The resulting plots should look like
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: nowrap;">
+<img src="./figs/cpu_energy_plot.svg" alt="CPU Energy" style="width: 300px; flex-shrink: 0;"/>
+<img src="./figs/gpu_energy_plot.svg" alt="GPU Energy"  style="width: 300px; flex-shrink: 0;">
+<img src="./figs/ram_energy_plot.svg" alt="RAM Energy"  style="width: 300px; flex-shrink: 0;">
+</div>
 
-The plot includes:
-- Cumulative emissions over time for each client
-- Clear labels and legend
-- Timestamps on the x-axis
-- Emissions in kg CO2 on the y-axis
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: nowrap;">
+<img src="./figs/emissions_plot.svg" alt="Emissions" style="width: 300px; flex-shrink: 0;"/>
+<img src="./figs/energy_consumed_plot.svg" alt="Energy Consumed" style="width: 300px; flex-shrink: 0;"/>
+</div>
+
+
+This will generate a plots showing the energy consumptions and carbon emissions over time for each client and save them under `./figs`.

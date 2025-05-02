@@ -40,14 +40,16 @@ DATASET_PATH = "/tmp/nvflare/data"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def main():
+def main(tracker=None):
+    tracker.start_task("init")
+
     transform = transforms.Compose([
       transforms.ToTensor(),
       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    batch_size = 4
-    epochs = 1
+    batch_size = 256
+    epochs = 10
 
     trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=True, transform=transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -60,11 +62,14 @@ def main():
     # (2) initializes NVFlare client API
     flare.init()
 
+    init_emissions_data = tracker.stop_task()
+
     summary_writer = SummaryWriter()
     while flare.is_running():
         # (3) receives FLModel from NVFlare
         input_model = flare.receive()
         print(f"current_round={input_model.current_round}")
+        tracker.start_task(f"round_{input_model.current_round}")
 
         # (4) loads model from NVFlare
         net.load_state_dict(input_model.params)
@@ -111,6 +116,8 @@ def main():
         PATH = "./cifar_net.pth"
         torch.save(net.state_dict(), PATH)
 
+        train_emissions_data = tracker.stop_task()
+
         # (5) wraps evaluation logic into a method to re-use for
         #       evaluation on both trained and received model
         def evaluate(input_weights):
@@ -137,12 +144,21 @@ def main():
             return 100 * correct // total
 
         # (6) evaluate on received model for model selection
+        tracker.start_task("evaluate")
         accuracy = evaluate(input_model.params)
+        evaluate_emissions_data = tracker.stop_task()
+
+        emissions_data = {
+            "init": init_emissions_data if input_model.current_round == 0 else None,
+            "train": train_emissions_data,
+            "evaluate": evaluate_emissions_data
+        }
+
         # (7) construct trained FL model
         output_model = flare.FLModel(
             params=net.cpu().state_dict(),
             metrics={"accuracy": accuracy},
-            meta={"NUM_STEPS_CURRENT_ROUND": steps},
+            meta={"NUM_STEPS_CURRENT_ROUND": steps, "EMISSIONS_DATA": emissions_data},
         )
         # (8) send model back to NVFlare
         flare.send(output_model)
@@ -157,8 +173,4 @@ if __name__ == "__main__":
 
     # Initialize the tracker
     tracker = OfflineEmissionsTracker(country_iso_code=args.country_iso_code)
-    tracker.start()
-    main()
-    tracker.stop()
-
-    print(tracker.final_emissions_data)  # Contains a dictionary of results
+    main(tracker)

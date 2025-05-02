@@ -7,7 +7,7 @@ from nvflare.job_config.script_runner import ScriptRunner
 
 if __name__ == "__main__":
     n_clients = 2
-    num_rounds = 2
+    num_rounds = 30
     train_script = "cifar10_pt_fl.py"
 
     # Create BaseFedJob with initial model
@@ -25,8 +25,9 @@ if __name__ == "__main__":
 
     # Add clients
     for i in range(n_clients):
-        runner = ScriptRunner(script=train_script)
+        runner = ScriptRunner(script=train_script, script_args=f"--country_iso_code=USA")  # ISO code for the country to use for carbon emissions calculation
         job.to(runner, f"site-{i}")
 
     job.export_job("./job_configs")
-    job.simulator_run("/tmp/nvflare/carbon_footprint", gpu="0,1")  # runs each client on a different GPU
+    job.simulator_run("/tmp/nvflare/carbon_footprint", gpu="0,1", log_config="full")  # runs each client on a different GPU
+    

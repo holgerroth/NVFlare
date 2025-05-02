@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import argparse
 
-def plot_emissions(base_dir="/tmp/nvflare/carbon_footprint"):
+def plot_emissions(emissions_csv_file="client_emissions.csv"):
     """
     Plot carbon emissions data from all clients.
     
@@ -14,50 +14,45 @@ def plot_emissions(base_dir="/tmp/nvflare/carbon_footprint"):
     # Set style
     sns.set_palette("husl")
     
-    # Get all client directories
-    client_dirs = [d for d in os.listdir(base_dir) if d.startswith('site-')]
+    # Read the emissions data
+    if not os.path.exists(emissions_csv_file):
+        raise FileNotFoundError(f"Emissions file not found at {emissions_csv_file}")
     
-    # Read first file to get column names
-    first_file = os.path.join(base_dir, client_dirs[0], 'emissions.csv')
-    df = pd.read_csv(first_file)
-    timestamp_col = df.columns[0]  # First column is timestamp
-    metric_cols = df.columns[1:]   # All other columns are metrics to plot
+    df = pd.read_csv(emissions_csv_file)
+    
+    # Convert timestamp to datetime
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    
+    # Columns to plot (excluding round, timestamp, and client)
+    metric_cols = ['emissions', 'cpu_energy', 'gpu_energy', 'ram_energy', 'energy_consumed']
     
     # Create a figure for each metric
     for metric in metric_cols:
         plt.figure(figsize=(12, 6))
         
-        # Plot data for each client
-        for client_dir in sorted(client_dirs):
-            emissions_file = os.path.join(base_dir, client_dir, 'emissions.csv')
-            if os.path.exists(emissions_file):
-                # Read emissions data
-                df = pd.read_csv(emissions_file)
-                
-                # Convert timestamp to datetime
-                df[timestamp_col] = pd.to_datetime(df[timestamp_col])
-                
-                # Plot the metric
-                plt.plot(df[timestamp_col], df[metric], 
-                        label=f'Client {client_dir.split("-")[1]}',
-                        marker='o')
+        # Create the plot using seaborn
+        sns.lineplot(data=df, x='timestamp', y=metric, hue='client', 
+                    marker='o', style='client')
         
         # Customize plot
-        plt.title(f'{metric} Over Time by Client')
+        plt.title(f'{metric.replace("_", " ").title()} Over Time by Client')
         plt.xlabel('Time')
-        plt.ylabel(metric)
-        plt.legend()
+        plt.ylabel(metric.replace("_", " ").title())
+        plt.legend(title='Client')
         plt.grid(True)
         plt.xticks(rotation=45)
         plt.tight_layout()
         
         # Save plot
-        plt.savefig(f'{metric.lower().replace(" ", "_")}_plot.png')
-        print(f"Plot saved as '{metric.lower().replace(' ', '_')}_plot.png'")
+        os.makedirs('figs', exist_ok=True)
+        output_prefix = f'figs/{metric.lower().replace(" ", "_")}_plot'
+        plt.savefig(output_prefix+".png")
+        plt.savefig(output_prefix+".svg")
+        print(f"Plot saved as '{output_prefix}*'")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plot carbon emissions data from FL clients')
-    parser.add_argument('--base_dir', type=str, default="/tmp/nvflare/carbon_footprint",
-                      help='Base directory containing client emissions data')
+    parser.add_argument('--emissions_csv_file', type=str, default="client_emissions.csv",
+                      help='Path to the emissions CSV file')
     args = parser.parse_args()
-    plot_emissions(args.base_dir) 
+    plot_emissions(args.emissions_csv_file) 
