@@ -28,16 +28,17 @@ def plot_emissions(emissions_csv_file="client_emissions.csv"):
     
     # Create a figure for each metric
     for metric in metric_cols:
+        units = "kWh" if "energy" in metric else "kg CO₂"  # TODO: double check this the units used by CodeCarbon
         plt.figure(figsize=(12, 6))
         
         # Create the plot using seaborn
-        sns.lineplot(data=df, x='timestamp', y=metric, hue='client', 
+        sns.lineplot(data=df, x='round', y=metric, hue='client', 
                     marker='o', style='client')
         
         # Customize plot
         plt.title(f'{metric.replace("_", " ").title()} Over Time by Client')
-        plt.xlabel('Time')
-        plt.ylabel(metric.replace("_", " ").title())
+        plt.xlabel('Round')
+        plt.ylabel(metric.replace("_", " ").title() + f" [{units}]")
         plt.legend(title='Client')
         plt.grid(True)
         plt.xticks(rotation=45)

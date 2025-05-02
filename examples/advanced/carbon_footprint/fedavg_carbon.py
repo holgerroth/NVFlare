@@ -65,7 +65,7 @@ class FedAvg(BaseFedAvg):
     def save_client_emissions(self):
         with open('client_emissions.pkl', 'wb') as f:
             pickle.dump(self.client_emissions, f)
-        self.info(f"Saved client emissions to {os.path.join(os.gcwd(), 'client_emissions.pkl')}")
+        self.info(f"Saved all client emissions to {os.path.join(os.getcwd(), 'client_emissions.pkl')}")
 
         out_client_emissions = {"round": [], "timestamp": [], "client": [], "emissions": [], "cpu_energy": [], "gpu_energy": [], "ram_energy": [], "energy_consumed": []}
         for client_name, emissions in self.client_emissions.items():
@@ -81,4 +81,4 @@ class FedAvg(BaseFedAvg):
                 out_client_emissions["ram_energy"].append(e.ram_energy)
                 out_client_emissions["energy_consumed"].append(e.energy_consumed)
         pd.DataFrame(out_client_emissions).to_csv("client_emissions.csv", index=False)
-        self.info(f"Saved client emissions to {os.path.join(os.gcwd(), 'client_emissions.csv')}")
+        self.info(f"Saved select client emissions to {os.path.join(os.getcwd(), 'client_emissions.csv')}")

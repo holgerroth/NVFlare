@@ -29,5 +29,5 @@ if __name__ == "__main__":
         job.to(runner, f"site-{i}")
 
     job.export_job("./job_configs")
-    job.simulator_run("/tmp/nvflare/carbon_footprint", gpu="0,1", log_config="full")  # runs each client on a different GPU
+    job.simulator_run("/tmp/nvflare/carbon_footprint", gpu="0,1")  # runs each client on a different GPU
     
