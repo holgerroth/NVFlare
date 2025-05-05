@@ -100,8 +100,8 @@ def main(tracker=None):
 
                 # print statistics
                 running_loss += loss.item()
-                if i % 2000 == 1999:  # print every 2000 mini-batches
-                    print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}")
+                if i % 100 == 99:  # print every 100 mini-batches
+                    print(f"[Round {input_model.current_round}, Epoch: {epoch + 1}, Step: {i + 1:5d}] loss: {running_loss / 100:.3f}")
                     global_step = input_model.current_round * steps + epoch * len(trainloader) + i
 
                     summary_writer.add_scalar(
@@ -174,3 +174,4 @@ if __name__ == "__main__":
     # Initialize the tracker
     tracker = OfflineEmissionsTracker(country_iso_code=args.country_iso_code)
     main(tracker)
+    tracker.stop()
