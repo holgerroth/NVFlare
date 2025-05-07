@@ -41,6 +41,14 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def main(tracker=None):
+
+    # (2) initializes NVFlare client API
+    flare.init()
+    client_name = flare.get_site_name()
+
+    # Initialize the tracker
+    tracker = OfflineEmissionsTracker(country_iso_code=args.country_iso_code, measure_power_secs=1, experiment_id=f"{client_name}")
+    
     tracker.start_task("init")
 
     transform = transforms.Compose([
@@ -49,7 +57,7 @@ def main(tracker=None):
     ])
 
     batch_size = 256
-    epochs = 10
+    epochs = 100
 
     trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=True, transform=transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -58,9 +66,6 @@ def main(tracker=None):
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     net = Net()
-
-    # (2) initializes NVFlare client API
-    flare.init()
 
     init_emissions_data = tracker.stop_task()
 
@@ -101,7 +106,7 @@ def main(tracker=None):
                 # print statistics
                 running_loss += loss.item()
                 if i % 100 == 99:  # print every 100 mini-batches
-                    print(f"[Round {input_model.current_round}, Epoch: {epoch + 1}, Step: {i + 1:5d}] loss: {running_loss / 100:.3f}")
+                    print(f"{client_name} [Round {input_model.current_round}, Epoch: {epoch + 1}, Step: {i + 1:5d}] loss: {running_loss / 100:.3f}")
                     global_step = input_model.current_round * steps + epoch * len(trainloader) + i
 
                     summary_writer.add_scalar(
@@ -163,6 +168,9 @@ def main(tracker=None):
         # (8) send model back to NVFlare
         flare.send(output_model)
 
+    # stop emissions tracking
+    tracker.stop()
+
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -171,7 +179,5 @@ if __name__ == "__main__":
                       help='3-letter ISO code for the country to use for carbon emissions calculation')
     args = parser.parse_args()
 
-    # Initialize the tracker
-    tracker = OfflineEmissionsTracker(country_iso_code=args.country_iso_code)
-    main(tracker)
-    tracker.stop()
+    main(args)
+    
