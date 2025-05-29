@@ -53,7 +53,7 @@ def main(tracker=None):
     #tracker = OfflineEmissionsTracker(country_iso_code=args.country_iso_code, measure_power_secs=1, experiment_id=f"{client_name}")  
     project_name = f"{flare.get_job_id}--{client_name}"
     print(f"Project name: {project_name}")
-    tracker = EmissionsTracker(project_name="Test", experiment_id="8e1112c9-3f9c-49f3-ad3a-005504885005", measure_power_secs=1, api_key=CODECARBON_API_TOKEN)
+    tracker = EmissionsTracker(project_name="Test", experiment_id="8e1112c9-3f9c-49f3-ad3a-005504885005", measure_power_secs=1, api_key=CODECARBON_API_TOKEN, tracking_mode="process")
     
     tracker.start_task("init")
 
@@ -129,6 +129,7 @@ def main(tracker=None):
         torch.save(net.state_dict(), PATH)
 
         train_emissions_data = tracker.stop_task()
+        print(f"train_emissions_data: {train_emissions_data}")
 
         # (5) wraps evaluation logic into a method to re-use for
         #       evaluation on both trained and received model
@@ -159,6 +160,7 @@ def main(tracker=None):
         tracker.start_task("evaluate")
         accuracy = evaluate(input_model.params)
         evaluate_emissions_data = tracker.stop_task()
+        print(f"evaluate_emissions_data: {evaluate_emissions_data}")
 
         emissions_data = {
             "init": init_emissions_data if input_model.current_round == 0 else None,

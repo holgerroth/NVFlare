@@ -30,7 +30,7 @@ python3 -c "import torchvision.datasets as datasets; datasets.CIFAR10(root='${DA
 
 1. Run the example:
 ```bash
-python job.py
+python job.py 2>&1 | tee log.txt
 ```
 
 ## Understanding the Output
