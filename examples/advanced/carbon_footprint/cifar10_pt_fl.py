@@ -1,10 +1,11 @@
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-from codecarbon import OfflineEmissionsTracker
+from codecarbon import OfflineEmissionsTracker, EmissionsTracker
 import argparse
 
 
@@ -39,6 +40,8 @@ DATASET_PATH = "/tmp/nvflare/data"
 # If available, we use GPU to speed things up.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+CODECARBON_API_TOKEN = os.getenv("CODECARBON_API_TOKEN")
+
 
 def main(tracker=None):
 
@@ -47,7 +50,10 @@ def main(tracker=None):
     client_name = flare.get_site_name()
 
     # Initialize the tracker
-    tracker = OfflineEmissionsTracker(country_iso_code=args.country_iso_code, measure_power_secs=1, experiment_id=f"{client_name}")
+    #tracker = OfflineEmissionsTracker(country_iso_code=args.country_iso_code, measure_power_secs=1, experiment_id=f"{client_name}")  
+    project_name = f"{flare.get_job_id}--{client_name}"
+    print(f"Project name: {project_name}")
+    tracker = EmissionsTracker(project_name="Test", experiment_id="8e1112c9-3f9c-49f3-ad3a-005504885005", measure_power_secs=1, api_key=CODECARBON_API_TOKEN)
     
     tracker.start_task("init")
 
@@ -57,12 +63,13 @@ def main(tracker=None):
     ])
 
     batch_size = 256
-    epochs = 100
+    epochs = 1
 
-    trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=True, transform=transform)
+    # See README.md for how to download the dataset
+    trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=False, transform=transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=False, download=True, transform=transform)
+    testset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=False, download=False, transform=transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     net = Net()

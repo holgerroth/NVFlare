@@ -17,10 +17,16 @@ source .venv/bin/activate
 3. Install NVFlare and required dependencies:
 ```bash
 pip install -r requirements.txt
-pip install pandas matplotlib seaborn
 ```
 
 ## Running the Example
+
+1. Download the data
+```bash
+DATASET_ROOT="/tmp/nvflare/data"
+
+python3 -c "import torchvision.datasets as datasets; datasets.CIFAR10(root='${DATASET_ROOT}', train=True, download=True)"
+```
 
 1. Run the example:
 ```bash
