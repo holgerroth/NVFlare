@@ -62,7 +62,7 @@ def main():
       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    batch_size = 128
+    batch_size = 16
     epochs = 4
 
     trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=True, transform=transform)
@@ -111,7 +111,7 @@ def main():
 
                 # print statistics
                 running_loss += loss.item()
-                if i % 2000 == 1999:  # print every 2000 mini-batches
+                if i % 100 == 99:  # print every 100 mini-batches
                     print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}")
                     global_step = input_model.current_round * steps + epoch * len(trainloader) + i
 
@@ -121,6 +121,8 @@ def main():
                         global_step=global_step
                     )
                     running_loss = 0.0
+
+                break # TODO: remove this
 
         print("Finished Training")
 

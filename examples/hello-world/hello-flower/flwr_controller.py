@@ -25,7 +25,7 @@ from nvflare.app_common.workflows.base_fedavg import BaseFedAvg
 from nvflare.app_common.abstract.fl_model import FLModel
 
 
-class NVFlareClientProxy(ClientProxy):
+class MockClientProxy(ClientProxy):
     """Adapter class for NVFlare clients to work with Flower's ClientProxy interface."""
     
     def __init__(self, cid: str, result=None):
@@ -35,27 +35,22 @@ class NVFlareClientProxy(ClientProxy):
     def get_properties(self, ins: GetPropertiesIns) -> GetPropertiesRes:
         """Get properties of the client."""
         # Return empty properties as this is just an adapter
-        return GetPropertiesRes(properties={})
+        raise NotImplementedError("MockClientProxy.get_properties is not implemented")
     
     def get_parameters(self, ins: GetParametersIns) -> GetParametersRes:
         """Get parameters from the client."""
         # This might need proper implementation if used
-        return GetParametersRes(parameters=Parameters(tensors=[], tensor_type=""))
+        raise NotImplementedError("MockClientProxy.get_parameters is not implemented")
     
     def fit(self, ins: FitIns) -> FitRes:
         """Perform client-side training."""
-        # This is handled by NVFlare communication, not used directly
-        raise NotImplementedError("NVFlareClientProxy.fit is not implemented")
-        #print("IS THIS REALLY CALLED???????????")
-        #xxxxxx
-        #if self.result:
-        #    return self.result
-        #return FitRes(parameters=Parameters(tensors=[], tensor_type=""), num_examples=0)
+        # This is handled by NVFlare, not used directly
+        raise NotImplementedError("MockClientProxy.fit is not implemented")
     
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
         """Evaluate model on client data."""
-        # This is handled by NVFlare communication, not used directly
-        return EvaluateRes(loss=0.0, num_examples=0, metrics={})
+        # This is handled by NVFlare, not used directly
+        raise NotImplementedError("MockClientProxy.evaluate is not implemented")
     
     def reconnect(self, ins: ReconnectIns) -> None:
         """Handle reconnect instruction."""
@@ -85,7 +80,7 @@ class FlowerClientManager(FlwrClientManager):
     
     def all(self) -> Dict[str, ClientProxy]:
         """Return all available clients as ClientProxy objects."""
-        return [NVFlareClientProxy(cid=f"client-{i}") for i in range(self.num_clients)]   # TODO: use client names from NVFlare
+        return [MockClientProxy(cid=f"client-{i}") for i in range(self.num_clients)]   # TODO: use client names from NVFlare
     
     def wait_for(self, num_clients: int, timeout: int) -> bool:
         """Wait until at least `num_clients` are available.
@@ -205,7 +200,7 @@ class FlwrController(BaseFedAvg):
                         status=Status(code=Code.OK, message="OK"),
                     )
                     fit_results.append((
-                        NVFlareClientProxy(cid=client_name, result=result),
+                        MockClientProxy(cid=client_name, result=result),
                         flower_result
                     ))
 
