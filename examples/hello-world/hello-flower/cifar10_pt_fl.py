@@ -20,6 +20,9 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 
+# TODO: remove this once we have a fix for the SSL issue
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 class Net(nn.Module):
     def __init__(self):
@@ -59,8 +62,8 @@ def main():
       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    batch_size = 4
-    epochs = 2
+    batch_size = 128
+    epochs = 4
 
     trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=True, transform=transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -120,9 +123,6 @@ def main():
                     running_loss = 0.0
 
         print("Finished Training")
-
-        PATH = "./cifar_net.pth"
-        torch.save(net.state_dict(), PATH)
 
         # (5) wraps evaluation logic into a method to re-use for
         #       evaluation on both trained and received model
