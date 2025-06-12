@@ -27,19 +27,39 @@ We recommend installing an older version of NumPy as torch/torchvision doesn't s
 ```bash
 pip install numpy==1.26.4
 ```
-## 2.1 Run a simulation
+
+## 2. Run a Flower App in Flare
+
+### 2.1 Install the App dependencies
 
 To run flwr-pt job with NVFlare, we first need to install its dependencies.
 ```bash
 pip install ./flwr-pt/
 ```
 
+### 2.2 Run a simulation
 Next, we run 2 Flower clients and Flower Server in parallel using NVFlare's simulator.
 ```bash
 python job.py --job_name "flwr-pt" --content_dir "./flwr-pt"
 ```
 
-## 2.2 Run a simulation with TensorBoard streaming
+### Notes
+Make sure your `pyproject.toml` files in the Flower apps contain an "address" field. This needs to be present as the `--federation-config` option of the `flwr run` command tries to override the `“address”` field.
+Your `pyproject.toml` should include a section similar to this:
+```
+[tool.flwr.federations]
+default = "xxx"
+
+[tool.flwr.federations.xxx]
+options.num-supernodes = 2
+address = "127.0.0.1:9093"
+insecure = false
+```
+The number `options.num-supernodes` should match the number of NVFlare clients defined in [job.py](./job.py), e.g., `job.simulator_run(args.workdir, gpu="0", n_clients=2)`.
+
+## 3. Flare & Flower Hybrid usage
+
+### 3.1 Run a simulation with TensorBoard streaming
 
 To run flwr-pt_tb_streaming job with NVFlare, we first need to install its dependencies.
 ```bash
@@ -59,16 +79,9 @@ tensorboard --logdir /tmp/nvflare/hello-flower
 ```
 ![tensorboard training curve](./train.png)
 
-## Notes
-Make sure your `pyproject.toml` files in the Flower apps contain an "address" field. This needs to be present as the `--federation-config` option of the `flwr run` command tries to override the `“address”` field.
-Your `pyproject.toml` should include a section similar to this:
-```
-[tool.flwr.federations]
-default = "xxx"
 
-[tool.flwr.federations.xxx]
-options.num-supernodes = 2
-address = "127.0.0.1:9093"
-insecure = false
+## 3.2 Run Flare API with a Flower Strategy
+
+```bash
+python job_flwr_strategy.py --job_name "flwr-strategy"
 ```
-The number `options.num-supernodes` should match the number of NVFlare clients defined in [job.py](./job.py), e.g., `job.simulator_run(args.workdir, gpu="0", n_clients=2)`.
