@@ -1,12 +1,12 @@
 python3 llm_hf_fl_job_multigpu.py \
-    --client_ids dolly \
+    --client_ids dolly alpaca oasst1 \
     --data_path ${PWD}/dataset \
-    --workspace_dir ${PWD}/workspace/hf_sft_multi \
-    --job_dir ${PWD}/workspace/jobs/hf_sft_multi \
+    --workspace_dir ${PWD}/workspace/hf_sft_multi_3clients \
+    --job_dir ${PWD}/workspace/jobs/hf_sft_multi_3clients \
     --train_mode SFT \
     --threads 1 \
     --model_name_or_path allenai/OLMo-2-0425-1B \
-    --gpu "[2,3]"
+    --gpu "[0,1],[2,3],[0,1]" 
 
 # use cached snapshot if HF rate limit hits
 #     --model_name_or_path allenai/OLMo-2-0425-1B \

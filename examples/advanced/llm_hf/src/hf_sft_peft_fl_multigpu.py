@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -192,16 +192,15 @@ def main():
             else:
                 trainer.model.load_state_dict(global_model)        
         
-            # # evaluate on received global model
-            # print(f"Evaluating on rank {local_rank}")
-            # metrics = trainer.evaluate()
-            # eval_loss = float(metrics["eval_loss"])
-            # print(f"Evaluation metric score: {eval_loss}")
-
-
         # Use a barrier() to make sure all processes are ready to train.
         print(f"Barrier on rank {local_rank} after loading global model.")
         dist.barrier()
+
+        # evaluate on received global model
+        print(f"Evaluating...")
+        metrics = trainer.evaluate()
+        eval_loss = float(metrics["eval_loss"])
+        print(f"Evaluation metric score: {eval_loss}")
 
         # continue training
         trainer.train()
@@ -234,7 +233,7 @@ def main():
             # construct trained FL model
             output_model = flare.FLModel(
                 params=out_param,
-                metrics={"eval_loss": 0.0}, # TODO: eval_loss},
+                metrics={"eval_loss": eval_loss},
                 meta={"NUM_STEPS_CURRENT_ROUND": trainer.train_dataset.num_rows},
             )
             # send model back to NVFlare
@@ -244,19 +243,6 @@ def main():
 
         print(f"Barrier on rank {local_rank} after returning model")
         dist.barrier()
-
-        # increment num_train_epochs so that the trainer will continue training
-        #if args.clean_up:
-        #    raise ValueError("Clean up is not supported for multi-gpu training.")
-        #    # runner got cleaned up, set num_train_epochs with curr_round
-        #    # trainer.args.num_train_epochs = (curr_round + 1) * args.local_epoch
-        #else:
-        #    # runner still alive, increment num_train_epochs with local_epoch
-        #    trainer.args.num_train_epochs += args.local_epoch
-        #print(f"Increment num_train_epochs to {trainer.args.num_train_epochs}")
-        
-
-    #dist.destroy_process_group()
 
 
 if __name__ == "__main__":

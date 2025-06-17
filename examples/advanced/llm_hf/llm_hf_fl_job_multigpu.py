@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,6 +89,7 @@ def main():
     job.to(IntimeModelSelector(key_metric="eval_loss", negate_key_metric=True), "server", id="model_selector")
 
     # Send ScriptRunner to all clients
+    ports = [7777, 8888, 9999]  # TODO: Hardcoded for 3 clients. Get ports from args
     for i in range(num_clients):
         client_id = client_ids[i]
         site_name = f"site-{client_id}"
@@ -108,7 +109,7 @@ def main():
             script_args=script_args,
             server_expected_format=server_expected_format,
             launch_external_process=True,
-            command="python3 -m torch.distributed.run --nnodes=1 --nproc_per_node=2" # --master_port=7777"
+            command=f"python3 -m torch.distributed.run --nnodes=1 --nproc_per_node=2 --master_port={ports[i]}"
         )
         job.to(runner, site_name, tasks=["train"])
 
