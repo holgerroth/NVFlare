@@ -11,6 +11,11 @@ First, install nvflare and dependencies:
 ```commandline
 pip install -r requirements.txt
 ```
+## Download the CIFAR-10 Dataset
+All examples here use CIFAR-10. We recommend downloading the data first to avoid each client overwriting the others data.
+```commandline
+python -c "import torchvision; trainset = torchvision.datasets.CIFAR10(root='/tmp/nvflare/data', train=True, download=True)"
+```
 
 ## Examples
 You can also run any of the below scripts directly using
