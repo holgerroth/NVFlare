@@ -44,9 +44,16 @@ def format_instruction(example):
 
 def main():
     # Initialize distributed training
-    dist.init_process_group("nccl")
-    local_rank = dist.get_rank()
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
     torch.cuda.set_device(local_rank)
+    dist.init_process_group(
+        backend="nccl",
+        init_method="env://",
+        world_size=world_size,
+        rank=local_rank,
+        device_id=torch.device(f"cuda:{local_rank}")
+    )
     print(f"Initialize distributed training on rank {local_rank}.")
 
     # Initialize NVFlare client
@@ -160,6 +167,7 @@ def main():
         save_safetensors=False,
         ddp_find_unused_parameters=False,
         ddp_backend="nccl",
+        local_rank=local_rank,
     )
 
     # Trainer
@@ -180,14 +188,14 @@ def main():
         if local_rank == 0:
             input_model = flare.receive()
             print(f"###########   Received input_model on rank {local_rank} for current_round={curr_round} ###########")
-
+        
             # Update the key name received from global model if using model def file
             global_model = copy.deepcopy(input_model.params)
             for key in list(global_model.keys()):
                 global_model[key.replace("model.", "", 1)] = global_model.pop(key)
-
-            # wraps evaluation logic into a method to re-use for
-            # evaluation on both trained and received model
+        
+            # # wraps evaluation logic into a method to re-use for
+            # # evaluation on both trained and received model
             # def evaluate(input_weights, mode):
             #     # Special load func for PEFT
             #     if train_mode:
@@ -199,11 +207,15 @@ def main():
             #     return metric_score
 
             # # evaluate on received global model
+            # print(f"Evaluating on rank {local_rank}")
             # eval_loss = evaluate(global_model, train_mode)
             # eval_loss = float(eval_loss["eval_loss"])
+            # print(f"Evaluation metric score: {eval_loss} on rank {local_rank}")
+    
 
         # Use a barrier() to make sure all processes are ready to train.
-        #dist.barrier()
+        print(f"Initial barrier on rank {local_rank} in round {curr_round}")
+        dist.barrier(device_ids=[local_rank])
 
         # Load global model and previous training states
         # Since we perform iterative training by using "resume" functionality
@@ -223,19 +235,31 @@ def main():
                     # SFT model can be large, save via HF API
                     # Disable safetensor for now
                     trainer.model.save_pretrained(resume_from_checkpoint_folder, safe_serialization=False)
-                # increment num_train_epochs so that the trainer will continue training
-                if args.clean_up:
-                    # runner got cleaned up, set num_train_epochs with curr_round
-                    trainer.args.num_train_epochs = (curr_round + 1) * args.local_epoch
-                else:
-                    # runner still alive, increment num_train_epochs with local_epoch
-                    trainer.args.num_train_epochs += args.local_epoch
-                print(f"Increment num_train_epochs to {trainer.args.num_train_epochs}")
+
+            print(f"Barrier on rank {local_rank} in round {curr_round} after saving model")
+            dist.barrier(device_ids=[local_rank])
+
+            # increment num_train_epochs so that the trainer will continue training
+            if args.clean_up:
+                # runner got cleaned up, set num_train_epochs with curr_round
+                trainer.args.num_train_epochs = (curr_round + 1) * args.local_epoch
+            else:
+                # runner still alive, increment num_train_epochs with local_epoch
+                trainer.args.num_train_epochs += args.local_epoch
+            print(f"Increment num_train_epochs to {trainer.args.num_train_epochs}")
+
+            print(f"Barrier on rank {local_rank} in round {curr_round} after incrementing num_train_epochs")
+            dist.barrier(device_ids=[local_rank])
+
             # continue training
             trainer.train(resume_from_checkpoint=True)
 
-
+        # Use a barrier() to make sure all processes finished training.
+        print(f"Completed training on rank {local_rank}")
+        dist.barrier(device_ids=[local_rank])
+        
         if local_rank == 0:
+            print(f"Get output model on {local_rank}")
             # compose output model to send back to server
             if train_mode:
                 # PEFT, load PEFT part from trainer model
@@ -262,8 +286,12 @@ def main():
                 meta={"NUM_STEPS_CURRENT_ROUND": trainer.train_dataset.num_rows},
             )
             # send model back to NVFlare
+            print(f"Sending model back to NVFlare on rank {local_rank} in round {curr_round}")
             flare.send(output_model)
-            print(f"########### Sent model back to NVFlare on rank {local_rank} ###########")
+            print(f"########### Sent model back to NVFlare on rank {local_rank} in round {curr_round} ###########")
+
+        print(f"Barrier on rank {local_rank} after returning model in round {curr_round}")
+        dist.barrier(device_ids=[local_rank])
 
         curr_round += 1  # increment curr_round for next round
 
