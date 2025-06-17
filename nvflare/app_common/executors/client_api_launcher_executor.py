@@ -32,7 +32,7 @@ class ClientAPILauncherExecutor(LauncherExecutor):
         launch_timeout: Optional[float] = None,
         task_wait_timeout: Optional[float] = None,
         last_result_transfer_timeout: float = 300.0,
-        external_pre_init_timeout: float = 60.0,
+        external_pre_init_timeout: float = 600.0, #60.0,
         peer_read_timeout: Optional[float] = 60.0,
         monitor_interval: float = 0.01,
         read_interval: float = 0.5,

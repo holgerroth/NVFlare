@@ -171,4 +171,5 @@ class SubprocessLauncher(Launcher):
                 return LauncherRunStatus.RUNNING
             if return_code == 0:
                 return LauncherRunStatus.COMPLETE_SUCCESS
+            print(f"###########   SubprocessLauncher: check_run_status: return_code={return_code} ###########")
             return LauncherRunStatus.COMPLETE_FAILED

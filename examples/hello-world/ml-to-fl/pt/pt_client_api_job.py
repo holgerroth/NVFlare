@@ -67,7 +67,7 @@ def main():
     if export_config:
         job.export_job("/tmp/nvflare/jobs/job_config")
     else:
-        job.simulator_run("/tmp/nvflare/jobs/workdir", gpu="0")
+        job.simulator_run("/tmp/nvflare/jobs/workdir", gpu="[0,1],[2,3]")
 
 
 if __name__ == "__main__":
