@@ -192,23 +192,11 @@ def main():
             else:
                 trainer.model.load_state_dict(global_model)        
         
-            # # wraps evaluation logic into a method to re-use for
-            # # evaluation on both trained and received model
-            # def evaluate(input_weights, mode):
-            #     # Special load func for PEFT
-            #     if train_mode:
-            #         set_peft_model_state_dict(trainer.model, input_weights)
-            #     else:
-            #         trainer.model.load_state_dict(input_weights)
-            #     metric_score = trainer.evaluate()
-            #     print(f"Evaluation metric score: {metric_score}")
-            #     return metric_score
-
             # # evaluate on received global model
             # print(f"Evaluating on rank {local_rank}")
-            # eval_loss = evaluate(global_model, train_mode)
-            # eval_loss = float(eval_loss["eval_loss"])
-            # print(f"Evaluation metric score: {eval_loss} on rank {local_rank}")
+            # metrics = trainer.evaluate()
+            # eval_loss = float(metrics["eval_loss"])
+            # print(f"Evaluation metric score: {eval_loss}")
 
 
         # Use a barrier() to make sure all processes are ready to train.
@@ -258,14 +246,14 @@ def main():
         dist.barrier()
 
         # increment num_train_epochs so that the trainer will continue training
-        if args.clean_up:
-            raise ValueError("Clean up is not supported for multi-gpu training.")
-            # runner got cleaned up, set num_train_epochs with curr_round
-            # trainer.args.num_train_epochs = (curr_round + 1) * args.local_epoch
-        else:
-            # runner still alive, increment num_train_epochs with local_epoch
-            trainer.args.num_train_epochs += args.local_epoch
-        print(f"Increment num_train_epochs to {trainer.args.num_train_epochs}")
+        #if args.clean_up:
+        #    raise ValueError("Clean up is not supported for multi-gpu training.")
+        #    # runner got cleaned up, set num_train_epochs with curr_round
+        #    # trainer.args.num_train_epochs = (curr_round + 1) * args.local_epoch
+        #else:
+        #    # runner still alive, increment num_train_epochs with local_epoch
+        #    trainer.args.num_train_epochs += args.local_epoch
+        #print(f"Increment num_train_epochs to {trainer.args.num_train_epochs}")
         
 
     #dist.destroy_process_group()
