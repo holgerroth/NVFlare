@@ -23,8 +23,8 @@ import datasets
 import numpy as np
 import torch
 import torch.distributed as dist
-from peft import LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft_model_state_dict, utils
-from transformers import AutoModelForCausalLM, trainer_utils
+from peft import LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft_model_state_dict
+from transformers import AutoModelForCausalLM
 from trl import SFTConfig, SFTTrainer
 
 import nvflare.client as flare
@@ -45,16 +45,6 @@ def format_instruction(example):
 def main():
     # Initialize distributed training
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
-    world_size = int(os.environ.get("WORLD_SIZE", 1))
-    torch.cuda.set_device(local_rank)
-    dist.init_process_group(
-        backend="nccl",
-        init_method="env://",
-        world_size=world_size,
-        rank=local_rank,
-        device_id=torch.device(f"cuda:{local_rank}")
-    )
-    print(f"Initialize distributed training on rank {local_rank}.")
 
     # Initialize NVFlare client
     flare.init(rank=f"{local_rank}")
@@ -122,7 +112,7 @@ def main():
         use_cache=False,
         torch_dtype=torch.bfloat16,
     )
-    model = model.to(f"cuda:{local_rank}")
+    #model = model.to(f"cuda:{local_rank}")
     torch.set_default_dtype(default_dtype)
 
     # Train mode
@@ -182,17 +172,25 @@ def main():
 
     # Train federated rounds
     # start with global model at the beginning of each round
-    curr_round = 0
     while flare.is_running():
         # receives FLModel from NVFlare
         if local_rank == 0:
             input_model = flare.receive()
+            curr_round = input_model.current_round
+
             print(f"###########   Received input_model on rank {local_rank} for current_round={curr_round} ###########")
-        
+
             # Update the key name received from global model if using model def file
             global_model = copy.deepcopy(input_model.params)
             for key in list(global_model.keys()):
-                global_model[key.replace("model.", "", 1)] = global_model.pop(key)
+                global_model[key.replace("model.", "", 1)] = global_model.pop(key)        
+        
+            # replace local weights with global weights
+            # Special load func for PEFT
+            if train_mode:
+                set_peft_model_state_dict(trainer.model, global_model)
+            else:
+                trainer.model.load_state_dict(global_model)        
         
             # # wraps evaluation logic into a method to re-use for
             # # evaluation on both trained and received model
@@ -211,52 +209,18 @@ def main():
             # eval_loss = evaluate(global_model, train_mode)
             # eval_loss = float(eval_loss["eval_loss"])
             # print(f"Evaluation metric score: {eval_loss} on rank {local_rank}")
-    
+
 
         # Use a barrier() to make sure all processes are ready to train.
-        print(f"Initial barrier on rank {local_rank} in round {curr_round}")
-        dist.barrier(device_ids=[local_rank])
+        print(f"Barrier on rank {local_rank} after loading global model.")
+        dist.barrier()
 
-        # Load global model and previous training states
-        # Since we perform iterative training by using "resume" functionality
-        # we need to replace the resume weights with global weights every round
-        if curr_round == 0:
-             # First round, start from pretrained model
-            trainer.train()
-        else:
-            if local_rank == 0:
-                # replace local resume weights with global weights
-                resume_from_checkpoint_folder = trainer_utils.get_last_checkpoint(trainer.args.output_dir)
-                if train_mode:
-                    # PEFT model small, directly save via torch.save
-                    resume_model_file_path = os.path.join(resume_from_checkpoint_folder, utils.WEIGHTS_NAME)
-                    torch.save(global_model, resume_model_file_path)
-                else:
-                    # SFT model can be large, save via HF API
-                    # Disable safetensor for now
-                    trainer.model.save_pretrained(resume_from_checkpoint_folder, safe_serialization=False)
-
-            print(f"Barrier on rank {local_rank} in round {curr_round} after saving model")
-            dist.barrier(device_ids=[local_rank])
-
-            # increment num_train_epochs so that the trainer will continue training
-            if args.clean_up:
-                # runner got cleaned up, set num_train_epochs with curr_round
-                trainer.args.num_train_epochs = (curr_round + 1) * args.local_epoch
-            else:
-                # runner still alive, increment num_train_epochs with local_epoch
-                trainer.args.num_train_epochs += args.local_epoch
-            print(f"Increment num_train_epochs to {trainer.args.num_train_epochs}")
-
-            print(f"Barrier on rank {local_rank} in round {curr_round} after incrementing num_train_epochs")
-            dist.barrier(device_ids=[local_rank])
-
-            # continue training
-            trainer.train(resume_from_checkpoint=True)
+        # continue training
+        trainer.train()
 
         # Use a barrier() to make sure all processes finished training.
         print(f"Completed training on rank {local_rank}")
-        dist.barrier(device_ids=[local_rank])
+        dist.barrier()
         
         if local_rank == 0:
             print(f"Get output model on {local_rank}")
@@ -290,12 +254,21 @@ def main():
             flare.send(output_model)
             print(f"########### Sent model back to NVFlare on rank {local_rank} in round {curr_round} ###########")
 
-        print(f"Barrier on rank {local_rank} after returning model in round {curr_round}")
-        dist.barrier(device_ids=[local_rank])
+        print(f"Barrier on rank {local_rank} after returning model")
+        dist.barrier()
 
-        curr_round += 1  # increment curr_round for next round
+        # increment num_train_epochs so that the trainer will continue training
+        if args.clean_up:
+            raise ValueError("Clean up is not supported for multi-gpu training.")
+            # runner got cleaned up, set num_train_epochs with curr_round
+            # trainer.args.num_train_epochs = (curr_round + 1) * args.local_epoch
+        else:
+            # runner still alive, increment num_train_epochs with local_epoch
+            trainer.args.num_train_epochs += args.local_epoch
+        print(f"Increment num_train_epochs to {trainer.args.num_train_epochs}")
+        
 
-    dist.destroy_process_group()
+    #dist.destroy_process_group()
 
 
 if __name__ == "__main__":
