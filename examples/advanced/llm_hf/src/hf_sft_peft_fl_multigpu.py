@@ -204,11 +204,12 @@ def main():
         print(f"Barrier on rank {local_rank} after loading global model.")
         dist.barrier()
 
-        # evaluate on received global model
-        print(f"Evaluating...")
+        # evaluate on received global model on all ranks
+        print(f"Evaluating on rank {local_rank} ...")
         metrics = trainer.evaluate()
         eval_loss = float(metrics["eval_loss"])
-        print(f"Evaluation metric score: {eval_loss}")
+        if local_rank == 0:
+            print(f"Evaluation metric score: {eval_loss}")
 
         # continue training
         trainer.train()
