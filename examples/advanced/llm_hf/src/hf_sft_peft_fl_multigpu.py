@@ -184,13 +184,21 @@ def main():
             global_model = copy.deepcopy(input_model.params)
             for key in list(global_model.keys()):
                 global_model[key.replace("model.", "", 1)] = global_model.pop(key)        
+        else:
+            global_model = None
         
-            # replace local weights with global weights
-            # Special load func for PEFT
-            if train_mode:
-                set_peft_model_state_dict(trainer.model, global_model)
-            else:
-                trainer.model.load_state_dict(global_model)        
+        # Broadcast global_model from rank 0 to all ranks
+        if dist.is_initialized():
+            global_model_list = [global_model]
+            dist.broadcast_object_list(global_model_list, src=0)
+            global_model = global_model_list[0]
+        
+        # replace local weights with global weights            
+        # Special load func for PEFT
+        if train_mode:
+            set_peft_model_state_dict(trainer.model, global_model)
+        else:
+            trainer.model.load_state_dict(global_model)        
         
         # Use a barrier() to make sure all processes are ready to train.
         print(f"Barrier on rank {local_rank} after loading global model.")
