@@ -1,25 +1,30 @@
+from abc import ABC, abstractmethod
+from typing import List, Optional
+
 from src.cifar10_fl import Net
 
 from nvflare.app_common.workflows.fedavg import FedAvg
 from fl_utils import Server, Client, FLRunner
+from nvflare.app_common.trainers.pt import PyTorchTrainer
 
 
 if __name__ == "__main__":
+    # Example usage
     n_clients = 2
     num_rounds = 2
     train_script = "src/cifar10_fl.py"
+    
+    # Create strategy and setup FL
+    strategy = FedAvg(num_rounds=num_rounds, min_clients=n_clients)
 
-    controller = FedAvg(
-        num_clients=n_clients,
-        num_rounds=num_rounds,
-        initial_model=Net()
-    )
-    server = Server(controller)
-    clients = [Client(train_script, script_args="--dataset /tmp/nvflare/cifar10/cifar10_data_site-{i}.pkl") for i in range(n_clients)]
+    # Create trainer
+    trainer = PyTorchTrainer(train_script)
+    
+    # Define experiment
+    exp = FLExperiment(strategy=strategy, 
+                       client_trainer=trainer, 
+                       n_clients=1000, config=None)
 
     # Run experiment
-    runner = FLRunner(server=server, clients=clients)
-    runner.simulate(workdir="/tmp/nvflare/cifar10", gpu="0")
-    # runner.export("/tmp/nvflare/jobs")
-    # runner.deploy(admindir="/tmp/startup_kits/admin")
-
+    exp.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10"))
+    #exp.run(env=FlareEnv())

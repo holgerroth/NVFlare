@@ -15,7 +15,7 @@ if __name__ == "__main__":
         # initial_model=Net()  # TODO: add initial model in FedAvg controller
     )
     server = Server(controller, initial_model=Net())
-    client = Client(train_script)
+    client = Client(PyTorchTrainer(train_script)
 
     # Run experiment
     runner = FLRunner(server=server, client=client, n_clients=n_clients)

@@ -34,6 +34,88 @@ class Client(Peer):
         raise NotImplementedError("Not implemented")
     
 
+class Strategy(ABC):
+    """Abstract base class for federated learning strategies.
+    
+    This class defines the interface for different federated learning strategies.
+    Each strategy should implement the setup method to configure the FL components.
+    """
+    
+    def __init__(self, trainer: PyTorchTrainer):
+        """Initialize the strategy with a PyTorch trainer.
+        
+        Args:
+            trainer: PyTorchTrainer instance to be used by clients
+        """
+        self.trainer = trainer
+    
+    @abstractmethod
+    def setup(self, n_clients: int, num_rounds: int, initial_model=None) -> FLRunner:
+        """Setup the federated learning configuration.
+        
+        Args:
+            n_clients: Number of clients to participate in training
+            num_rounds: Number of training rounds
+            initial_model: Initial model to start training with
+            
+        Returns:
+            FLRunner: Configured FLRunner instance ready for simulation
+        """
+        pass
+
+
+class FedAvg(Strategy):
+    """CIFAR10 Federated Averaging Strategy.
+    
+    This strategy implements FedAvg for CIFAR10 dataset with configurable
+    number of clients and training rounds.
+    """
+    
+    def setup(self, n_clients: int, num_rounds: int, initial_model=None) -> FLRunner:
+        """Setup FedAvg configuration.
+        
+        Args:
+            n_clients: Number of clients to participate in training
+            num_rounds: Number of training rounds
+            initial_model: Initial model to start training with (defaults to Net())
+            
+        Returns:
+            FLRunner: Configured FLRunner instance ready for simulation
+        """
+        if initial_model is None:
+            initial_model = Net()
+            
+        train_script = "src/cifar10_fl.py"
+        
+        # Create the FedAvg controller
+        controller = FedAvg(
+            num_clients=n_clients,
+            num_rounds=num_rounds,
+            initial_model=initial_model
+        )
+        
+        # Create server with controller
+        server = Server(controller)
+
+class FLExperiment:
+    def __init__(self, strategy: Strategy, client_trainer: Trainer, n_clients: int, config: Optional[Dict] = None):
+        self.strategy = strategy
+        self.client_trainer = client_trainer
+        self.n_clients = n_clients
+        self.config = config
+
+    def run(self, env: Env):
+        # Create clients with script arguments for different dataset paths
+        clients = []
+        for i in range(self.n_clients):
+            script_args = f"--dataset /tmp/nvflare/cifar10/cifar10_data_site-{i}.pkl"
+            client = ClientWithArgs(train_script, script_args)
+            clients.append(client)
+        
+        # Create and return FLRunner
+        env.run()
+
+
 class FLRunner:
     def __init__(
         self,
