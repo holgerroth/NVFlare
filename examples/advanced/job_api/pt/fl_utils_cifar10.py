@@ -13,11 +13,11 @@ if __name__ == "__main__":
     num_rounds = 2
     train_script = "src/cifar10_fl.py"
 
-    # Create trainer
+    # Create client trainer
     trainer = PyTorchTrainer(train_script)
 
 
-    # Create strategy and setup FL
+    # Create FL strategy
     strategy = FedAvgStrategy(trainer=trainer, num_rounds=num_rounds, num_clients=n_clients, initial_model=Net())
 
     

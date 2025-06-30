@@ -143,11 +143,8 @@ def create_job(server, clients, job_name="fed_sim_job"):
     """
     Simplified API to run a federated learning simulation.
     Args:
-        server: Server object containing the controller.
-        clients: List of Client objects with training scripts.
-        workdir: Directory for simulation output.
-        gpu: GPU id as string, or None for CPU.
-        job_name: Name for the job (optional).
+        server: Server object.
+        clients: List of Client objects.
     """
     job = BaseFedJob(
         name=job_name,
