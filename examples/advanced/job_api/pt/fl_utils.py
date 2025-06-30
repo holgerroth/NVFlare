@@ -6,53 +6,41 @@ from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.widgets.widget import Widget
 from nvflare.apis.executor import Executor
 from nvflare.apis.impl.controller import Controller
-from nvflare.app_common.trainers.pt import PyTorchTrainer
-from src.net import Net
-
-# Import FedAvg from the correct location
-try:
-    from nvflare.app_common.workflows.fedavg import FedAvg
-except ImportError:
-    # Fallback if the import fails
-    class FedAvg:
-        def __init__(self, num_clients: int, num_rounds: int, initial_model=None):
-            self.num_clients = num_clients
-            self.num_rounds = num_rounds
-            self.initial_model = initial_model
+from nvflare.app_common.workflows.fedavg import FedAvg
+from nvflare.app_common.trainers.pt_trainer import Trainer
 
 
 class Peer:
+    def __init__(self):
+        self.widgets = []
+
     def add_dependency(self, dependency: Any) -> None:
         # submit any job dependency (file, directory, etc.) to the peer (server or client)
         raise NotImplementedError("Not implemented")
+    
+    def add_widget(self, widget: Widget) -> None:
+        self.widgets.append(widget)
 
 
 class Server(Peer):
     def __init__(self, controller: Controller, initial_model: Optional[object] = None) -> None:
-        self.controller = controller
+        self.controllers = [controller]
         self.initial_model = initial_model
+        super().__init__()
 
     def add_controller(self, controller: Controller) -> None:
-        raise NotImplementedError("Not implemented")
+        self.controllers.append(controller)
 
-    def add_widget(self, widget: Widget) -> None:
-        raise NotImplementedError("Not implemented")
 
 
 class Client(Peer):
-    def __init__(self, train_script: str) -> None:
-        self.train_script = train_script
-        self.runner = ScriptRunner(script=train_script)
+    def __init__(self, executor: Executor) -> None:
+        self.executors = [executor]
+        super().__init__()
 
     def add_executor(self, executor: Executor) -> None:
-        raise NotImplementedError("Not implemented")
+        self.executors.append(executor)
 
-
-class ClientWithArgs(Client):
-    def __init__(self, train_script: str, script_args: str) -> None:
-        super().__init__(train_script)
-        self.script_args = script_args
-        self.runner = ScriptRunner(script=train_script, args=script_args)
 
 
 class Strategy(ABC):
@@ -62,16 +50,19 @@ class Strategy(ABC):
     Each strategy should implement the setup method to configure the FL components.
     """
     
-    def __init__(self, trainer: PyTorchTrainer):
+    def __init__(self, trainer: Trainer):
         """Initialize the strategy with a PyTorch trainer.
         
         Args:
             trainer: PyTorchTrainer instance to be used by clients
         """
         self.trainer = trainer
+        self.clients = []
+        self.client = None
+        self.server = None
     
     @abstractmethod
-    def setup(self, n_clients: int, num_rounds: int, initial_model=None) -> 'FLRunner':
+    def setup(self, n_clients: int, num_rounds: int, initial_model=None):
         """Setup the federated learning configuration.
         
         Args:
@@ -79,66 +70,76 @@ class Strategy(ABC):
             num_rounds: Number of training rounds
             initial_model: Initial model to start training with
             
-        Returns:
-            FLRunner: Configured FLRunner instance ready for simulation
+        Returns: None
         """
-        pass
+        raise NotImplementedError("Not implemented")
+
+    def get_clients(self, n_clients: int) -> List[Client]:
+        """Get a list of clients.
+        
+        Args:
+            n_clients: Number of clients to create
+        """
+
+        return [self.client for _ in range(n_clients)]
+
+    def get_server(self) -> Server:
+        """Get a server."""
+        return self.server
 
 
 class FedAvgStrategy(Strategy):
-    """CIFAR10 Federated Averaging Strategy.
+    """Federated Averaging Strategy.
     
-    This strategy implements FedAvg for CIFAR10 dataset with configurable
+    This strategy implements FedAvg for CIFAR10 with configurable
     number of clients and training rounds.
     """
     
-    def __init__(self, trainer: Trainer, n_clients: int, num_rounds: int, initial_model=None):
+    def __init__(self, trainer: Trainer, num_clients: int, num_rounds: int, initial_model=None):
         """Setup FedAvg configuration.
         
         Args:
             num_rounds: Number of training rounds
-            initial_model: Initial model to start training with (defaults to Net())
+            initial_model: Initial model to start training with
             
         Returns:
-            FLRunner: Configured FLRunner instance ready for simulation
         """
-        if initial_model is None:
-            initial_model = Net()
-            
-        train_script = "src/cifar10_fl.py"
+        self.num_clients = num_clients
+        self.num_rounds = num_rounds
+        self.initial_model = initial_model
         
+        super().__init__(trainer)
+
+    def setup(self):
         # Create the FedAvg controller
         controller = FedAvg(
-            num_clients=n_clients,
-            num_rounds=num_rounds,
-            initial_model=initial_model
+            num_clients=self.num_clients,
+            num_rounds=self.num_rounds
         )
         
         # Create server with controller
-        server = Server(controller, initial_model)
+        self.server = Server(controller, self.initial_model)
         
         # Create a single client template
-        client = Client(trainer)
-
-        return server, client        
+        self.client = Client(self.trainer.get_executor())
 
 
 class FLExperiment:
-    def __init__(self, strategy: Strategy, n_clients: int, config: Optional[Dict] = None):
+    def __init__(self, strategy: Strategy, num_clients: int, config: Optional[Dict] = None):
         self.strategy = strategy
-        self.n_clients = n_clients
+        self.num_clients = num_clients
         self.config = config
 
     def run(self, env: 'Env'):
-        server, client = self.strategy.setup(self.n_clients, self.config)
 
-        job = create_job(server, client)
+        self.strategy.setup()
+        job = create_job(self.strategy.get_server(), self.strategy.get_clients(n_clients=self.num_clients))
         
         # Create and return FLRunner
         env.run(job)
 
 
-def create_job(server, client, job_name="fed_sim_job"):
+def create_job(server, clients, job_name="fed_sim_job"):
     """
     Simplified API to run a federated learning simulation.
     Args:
@@ -152,11 +153,13 @@ def create_job(server, client, job_name="fed_sim_job"):
         name=job_name,
         initial_model=server.initial_model,
     )
-    job.to_server(server.controller)
+    for controller in server.controllers:
+        job.to_server(controller)
 
     # Add clients to the job
     for i, client in enumerate(clients):
-        job.to(client.runner, f"site-{i}")
+        for executor in client.executors:
+            job.to(executor, f"site-{i}")
 
     return job
 
@@ -167,7 +170,7 @@ class Env(ABC):
     @abstractmethod
     def run(self):
         """Run the federated learning experiment."""
-        pass
+        raise NotImplementedError("Not implemented")
 
 
 class SimEnv(Env):
@@ -177,10 +180,11 @@ class SimEnv(Env):
         self.gpu = gpu
         self.workdir = workdir
     
-    def run(self):
+    def run(self, job):
         """Run the simulation."""
         # Implementation would go here
         print(f"Running simulation with GPU: {self.gpu}, workdir: {self.workdir}")
+        job.simulator_run(self.workdir, gpu=self.gpu)
 
 
 class FlareEnv(Env):
@@ -191,61 +195,3 @@ class FlareEnv(Env):
         # Implementation would go here
         print("Running NVFlare experiment")
 
-
-class FLRunner:
-    def __init__(
-        self,
-        server: Server,
-        client: Optional[Client] = None,
-        clients: Optional[List[Client]] = None,
-        n_clients: Optional[int] = None
-    ) -> None:
-        """Initialize the FLRunner with server and clients.
-        
-        Args:
-            server: Server object containing the controller
-            client: Single Client object with training script (optional)
-            clients: List of Client objects with training scripts (optional)
-            n_clients: Number of clients to create from the single client (optional)
-        """
-        self.server = server
-        
-        if client is not None and n_clients is not None:
-            # Create n_clients copies of the same client
-            self.clients = [client for _ in range(n_clients)]
-        elif clients is not None:
-            self.clients = clients
-        else:
-            raise ValueError("Either provide a single client with n_clients, or a list of clients")
-        
-        # Create the job
-        self._job = self._create_job()
-
-
-    def simulate(self, workdir: str, gpu: Optional[str] = None) -> None:
-        """Run a federated learning simulation.
-        
-        Args:
-            workdir: Directory for simulation output
-            gpu: GPU id as string, or None for CPU
-        """
-        
-        self._job.simulator_run(workdir, gpu=gpu)
-
-    def export(self, job_dir: str) -> None:
-        """Export the job configuration to a directory.
-        
-        Args:
-            job_dir: Directory to export job configuration to
-        """
-
-        self._job.export(job_dir)
-
-    def deploy(self, admindir: str) -> None:
-        """Deploy the job to a running NVFlare system.
-        
-        Args:
-            admindir: Directory containing admin startup kit
-        """
-        
-        self._job.deploy(admindir) 

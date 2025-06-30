@@ -1,12 +1,6 @@
-class Trainer:
-    def __init__(self, script: str):
-        self.script = script
+from abc import ABC, abstractmethod
 
-    def train(self):
-        pass
-
-    def evaluate(self):
-        pass
-
-    def save(self):
-        pass
+class Trainer(ABC):
+    @abstractmethod
+    def get_executor(self):
+        raise NotImplementedError("Not implemented")
