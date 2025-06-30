@@ -1,14 +1,28 @@
-from typing import List, Optional, Any
+from abc import ABC, abstractmethod
+from typing import List, Optional, Any, Dict
 
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.widgets.widget import Widget
 from nvflare.apis.executor import Executor
 from nvflare.apis.impl.controller import Controller
+from nvflare.app_common.trainers.pt import PyTorchTrainer
+from src.net import Net
+
+# Import FedAvg from the correct location
+try:
+    from nvflare.app_common.workflows.fedavg import FedAvg
+except ImportError:
+    # Fallback if the import fails
+    class FedAvg:
+        def __init__(self, num_clients: int, num_rounds: int, initial_model=None):
+            self.num_clients = num_clients
+            self.num_rounds = num_rounds
+            self.initial_model = initial_model
 
 
 class Peer:
-    def add_depencency(self, dependency: Any) -> None:
+    def add_dependency(self, dependency: Any) -> None:
         # submit any job dependency (file, directory, etc.) to the peer (server or client)
         raise NotImplementedError("Not implemented")
 
@@ -32,7 +46,14 @@ class Client(Peer):
 
     def add_executor(self, executor: Executor) -> None:
         raise NotImplementedError("Not implemented")
-    
+
+
+class ClientWithArgs(Client):
+    def __init__(self, train_script: str, script_args: str) -> None:
+        super().__init__(train_script)
+        self.script_args = script_args
+        self.runner = ScriptRunner(script=train_script, args=script_args)
+
 
 class Strategy(ABC):
     """Abstract base class for federated learning strategies.
@@ -50,7 +71,7 @@ class Strategy(ABC):
         self.trainer = trainer
     
     @abstractmethod
-    def setup(self, n_clients: int, num_rounds: int, initial_model=None) -> FLRunner:
+    def setup(self, n_clients: int, num_rounds: int, initial_model=None) -> 'FLRunner':
         """Setup the federated learning configuration.
         
         Args:
@@ -64,18 +85,17 @@ class Strategy(ABC):
         pass
 
 
-class FedAvg(Strategy):
+class FedAvgStrategy(Strategy):
     """CIFAR10 Federated Averaging Strategy.
     
     This strategy implements FedAvg for CIFAR10 dataset with configurable
     number of clients and training rounds.
     """
     
-    def setup(self, n_clients: int, num_rounds: int, initial_model=None) -> FLRunner:
+    def __init__(self, trainer: Trainer, n_clients: int, num_rounds: int, initial_model=None):
         """Setup FedAvg configuration.
         
         Args:
-            n_clients: Number of clients to participate in training
             num_rounds: Number of training rounds
             initial_model: Initial model to start training with (defaults to Net())
             
@@ -95,25 +115,81 @@ class FedAvg(Strategy):
         )
         
         # Create server with controller
-        server = Server(controller)
+        server = Server(controller, initial_model)
+        
+        # Create a single client template
+        client = Client(trainer)
+
+        return server, client        
+
 
 class FLExperiment:
-    def __init__(self, strategy: Strategy, client_trainer: Trainer, n_clients: int, config: Optional[Dict] = None):
+    def __init__(self, strategy: Strategy, n_clients: int, config: Optional[Dict] = None):
         self.strategy = strategy
-        self.client_trainer = client_trainer
         self.n_clients = n_clients
         self.config = config
 
-    def run(self, env: Env):
-        # Create clients with script arguments for different dataset paths
-        clients = []
-        for i in range(self.n_clients):
-            script_args = f"--dataset /tmp/nvflare/cifar10/cifar10_data_site-{i}.pkl"
-            client = ClientWithArgs(train_script, script_args)
-            clients.append(client)
+    def run(self, env: 'Env'):
+        server, client = self.strategy.setup(self.n_clients, self.config)
+
+        job = create_job(server, client)
         
         # Create and return FLRunner
-        env.run()
+        env.run(job)
+
+
+def create_job(server, client, job_name="fed_sim_job"):
+    """
+    Simplified API to run a federated learning simulation.
+    Args:
+        server: Server object containing the controller.
+        clients: List of Client objects with training scripts.
+        workdir: Directory for simulation output.
+        gpu: GPU id as string, or None for CPU.
+        job_name: Name for the job (optional).
+    """
+    job = BaseFedJob(
+        name=job_name,
+        initial_model=server.initial_model,
+    )
+    job.to_server(server.controller)
+
+    # Add clients to the job
+    for i, client in enumerate(clients):
+        job.to(client.runner, f"site-{i}")
+
+    return job
+
+
+class Env(ABC):
+    """Abstract base class for execution environments."""
+    
+    @abstractmethod
+    def run(self):
+        """Run the federated learning experiment."""
+        pass
+
+
+class SimEnv(Env):
+    """Simulation environment for federated learning."""
+    
+    def __init__(self, gpu: Optional[str] = None, workdir: str = "/tmp/nvflare"):
+        self.gpu = gpu
+        self.workdir = workdir
+    
+    def run(self):
+        """Run the simulation."""
+        # Implementation would go here
+        print(f"Running simulation with GPU: {self.gpu}, workdir: {self.workdir}")
+
+
+class FlareEnv(Env):
+    """NVFlare environment for federated learning."""
+    
+    def run(self):
+        """Run the NVFlare experiment."""
+        # Implementation would go here
+        print("Running NVFlare experiment")
 
 
 class FLRunner:
@@ -145,27 +221,6 @@ class FLRunner:
         # Create the job
         self._job = self._create_job()
 
-    def _create_job(self, job_name="fed_sim_job"):
-        """
-        Simplified API to run a federated learning simulation.
-        Args:
-            server: Server object containing the controller.
-            clients: List of Client objects with training scripts.
-            workdir: Directory for simulation output.
-            gpu: GPU id as string, or None for CPU.
-            job_name: Name for the job (optional).
-        """
-        job = BaseFedJob(
-            name=job_name,
-            initial_model=self.server.initial_model,
-        )
-        job.to_server(self.server.controller)
-
-        # Add clients to the job
-        for i, client in enumerate(self.clients):
-            job.to(client.runner, f"site-{i}")
-
-        return job
 
     def simulate(self, workdir: str, gpu: Optional[str] = None) -> None:
         """Run a federated learning simulation.
