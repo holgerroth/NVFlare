@@ -1,6 +1,6 @@
 from src.cifar10_fl import Net
 
-from nvflare.app_common.strategies.fedavg import FedAvgStrategy
+from nvflare.app_common.strategies.fedavg import SwarmStrategy
 from nvflare.app_common.trainers.pt_trainer import PyTorchTrainer
 from nvflare.experiment.fl_experiment import FLExperiment, SimEnv
 
@@ -14,7 +14,10 @@ if __name__ == "__main__":
     trainer = PyTorchTrainer(train_script)
 
     # Create FL strategy
-    strategy = FedAvgStrategy(trainer=trainer, num_rounds=num_rounds, num_clients=n_clients, initial_model=Net())
+    strategy = SwarmStrategy(trainer=trainer, # only option required by strategy
+                              num_rounds=num_rounds, 
+                              num_clients=n_clients, 
+                              initial_model=Net())
 
     # Define experiment
     exp = FLExperiment(strategy=strategy, num_clients=n_clients, config=None)

@@ -1,8 +1,57 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from nvflare.app_common.strategies.strategy import Strategy
+from nvflare import FilterType
+from nvflare.app_common.trainers.pt_trainer import Trainer
+from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
+
+from .strategy import Client, Server, Strategy
+
+
+class SwarmStrategy(Strategy):
+    """Swarm Learning Strategy.
+
+    This strategy implements swarm learning with configurable
+    number of clients and training rounds.
+    """
+
+    def __init__(
+        self, trainer: Trainer, num_clients: int, num_rounds: int, initial_model=None, aggregate_fn=None, filters=None
+    ):
+        """Setup Swarm Learning configuration.
+
+        Args:
+            num_rounds: Number of training rounds
+            num_clients: Number of clients to participate in FedAvg algorithm
+            initial_model: Initial model to start training with
+            aggregate_fn: Function to aggregate the models from clients
+            filters: List of filters to apply to the strategy
+
+        Returns:
+        """
+        self.num_clients = num_clients
+        self.num_rounds = num_rounds
+        self.initial_model = initial_model
+        self.aggregate_fn = aggregate_fn
+        self.filters = filters
+        super().__init__(trainer)
+
+    def setup(self):
+        # Create the FedAvg controller
+        controller = FedAvg(num_clients=self.num_clients, num_rounds=self.num_rounds)
+        if self.aggregate_fn is not None:
+            controller.aggregate_fn = self.aggregate_fn  # TODO: this won't work with job api
+
+        # Create server with controller
+        self.server = Server(controller, self.initial_model)
+
+        # Create a single client template
+        self.client = Client(self.trainer.get_executor())
+
+        for filter in self.filters:
+            print(f"Adding client filter: {type(filter)}")
+            self.client.add_filter(filter, FilterType.TASK_RESULT, ["train"])
 
 
 class FLExperiment:
@@ -38,8 +87,6 @@ def create_job(server, clients, job_name="fed_sim_job"):
     for i, client in enumerate(clients):
         for executor in client.executors:
             job.to(executor, f"site-{i}")
-
-    # TODO: handle filters and widgets
 
     return job
 

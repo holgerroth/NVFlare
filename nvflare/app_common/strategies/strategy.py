@@ -57,7 +57,6 @@ class Strategy(ABC):
             trainer: PyTorchTrainer instance to be used by clients
         """
         self.trainer = trainer
-        self.clients = []
         self.client = None
         self.server = None
 

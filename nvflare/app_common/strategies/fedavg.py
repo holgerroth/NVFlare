@@ -12,7 +12,7 @@ from .strategy import Client, Server, Strategy
 class FedAvgStrategy(Strategy):
     """Federated Averaging Strategy.
 
-    This strategy implements FedAvg for CIFAR10 with configurable
+    This strategy implements FedAvg with configurable
     number of clients and training rounds.
     """
 
