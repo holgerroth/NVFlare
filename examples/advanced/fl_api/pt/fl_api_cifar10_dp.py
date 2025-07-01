@@ -1,5 +1,6 @@
 from src.cifar10_fl import Net
 
+from nvflare.app_common.filters.percentile_privacy import PercentilePrivacy
 from nvflare.app_common.strategies.fedavg import FedAvgStrategy
 from nvflare.app_common.trainers.pt_trainer import PyTorchTrainer
 from nvflare.experiment.fl_experiment import FLExperiment, SimEnv
@@ -14,7 +15,14 @@ if __name__ == "__main__":
     trainer = PyTorchTrainer(train_script)
 
     # Create FL strategy
-    strategy = FedAvgStrategy(trainer=trainer, num_rounds=num_rounds, num_clients=n_clients, initial_model=Net())
+    strategy = FedAvgStrategy(
+        trainer=trainer,
+        num_rounds=num_rounds,
+        num_clients=n_clients,
+        initial_model=Net(),
+        aggregate_fn=None,  # optional
+        privacy_filters=[PercentilePrivacy(percentile=10, gamma=0.01)],  # optional
+    )
 
     # Define experiment
     exp = FLExperiment(strategy=strategy, num_clients=n_clients, config=None)

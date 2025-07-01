@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Any, Dict
+from typing import Any, Dict, List, Optional
 
-from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.app_common.strategies.strategy import Strategy
+from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 
 
 class FLExperiment:
@@ -11,11 +11,11 @@ class FLExperiment:
         self.num_clients = num_clients
         self.config = config
 
-    def run(self, env: 'Env'):
+    def run(self, env: "Env"):
 
         self.strategy.setup()
         job = create_job(self.strategy.get_server(), self.strategy.get_clients(n_clients=self.num_clients))
-        
+
         # Create and return FLRunner
         env.run(job)
 
@@ -44,7 +44,7 @@ def create_job(server, clients, job_name="fed_sim_job"):
 
 class Env(ABC):
     """Abstract base class for execution environments."""
-    
+
     @abstractmethod
     def run(self):
         """Run the federated learning experiment."""
@@ -53,11 +53,11 @@ class Env(ABC):
 
 class SimEnv(Env):
     """Simulation environment for federated learning."""
-    
+
     def __init__(self, gpu: Optional[str] = None, workdir: str = "/tmp/nvflare"):
         self.gpu = gpu
         self.workdir = workdir
-    
+
     def run(self, job):
         """Run the simulation."""
         # Implementation would go here
@@ -67,9 +67,8 @@ class SimEnv(Env):
 
 class FlareEnv(Env):
     """NVFlare environment for federated learning."""
-    
+
     def run(self):
         """Run the NVFlare experiment."""
         # Implementation would go here
         print("Running NVFlare experiment")
-

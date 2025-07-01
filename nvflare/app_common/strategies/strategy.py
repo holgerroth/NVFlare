@@ -1,25 +1,27 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Any, Dict
+from typing import Any, Dict, List, Optional
 
-from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
-from nvflare.job_config.script_runner import ScriptRunner
-from nvflare.widgets.widget import Widget
 from nvflare.apis.executor import Executor
+from nvflare.apis.filter import Filter
 from nvflare.apis.impl.controller import Controller
-from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_common.trainers.pt_trainer import Trainer
+from nvflare.widgets.widget import Widget
 
 
 class Peer:
     def __init__(self):
         self.widgets = []
+        self.filters = []
 
     def add_dependency(self, dependency: Any) -> None:
         # submit any job dependency (file, directory, etc.) to the peer (server or client)
         raise NotImplementedError("Not implemented")
-    
+
     def add_widget(self, widget: Widget) -> None:
         self.widgets.append(widget)
+
+    def add_filter(self, filter: Filter, filter_type: str, tasks: List[str]) -> None:
+        self.filters.append(filter)
 
 
 class Server(Peer):
@@ -32,7 +34,6 @@ class Server(Peer):
         self.controllers.append(controller)
 
 
-
 class Client(Peer):
     def __init__(self, executor: Executor) -> None:
         self.executors = [executor]
@@ -42,17 +43,16 @@ class Client(Peer):
         self.executors.append(executor)
 
 
-
 class Strategy(ABC):
     """Abstract base class for federated learning strategies.
-    
+
     This class defines the interface for different federated learning strategies.
     Each strategy should implement the setup method to configure the FL components.
     """
-    
+
     def __init__(self, trainer: Trainer):
         """Initialize the strategy with a PyTorch trainer.
-        
+
         Args:
             trainer: PyTorchTrainer instance to be used by clients
         """
@@ -60,23 +60,23 @@ class Strategy(ABC):
         self.clients = []
         self.client = None
         self.server = None
-    
+
     @abstractmethod
     def setup(self, n_clients: int, num_rounds: int, initial_model=None):
         """Setup the federated learning configuration.
-        
+
         Args:
             n_clients: Number of clients to participate in training
             num_rounds: Number of training rounds
             initial_model: Initial model to start training with
-            
+
         Returns: None
         """
         raise NotImplementedError("Not implemented")
 
     def get_clients(self, n_clients: int) -> List[Client]:
         """Get a list of clients.
-        
+
         Args:
             n_clients: Number of clients to create
         """
@@ -86,4 +86,3 @@ class Strategy(ABC):
     def get_server(self) -> Server:
         """Get a server."""
         return self.server
-

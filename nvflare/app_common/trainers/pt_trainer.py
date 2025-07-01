@@ -1,10 +1,11 @@
-from .trainer import Trainer
 from nvflare.job_config.script_runner import ScriptRunner
+
+from .trainer import Trainer
 
 
 class PyTorchTrainer(Trainer):
-    def __init__(self, script: str, args: str=""):
-        
+    def __init__(self, script: str, args: str = ""):
+
         self.script_args = args
         self.runner = ScriptRunner(script, args)
 
