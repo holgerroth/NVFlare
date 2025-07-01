@@ -1,8 +1,6 @@
-from abc import ABC, abstractmethod
-from typing import List, Optional, Dict
-
 from src.cifar10_fl import Net
-from fl_utils import FedAvgStrategy, FLExperiment, SimEnv
+from nvflare.app_common.strategies.fedavg import FedAvgStrategy
+from nvflare.experiment.fl_experiment import FLExperiment, SimEnv
 from nvflare.app_common.trainers.pt_trainer import PyTorchTrainer
 
 
@@ -16,10 +14,8 @@ if __name__ == "__main__":
     # Create client trainer
     trainer = PyTorchTrainer(train_script)
 
-
     # Create FL strategy
-    strategy = FedAvgStrategy(trainer=trainer, num_rounds=num_rounds, num_clients=n_clients, initial_model=Net())
-
+    strategy = FedAvgStrategy(trainer=trainer, num_rounds=num_rounds, num_clients=n_clients, initial_model=Net(), aggregate_fn=None)
     
     # Define experiment
     exp = FLExperiment(strategy=strategy, 
