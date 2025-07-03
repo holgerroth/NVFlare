@@ -43,7 +43,7 @@ class Client(Peer):
         self.executors.append(executor)
 
 
-class Strategy(ABC):
+class Recipe(ABC):
     """Abstract base class for federated learning strategies.
 
     This class defines the interface for different federated learning strategies.
@@ -61,7 +61,7 @@ class Strategy(ABC):
         self.server = None
 
     @abstractmethod
-    def setup(self, n_clients: int, num_rounds: int, initial_model=None):
+    def setup(self, **kwargs):
         """Setup the federated learning configuration.
 
         Args:
