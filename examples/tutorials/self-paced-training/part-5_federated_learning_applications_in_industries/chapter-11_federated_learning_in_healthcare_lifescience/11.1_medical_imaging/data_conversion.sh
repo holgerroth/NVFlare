@@ -1,6 +1,6 @@
 target_folder=/tmp/nvflare/datasets/MSD
-mkdir ${target_folder}/Image
-mkdir ${target_folder}/Mask
+mkdir -p ${target_folder}/Image
+mkdir -p ${target_folder}/Mask
 
 source_folder=/tmp/nvflare/datasets/MSD/Raw/Task05_Prostate
 find ${source_folder}/imagesTr -mindepth 1 -maxdepth 1 -type f | while read case; do
