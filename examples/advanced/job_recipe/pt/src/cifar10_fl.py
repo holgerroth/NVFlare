@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -32,10 +33,16 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="CIFAR10 Federated Learning")
+    parser.add_argument("--epochs", type=int, default=2, help="Number of training epochs")
+    parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
+    args = parser.parse_args()
+
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    batch_size = 4
-    epochs = 2
+    batch_size = args.batch_size
+    epochs = args.epochs
 
     trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=True, transform=transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -135,3 +142,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    

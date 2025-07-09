@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
+import types
 
 from nvflare import FilterType
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
@@ -71,15 +72,15 @@ class FedAvgRecipe(Recipe):
         )
         # TODO: support overwriting these functions
         if self.aggregate_fn is not None:
-            controller.aggregate_fn = self.aggregate_fn  # TODO: this won't work with job api
+            controller.aggregate_fn = types.MethodType(self.aggregate_fn, controller)  # MethodType is used to bind the function to the controller object
         if self.sample_clients_fn is not None:
-            controller.sample_clients = self.sample_clients_fn
+            controller.sample_clients = types.MethodType(self.sample_clients_fn, controller)
         if self.load_model_fn is not None:
-            controller.load_model = self.load_model_fn
+            controller.load_model = types.MethodType(self.load_model_fn, controller)
         if self.save_model_fn is not None:
-            controller.save_model = self.save_model_fn
-        #if self.early_stop_fn is not None:
-        #    controller.early_stop_fn = self.early_stop_fn
+            controller.save_model = types.MethodType(self.save_model_fn, controller)
+        #if self.early_stop_fn is not None:  # TODO: support early stop in FedAvg
+        #    controller.early_stop_fn = types.MethodType(self.early_stop_fn, controller)
 
 
         job.to_server(controller)
