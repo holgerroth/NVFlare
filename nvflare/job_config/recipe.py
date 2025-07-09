@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
-from nvflare.job_config.api import FedJob
 from nvflare.environments.environment import Env
+from nvflare.job_config.api import FedJob
+
 
 class Recipe(ABC):
     def __init__(self):

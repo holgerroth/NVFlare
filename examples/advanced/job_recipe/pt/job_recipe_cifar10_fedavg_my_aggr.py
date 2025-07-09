@@ -1,10 +1,12 @@
-from src.cifar10_fl import Net
-import numpy as np
 from typing import List
+
+import numpy as np
+from src.cifar10_fl import Net
 
 from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.app_common.recipes.fedavg import FedAvgRecipe
 from nvflare.environments.sim_environment import SimEnv
+
 
 def my_aggregate_fn(results: List[FLModel]) -> FLModel:
     print(f"My aggregate function: averaging {len(results)} results")

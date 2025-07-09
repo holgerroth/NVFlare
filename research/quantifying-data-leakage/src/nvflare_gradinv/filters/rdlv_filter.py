@@ -227,7 +227,12 @@ class RelativeDataLeakageValueFilter(DXOFilter):
                     fl_ctx,
                     f"Computing sim metrics for {len(self.train_loader)}x{len(recons)} pairs of images",
                 )
-                (img_recon_sim_reduced, img_recon_sim, best_matches, closest_idx,) = self.compute_rdlv(
+                (
+                    img_recon_sim_reduced,
+                    img_recon_sim,
+                    best_matches,
+                    closest_idx,
+                ) = self.compute_rdlv(
                     train_loader=self.train_loader,
                     recons=recons,
                     sim_metric=self.sim_metric,

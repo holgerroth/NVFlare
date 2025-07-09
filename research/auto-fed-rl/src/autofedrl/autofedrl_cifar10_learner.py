@@ -35,6 +35,7 @@ from nvflare.fuel.utils import fobs
 from .autofedrl_constants import AutoFedRLConstants
 from .cifar10_learner import CIFAR10Learner
 
+
 class CIFAR10AutoFedRLearner(CIFAR10Learner):  # TODO: also support CIFAR10ScaffoldLearner
     def __init__(
         self,

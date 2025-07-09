@@ -49,7 +49,7 @@ def package_files(
     starting,
 ):
     paths = []
-    for (path, directories, filenames) in os.walk(os.path.join(root, starting)):
+    for path, directories, filenames in os.walk(os.path.join(root, starting)):
         rel_dir = os.path.relpath(path, root)
         for filename in filenames:
             paths.append(os.path.join(rel_dir, filename))
@@ -100,4 +100,3 @@ setup(
 )
 
 remove_dir(target_path=tmp_job_template_folder)
-

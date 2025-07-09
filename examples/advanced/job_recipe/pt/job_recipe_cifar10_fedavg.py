@@ -17,11 +17,11 @@ if __name__ == "__main__":
         train_script=train_script,
         train_args="--epochs 1",
         initial_model=Net(),
-        aggregate_fn=None, # optional, if not provided, the default FedAvg aggr_func will be used
-        sample_clients_fn=None, # optional, if not provided, the default FedAvg sample_client_func will be used
-        load_model_fn=None, # optional, if not provided, the default FedAvg load_model_func will be used
-        save_model_fn=None, # optional, if not provided, the default FedAvg save_model_func will be used
-        early_stop_fn=None, # optional, if not provided, the default FedAvg early_stop_func will be used
+        aggregate_fn=None,  # optional, if not provided, the default FedAvg aggr_func will be used
+        sample_clients_fn=None,  # optional, if not provided, the default FedAvg sample_client_func will be used
+        load_model_fn=None,  # optional, if not provided, the default FedAvg load_model_func will be used
+        save_model_fn=None,  # optional, if not provided, the default FedAvg save_model_func will be used
+        early_stop_fn=None,  # optional, if not provided, the default FedAvg early_stop_func will be used
     )
 
     # Use a the SimEnv to run the experiment locally.

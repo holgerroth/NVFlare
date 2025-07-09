@@ -1,13 +1,10 @@
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
 import types
 
 from nvflare import FilterType
+from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.api import FedJob
 from nvflare.job_config.recipe import Recipe
-from nvflare.app_common.workflows.fedavg import FedAvg
-from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import ScriptRunner
 
 
@@ -26,23 +23,22 @@ class FedAvgRecipe(Recipe):
         num_rounds=3,
         initial_model=None,
         aggregate_fn=None,
-        sample_clients_fn=None, 
-        load_model_fn=None, 
-        save_model_fn=None, 
-        early_stop_fn=None, 
+        sample_clients_fn=None,
+        load_model_fn=None,
+        save_model_fn=None,
+        early_stop_fn=None,
         filters=None,
     ):
-
         """Setup FedAvg configuration.
 
         Args:
             num_rounds: Number of training rounds
             num_clients: Number of clients to participate in FedAvg algorithm
             initial_model: Initial model to start training with
-            aggregate_fn: Function to aggregate the models from clients 
+            aggregate_fn: Function to aggregate the models from clients
             filters: List of filters to apply to the strategy
             train_script: Script to train the model
-            train_args: Arguments to pass to the train script   
+            train_args: Arguments to pass to the train script
             filters: List of filters to apply to the strategy
 
         Returns:
@@ -72,16 +68,17 @@ class FedAvgRecipe(Recipe):
         )
         # TODO: support overwriting these functions
         if self.aggregate_fn is not None:
-            controller.aggregate_fn = types.MethodType(self.aggregate_fn, controller)  # MethodType is used to bind the function to the controller object
+            controller.aggregate_fn = types.MethodType(
+                self.aggregate_fn, controller
+            )  # MethodType is used to bind the function to the controller object
         if self.sample_clients_fn is not None:
             controller.sample_clients = types.MethodType(self.sample_clients_fn, controller)
         if self.load_model_fn is not None:
             controller.load_model = types.MethodType(self.load_model_fn, controller)
         if self.save_model_fn is not None:
             controller.save_model = types.MethodType(self.save_model_fn, controller)
-        #if self.early_stop_fn is not None:  # TODO: support early stop in FedAvg
+        # if self.early_stop_fn is not None:  # TODO: support early stop in FedAvg
         #    controller.early_stop_fn = types.MethodType(self.early_stop_fn, controller)
-
 
         job.to_server(controller)
 
@@ -89,7 +86,7 @@ class FedAvgRecipe(Recipe):
         for i in range(self.num_clients):
             runner = ScriptRunner(script=self.train_script, script_args=self.train_args)
             job.to(runner, f"site-{i}")
-        
+
         if self.filters is not None:
             for filter in self.filters:
                 job.add_filter(filter, FilterType.TASK_RESULT, ["train"])

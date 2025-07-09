@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class Env(ABC):
     """Abstract base class for execution environments."""
 
@@ -7,5 +8,3 @@ class Env(ABC):
     def run(self):
         """Run the federated learning experiment."""
         raise NotImplementedError("Not implemented")
-
-

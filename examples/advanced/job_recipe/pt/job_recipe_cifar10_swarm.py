@@ -1,10 +1,9 @@
 from src.cifar10_fl import Net
 
-from nvflare.app_common.recipes.swarm import SwarmRecipe
-from nvflare.environments.sim_environment import SimEnv
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.aggregators.intime_accumulate_model_aggregator import InTimeAccumulateWeightedAggregator
-
+from nvflare.app_common.recipes.swarm import SwarmRecipe
+from nvflare.environments.sim_environment import SimEnv
 
 if __name__ == "__main__":
     # Example usage
@@ -24,7 +23,7 @@ if __name__ == "__main__":
         train_args="--epochs 1 --batch_size 32",
         initial_model=Net(),
         aggregator=aggregator,
-    )   
+    )
 
     # Use a the SimEnv to run the experiment locally.
     recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10", name="cifar10_swarm"))
