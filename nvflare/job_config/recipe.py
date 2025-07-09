@@ -6,6 +6,7 @@ from nvflare.environments.environment import Env
 class Recipe(ABC):
     def __init__(self):
         self.job = None
+        self.num_clients = None
 
     @abstractmethod
     def setup(self) -> FedJob:
@@ -13,4 +14,4 @@ class Recipe(ABC):
 
     def run(self, env: Env):
         self.job = self.setup()
-        env.run(job=self.job)
+        env.run(job=self.job, n_clients=self.num_clients)

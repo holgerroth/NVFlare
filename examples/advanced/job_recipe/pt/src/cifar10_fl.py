@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import argparse
 import torch
 import torch.nn as nn
@@ -39,6 +40,9 @@ def main():
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     args = parser.parse_args()
 
+    # (2) initializes NVFlare client API
+    flare.init()
+
     print(f"Running with epochs: {args.epochs} and batch_size: {args.batch_size} on DEVICE: {DEVICE}")
 
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -46,16 +50,16 @@ def main():
     batch_size = args.batch_size
     epochs = args.epochs
 
-    trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=True, transform=transform)
+    dataset_path = os.path.join(DATASET_PATH, flare.get_site_name())
+    print(f"Dataset path for client {flare.get_site_name()}: {dataset_path}")
+
+    trainset = torchvision.datasets.CIFAR10(root=dataset_path, train=True, download=True, transform=transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=False, download=True, transform=transform)
+    testset = torchvision.datasets.CIFAR10(root=dataset_path, train=False, download=True, transform=transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     net = Net()
-
-    # (2) initializes NVFlare client API
-    flare.init()
 
     summary_writer = SummaryWriter()
     while flare.is_running():

@@ -29,7 +29,7 @@ def my_aggregate_fn(results: List[FLModel]) -> FLModel:
 if __name__ == "__main__":
     # Example usage
     n_clients = 2
-    num_rounds = 2
+    num_rounds = 10
     train_script = "src/cifar10_fl.py"
 
     # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.

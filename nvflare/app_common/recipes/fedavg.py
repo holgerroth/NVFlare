@@ -12,9 +12,9 @@ from nvflare.job_config.script_runner import ScriptRunner
 
 
 class FedAvgRecipe(Recipe):
-    """Federated Averaging Strategy.
+    """Federated Averaging Recipe.
 
-    This strategy implements FedAvg with configurable
+    This recipe implements FedAvg with configurable
     number of clients and training rounds.
     """
 
