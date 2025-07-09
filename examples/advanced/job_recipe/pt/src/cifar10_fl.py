@@ -39,6 +39,8 @@ def main():
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     args = parser.parse_args()
 
+    print(f"Running with epochs: {args.epochs} and batch_size: {args.batch_size} on DEVICE: {DEVICE}")
+
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     batch_size = args.batch_size

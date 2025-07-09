@@ -38,7 +38,7 @@ if __name__ == "__main__":
         num_clients=n_clients,
         num_rounds=num_rounds,
         train_script=train_script,
-        train_args="--epochs 1",
+        train_args="--epochs 1 --batch_size 32",
         initial_model=Net(),
         aggregate_fn=my_aggregate_fn,
     )

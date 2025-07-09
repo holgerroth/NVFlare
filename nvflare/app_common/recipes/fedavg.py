@@ -87,7 +87,7 @@ class FedAvgRecipe(Recipe):
 
         # Add clients
         for i in range(self.num_clients):
-            runner = ScriptRunner(script=self.train_script)
+            runner = ScriptRunner(script=self.train_script, script_args=self.train_args)
             job.to(runner, f"site-{i}")
         
         if self.filters is not None:
