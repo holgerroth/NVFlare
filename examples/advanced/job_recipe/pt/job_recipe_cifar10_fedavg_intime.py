@@ -1,0 +1,32 @@
+from typing import List
+from src.cifar10_fl import Net
+
+from nvflare.apis.dxo import DataKind
+from nvflare.app_common.aggregators.intime_accumulate_model_aggregator import InTimeAccumulateWeightedAggregator
+from nvflare.app_common.recipes.fedavg_intime import InTimeFedAvgRecipe
+from nvflare.environments.sim_environment import SimEnv
+
+
+
+if __name__ == "__main__":
+    # Example usage
+    n_clients = 2
+    num_rounds = 10
+    train_script = "src/cifar10_fl.py"
+
+    my_aggregator = InTimeAccumulateWeightedAggregator(expected_data_kind=DataKind.WEIGHTS)
+
+    # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.
+    # We can also define our own aggregation function here
+    recipe = InTimeFedAvgRecipe(
+        num_clients=n_clients,
+        num_rounds=num_rounds,
+        train_script=train_script,
+        train_args="--epochs 1 --batch_size 32",
+        initial_model=Net(),
+        aggregator=my_aggregator,
+    )
+
+    # Use a the SimEnv to run the experiment locally.
+    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10", name="cifar10_fedavg"))
+    # recipe.run(env=FlareEnv())
