@@ -1,7 +1,6 @@
 from src.cifar10_fl import Net
 
-from nvflare.app_common.filters.percentile_privacy import PercentilePrivacy
-from nvflare.app_common.recipes.fedavg import FedAvgRecipe
+from nvflare.app_common.recipes.fedavg_dp import FedAvgRecipeDP
 from nvflare.environments.sim_environment import SimEnv
 
 if __name__ == "__main__":
@@ -11,12 +10,15 @@ if __name__ == "__main__":
     train_script = "src/cifar10_fl.py"
 
     # Create FL recipe
-    recipe = FedAvgRecipe(
+    recipe = FedAvgRecipeDP(
         num_rounds=num_rounds,
         num_clients=n_clients,
+        train_script=train_script,
+        train_args="--local_epochs 1 --batch_size 32",
         initial_model=Net(),
-        aggregate_fn=None,  # optional
-        privacy_filters=[PercentilePrivacy(percentile=10, gamma=0.01)],  # optional
+        privacy_fraction=0.1, 
+        privacy_epsilon=0.1, 
+        privacy_noise_var=0.1, 
     )
 
     # Define experiment

@@ -25,5 +25,5 @@ if __name__ == "__main__":
     )
 
     # Use a the SimEnv to run the experiment locally.
-    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10", name="cifar10_swarm"))
+    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10", name="cifar10_cyclic"))
     # recipe.run(env=FlareEnv())

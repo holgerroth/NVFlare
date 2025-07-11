@@ -27,7 +27,6 @@ class FedAvgRecipe(Recipe):
         load_model_fn=None,
         save_model_fn=None,
         early_stop_fn=None,
-        filters=None,
     ):
         """Setup FedAvg configuration.
 
@@ -36,10 +35,8 @@ class FedAvgRecipe(Recipe):
             num_clients: Number of clients to participate in FedAvg algorithm
             initial_model: Initial model to start training with
             aggregate_fn: Function to aggregate the models from clients
-            filters: List of filters to apply to the strategy
             train_script: Script to train the model
             train_args: Arguments to pass to the train script
-            filters: List of filters to apply to the strategy
 
         Returns:
         """
@@ -53,7 +50,6 @@ class FedAvgRecipe(Recipe):
         self.load_model_fn = load_model_fn
         self.save_model_fn = save_model_fn
         self.early_stop_fn = early_stop_fn
-        self.filters = filters
 
     def setup(self) -> FedJob:
         # Create BaseFedJob with initial model
@@ -83,12 +79,7 @@ class FedAvgRecipe(Recipe):
         job.to_server(controller)
 
         # Add clients
-        for i in range(self.num_clients):
-            runner = ScriptRunner(script=self.train_script, script_args=self.train_args)
-            job.to(runner, f"site-{i}")
-
-        if self.filters is not None:
-            for filter in self.filters:
-                job.add_filter(filter, FilterType.TASK_RESULT, ["train"])
+        runner = ScriptRunner(script=self.train_script, script_args=self.train_args)
+        job.to_clients(runner)
 
         return job
