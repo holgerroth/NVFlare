@@ -16,7 +16,8 @@ if __name__ == "__main__":
         num_rounds=num_rounds,
         train_script=train_script,
         train_args="--local_epochs 1",
-        initial_model=Net()
+        initial_model=Net(),
+        #aggregate_fn=my_aggregate_fn
     )
 
     # Use a the SimEnv to run the experiment locally.
