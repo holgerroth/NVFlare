@@ -38,6 +38,8 @@ class SwarmRecipe(Recipe):
 
         Returns:
         """
+        super().__init__()
+        
         self.num_clients = num_clients
         self.num_rounds = num_rounds
         self.initial_model = initial_model
@@ -47,6 +49,8 @@ class SwarmRecipe(Recipe):
 
         if self.aggregator is None:
             self.aggregator = InTimeAccumulateWeightedAggregator(expected_data_kind=DataKind.WEIGHTS)
+
+        self.job = self.setup()
 
     def setup(self) -> FedJob:
         # Create client-controlled swarm learning job with initial model

@@ -14,5 +14,7 @@ class Recipe(ABC):
         raise NotImplementedError("Subclasses must implement this method")
 
     def run(self, env: Env):
-        self.job = self.setup()
+        if self.job is None:
+            self.job = self.setup()
+        
         env.run(job=self.job, n_clients=self.num_clients)

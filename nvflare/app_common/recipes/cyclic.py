@@ -42,11 +42,15 @@ class CyclicRecipe(Recipe):
 
         Returns:
         """
+        super().__init__()
+
         self.num_clients = num_clients
         self.num_rounds = num_rounds
         self.initial_model = initial_model
         self.train_script = train_script
         self.train_args = train_args
+
+        self.job = self.setup()
 
     def setup(self) -> FedJob:
         # Create client-controlled swarm learning job with initial model

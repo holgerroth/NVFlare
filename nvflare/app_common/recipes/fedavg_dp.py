@@ -56,7 +56,7 @@ class FedAvgRecipeDP(FedAvgRecipe):
 
     def setup(self) -> FedJob:
         # Create BaseFedJob with initial model
-        job = super().setup()
+        job = super().__init__()
 
         # Add privacy filters
         filter = SVTPrivacy(fraction=self.privacy_fraction, 

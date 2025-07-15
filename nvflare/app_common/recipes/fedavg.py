@@ -40,6 +40,8 @@ class FedAvgRecipe(Recipe):
 
         Returns:
         """
+        super().__init__()
+        
         self.num_clients = num_clients
         self.num_rounds = num_rounds
         self.initial_model = initial_model
@@ -50,6 +52,8 @@ class FedAvgRecipe(Recipe):
         self.load_model_fn = load_model_fn
         self.save_model_fn = save_model_fn
         self.early_stop_fn = early_stop_fn
+
+        self.job = self.setup()
 
     def setup(self) -> FedJob:
         # Create BaseFedJob with initial model
