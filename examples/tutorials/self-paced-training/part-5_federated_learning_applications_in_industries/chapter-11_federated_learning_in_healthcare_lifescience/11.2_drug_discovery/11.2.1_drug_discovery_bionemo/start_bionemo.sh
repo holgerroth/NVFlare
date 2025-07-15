@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-DOCKER_IMAGE="nvcr.io/nvidia/clara/bionemo-framework:2.5"
+#DOCKER_IMAGE="nvcr.io/nvidia/clara/bionemo-framework:2.5"
+DOCKER_IMAGE="nvcr.io/nvidia/clara/bionemo-framework:2.6.2"
 #DOCKER_IMAGE="nvcr.io/nvidia/clara/bionemo-framework:nightly"   # use nightly version for latest features
 
 NB_DIR="/bionemo_nvflare_examples"
@@ -10,5 +11,6 @@ echo "${COMMAND}"
 docker run \
 --gpus='"device=all"' --network=host --ipc=host -it --rm --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 \
 -v ".":/${NB_DIR} \
+-v "/home/hroth/Code/nvflare/bionemo2:/nvflare" \
 -w ${NB_DIR} \
 ${DOCKER_IMAGE} "./start_jupyter.sh"
