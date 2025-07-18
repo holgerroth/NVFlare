@@ -1,7 +1,7 @@
 from src.cifar10_fl import Net
 
-from nvflare.app_common.recipes.fedavg import FedAvgRecipe, PrivacyConfig
-from nvflare.environments.sim_environment import SimEnv
+from nvflare.app_common.recipes.fedavg import FedAvgRecipe, HEConfig
+from nvflare.environments.sim_environment import SimEnv 
 
 if __name__ == "__main__":
     # Example usage
@@ -16,17 +16,15 @@ if __name__ == "__main__":
         train_script=train_script,
         train_args="--local_epochs 1 --batch_size 32",
         initial_model=Net(),
-        privacy_config=PrivacyConfig(
-            fraction=0.1, 
-            epsilon=0.1, 
-            noise_var=0.1, 
-            gamma=1e-5, 
-            tau=1e-6, 
-            replace=True
+        he_config=HEConfig(
+            poly_modulus_degree=8192,
+            coeff_mod_bit_sizes=[60, 40, 40],
+            scale_bits=40,
+            scheme="CKKS"
         )
     )
 
     # Define experiment
     # Run experiment
-    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10"))
+    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_he"))
     # exp.run(env=FlareEnv())

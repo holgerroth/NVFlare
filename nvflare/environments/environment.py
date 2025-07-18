@@ -5,6 +5,6 @@ class Env(ABC):
     """Abstract base class for execution environments."""
 
     @abstractmethod
-    def run(self):
-        """Run the federated learning experiment."""
+    def execute(self):
+        """Execute the federated learning experiment."""
         raise NotImplementedError("Not implemented")

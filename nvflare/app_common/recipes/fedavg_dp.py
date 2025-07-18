@@ -10,7 +10,8 @@ from nvflare.app_common.filters.percentile_privacy import PercentilePrivacy
 from nvflare.app_common.filters.svt_privacy import SVTPrivacy
 
 
-class FedAvgRecipeDP(FedAvgRecipe):
+# TODO: remove this class
+class _FedAvgRecipeDP(FedAvgRecipe):
     """Federated Averaging Recipe with DP filters.
 
     This recipe implements FedAvg with configurable
@@ -58,13 +59,6 @@ class FedAvgRecipeDP(FedAvgRecipe):
         # Create BaseFedJob with initial model
         job = super().__init__()
 
-        # Add privacy filters
-        filter = SVTPrivacy(fraction=self.privacy_fraction, 
-                            epsilon=self.privacy_epsilon, 
-                            noise_var=self.privacy_noise_var, 
-                            gamma=self.privacy_gamma, 
-                            tau=self.privacy_tau, 
-                            replace=self.privacy_replace)
-        job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+
 
         return job

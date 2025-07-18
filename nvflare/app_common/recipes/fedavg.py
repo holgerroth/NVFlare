@@ -1,4 +1,6 @@
 import types
+from dataclasses import dataclass
+from typing import Optional, List
 
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
@@ -6,6 +8,39 @@ from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.api import FedJob
 from nvflare.job_config.recipe import Recipe
 from nvflare.job_config.script_runner import ScriptRunner
+from nvflare.app_common.filters.percentile_privacy import PercentilePrivacy
+from nvflare.app_common.filters.svt_privacy import SVTPrivacy
+
+
+@dataclass
+class PrivacyConfig:
+    """Configuration for privacy filters in FedAvg.
+    
+    Args:
+        fraction: Fraction of the model to upload (default: 0.1)
+        epsilon: Privacy parameter for differential privacy (default: 0.1)
+        noise_var: Additive noise variance (default: 0.1)
+        gamma: Clipping threshold (default: 1e-5)
+        tau: Threshold parameter (default: 1e-6)
+        replace: Whether to sample with replacement (default: True)
+        percentile: Percentile for percentile privacy (default: None)
+        percentile_gamma: Gamma for percentile privacy (default: 0.01)
+    """
+    fraction: float = 0.1
+    epsilon: float = 0.1
+    noise_var: float = 0.1
+    gamma: float = 1e-5
+    tau: float = 1e-6
+    replace: bool = True
+    percentile: Optional[int] = None
+    percentile_gamma: float = 0.01  # will be ignored if percentile is None
+
+@dataclass
+class HEConfig:
+    poly_modulus_degree: int = 8192
+    coeff_mod_bit_sizes: List[int] = [60, 40, 40]
+    scale_bits: int = 40
+    scheme: str = "CKKS"
 
 
 class FedAvgRecipe(Recipe):
@@ -27,16 +62,24 @@ class FedAvgRecipe(Recipe):
         load_model_fn=None,
         save_model_fn=None,
         early_stop_fn=None,
+        privacy_config: Optional[PrivacyConfig] = None,
+        he_config: Optional[HEConfig] = None,
     ):
         """Setup FedAvg configuration.
 
         Args:
-            num_rounds: Number of training rounds
-            num_clients: Number of clients to participate in FedAvg algorithm
-            initial_model: Initial model to start training with
-            aggregate_fn: Function to aggregate the models from clients
             train_script: Script to train the model
             train_args: Arguments to pass to the train script
+            num_clients: Number of clients to participate in FedAvg algorithm
+            num_rounds: Number of training rounds
+            initial_model: Initial model to start training with
+            aggregate_fn: Function to aggregate the models from clients
+            sample_clients_fn: Function to sample clients for training
+            load_model_fn: Function to load model
+            save_model_fn: Function to save model
+            early_stop_fn: Function for early stopping
+            privacy_config: Configuration for privacy filters
+            he_config: Configuration for homomorphic encryption
 
         Returns:
         """
@@ -52,6 +95,8 @@ class FedAvgRecipe(Recipe):
         self.load_model_fn = load_model_fn
         self.save_model_fn = save_model_fn
         self.early_stop_fn = early_stop_fn
+        self.privacy_config = privacy_config
+        self.he_config = he_config
 
         self.job = self.setup()
 
@@ -85,5 +130,29 @@ class FedAvgRecipe(Recipe):
         # Add clients
         runner = ScriptRunner(script=self.train_script, script_args=self.train_args)
         job.to_clients(runner)
+
+        # Add privacy filters
+        if self.privacy_config is not None:
+            if self.privacy_config.percentile is not None:
+                filter = PercentilePrivacy(
+                    percentile=self.privacy_config.percentile, 
+                    gamma=self.privacy_config.percentile_gamma
+                )
+                job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+
+            filter = SVTPrivacy(
+                fraction=self.privacy_config.fraction, 
+                epsilon=self.privacy_config.epsilon, 
+                noise_var=self.privacy_config.noise_var, 
+                gamma=self.privacy_config.gamma, 
+                tau=self.privacy_config.tau, 
+                replace=self.privacy_config.replace
+            )
+            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+
+        if self.he_config is not None:
+            # TODO: add homomorphic encryption to the job
+            raise NotImplementedError("Homomorphic encryption is not implemented yet")
+        
 
         return job
