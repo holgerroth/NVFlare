@@ -10,6 +10,11 @@ from nvflare.job_config.recipe import Recipe
 from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.app_common.filters.percentile_privacy import PercentilePrivacy
 from nvflare.app_common.filters.svt_privacy import SVTPrivacy
+from nvflare.app_common.aggregators import InTimeAccumulateWeightedAggregator
+from nvflare.app_common.shareablegenerators import FullModelShareableGenerator
+from nvflare.app_common.workflows.scatter_and_gather import ScatterAndGather
+from nvflare.apis.dxo import DataKind
+from nvflare.app_common.abstract.aggregator import Aggregator
 
 
 @dataclass
@@ -57,13 +62,15 @@ class FedAvgRecipe(Recipe):
         num_clients=1,
         num_rounds=3,
         initial_model=None,
-        aggregate_fn=None,
-        sample_clients_fn=None,
-        load_model_fn=None,
-        save_model_fn=None,
-        early_stop_fn=None,
+        aggregate_fn=None,  # only used with FedAvg controller
+        sample_clients_fn=None,  # only used with FedAvg controller
+        load_model_fn=None,  # only used with FedAvg controller
+        save_model_fn=None,  # only used with FedAvg controller
+        early_stop_fn=None,  # only used with FedAvg controller
         privacy_config: Optional[PrivacyConfig] = None,
         he_config: Optional[HEConfig] = None,
+        intime_aggregation: bool = False,  # only used with ScatterAndGather controller
+        aggregator: Optional[Aggregator] = None,  # only used with ScatterAndGather controller
     ):
         """Setup FedAvg configuration.
 
@@ -80,6 +87,7 @@ class FedAvgRecipe(Recipe):
             early_stop_fn: Function for early stopping
             privacy_config: Configuration for privacy filters
             he_config: Configuration for homomorphic encryption
+            intime_aggregation: Whether to aggregate models as soon as they are received (saves memory but requires special Aggregator class)
 
         Returns:
         """
@@ -97,6 +105,8 @@ class FedAvgRecipe(Recipe):
         self.early_stop_fn = early_stop_fn
         self.privacy_config = privacy_config
         self.he_config = he_config
+        self.intime_aggregation = intime_aggregation
+        self.aggregator = aggregator
 
         self.job = self.setup()
 
@@ -107,24 +117,45 @@ class FedAvgRecipe(Recipe):
         )
 
         # Define the controller and send to server
-        controller = FedAvg(
-            num_clients=self.num_clients,
-            num_rounds=self.num_rounds,
-        )
-        # TODO: support overwriting these functions
-        if self.aggregate_fn is not None:
-            controller.aggregate_fn = types.MethodType(
-                self.aggregate_fn, controller
-            )  # MethodType is used to bind the function to the controller object
-        if self.sample_clients_fn is not None:
-            controller.sample_clients = types.MethodType(self.sample_clients_fn, controller)
-        if self.load_model_fn is not None:
-            controller.load_model = types.MethodType(self.load_model_fn, controller)
-        if self.save_model_fn is not None:
-            controller.save_model = types.MethodType(self.save_model_fn, controller)
-        # if self.early_stop_fn is not None:  # TODO: support early stop in FedAvg
-        #    controller.early_stop_fn = types.MethodType(self.early_stop_fn, controller)
+        if self.intime_aggregation:
+            if self.aggregator is None:
+                self.aggregator = InTimeAccumulateWeightedAggregator(expected_data_kind=DataKind.WEIGHTS)
 
+            # Define the controller and send to server
+            shareable_generator = FullModelShareableGenerator()
+            shareable_generator_id = job.to_server(shareable_generator, id="shareable_generator")
+            aggregator_id = job.to_server(
+                self.aggregator, id="aggregator"
+            )
+
+            controller = ScatterAndGather(
+                min_clients=self.num_clients,
+                num_rounds=self.num_rounds,
+                wait_time_after_min_received=10,
+                aggregator_id=aggregator_id,
+                persistor_id=job.comp_ids["persistor_id"],
+                shareable_generator_id=shareable_generator_id,
+            )
+        else:
+            controller = FedAvg(
+                num_clients=self.num_clients,
+                num_rounds=self.num_rounds,
+            )
+            # TODO: support overwriting these functions
+            if self.aggregate_fn is not None:
+                controller.aggregate_fn = types.MethodType(
+                    self.aggregate_fn, controller
+                )  # MethodType is used to bind the function to the controller object
+            if self.sample_clients_fn is not None:
+                controller.sample_clients = types.MethodType(self.sample_clients_fn, controller)
+            if self.load_model_fn is not None:
+                controller.load_model = types.MethodType(self.load_model_fn, controller)
+            if self.save_model_fn is not None:
+                controller.save_model = types.MethodType(self.save_model_fn, controller)
+            # if self.early_stop_fn is not None:  # TODO: support early stop in FedAvg
+            #    controller.early_stop_fn = types.MethodType(self.early_stop_fn, controller)
+
+        # Send the controller to the server
         job.to_server(controller)
 
         # Add clients

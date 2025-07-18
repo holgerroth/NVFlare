@@ -11,7 +11,8 @@ from nvflare.app_common.aggregators import InTimeAccumulateWeightedAggregator
 from nvflare.app_common.shareablegenerators import FullModelShareableGenerator
 from nvflare.app_common.workflows.scatter_and_gather import ScatterAndGather
 
-class InTimeFedAvgRecipe(Recipe):
+# TODO: remove this class
+class _InTimeFedAvgRecipe(Recipe):
     """Federated Averaging Recipe using InTimeAccumulateWeightedAggregator as the aggregator by default. 
     Adds each model update from a client to the aggregation as soon as they are received by the server.
     Use in cases where the server memory is limited and cannot store all the model updates.

@@ -1,7 +1,7 @@
 from src.cifar10_fl import Net
 
 from nvflare.app_common.abstract.fl_model import FLModel
-from nvflare.app_common.recipes.fedavg_intime import InTimeFedAvgRecipe
+from nvflare.app_common.recipes.fedavg import FedAvgRecipe
 from nvflare.environments.sim_environment import SimEnv
 from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 
@@ -44,12 +44,13 @@ if __name__ == "__main__":
 
     # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.
     # We can also define our own aggregation function here
-    recipe = InTimeFedAvgRecipe(
+    recipe = FedAvgRecipe(
         num_clients=n_clients,
         num_rounds=num_rounds,
         train_script=train_script,
         train_args="--local_epochs 1 --batch_size 32",
         initial_model=Net(),
+        intime_aggregation=True
         aggregator=MyAggregator(),
     )
 
