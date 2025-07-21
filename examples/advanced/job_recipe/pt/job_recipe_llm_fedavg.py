@@ -17,6 +17,7 @@ if __name__ == "__main__":
         train_args="--local_epochs 1",
         initial_model=CausalLMModel(model_name_or_path="facebook/opt-125m"),
         external_client_process=True,
+        server_expected_format="pytorch",
         client_command_prefix=f"accelerate launch --num_processes 2",  # would mean each client runs on 2 gpus.
         quantization_type="float4",
     )
