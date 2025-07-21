@@ -138,6 +138,7 @@ class FedAvgRecipe(Recipe):
         runner = ScriptRunner(script=self.train_script, script_args=self.train_args)
         job.to_clients(runner)
 
+        # TODO: factor out to enable reuse of filters in different recipes
         # Add privacy filters
         if self.privacy_config is not None:
             if self.privacy_config.percentile is not None:
