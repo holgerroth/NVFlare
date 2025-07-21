@@ -12,7 +12,7 @@ class SimEnv(Env):
         self.gpu = gpu
         self.workdir = workdir
 
-    def run(self, job: FedJob, n_clients: int = None):
+    def execute(self, job: FedJob, n_clients: int = None):
         """Run the simulation."""
         
         print(f"Running simulation with GPU: {self.gpu}, output dir: {self.workdir}")

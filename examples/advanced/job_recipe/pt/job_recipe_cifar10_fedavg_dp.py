@@ -1,6 +1,6 @@
 from src.cifar10_fl import Net
 
-from nvflare.app_common.recipes.fedavg import FedAvgRecipe, PrivacyConfig
+from nvflare.recipes.fedavg import FedAvgRecipe, PrivacyConfig
 from nvflare.environments.sim_environment import SimEnv
 
 if __name__ == "__main__":
@@ -22,11 +22,13 @@ if __name__ == "__main__":
             noise_var=0.1, 
             gamma=1e-5, 
             tau=1e-6, 
-            replace=True
+            replace=True,
+            percentile=10,
+            percentile_gamma=1e-5
         )
     )
 
     # Define experiment
     # Run experiment
-    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10"))
-    # exp.run(env=FlareEnv())
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_dp"))
+    # exp.execute(env=FlareEnv())

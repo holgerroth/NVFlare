@@ -4,7 +4,7 @@ from nvflare.app_common.ccwf.ccwf_job import CCWFJob, CrossSiteEvalConfig, Swarm
 from nvflare.app_common.ccwf.comps.simple_model_shareable_generator import SimpleModelShareableGenerator
 from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.job_config.api import FedJob
-from nvflare.job_config.recipe import Recipe
+from nvflare.recipes.recipe import Recipe
 from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.app_common.ccwf.ccwf_job import CCWFJob, CyclicClientConfig, CyclicServerConfig
 from nvflare.app_common.ccwf.comps.simple_model_shareable_generator import SimpleModelShareableGenerator

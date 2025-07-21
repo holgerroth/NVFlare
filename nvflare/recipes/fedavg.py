@@ -1,12 +1,12 @@
-import types
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List
 
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.api import FedJob
-from nvflare.job_config.recipe import Recipe
+from nvflare.recipes.recipe import Recipe
+from nvflare.app_common.abstract.model_persistor import ModelPersistor
 from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.app_common.filters.percentile_privacy import PercentilePrivacy
 from nvflare.app_common.filters.svt_privacy import SVTPrivacy
@@ -15,6 +15,8 @@ from nvflare.app_common.shareablegenerators import FullModelShareableGenerator
 from nvflare.app_common.workflows.scatter_and_gather import ScatterAndGather
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.abstract.aggregator import Aggregator
+from nvflare.app_opt.pt.quantization.dequantizer import ModelDequantizer
+from nvflare.app_opt.pt.quantization.quantizer import ModelQuantizer
 
 
 @dataclass
@@ -43,7 +45,7 @@ class PrivacyConfig:
 @dataclass
 class HEConfig:
     poly_modulus_degree: int = 8192
-    coeff_mod_bit_sizes: List[int] = [60, 40, 40]
+    coeff_mod_bit_sizes: List[int] = field(default_factory=lambda: [60, 40, 40])
     scale_bits: int = 40
     scheme: str = "CKKS"
 
@@ -53,6 +55,8 @@ class FedAvgRecipe(Recipe):
 
     This recipe implements FedAvg with configurable
     number of clients and training rounds.
+    Uses the ScatterAndGather controller to distribute the global model to the clients.
+    Uses the ScriptRunner to run the training script.
     """
 
     def __init__(
@@ -62,15 +66,11 @@ class FedAvgRecipe(Recipe):
         num_clients=1,
         num_rounds=3,
         initial_model=None,
-        aggregate_fn=None,  # only used with FedAvg controller
-        sample_clients_fn=None,  # only used with FedAvg controller
-        load_model_fn=None,  # only used with FedAvg controller
-        save_model_fn=None,  # only used with FedAvg controller
-        early_stop_fn=None,  # only used with FedAvg controller
+        aggregator: Optional[Aggregator] = None, 
         privacy_config: Optional[PrivacyConfig] = None,
         he_config: Optional[HEConfig] = None,
-        intime_aggregation: bool = False,  # only used with ScatterAndGather controller
-        aggregator: Optional[Aggregator] = None,  # only used with ScatterAndGather controller
+        quantization_type: Optional[str] = None,
+        persistor: Optional[ModelPersistor] = None,
     ):
         """Setup FedAvg configuration.
 
@@ -80,16 +80,11 @@ class FedAvgRecipe(Recipe):
             num_clients: Number of clients to participate in FedAvg algorithm
             num_rounds: Number of training rounds
             initial_model: Initial model to start training with
-            aggregate_fn: Function to aggregate the models from clients
-            sample_clients_fn: Function to sample clients for training
-            load_model_fn: Function to load model
-            save_model_fn: Function to save model
-            early_stop_fn: Function for early stopping
+            aggregator: Aggregator for combining client models. If not provided, InTimeAccumulateWeightedAggregator will be used
             privacy_config: Configuration for privacy filters
             he_config: Configuration for homomorphic encryption
-            intime_aggregation: Whether to aggregate models as soon as they are received (saves memory but requires special Aggregator class)
-
-        Returns:
+            quantization_type: Configuration type for quantization
+            persistor: ModelPersistor for saving and loading models. If not provided, the default model persistor will be used.
         """
         super().__init__()
         
@@ -98,15 +93,11 @@ class FedAvgRecipe(Recipe):
         self.initial_model = initial_model
         self.train_script = train_script
         self.train_args = train_args
-        self.aggregate_fn = aggregate_fn
-        self.sample_clients_fn = sample_clients_fn
-        self.load_model_fn = load_model_fn
-        self.save_model_fn = save_model_fn
-        self.early_stop_fn = early_stop_fn
         self.privacy_config = privacy_config
         self.he_config = he_config
-        self.intime_aggregation = intime_aggregation
         self.aggregator = aggregator
+        self.quantization_type = quantization_type
+        self.persistor = persistor
 
         self.job = self.setup()
 
@@ -117,44 +108,29 @@ class FedAvgRecipe(Recipe):
         )
 
         # Define the controller and send to server
-        if self.intime_aggregation:
-            if self.aggregator is None:
-                self.aggregator = InTimeAccumulateWeightedAggregator(expected_data_kind=DataKind.WEIGHTS)
+        if self.aggregator is None:
+            self.aggregator = InTimeAccumulateWeightedAggregator(expected_data_kind=DataKind.WEIGHTS)
 
-            # Define the controller and send to server
-            shareable_generator = FullModelShareableGenerator()
-            shareable_generator_id = job.to_server(shareable_generator, id="shareable_generator")
-            aggregator_id = job.to_server(
-                self.aggregator, id="aggregator"
-            )
+        if self.persistor is not None:
+            if self.initial_model is not None:
+                raise ValueError("Initial model is not supported when using a custom persistor")
+            job.comp_ids["persistor_id"] = job.to_server(self.persistor, id="persistor")
 
-            controller = ScatterAndGather(
-                min_clients=self.num_clients,
-                num_rounds=self.num_rounds,
-                wait_time_after_min_received=10,
-                aggregator_id=aggregator_id,
-                persistor_id=job.comp_ids["persistor_id"],
-                shareable_generator_id=shareable_generator_id,
-            )
-        else:
-            controller = FedAvg(
-                num_clients=self.num_clients,
-                num_rounds=self.num_rounds,
-            )
-            # TODO: support overwriting these functions
-            if self.aggregate_fn is not None:
-                controller.aggregate_fn = types.MethodType(
-                    self.aggregate_fn, controller
-                )  # MethodType is used to bind the function to the controller object
-            if self.sample_clients_fn is not None:
-                controller.sample_clients = types.MethodType(self.sample_clients_fn, controller)
-            if self.load_model_fn is not None:
-                controller.load_model = types.MethodType(self.load_model_fn, controller)
-            if self.save_model_fn is not None:
-                controller.save_model = types.MethodType(self.save_model_fn, controller)
-            # if self.early_stop_fn is not None:  # TODO: support early stop in FedAvg
-            #    controller.early_stop_fn = types.MethodType(self.early_stop_fn, controller)
+        # Define the controller and send to server
+        shareable_generator = FullModelShareableGenerator()
+        shareable_generator_id = job.to_server(shareable_generator, id="shareable_generator")
+        aggregator_id = job.to_server(
+            self.aggregator, id="aggregator"
+        )
 
+        controller = ScatterAndGather(
+            min_clients=self.num_clients,
+            num_rounds=self.num_rounds,
+            wait_time_after_min_received=10,
+            aggregator_id=aggregator_id,
+            persistor_id=job.comp_ids["persistor_id"],
+            shareable_generator_id=shareable_generator_id,
+        )
         # Send the controller to the server
         job.to_server(controller)
 
@@ -185,5 +161,14 @@ class FedAvgRecipe(Recipe):
             # TODO: add homomorphic encryption to the job
             raise NotImplementedError("Homomorphic encryption is not implemented yet")
         
+        if self.quantization_type is not None:
+            # If using quantization, add quantize filters.
+            quantizer = ModelQuantizer(quantization_type=self.quantization_type)
+            dequantizer = ModelDequantizer()
+            job.to_server(quantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
+            job.to_server(dequantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+
+            job.to_clients(quantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+            job.to_clients(dequantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
         return job

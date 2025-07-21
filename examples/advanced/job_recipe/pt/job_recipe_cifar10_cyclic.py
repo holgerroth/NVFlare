@@ -2,7 +2,7 @@ from src.cifar10_fl import Net
 
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.aggregators.intime_accumulate_model_aggregator import InTimeAccumulateWeightedAggregator
-from nvflare.app_common.recipes.cyclic import CyclicRecipe
+from nvflare.recipes.cyclic import CyclicRecipe
 from nvflare.environments.sim_environment import SimEnv
 
 if __name__ == "__main__":
@@ -25,5 +25,5 @@ if __name__ == "__main__":
     )
 
     # Use a the SimEnv to run the experiment locally.
-    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10", name="cifar10_cyclic"))
-    # recipe.run(env=FlareEnv())
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_cyclic"))
+    # recipe.execute(env=FlareEnv())

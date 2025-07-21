@@ -18,3 +18,10 @@ class Recipe(ABC):
             self.job = self.setup()
         
         env.execute(job=self.job, n_clients=self.num_clients)
+
+    def export(self, path: str):
+        if self.job is None:
+            self.job = self.setup()
+        
+        self.job.export_job(path)
+        print(f"Job exported to {path}")

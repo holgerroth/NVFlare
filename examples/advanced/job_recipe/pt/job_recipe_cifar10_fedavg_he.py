@@ -1,6 +1,6 @@
 from src.cifar10_fl import Net
 
-from nvflare.app_common.recipes.fedavg import FedAvgRecipe, HEConfig
+from nvflare.recipes.fedavg import FedAvgRecipe, HEConfig
 from nvflare.environments.sim_environment import SimEnv 
 
 if __name__ == "__main__":
@@ -26,5 +26,5 @@ if __name__ == "__main__":
 
     # Define experiment
     # Run experiment
-    recipe.run(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_he"))
-    # exp.run(env=FlareEnv())
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_he"))
+    # exp.execute(env=FlareEnv())
