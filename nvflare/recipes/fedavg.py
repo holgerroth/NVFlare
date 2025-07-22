@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Union
+from abc import ABC, abstractmethod
 
 from nvflare import FilterType
 from nvflare.app_common.workflows.fedavg import FedAvg
@@ -18,31 +19,120 @@ from nvflare.app_common.abstract.aggregator import Aggregator
 from nvflare.app_opt.pt.quantization.dequantizer import ModelDequantizer
 from nvflare.app_opt.pt.quantization.quantizer import ModelQuantizer
 from nvflare.client.config import ExchangeFormat
+from nvflare.apis.dxo_filter import DXOFilter
+from nvflare.app_opt.he.model_encryptor import HEModelEncryptor
+from nvflare.app_opt.he.model_decryptor import HEModelDecryptor
+
+
+class PrivacyPolicy(ABC):
+    """Base class for privacy policies.
+    
+    All privacy policies should inherit from this class and implement
+    the create_filter method to return the appropriate DXOFilter instance.
+    """
+    
+    @abstractmethod
+    def create_filter(self) -> DXOFilter:
+        """Create and return the DXOFilter instance for this policy.
+        
+        Returns:
+            DXOFilter: The filter instance to be applied
+        """
+        pass
 
 
 @dataclass
-class PrivacyConfig:
-    """Configuration for privacy filters in FedAvg.
-
+class PercentilePrivacyPolicy(PrivacyPolicy):
+    """Privacy policy for percentile-based filtering.
+    
     Args:
-        fraction: Fraction of the model to upload (default: 0.1)
-        epsilon: Privacy parameter for differential privacy (default: 0.1)
-        noise_var: Additive noise variance (default: 0.1)
-        gamma: Clipping threshold (default: 1e-5)
-        tau: Threshold parameter (default: 1e-6)
-        replace: Whether to sample with replacement (default: True)
-        percentile: Percentile for percentile privacy (default: None)
-        percentile_gamma: Gamma for percentile privacy (default: 0.01)
+        percentile: Only abs diff greater than this percentile is updated (0..100)
+        gamma: The upper limit to truncate abs values of weight diff
     """
+    percentile: int = 10
+    gamma: float = 0.01
+    
+    def create_filter(self) -> DXOFilter:
+        return PercentilePrivacy(
+            percentile=self.percentile,
+            gamma=self.gamma
+        )
 
+
+@dataclass
+class SVTPrivacyPolicy(PrivacyPolicy):
+    """Privacy policy for Sparse Vector Technique differential privacy.
+    
+    Args:
+        fraction: Fraction of the model to upload
+        epsilon: Privacy parameter for differential privacy
+        noise_var: Additive noise variance
+        gamma: Clipping threshold
+        tau: Threshold parameter
+        replace: Whether to sample with replacement
+    """
     fraction: float = 0.1
     epsilon: float = 0.1
     noise_var: float = 0.1
     gamma: float = 1e-5
     tau: float = 1e-6
     replace: bool = True
-    percentile: Optional[int] = None
-    percentile_gamma: float = 0.01  # will be ignored if percentile is None
+    
+    def create_filter(self) -> DXOFilter:
+        return SVTPrivacy(
+            fraction=self.fraction,
+            epsilon=self.epsilon,
+            noise_var=self.noise_var,
+            gamma=self.gamma,
+            tau=self.tau,
+            replace=self.replace
+        )
+
+
+@dataclass
+class HEPrivacyPolicy(PrivacyPolicy):
+    """Privacy policy for Homomorphic Encryption.
+    
+    This policy creates both encryption and decryption filters for HE.
+    The encryption filter is applied to task results (outgoing data),
+    and the decryption filter is applied to task data (incoming data).
+    
+    Args:
+        tenseal_context_file: TenSEAL context file containing encryption keys and parameters
+        encrypt_layers: Layers to encrypt. If None, all layers are encrypted.
+                       If list of strings, only specified layers are encrypted.
+                       If string, treated as regex pattern to match layer names.
+        aggregation_weights: Dictionary of client aggregation weights
+        weigh_by_local_iter: Whether to multiply client weights by local iterations before encryption
+    """
+    tenseal_context_file: str = "client_context.tenseal"
+    encrypt_layers: Optional[Union[List[str], str]] = None
+    aggregation_weights: Optional[dict] = None
+    weigh_by_local_iter: bool = True
+    
+    def create_encrypt_filter(self) -> DXOFilter:
+        """Create the encryption filter for outgoing data."""
+        return HEModelEncryptor(
+            tenseal_context_file=self.tenseal_context_file,
+            encrypt_layers=self.encrypt_layers,
+            aggregation_weights=self.aggregation_weights,
+            weigh_by_local_iter=self.weigh_by_local_iter
+        )
+    
+    def create_decrypt_filter(self) -> DXOFilter:
+        """Create the decryption filter for incoming data."""
+        return HEModelDecryptor(
+            tenseal_context_file=self.tenseal_context_file
+        )
+    
+    def create_filter(self) -> DXOFilter:
+        """Create and return the encryption filter (for backward compatibility).
+        
+        Note: For HE, you typically need both encryption and decryption filters.
+        Use create_encrypt_filter() and create_decrypt_filter() separately
+        to get the appropriate filters for different filter types.
+        """
+        return self.create_encrypt_filter()
 
 
 @dataclass
@@ -70,7 +160,7 @@ class FedAvgRecipe(Recipe):
         num_rounds=3,
         initial_model=None,
         aggregator: Optional[Aggregator] = None,
-        privacy_config: Optional[PrivacyConfig] = None,
+        privacy_policies: Optional[List[PrivacyPolicy]] = None,
         he_config: Optional[HEConfig] = None,
         quantization_type: Optional[str] = None,
         persistor: Optional[ModelPersistor] = None,
@@ -89,8 +179,8 @@ class FedAvgRecipe(Recipe):
             num_rounds: Number of training rounds
             initial_model: Initial model to start training with
             aggregator: Aggregator for combining client models. If not provided, InTimeAccumulateWeightedAggregator will be used
-            privacy_config: Configuration for privacy filters
-            he_config: Configuration for homomorphic encryption
+            privacy_policies: List of privacy policies to apply. Each policy should inherit from PrivacyPolicy.
+            he_config: Configuration for homomorphic encryption (deprecated, use HEPrivacyPolicy instead)
             quantization_type: Configuration type for quantization
             persistor: ModelPersistor for saving and loading models. If not provided, the default model persistor will be used.
             external_client_process: Whether to use an external process for the client. If True, the client script will be run as a separate process.
@@ -105,7 +195,7 @@ class FedAvgRecipe(Recipe):
         self.initial_model = initial_model
         self.train_script = train_script
         self.train_args = train_args
-        self.privacy_config = privacy_config
+        self.privacy_policies = privacy_policies or []
         self.he_config = he_config
         self.aggregator = aggregator
         self.quantization_type = quantization_type
@@ -115,6 +205,18 @@ class FedAvgRecipe(Recipe):
         self.server_expected_format = server_expected_format
         self.min_clients = min_clients
         self.allow_server_numpy_conversion = allow_server_numpy_conversion
+
+        # Handle deprecated he_config parameter
+        if self.he_config is not None:
+            import warnings
+            warnings.warn(
+                "he_config parameter is deprecated. Use HEPrivacyPolicy in privacy_policies instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            # Convert he_config to HEPrivacyPolicy for backward compatibility
+            he_policy = HEPrivacyPolicy()
+            self.privacy_policies.append(he_policy)
 
         if isinstance(self.num_clients, int):
             self.client_names = [f"site-{i+1}" for i in range(self.num_clients)]
@@ -179,28 +281,25 @@ class FedAvgRecipe(Recipe):
             )
             job.to(runner, target=client_name)
 
-            # TODO: factor out to enable reuse of filters in different recipes
-            # Add privacy filters
-            if self.privacy_config is not None:
-                if self.privacy_config.percentile is not None:
-                    filter = PercentilePrivacy(
-                        percentile=self.privacy_config.percentile, gamma=self.privacy_config.percentile_gamma
-                    )
-                    job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-
-                filter = SVTPrivacy(
-                    fraction=self.privacy_config.fraction,
-                    epsilon=self.privacy_config.epsilon,
-                    noise_var=self.privacy_config.noise_var,
-                    gamma=self.privacy_config.gamma,
-                    tau=self.privacy_config.tau,
-                    replace=self.privacy_config.replace,
-                )
-                job.to(filter, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-
-            if self.he_config is not None:
-                # TODO: add homomorphic encryption to the job
-                raise NotImplementedError("Homomorphic encryption is not implemented yet")
+            # Add privacy filters from policies
+            for i, policy in enumerate(self.privacy_policies):
+                if not isinstance(policy, PrivacyPolicy):
+                    raise ValueError(f"Policy {i} must inherit from PrivacyPolicy, got {type(policy)}")
+                
+                if isinstance(policy, HEPrivacyPolicy):
+                    # For HE, we need both encryption and decryption filters
+                    encrypt_filter = policy.create_encrypt_filter()
+                    decrypt_filter = policy.create_decrypt_filter()
+                    
+                    # Add encryption filter to task results (outgoing data)
+                    job.to(encrypt_filter, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+                    
+                    # Add decryption filter to task data (incoming data)
+                    job.to(decrypt_filter, target=client_name, tasks=["train"], filter_type=FilterType.TASK_DATA)
+                else:
+                    # For other privacy policies, use the standard approach
+                    filter_instance = policy.create_filter()
+                    job.to(filter_instance, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
 
             if self.quantization_type is not None:
                 # If using quantization, add quantize filters.
