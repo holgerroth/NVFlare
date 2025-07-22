@@ -265,6 +265,7 @@ class ScatterAndGather(Controller):
                 self.fire_event(AppEventType.BEFORE_AGGREGATION, fl_ctx)
                 aggr_result = self.aggregator.aggregate(fl_ctx)
                 fl_ctx.set_prop(AppConstants.AGGREGATION_RESULT, aggr_result, private=True, sticky=False)
+                self.aggregator.reset(fl_ctx)  # reset aggregator stats
                 self.fire_event(AppEventType.AFTER_AGGREGATION, fl_ctx)
                 self.log_info(fl_ctx, "End aggregation.")
 

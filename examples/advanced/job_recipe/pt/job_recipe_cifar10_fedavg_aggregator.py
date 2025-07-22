@@ -24,16 +24,16 @@ class MyAggregator(ModelAggregator):
         print(f"##### MyAggregator: Aggregating {self.count} models #####")
 
         # compute the average
-        aggr_params = {}
-        for key, value in self.sum.items():
-            aggr_params[key] = value / self.count
+        for key in self.sum:
+            self.sum[key] = self.sum[key] / self.count
+        
+        return FLModel(params=self.sum)
 
+    def reset_stats(self):
+        print(f"##### MyAggregator: Resetting #####")
         # reset the sum and count
         self.sum = {}    
         self.count = 0
-        
-        return FLModel(params=aggr_params)
-
 
 
 if __name__ == "__main__":

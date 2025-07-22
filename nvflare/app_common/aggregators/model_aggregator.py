@@ -40,6 +40,11 @@ class ModelAggregator(Aggregator):
         """ needs to implement aggregation logic and reset any internal stats"""
         raise NotImplementedError("Subclass must implement aggregate_model method")
     
+    @abstractmethod
+    def reset_stats(self):
+        """ needs to implement logic to reset any internal stats"""
+        raise NotImplementedError("Subclass must implement reset_stats method")
+
     def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
         """called by ScatterAndGather"""
         self.fl_ctx = fl_ctx
@@ -53,6 +58,11 @@ class ModelAggregator(Aggregator):
         aggregated_model = self.aggregate_model()
 
         return FLModelUtils.to_shareable(aggregated_model)
+    
+    def reset(self, fl_ctx: FLContext):
+        """called by ScatterAndGather"""
+        self.fl_ctx = fl_ctx
+        self.reset_stats()
 
     def info(self, message: str):
         self.log_info(fl_ctx=self.fl_ctx, msg=message)

@@ -2,3 +2,4 @@ nvflare
 torch
 torchvision
 tensorboard
+bitsandbytes

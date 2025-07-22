@@ -20,7 +20,7 @@ if __name__ == "__main__":
         num_clients=n_clients,
         num_rounds=num_rounds,
         train_script=train_script,
-        train_args="--local_epochs 1 --batch_size 32",
+        train_args="--local_epochs 1 --batch_size 64",
         initial_model=Net(),
         aggregator=aggregator,  # optional
     )

@@ -161,6 +161,7 @@ class Gatherer(FLComponent):
         self.log_info(fl_ctx, f"Start aggregation for round {self.for_round}")
         self.fire_event(AppEventType.BEFORE_AGGREGATION, fl_ctx)
         aggr_result = self.aggregator.aggregate(fl_ctx)
+        self.aggregator.reset(fl_ctx)  # reset aggregator stats
         fl_ctx.set_prop(AppConstants.AGGREGATION_RESULT, aggr_result, private=True, sticky=False)
         self.fire_event(AppEventType.AFTER_AGGREGATION, fl_ctx)
         self.log_info(fl_ctx, f"Finished aggregation for round {self.for_round}")

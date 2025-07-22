@@ -35,10 +35,10 @@ DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 def define_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", type=int, default=4, nargs="?")
-    parser.add_argument("--num_workers", type=int, default=1, nargs="?")
-    parser.add_argument("--local_epochs", type=int, default=2, nargs="?")
-    parser.add_argument("--model_path", type=str, default=f"{CIFAR10_ROOT}/cifar_net.pth", nargs="?")
+    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--num_workers", type=int, default=1)
+    parser.add_argument("--local_epochs", type=int, default=2)
+    parser.add_argument("--model_path", type=str, default=f"{CIFAR10_ROOT}/cifar_net.pth")
     return parser.parse_args()
 
 

@@ -148,7 +148,7 @@ class FedAvgRecipe(Recipe):
             script_args=self.train_args,
             launch_external_process=self.external_client_process,
             command=self.client_command_prefix,
-            expected_format=self.server_expected_format,
+            server_expected_format=self.server_expected_format,
         )
         job.to_clients(runner)
 
