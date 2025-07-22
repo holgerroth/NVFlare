@@ -1,4 +1,4 @@
-from src.cifar10_fl import Net
+from src.cifar10_client import Net
 
 from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.recipes.fedavg import FedAvgRecipe
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # Example usage
     n_clients = 2
     num_rounds = 3
-    train_script = "src/cifar10_fl.py"
+    train_script = "src/cifar10_client.py"
 
 
     # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.

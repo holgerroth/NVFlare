@@ -1,4 +1,4 @@
-from src.cifar10_fl import Net
+from src.cifar10_client import Net
 
 from nvflare.recipes.fedavg import FedAvgRecipe, HEConfig
 from nvflare.environments.sim_environment import SimEnv 
@@ -7,7 +7,7 @@ if __name__ == "__main__":
     # Example usage
     n_clients = 2
     num_rounds = 2
-    train_script = "src/cifar10_fl.py"
+    train_script = "src/cifar10_client.py"
 
     # Create FL recipe
     recipe = FedAvgRecipe(

@@ -77,6 +77,7 @@ class FedAvgRecipe(Recipe):
         external_client_process: bool = False,
         client_command_prefix: Optional[str] = "python3 -u",
         server_expected_format: Optional[str] = ExchangeFormat.NUMPY,
+        min_clients: Optional[int] = None,
     ):
         """Setup FedAvg configuration.
 
@@ -93,6 +94,7 @@ class FedAvgRecipe(Recipe):
             persistor: ModelPersistor for saving and loading models. If not provided, the default model persistor will be used.
             external_client_process: Whether to use an external process for the client. If True, the client script will be run as a separate process.
             client_command_prefix: If launch_external_process=True, command to run script (preprended to script). Defaults to "python3".
+            min_clients: Minimum number of clients to proceed to next round of FedAvg algorithm. If not provided, the number of active clients will be used.
         """
         super().__init__()
 
@@ -109,6 +111,18 @@ class FedAvgRecipe(Recipe):
         self.external_client_process = external_client_process
         self.client_command_prefix = client_command_prefix
         self.server_expected_format = server_expected_format
+        self.min_clients = min_clients
+
+        if isinstance(self.num_clients, int):
+            self.client_names = [f"site-{i+1}" for i in range(self.num_clients)]
+        elif isinstance(self.num_clients, list):
+            self.client_names = self.num_clients
+        else:
+            raise ValueError(f"Invalid type for num_clients: {type(self.num_clients)}. Expected int or list of strings but got {type(self.num_clients)}")
+        
+        if self.min_clients is None:
+            self.min_clients = len(self.client_names)
+
         self.job = self.setup()
 
     def setup(self) -> FedJob:
@@ -132,7 +146,7 @@ class FedAvgRecipe(Recipe):
         aggregator_id = job.to_server(self.aggregator, id="aggregator")
 
         controller = ScatterAndGather(
-            min_clients=self.num_clients,
+            min_clients=self.min_clients,
             num_rounds=self.num_rounds,
             wait_time_after_min_received=10,
             aggregator_id=aggregator_id,
@@ -143,46 +157,55 @@ class FedAvgRecipe(Recipe):
         job.to_server(controller)
 
         # Add clients
-        runner = ScriptRunner(
-            script=self.train_script,
-            script_args=self.train_args,
-            launch_external_process=self.external_client_process,
-            command=self.client_command_prefix,
-            server_expected_format=self.server_expected_format,
-        )
-        job.to_clients(runner)
-
-        # TODO: factor out to enable reuse of filters in different recipes
-        # Add privacy filters
-        if self.privacy_config is not None:
-            if self.privacy_config.percentile is not None:
-                filter = PercentilePrivacy(
-                    percentile=self.privacy_config.percentile, gamma=self.privacy_config.percentile_gamma
-                )
-                job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-
-            filter = SVTPrivacy(
-                fraction=self.privacy_config.fraction,
-                epsilon=self.privacy_config.epsilon,
-                noise_var=self.privacy_config.noise_var,
-                gamma=self.privacy_config.gamma,
-                tau=self.privacy_config.tau,
-                replace=self.privacy_config.replace,
+        for client_name in self.client_names:
+            runner = ScriptRunner(
+                script=self.train_script,
+                script_args=self.train_args,
+                launch_external_process=self.external_client_process,
+                command=self.client_command_prefix,
+                server_expected_format=self.server_expected_format,
             )
-            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
 
-        if self.he_config is not None:
-            # TODO: add homomorphic encryption to the job
-            raise NotImplementedError("Homomorphic encryption is not implemented yet")
+            runner = ScriptRunner(
+                script=self.train_script,
+                script_args=self.train_args,
+                launch_external_process=self.external_client_process,
+                command=self.client_command_prefix,
+                server_expected_format=self.server_expected_format,
+            )
+            job.to(runner, target=client_name)
 
-        if self.quantization_type is not None:
-            # If using quantization, add quantize filters.
-            quantizer = ModelQuantizer(quantization_type=self.quantization_type)
-            dequantizer = ModelDequantizer()
-            job.to_server(quantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
-            job.to_server(dequantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+            # TODO: factor out to enable reuse of filters in different recipes
+            # Add privacy filters
+            if self.privacy_config is not None:
+                if self.privacy_config.percentile is not None:
+                    filter = PercentilePrivacy(
+                        percentile=self.privacy_config.percentile, gamma=self.privacy_config.percentile_gamma
+                    )
+                    job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
 
-            job.to_clients(quantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-            job.to_clients(dequantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
+                filter = SVTPrivacy(
+                    fraction=self.privacy_config.fraction,
+                    epsilon=self.privacy_config.epsilon,
+                    noise_var=self.privacy_config.noise_var,
+                    gamma=self.privacy_config.gamma,
+                    tau=self.privacy_config.tau,
+                    replace=self.privacy_config.replace,
+                )
+                job.to(filter, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+
+            if self.he_config is not None:
+                # TODO: add homomorphic encryption to the job
+                raise NotImplementedError("Homomorphic encryption is not implemented yet")
+
+            if self.quantization_type is not None:
+                # If using quantization, add quantize filters.
+                quantizer = ModelQuantizer(quantization_type=self.quantization_type)
+                dequantizer = ModelDequantizer()
+                job.to_server(quantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
+                job.to_server(dequantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+
+                job.to(quantizer, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+                job.to(dequantizer, target=client_name, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
         return job

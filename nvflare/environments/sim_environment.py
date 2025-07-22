@@ -16,4 +16,4 @@ class SimEnv(Env):
         """Run the simulation."""
         
         print(f"Running simulation with GPU: {self.gpu}, output dir: {self.workdir}")
-        job.simulator_run(self.workdir, gpu=self.gpu, n_clients=n_clients) #, log_config="full")
+        job.simulator_run(self.workdir, gpu=self.gpu) #, log_config="full")

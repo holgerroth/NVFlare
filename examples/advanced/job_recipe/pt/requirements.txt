@@ -2,4 +2,7 @@ nvflare
 torch
 torchvision
 tensorboard
+transformers
+peft
+trl
 bitsandbytes

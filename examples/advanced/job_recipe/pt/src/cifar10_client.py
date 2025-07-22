@@ -20,7 +20,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-from src.net import Net
+from examples.advanced.job_recipe.pt.src.cifar10_model import Net
 
 # (1) import nvflare client API
 import nvflare.client as flare

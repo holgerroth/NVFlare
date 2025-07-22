@@ -1,4 +1,4 @@
-from src.cifar10_fl import Net
+from src.cifar10_client import Net
 
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.aggregators.intime_accumulate_model_aggregator import InTimeAccumulateWeightedAggregator
@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # Example usage
     n_clients = 2
     num_rounds = 3
-    train_script = "src/cifar10_fl.py"
+    train_script = "src/cifar10_client.py"
 
     # Next, create an FL recipe, devining the training logic, number rounds, min_clients, for next round, etc.
     # We can also define our own aggregation function here
