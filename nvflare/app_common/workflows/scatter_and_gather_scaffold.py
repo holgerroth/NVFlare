@@ -183,6 +183,7 @@ class ScatterAndGatherScaffold(ScatterAndGather):
                     return
 
                 fl_ctx.set_prop(AppConstants.AGGREGATION_RESULT, aggr_result, private=True, sticky=False)
+                self.aggregator.reset(fl_ctx)  # reset aggregator stats
                 self.fire_event(AppEventType.AFTER_AGGREGATION, fl_ctx)
 
                 if self._check_abort_signal(fl_ctx, abort_signal):
