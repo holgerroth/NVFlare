@@ -135,14 +135,6 @@ class HEPrivacyPolicy(PrivacyPolicy):
         return self.create_encrypt_filter()
 
 
-@dataclass
-class HEConfig:
-    poly_modulus_degree: int = 8192
-    coeff_mod_bit_sizes: List[int] = field(default_factory=lambda: [60, 40, 40])
-    scale_bits: int = 40
-    scheme: str = "CKKS"
-
-
 class FedAvgRecipe(Recipe):
     """Federated Averaging Recipe.
 
@@ -161,7 +153,6 @@ class FedAvgRecipe(Recipe):
         initial_model=None,
         aggregator: Optional[Aggregator] = None,
         privacy_policies: Optional[List[PrivacyPolicy]] = None,
-        he_config: Optional[HEConfig] = None,
         quantization_type: Optional[str] = None,
         persistor: Optional[ModelPersistor] = None,
         external_client_process: bool = False,
@@ -180,7 +171,6 @@ class FedAvgRecipe(Recipe):
             initial_model: Initial model to start training with
             aggregator: Aggregator for combining client models. If not provided, InTimeAccumulateWeightedAggregator will be used
             privacy_policies: List of privacy policies to apply. Each policy should inherit from PrivacyPolicy.
-            he_config: Configuration for homomorphic encryption (deprecated, use HEPrivacyPolicy instead)
             quantization_type: Configuration type for quantization
             persistor: ModelPersistor for saving and loading models. If not provided, the default model persistor will be used.
             external_client_process: Whether to use an external process for the client. If True, the client script will be run as a separate process.
@@ -196,7 +186,6 @@ class FedAvgRecipe(Recipe):
         self.train_script = train_script
         self.train_args = train_args
         self.privacy_policies = privacy_policies or []
-        self.he_config = he_config
         self.aggregator = aggregator
         self.quantization_type = quantization_type
         self.persistor = persistor
@@ -205,18 +194,6 @@ class FedAvgRecipe(Recipe):
         self.server_expected_format = server_expected_format
         self.min_clients = min_clients
         self.allow_server_numpy_conversion = allow_server_numpy_conversion
-
-        # Handle deprecated he_config parameter
-        if self.he_config is not None:
-            import warnings
-            warnings.warn(
-                "he_config parameter is deprecated. Use HEPrivacyPolicy in privacy_policies instead.",
-                DeprecationWarning,
-                stacklevel=2
-            )
-            # Convert he_config to HEPrivacyPolicy for backward compatibility
-            he_policy = HEPrivacyPolicy()
-            self.privacy_policies.append(he_policy)
 
         if isinstance(self.num_clients, int):
             self.client_names = [f"site-{i+1}" for i in range(self.num_clients)]
@@ -247,7 +224,7 @@ class FedAvgRecipe(Recipe):
             job.comp_ids["persistor_id"] = job.to_server(self.persistor, id="persistor")
 
         # Define the controller and send to server
-        shareable_generator = FullModelShareableGenerator()
+        shareable_generator = FullModelShareableGenerator()   # TODO: Needs to be replaced with HE shareable generator if HE is used
         shareable_generator_id = job.to_server(shareable_generator, id="shareable_generator")
         aggregator_id = job.to_server(self.aggregator, id="aggregator")
 
