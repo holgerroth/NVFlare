@@ -1,4 +1,4 @@
-from src.cifar10_client import Net
+from examples.advanced.job_recipe.pt.src.cifar10_client import Net
 
 from nvflare.recipes.fedavg import FedAvgRecipe, HEConfig
 from nvflare.environments.sim_environment import SimEnv 

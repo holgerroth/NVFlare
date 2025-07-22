@@ -1,4 +1,4 @@
-from src.cifar10_client import Net
+from examples.advanced.job_recipe.pt.src.cifar10_client import Net
 
 from nvflare.recipes.fedavg import FedAvgRecipe, PrivacyConfig
 from nvflare.environments.sim_environment import SimEnv
@@ -17,14 +17,7 @@ if __name__ == "__main__":
         train_args="--local_epochs 1 --batch_size 32",
         initial_model=Net(),
         privacy_config=PrivacyConfig(
-            fraction=0.1, 
             epsilon=0.1, 
-            noise_var=0.1, 
-            gamma=1e-5, 
-            tau=1e-6, 
-            replace=True,
-            percentile=10,
-            percentile_gamma=1e-5
         )
     )
 

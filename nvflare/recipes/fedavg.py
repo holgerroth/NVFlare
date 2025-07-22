@@ -78,6 +78,7 @@ class FedAvgRecipe(Recipe):
         client_command_prefix: Optional[str] = "python3 -u",
         server_expected_format: Optional[str] = ExchangeFormat.NUMPY,
         min_clients: Optional[int] = None,
+        allow_server_numpy_conversion: bool = True,
     ):
         """Setup FedAvg configuration.
 
@@ -95,6 +96,7 @@ class FedAvgRecipe(Recipe):
             external_client_process: Whether to use an external process for the client. If True, the client script will be run as a separate process.
             client_command_prefix: If launch_external_process=True, command to run script (preprended to script). Defaults to "python3".
             min_clients: Minimum number of clients to proceed to next round of FedAvg algorithm. If not provided, the number of active clients will be used.
+            allow_server_numpy_conversion: Whether to allow the server to convert the model to numpy. If True, the server will convert the model to numpy. Default is True.
         """
         super().__init__()
 
@@ -112,6 +114,7 @@ class FedAvgRecipe(Recipe):
         self.client_command_prefix = client_command_prefix
         self.server_expected_format = server_expected_format
         self.min_clients = min_clients
+        self.allow_server_numpy_conversion = allow_server_numpy_conversion
 
         if isinstance(self.num_clients, int):
             self.client_names = [f"site-{i+1}" for i in range(self.num_clients)]
@@ -129,6 +132,7 @@ class FedAvgRecipe(Recipe):
         # Create BaseFedJob with initial model
         job = BaseFedJob(
             initial_model=self.initial_model,
+            allow_server_numpy_conversion=self.allow_server_numpy_conversion,
         )
 
         # Define the controller and send to server

@@ -1,4 +1,4 @@
-from src.cifar10_client import Net
+from examples.advanced.job_recipe.pt.src.cifar10_client import Net
 
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.aggregators.intime_accumulate_model_aggregator import InTimeAccumulateWeightedAggregator

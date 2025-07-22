@@ -42,6 +42,7 @@ class BaseFedJob(FedJob):
         analytics_receiver: Optional[AnalyticsReceiver] = None,
         model_persistor: Optional[ModelPersistor] = None,
         model_locator: Optional[ModelLocator] = None,
+        allow_server_numpy_conversion: bool = True,
     ):
         """PyTorch BaseFedJob.
 
@@ -107,7 +108,7 @@ class BaseFedJob(FedJob):
 
         if initial_model:
             self.comp_ids.update(
-                self.to_server(PTModel(model=initial_model, persistor=model_persistor, locator=model_locator))
+                self.to_server(PTModel(model=initial_model, persistor=model_persistor, locator=model_locator, allow_server_numpy_conversion=allow_server_numpy_conversion))
             )
 
     def set_up_client(self, target: str):

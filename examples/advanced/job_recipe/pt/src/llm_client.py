@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import shutil
 import argparse
 import copy
 import os
@@ -111,7 +112,7 @@ def main():
     parser.add_argument(
         "--message_mode",
         type=str,
-        default="numpy",
+        default="tensor",
         help="message mode, numpy or tensor, default to numpy",
     )
     parser.add_argument("--local_epoch", type=int, default=1)
@@ -259,6 +260,8 @@ def main():
 
         if dist.is_initialized():
             dist.barrier()
+
+        print(f"Received model with {len(global_model)} variables from server")
 
         # Load state dict
         if train_mode:

@@ -1,4 +1,4 @@
-from src.cifar10_client import Net
+from examples.advanced.job_recipe.pt.src.cifar10_client import Net
 
 from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.recipes.fedavg import FedAvgRecipe
