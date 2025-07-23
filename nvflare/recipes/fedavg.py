@@ -22,21 +22,66 @@ from nvflare.client.config import ExchangeFormat
 from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.app_opt.he.model_encryptor import HEModelEncryptor
 from nvflare.app_opt.he.model_decryptor import HEModelDecryptor
+from nvflare.apis.fl_component import FLComponent
 
 
 class PrivacyPolicy(ABC):
     """Base class for privacy policies.
     
     All privacy policies should inherit from this class and implement
-    the create_filter method to return the appropriate DXOFilter instance.
+    the appropriate filter creation methods based on where the filter
+    should be applied in the federated learning pipeline.
     """
     
     @abstractmethod
-    def create_filter(self) -> DXOFilter:
-        """Create and return the DXOFilter instance for this policy.
+    def create_client_result_filters(self) -> List[DXOFilter]:
+        """Create and return the list of DXOFilter instances for client task results (outgoing data).
         
         Returns:
-            DXOFilter: The filter instance to be applied
+            List[DXOFilter]: The list of filter instances to be applied to client task results
+        """
+        pass
+    
+    @abstractmethod
+    def create_client_data_filters(self) -> List[DXOFilter]:
+        """Create and return the list of DXOFilter instances for client task data (incoming data).
+        
+        Returns:
+            List[DXOFilter]: The list of filter instances to be applied to client task data
+        """
+        pass
+    
+    @abstractmethod
+    def create_server_result_filters(self) -> List[DXOFilter]:
+        """Create and return the list of DXOFilter instances for server task results (outgoing data).
+        
+        Returns:
+            List[DXOFilter]: The list of filter instances to be applied to server task results
+        """
+        pass
+    
+    @abstractmethod
+    def create_server_data_filters(self) -> List[DXOFilter]:
+        """Create and return the list of DXOFilter instances for server task data (incoming data).
+        
+        Returns:
+            List[DXOFilter]: The list of filter instances to be applied to server task data
+        """
+        pass
+
+    def create_server_components(self, component: FLComponent) -> list[FLComponent]:
+        """Create and return the list of FLComponents for the server.
+        
+        Returns:
+            list[FLComponent]: The list of FLComponents for the server
+        """
+        pass
+
+    def create_client_components(self, component: FLComponent) -> list[FLComponent]:
+        """Create and return the list of FLComponents for the server.
+        
+        Returns:
+            list[FLComponent]: The list of FLComponents for the server
         """
         pass
 
@@ -52,11 +97,11 @@ class PercentilePrivacyPolicy(PrivacyPolicy):
     percentile: int = 10
     gamma: float = 0.01
     
-    def create_filter(self) -> DXOFilter:
-        return PercentilePrivacy(
+    def create_client_result_filters(self) -> List[DXOFilter]:
+        return [PercentilePrivacy(
             percentile=self.percentile,
             gamma=self.gamma
-        )
+        )]
 
 
 @dataclass
@@ -78,15 +123,45 @@ class SVTPrivacyPolicy(PrivacyPolicy):
     tau: float = 1e-6
     replace: bool = True
     
-    def create_filter(self) -> DXOFilter:
-        return SVTPrivacy(
+    def create_client_result_filter(self) -> List[DXOFilter]:
+        return [SVTPrivacy(
             fraction=self.fraction,
             epsilon=self.epsilon,
             noise_var=self.noise_var,
             gamma=self.gamma,
             tau=self.tau,
             replace=self.replace
-        )
+        )]
+    
+    def create_client_data_filter(self) -> List[DXOFilter]:
+        return [SVTPrivacy(
+            fraction=self.fraction,
+            epsilon=self.epsilon,
+            noise_var=self.noise_var,
+            gamma=self.gamma,
+            tau=self.tau,
+            replace=self.replace
+        )]
+    
+    def create_server_result_filter(self) -> List[DXOFilter]:
+        return [SVTPrivacy(
+            fraction=self.fraction,
+            epsilon=self.epsilon,
+            noise_var=self.noise_var,
+            gamma=self.gamma,
+            tau=self.tau,
+            replace=self.replace
+        )]
+    
+    def create_server_data_filter(self) -> List[DXOFilter]:
+        return [SVTPrivacy(
+            fraction=self.fraction,
+            epsilon=self.epsilon,
+            noise_var=self.noise_var,
+            gamma=self.gamma,
+            tau=self.tau,
+            replace=self.replace
+        )]
 
 
 @dataclass
@@ -110,29 +185,35 @@ class HEPrivacyPolicy(PrivacyPolicy):
     aggregation_weights: Optional[dict] = None
     weigh_by_local_iter: bool = True
     
-    def create_encrypt_filter(self) -> DXOFilter:
-        """Create the encryption filter for outgoing data."""
-        return HEModelEncryptor(
+    def create_client_result_filter(self) -> List[DXOFilter]:
+        """Create the encryption filter for client outgoing data."""
+        return [HEModelEncryptor(
             tenseal_context_file=self.tenseal_context_file,
             encrypt_layers=self.encrypt_layers,
             aggregation_weights=self.aggregation_weights,
             weigh_by_local_iter=self.weigh_by_local_iter
-        )
+        )]
     
-    def create_decrypt_filter(self) -> DXOFilter:
-        """Create the decryption filter for incoming data."""
-        return HEModelDecryptor(
+    def create_client_data_filter(self) -> List[DXOFilter]:
+        """Create the decryption filter for client incoming data."""
+        return [HEModelDecryptor(
             tenseal_context_file=self.tenseal_context_file
-        )
+        )]
     
-    def create_filter(self) -> DXOFilter:
-        """Create and return the encryption filter (for backward compatibility).
-        
-        Note: For HE, you typically need both encryption and decryption filters.
-        Use create_encrypt_filter() and create_decrypt_filter() separately
-        to get the appropriate filters for different filter types.
-        """
-        return self.create_encrypt_filter()
+    def create_server_result_filter(self) -> List[DXOFilter]:
+        """Create the encryption filter for server outgoing data."""
+        return [HEModelEncryptor(
+            tenseal_context_file=self.tenseal_context_file,
+            encrypt_layers=self.encrypt_layers,
+            aggregation_weights=self.aggregation_weights,
+            weigh_by_local_iter=self.weigh_by_local_iter
+        )]
+    
+    def create_server_data_filter(self) -> List[DXOFilter]:
+        """Create the decryption filter for server incoming data."""
+        return [HEModelDecryptor(
+            tenseal_context_file=self.tenseal_context_file
+        )]
 
 
 class FedAvgRecipe(Recipe):
@@ -241,20 +322,23 @@ class FedAvgRecipe(Recipe):
             if not isinstance(policy, PrivacyPolicy):
                 raise ValueError(f"Policy {i} must inherit from PrivacyPolicy, got {type(policy)}")
             
-            if isinstance(policy, HEPrivacyPolicy):
-                # For HE, we need both encryption and decryption filters
-                encrypt_filter = policy.create_encrypt_filter()
-                decrypt_filter = policy.create_decrypt_filter()
-                
-                # Add encryption filter to task results (outgoing data)
-                job.to_clients(encrypt_filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-                
-                # Add decryption filter to task data (incoming data)
-                job.to_clients(decrypt_filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
-            else:
-                # For other privacy policies, use the standard approach
-                filter_instance = policy.create_filter()
-                job.to_clients(filter_instance, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+            # Add client filters
+            client_result_filters = policy.create_client_result_filter()
+            client_data_filters = policy.create_client_data_filter()
+            
+            for client_result_filter in client_result_filters:
+                job.to_clients(client_result_filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+            for client_data_filter in client_data_filters:
+                job.to_clients(client_data_filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
+            
+            # Add server filters
+            server_result_filters = policy.create_server_result_filter()
+            server_data_filters = policy.create_server_data_filter()
+            
+            for server_result_filter in server_result_filters:
+                job.to_server(server_result_filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+            for server_data_filter in server_data_filters:
+                job.to_server(server_data_filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
         if self.quantization_type is not None:
             # If using quantization, add quantize filters.
