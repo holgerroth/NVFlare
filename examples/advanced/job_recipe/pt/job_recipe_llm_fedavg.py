@@ -17,11 +17,10 @@ if __name__ == "__main__":
         train_script=train_script,
         train_args=f"--local_epoch 1 --model_name_or_path {model_name}",
         initial_model=CausalLMModel(model_name_or_path=model_name),
-        external_client_process=True,
-        server_expected_format="pytorch",
-        client_command_prefix=f"accelerate launch --num_processes 2",  # would mean each client runs on 2 gpus.
-        allow_server_numpy_conversion=False,
-        #quantization_type="float4",
+        framework="pytorch", # "raw", "tensorflow"
+        server_load_model_func=None,
+        server_save_model_func=None,
+        stop_condition=None,
     )
 
     # Use a the SimEnv to run the experiment locally.

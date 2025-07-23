@@ -233,13 +233,11 @@ class FedAvgRecipe(Recipe):
         num_rounds=3,
         initial_model=None,
         aggregator: Optional[Aggregator] = None,
-        privacy_policies: Optional[List[PrivacyPolicy]] = None,
-        quantization_type: Optional[str] = None,
-        persistor: Optional[ModelPersistor] = None,
-        external_client_process: bool = False,
-        client_command_prefix: Optional[str] = "python3 -u",
-        server_expected_format: Optional[str] = ExchangeFormat.NUMPY,
-        allow_server_numpy_conversion: bool = True,
+        framework: Optional[str] = "pytorch",
+        server_load_model_func: Optional[Callable[[], FLModel]] = None,
+        server_save_model_func: Optional[Callable[[FLModel], None]] = None,
+        stop_condition: Optional[str] = None,
+        patience: Optional[int] = None
     ):
         """Setup FedAvg configuration.
 
@@ -339,15 +337,5 @@ class FedAvgRecipe(Recipe):
                 job.to_server(server_result_filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
             for server_data_filter in server_data_filters:
                 job.to_server(server_data_filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
-
-        if self.quantization_type is not None:
-            # If using quantization, add quantize filters.
-            quantizer = ModelQuantizer(quantization_type=self.quantization_type)
-            dequantizer = ModelDequantizer()
-            job.to_server(quantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
-            job.to_server(dequantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-
-            job.to_clients(quantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-            job.to_clients(dequantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
         return job

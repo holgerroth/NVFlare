@@ -36,6 +36,14 @@ class MyAggregator(ModelAggregator):
         self.count = 0
 
 
+def aggr_func(models: List[FLModel]) -> FLModel:
+    # compute the average
+    for key in self.sum:
+        self.sum[key] = self.sum[key] / self.count
+    
+    return FLModel(params=self.sum)
+
+
 if __name__ == "__main__":
     # Example usage
     n_clients = 2
@@ -51,7 +59,7 @@ if __name__ == "__main__":
         train_script=train_script,
         train_args="--local_epochs 1 --batch_size 32",
         initial_model=Net(),
-        aggregator=MyAggregator(),
+        aggregator=MyAggregator(), # aggregator=aggr_func
     )
 
     # Use a the SimEnv to run the experiment locally.
