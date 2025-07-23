@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.
     recipe = FedAvgRecipe(
-        num_clients=n_clients,
+        min_clients=n_clients,
         num_rounds=num_rounds,
         train_script=train_script,
         train_args="--local_epochs 1",
@@ -19,5 +19,5 @@ if __name__ == "__main__":
     )
 
     # Use a the SimEnv to run the experiment locally.
-    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg"))
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg", n_clients=n_clients))
     # recipe.execute(env=FlareEnv())

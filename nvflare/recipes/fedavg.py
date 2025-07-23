@@ -148,7 +148,7 @@ class FedAvgRecipe(Recipe):
         self,
         train_script,
         train_args="",
-        num_clients=1,
+        min_clients=1,
         num_rounds=3,
         initial_model=None,
         aggregator: Optional[Aggregator] = None,
@@ -158,7 +158,6 @@ class FedAvgRecipe(Recipe):
         external_client_process: bool = False,
         client_command_prefix: Optional[str] = "python3 -u",
         server_expected_format: Optional[str] = ExchangeFormat.NUMPY,
-        min_clients: Optional[int] = None,
         allow_server_numpy_conversion: bool = True,
     ):
         """Setup FedAvg configuration.
@@ -166,7 +165,7 @@ class FedAvgRecipe(Recipe):
         Args:
             train_script: Script to train the model
             train_args: Arguments to pass to the train script
-            num_clients: Number of clients to participate in FedAvg algorithm
+            min_clients: Minimum number of clients to proceed to next round of FedAvg algorithm. Default is 1.
             num_rounds: Number of training rounds
             initial_model: Initial model to start training with
             aggregator: Aggregator for combining client models. If not provided, InTimeAccumulateWeightedAggregator will be used
@@ -175,12 +174,11 @@ class FedAvgRecipe(Recipe):
             persistor: ModelPersistor for saving and loading models. If not provided, the default model persistor will be used.
             external_client_process: Whether to use an external process for the client. If True, the client script will be run as a separate process.
             client_command_prefix: If launch_external_process=True, command to run script (preprended to script). Defaults to "python3".
-            min_clients: Minimum number of clients to proceed to next round of FedAvg algorithm. If not provided, the number of active clients will be used.
             allow_server_numpy_conversion: Whether to allow the server to convert the model to numpy. If True, the server will convert the model to numpy. Default is True.
         """
         super().__init__()
 
-        self.num_clients = num_clients
+        self.min_clients = min_clients
         self.num_rounds = num_rounds
         self.initial_model = initial_model
         self.train_script = train_script
@@ -192,18 +190,7 @@ class FedAvgRecipe(Recipe):
         self.external_client_process = external_client_process
         self.client_command_prefix = client_command_prefix
         self.server_expected_format = server_expected_format
-        self.min_clients = min_clients
         self.allow_server_numpy_conversion = allow_server_numpy_conversion
-
-        if isinstance(self.num_clients, int):
-            self.client_names = [f"site-{i+1}" for i in range(self.num_clients)]
-        elif isinstance(self.num_clients, list):
-            self.client_names = self.num_clients
-        else:
-            raise ValueError(f"Invalid type for num_clients: {type(self.num_clients)}. Expected int or list of strings but got {type(self.num_clients)}")
-        
-        if self.min_clients is None:
-            self.min_clients = len(self.client_names)
 
         self.job = self.setup()
 
@@ -240,52 +227,43 @@ class FedAvgRecipe(Recipe):
         job.to_server(controller)
 
         # Add clients
-        for client_name in self.client_names:
-            runner = ScriptRunner(
-                script=self.train_script,
-                script_args=self.train_args,
-                launch_external_process=self.external_client_process,
-                command=self.client_command_prefix,
-                server_expected_format=self.server_expected_format,
-            )
+        runner = ScriptRunner(
+            script=self.train_script,
+            script_args=self.train_args,
+            launch_external_process=self.external_client_process,
+            command=self.client_command_prefix,
+            server_expected_format=self.server_expected_format,
+        )
+        job.to_clients(runner)
 
-            runner = ScriptRunner(
-                script=self.train_script,
-                script_args=self.train_args,
-                launch_external_process=self.external_client_process,
-                command=self.client_command_prefix,
-                server_expected_format=self.server_expected_format,
-            )
-            job.to(runner, target=client_name)
-
-            # Add privacy filters from policies
-            for i, policy in enumerate(self.privacy_policies):
-                if not isinstance(policy, PrivacyPolicy):
-                    raise ValueError(f"Policy {i} must inherit from PrivacyPolicy, got {type(policy)}")
+        # Add privacy filters from policies
+        for i, policy in enumerate(self.privacy_policies):
+            if not isinstance(policy, PrivacyPolicy):
+                raise ValueError(f"Policy {i} must inherit from PrivacyPolicy, got {type(policy)}")
+            
+            if isinstance(policy, HEPrivacyPolicy):
+                # For HE, we need both encryption and decryption filters
+                encrypt_filter = policy.create_encrypt_filter()
+                decrypt_filter = policy.create_decrypt_filter()
                 
-                if isinstance(policy, HEPrivacyPolicy):
-                    # For HE, we need both encryption and decryption filters
-                    encrypt_filter = policy.create_encrypt_filter()
-                    decrypt_filter = policy.create_decrypt_filter()
-                    
-                    # Add encryption filter to task results (outgoing data)
-                    job.to(encrypt_filter, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-                    
-                    # Add decryption filter to task data (incoming data)
-                    job.to(decrypt_filter, target=client_name, tasks=["train"], filter_type=FilterType.TASK_DATA)
-                else:
-                    # For other privacy policies, use the standard approach
-                    filter_instance = policy.create_filter()
-                    job.to(filter_instance, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+                # Add encryption filter to task results (outgoing data)
+                job.to_clients(encrypt_filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+                
+                # Add decryption filter to task data (incoming data)
+                job.to_clients(decrypt_filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
+            else:
+                # For other privacy policies, use the standard approach
+                filter_instance = policy.create_filter()
+                job.to_clients(filter_instance, tasks=["train"], filter_type=FilterType.TASK_RESULT)
 
-            if self.quantization_type is not None:
-                # If using quantization, add quantize filters.
-                quantizer = ModelQuantizer(quantization_type=self.quantization_type)
-                dequantizer = ModelDequantizer()
-                job.to_server(quantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
-                job.to_server(dequantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+        if self.quantization_type is not None:
+            # If using quantization, add quantize filters.
+            quantizer = ModelQuantizer(quantization_type=self.quantization_type)
+            dequantizer = ModelDequantizer()
+            job.to_server(quantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
+            job.to_server(dequantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
 
-                job.to(quantizer, target=client_name, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-                job.to(dequantizer, target=client_name, tasks=["train"], filter_type=FilterType.TASK_DATA)
+            job.to_clients(quantizer, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+            job.to_clients(dequantizer, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
         return job

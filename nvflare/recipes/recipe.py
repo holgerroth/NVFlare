@@ -17,7 +17,7 @@ class Recipe(ABC):
         if self.job is None:
             self.job = self.setup()
         
-        env.execute(job=self.job, n_clients=self.num_clients)
+        env.execute(job=self.job)
 
     def export(self, path: str):
         if self.job is None:

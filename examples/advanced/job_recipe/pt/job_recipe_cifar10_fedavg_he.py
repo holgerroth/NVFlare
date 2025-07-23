@@ -53,7 +53,7 @@ if __name__ == "__main__":
     # Create FL recipe with HE privacy policy (using basic configuration)
     recipe = FedAvgRecipe(
         num_rounds=num_rounds,
-        num_clients=n_clients,
+        min_clients=n_clients,
         train_script=train_script,
         train_args="--local_epochs 1 --batch_size 32",
         initial_model=Net(),
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # Alternative: Use multiple privacy policies
     # recipe = FedAvgRecipe(
     #     num_rounds=num_rounds,
-    #     num_clients=n_clients,
+    #     min_clients=n_clients,
     #     train_script=train_script,
     #     train_args="--local_epochs 1 --batch_size 32",
     #     initial_model=Net(),
