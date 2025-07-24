@@ -16,9 +16,6 @@ from nvflare.app_common.shareablegenerators import FullModelShareableGenerator
 from nvflare.app_common.workflows.scatter_and_gather import ScatterAndGather
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.abstract.aggregator import Aggregator
-from nvflare.app_opt.pt.quantization.dequantizer import ModelDequantizer
-from nvflare.app_opt.pt.quantization.quantizer import ModelQuantizer
-from nvflare.client.config import ExchangeFormat
 from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.app_opt.he.model_encryptor import HEModelEncryptor
 from nvflare.app_opt.he.model_decryptor import HEModelDecryptor
@@ -247,13 +244,15 @@ class FedAvgRecipe(Recipe):
             min_clients: Minimum number of clients to proceed to next round of FedAvg algorithm. Default is 1.
             num_rounds: Number of training rounds
             initial_model: Initial model to start training with
-            aggregator: Aggregator for combining client models. If not provided, InTimeAccumulateWeightedAggregator will be used
-            privacy_policies: List of privacy policies to apply. Each policy should inherit from PrivacyPolicy.
-            quantization_type: Configuration type for quantization
-            persistor: ModelPersistor for saving and loading models. If not provided, the default model persistor will be used.
-            external_client_process: Whether to use an external process for the client. If True, the client script will be run as a separate process.
-            client_command_prefix: If launch_external_process=True, command to run script (preprended to script). Defaults to "python3".
-            allow_server_numpy_conversion: Whether to allow the server to convert the model to numpy. If True, the server will convert the model to numpy. Default is True.
+            aggregator: Aggregator for combining client models. Can be `Aggregator` or `Callable`. If not provided, InTimeAccumulateWeightedAggregator will be used. 
+            framework: Framework to use. Can be "pytorch", "raw", "tensorflow". Default is "pytorch".
+            server_load_model_func: Function to load the model from the server.
+            server_save_model_func: Function to save the model to the server.
+            stop_cond (str, optional): early stopping condition based on metric. String
+                literal in the format of '\\<key\\> \\<op\\> \\<value\\>' (e.g. "accuracy >= 80")
+            patience (int, optional): The number of checks with no improvement after which
+                the FL will be stopped. If set to `None`, this parameter is disabled.
+                If stop_condition is None, patience does not apply
         """
         super().__init__()
 
@@ -262,14 +261,12 @@ class FedAvgRecipe(Recipe):
         self.initial_model = initial_model
         self.train_script = train_script
         self.train_args = train_args
-        self.privacy_policies = privacy_policies or []
         self.aggregator = aggregator
-        self.quantization_type = quantization_type
-        self.persistor = persistor
-        self.external_client_process = external_client_process
-        self.client_command_prefix = client_command_prefix
-        self.server_expected_format = server_expected_format
-        self.allow_server_numpy_conversion = allow_server_numpy_conversion
+        self.framework = framework
+        self.server_load_model_func = server_load_model_func
+        self.server_save_model_func = server_save_model_func
+        self.stop_condition = stop_condition
+        self.patience = patience
 
         self.job = self.setup()
 
@@ -277,7 +274,7 @@ class FedAvgRecipe(Recipe):
         # Create BaseFedJob with initial model
         job = BaseFedJob(
             initial_model=self.initial_model,
-            allow_server_numpy_conversion=self.allow_server_numpy_conversion,
+            allow_server_numpy_conversion=True, # TODO: add logic based on framework
         )
 
         # Define the controller and send to server

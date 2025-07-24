@@ -4,6 +4,8 @@ import torch
 from nvflare.recipes.fedavg import FedAvgRecipe
 from nvflare.environments.sim_environment import SimEnv
 from nvflare.app_common.abstract.fl_model import FLModel
+from nvflare.app_opt.pt.quantization.dequantizer import ModelDequantizer
+from nvflare.app_opt.pt.quantization.quantizer import ModelQuantizer
 
 
 def my_server_load_model_func() -> FLModel:
@@ -21,6 +23,7 @@ if __name__ == "__main__":
     n_clients = 2
     num_rounds = 3
     train_script = "src/cifar10_client.py"
+    quantization_type = "float4"
 
 
     # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.
@@ -33,12 +36,12 @@ if __name__ == "__main__":
     )
 
     # Add quantization client side
-    recipe.add_client_input_filter(ModelDequantizer())
     recipe.add_client_output_filter(ModelQuantizer(quantization_type=quantization_type))
-
+    recipe.add_client_input_filter(ModelDequantizer())
+    
     # Add quantization server side
-    recipe.add_server_input_filter(ModelDequantizer())
     recipe.add_server_output_filter(ModelQuantizer(quantization_type=quantization_type))    
+    recipe.add_server_input_filter(ModelDequantizer())
 
     # Use a the SimEnv to run the experiment locally.
     recipe.export(path="/tmp/nvflare/cifar10_fedavg_model_loading_job")
