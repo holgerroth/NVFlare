@@ -68,15 +68,16 @@ if __name__ == "__main__":
 
     # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.
     # We can also define our own aggregation function here
+    # Option 1: Pass the function directly (will be automatically wrapped)
     recipe = FedAvgRecipe(
-        num_clients=n_clients,
+        min_clients=n_clients,
         num_rounds=num_rounds,
         train_script=train_script,
         train_args="--local_epochs 1 --batch_size 32",
         initial_model=Net(),
-        aggregator=my_aggregate_func, #MyAggregator()  # TODO: make sure both Callable and Aggregator are supported
+        aggregator=my_aggregate_func, #MyAggregator()  # Both Callable and Aggregator are now supported
     )
-
+ 
     # Use a the SimEnv to run the experiment locally.
-    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_myaggregator"))
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_myaggregator", clients=n_clients))
     # recipe.execute(env=FlareEnv())

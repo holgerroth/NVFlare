@@ -8,7 +8,7 @@ from nvflare.app_common.abstract.fl_model import FLModel
 
 def my_server_load_model_func() -> FLModel:
     net = Net()
-    net.load_state_dict(torch.load("FL_global_model.pt"))
+    net.load_state_dict(torch.load("pretrained_model.pt"))
 
     return FLModel(params=net.state_dict())
 
@@ -30,11 +30,11 @@ if __name__ == "__main__":
         num_rounds=num_rounds,
         train_script=train_script,
         train_args="--local_epochs 1 --batch_size 32",
-        server_load_model_func=my_server_load_model_func,
-        server_save_model_func=my_server_save_model_func,
+        server_load_model_func=my_server_load_model_func,  # TODO: support different load functions for global model
+        server_save_model_func=my_server_save_model_func,  # TODO: support different save functions for global model
     )
 
     # Use a the SimEnv to run the experiment locally.
     recipe.export(path="/tmp/nvflare/cifar10_fedavg_model_loading_job")
-    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_model_loading"))
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_model_loading", clients=n_clients))
     # recipe.execute(env=FlareEnv())

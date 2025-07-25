@@ -14,5 +14,6 @@
 
 from .accumulate_model_aggregator import AccumulateWeightedAggregator
 from .intime_accumulate_model_aggregator import InTimeAccumulateWeightedAggregator
+from .callable_aggregator import CallableAggregator
 
-__all__ = ["AccumulateWeightedAggregator", "InTimeAccumulateWeightedAggregator"]
+__all__ = ["AccumulateWeightedAggregator", "InTimeAccumulateWeightedAggregator", "CallableAggregator"]

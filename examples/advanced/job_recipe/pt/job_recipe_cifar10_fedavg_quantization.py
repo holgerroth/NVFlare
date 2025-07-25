@@ -45,5 +45,5 @@ if __name__ == "__main__":
 
     # Use a the SimEnv to run the experiment locally.
     recipe.export(path="/tmp/nvflare/cifar10_fedavg_model_loading_job")
-    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_model_loading"))
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_model_loading", clients=n_clients))
     # recipe.execute(env=FlareEnv())
