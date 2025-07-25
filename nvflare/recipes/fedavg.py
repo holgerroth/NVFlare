@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Callable
 from abc import ABC, abstractmethod
 
 from nvflare import FilterType
@@ -20,6 +20,7 @@ from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.app_opt.he.model_encryptor import HEModelEncryptor
 from nvflare.app_opt.he.model_decryptor import HEModelDecryptor
 from nvflare.apis.fl_component import FLComponent
+from nvflare.app_common.abstract.fl_model import FLModel
 
 
 class PrivacyPolicy(ABC):
@@ -225,7 +226,7 @@ class FedAvgRecipe(Recipe):
     def __init__(
         self,
         train_script,
-        train_args="",
+        train_args="",  # TODO: support different train args for different clients
         min_clients=1,
         num_rounds=3,
         initial_model=None,
@@ -281,11 +282,6 @@ class FedAvgRecipe(Recipe):
         if self.aggregator is None:
             self.aggregator = InTimeAccumulateWeightedAggregator(expected_data_kind=DataKind.WEIGHTS)
 
-        if self.persistor is not None:
-            if self.initial_model is not None:
-                raise ValueError("Initial model is not supported when using a custom persistor")
-            job.comp_ids["persistor_id"] = job.to_server(self.persistor, id="persistor")
-
         # Define the controller and send to server
         shareable_generator = FullModelShareableGenerator()   # TODO: Needs to be replaced with HE shareable generator if HE is used
         shareable_generator_id = job.to_server(shareable_generator, id="shareable_generator")
@@ -312,27 +308,7 @@ class FedAvgRecipe(Recipe):
         )
         job.to_clients(runner)
 
-        # Add privacy filters from policies
-        for i, policy in enumerate(self.privacy_policies):
-            if not isinstance(policy, PrivacyPolicy):
-                raise ValueError(f"Policy {i} must inherit from PrivacyPolicy, got {type(policy)}")
-            
-            # Add client filters
-            client_result_filters = policy.create_client_result_filter()
-            client_data_filters = policy.create_client_data_filter()
-            
-            for client_result_filter in client_result_filters:
-                job.to_clients(client_result_filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-            for client_data_filter in client_data_filters:
-                job.to_clients(client_data_filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
-            
-            # Add server filters
-            server_result_filters = policy.create_server_result_filter()
-            server_data_filters = policy.create_server_data_filter()
-            
-            for server_result_filter in server_result_filters:
-                job.to_server(server_result_filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-            for server_data_filter in server_data_filters:
-                job.to_server(server_data_filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
+        # Apply any filters that were added using the filter methods
+        self._apply_filters_to_job(job)
 
         return job
