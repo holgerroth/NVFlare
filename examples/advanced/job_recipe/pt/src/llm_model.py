@@ -27,4 +27,3 @@ class CausalLMModel(torch.nn.Module):
     def forward(self, input_id):
         output = self.model(input_ids=input_id, return_dict=False)
         return output
-

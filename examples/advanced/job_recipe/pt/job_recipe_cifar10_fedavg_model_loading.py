@@ -1,9 +1,9 @@
-from src.cifar10_client import Net
 import torch
+from src.cifar10_client import Net
 
-from nvflare.recipes.fedavg import FedAvgRecipe
-from nvflare.environments.sim_environment import SimEnv
 from nvflare.app_common.abstract.fl_model import FLModel
+from nvflare.environments.sim_environment import SimEnv
+from nvflare.recipes.fedavg import FedAvgRecipe
 
 
 def my_server_load_model_func() -> FLModel:
@@ -11,6 +11,7 @@ def my_server_load_model_func() -> FLModel:
     net.load_state_dict(torch.load("pretrained_model.pt"))
 
     return FLModel(params=net.state_dict())
+
 
 def my_server_save_model_func(model: FLModel):
     torch.save(model.params, "FL_global_model.pt")
@@ -21,7 +22,6 @@ if __name__ == "__main__":
     n_clients = 2
     num_rounds = 3
     train_script = "src/cifar10_client.py"
-
 
     # Now, let's create an FL recipe, defining the training logic, number rounds, min_clients, for next round, etc.
     # We can also define our own aggregation function here

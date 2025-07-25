@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import shutil
 import argparse
 import copy
 import os
 
 # Add deterministic seed for reproducibility illustration
 import random
+import shutil
 
 import datasets
 import numpy as np
@@ -90,7 +90,7 @@ def main():
     parser.add_argument(
         "--data_path_valid",
         type=str,
-        default="/scratch/hroth/Code/nvflare/new_api/examples/advanced/llm_hf/dataset/dolly/validation.jsonl",   # TODO: update data path to use one specific for each client
+        default="/scratch/hroth/Code/nvflare/new_api/examples/advanced/llm_hf/dataset/dolly/validation.jsonl",  # TODO: update data path to use one specific for each client
     )
     parser.add_argument(
         "--output_path",

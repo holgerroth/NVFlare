@@ -1,9 +1,8 @@
 from examples.advanced.job_recipe.pt.src.cifar10_client import Net
-
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.aggregators.intime_accumulate_model_aggregator import InTimeAccumulateWeightedAggregator
-from nvflare.recipes.swarm import SwarmRecipe
 from nvflare.environments.sim_environment import SimEnv
+from nvflare.recipes.swarm import SwarmRecipe
 
 if __name__ == "__main__":
     # Example usage

@@ -1,15 +1,11 @@
 from examples.advanced.job_recipe.pt.src.cifar10_client import Net
-
-from nvflare.recipes.fedavg import FedAvgRecipe, HEPrivacyPolicy, PercentilePrivacyPolicy
-from nvflare.environments.sim_environment import SimEnv 
+from nvflare.environments.sim_environment import SimEnv
 
 if __name__ == "__main__":
     # Example usage
     n_clients = 2
     num_rounds = 2
     train_script = "src/cifar10_client.py"
-
-
 
     # Create FL recipe with HE privacy policy (using basic configuration)
     recipe = FedAvgRecipe(
@@ -21,7 +17,9 @@ if __name__ == "__main__":
     )
 
     # TODO: add support for HE in the recipe
-    recipe.add_homomorphic_encryption(poly_modulus_degree=8192, coeff_mod_bit_sizes=[60, 40, 40], scale_bits=40, scheme="CKKS")
+    recipe.add_homomorphic_encryption(
+        poly_modulus_degree=8192, coeff_mod_bit_sizes=[60, 40, 40], scale_bits=40, scheme="CKKS"
+    )
 
     # Define experiment
     # Run experiment

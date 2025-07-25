@@ -48,7 +48,7 @@ def main():
 
     # (2) initialize NVFlare client API
     flare.init()
-    client_id = flare.get_site_name()    
+    client_id = flare.get_site_name()
 
     dataset_path = os.path.join(CIFAR10_ROOT, client_id)
     print(f"Dataset path for client {flare.get_site_name()}: {dataset_path}")
