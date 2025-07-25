@@ -20,9 +20,10 @@ if __name__ == "__main__":
         initial_model=Net(),
     )
 
-    recipe.add_homomorphic_encryption_policy(poly_modulus_degree=8192, coeff_mod_bit_sizes=[60, 40, 40], scale_bits=40, scheme="CKKS")
+    # TODO: add support for HE in the recipe
+    recipe.add_homomorphic_encryption(poly_modulus_degree=8192, coeff_mod_bit_sizes=[60, 40, 40], scale_bits=40, scheme="CKKS")
 
     # Define experiment
     # Run experiment
-    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_he", n_clients=n_clients))
+    recipe.execute(env=SimEnv(gpu="0", workdir="/tmp/nvflare/cifar10_fedavg_he", clients=n_clients))
     # exp.execute(env=FlareEnv())

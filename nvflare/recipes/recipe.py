@@ -39,7 +39,7 @@ class Recipe(ABC):
         Args:
             filter: The filter to be applied to client input
         """
-        self._client_input_filters.append(filter)
+        self.job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
     def add_client_output_filter(self, filter: Filter):
         """Add a filter to be applied to client output (task results).
@@ -47,7 +47,7 @@ class Recipe(ABC):
         Args:
             filter: The filter to be applied to client output
         """
-        self._client_output_filters.append(filter)
+        self.job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
 
     def add_server_input_filter(self, filter: Filter):
         """Add a filter to be applied to server input (task data).
@@ -55,7 +55,7 @@ class Recipe(ABC):
         Args:
             filter: The filter to be applied to server input
         """
-        self._server_input_filters.append(filter)
+        self.job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
     def add_server_output_filter(self, filter: Filter):
         """Add a filter to be applied to server output (task results).
@@ -63,24 +63,4 @@ class Recipe(ABC):
         Args:
             filter: The filter to be applied to server output
         """
-        self._server_output_filters.append(filter)
-
-    def _apply_filters_to_job(self, job: FedJob):
-        """Apply stored filters to the job.
-        
-        Args:
-            job: The FedJob to apply filters to
-        """
-        # Apply client filters
-        for filter in self._client_output_filters:
-            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-        
-        for filter in self._client_input_filters:
-            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
-        
-        # Apply server filters
-        for filter in self._server_output_filters:
-            job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
-        
-        for filter in self._server_input_filters:
-            job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
+        self.job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)

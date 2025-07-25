@@ -6,6 +6,7 @@ from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.job_config.api import FedJob
 from nvflare.recipes.recipe import Recipe
 from nvflare.job_config.script_runner import ScriptRunner
+from nvflare import FilterType
 
 
 class SwarmRecipe(Recipe):
@@ -66,5 +67,20 @@ class SwarmRecipe(Recipe):
             ),
             cse_config=CrossSiteEvalConfig(eval_task_timeout=300),
         )
+
+        # Apply filters directly to the job
+        # Apply client filters
+        for filter in self._client_output_filters:
+            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+        
+        for filter in self._client_input_filters:
+            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
+        
+        # Apply server filters
+        for filter in self._server_output_filters:
+            job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+        
+        for filter in self._server_input_filters:
+            job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
         return job

@@ -10,6 +10,7 @@ from nvflare.app_common.workflows.scatter_and_gather import ScatterAndGather
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.abstract.aggregator import Aggregator
 from nvflare.app_common.abstract.fl_model import FLModel
+from nvflare import FilterType
 
 
 class FedAvgRecipe(Recipe):
@@ -32,7 +33,7 @@ class FedAvgRecipe(Recipe):
         framework: Optional[str] = "pytorch",
         server_load_model_func: Optional[Callable[[], FLModel]] = None,
         server_save_model_func: Optional[Callable[[FLModel], None]] = None,
-        stop_condition: Optional[str] = None,
+        stop_condition: Optional[str] = None,  # TODO: add support for early stopping and patience
         patience: Optional[int] = None
     ):
         """Setup FedAvg configuration.
@@ -111,7 +112,19 @@ class FedAvgRecipe(Recipe):
         )
         job.to_clients(runner)
 
-        # Apply any filters that were added using the filter methods
-        self._apply_filters_to_job(job)
+        # Apply filters directly to the job
+        # Apply client filters
+        for filter in self._client_output_filters:
+            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+        
+        for filter in self._client_input_filters:
+            job.to_clients(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
+        
+        # Apply server filters
+        for filter in self._server_output_filters:
+            job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_RESULT)
+        
+        for filter in self._server_input_filters:
+            job.to_server(filter, tasks=["train"], filter_type=FilterType.TASK_DATA)
 
         return job
