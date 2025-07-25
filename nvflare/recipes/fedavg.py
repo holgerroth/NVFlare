@@ -1,25 +1,14 @@
-from dataclasses import dataclass, field
 from typing import Optional, List, Union, Callable
-from abc import ABC, abstractmethod
 
-from nvflare import FilterType
-from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.api import FedJob
 from nvflare.recipes.recipe import Recipe
-from nvflare.app_common.abstract.model_persistor import ModelPersistor
 from nvflare.job_config.script_runner import ScriptRunner
-from nvflare.app_common.filters.percentile_privacy import PercentilePrivacy
-from nvflare.app_common.filters.svt_privacy import SVTPrivacy
 from nvflare.app_common.aggregators import InTimeAccumulateWeightedAggregator, CallableAggregator
 from nvflare.app_common.shareablegenerators import FullModelShareableGenerator
 from nvflare.app_common.workflows.scatter_and_gather import ScatterAndGather
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.abstract.aggregator import Aggregator
-from nvflare.apis.dxo_filter import DXOFilter
-from nvflare.app_opt.he.model_encryptor import HEModelEncryptor
-from nvflare.app_opt.he.model_decryptor import HEModelDecryptor
-from nvflare.apis.fl_component import FLComponent
 from nvflare.app_common.abstract.fl_model import FLModel
 
 
@@ -92,7 +81,7 @@ class FedAvgRecipe(Recipe):
             self.aggregator = InTimeAccumulateWeightedAggregator(expected_data_kind=DataKind.WEIGHTS)
         elif callable(self.aggregator):
             # Wrap callable function into CallableAggregator
-            self.aggregator = CallableAggregator(self.aggregator)
+            self.aggregator = CallableAggregator(self.aggregator)  # TODO: doesn't work yet. I get `TypeError: <class 'function'> is a built-in class` error
         elif isinstance(self.aggregator, Aggregator):
             pass
         else:

@@ -8,7 +8,7 @@ from nvflare.job_config.api import FedJob
 class SimEnv(Env):
     """Simulation environment for federated learning."""
 
-    def __init__(self, gpu: Optional[str] = None, workdir: str = "/tmp/nvflare/workdir", clients: Union[int, list[str]] = None, log_config: str = "full"):
+    def __init__(self, gpu: Optional[str] = None, workdir: str = "/tmp/nvflare/workdir", clients: Union[int, list[str]] = None, log_config: str = None):
         self.gpu = gpu
         self.workdir = workdir
         self.clients = clients

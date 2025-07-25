@@ -10,7 +10,7 @@ from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 # Option 1: use a custom aggregator function
 def my_aggregate_func(models: List[FLModel]) -> FLModel:
 
-    print(f"##### my_aggregator_func: Aggregating {len(models)} models #####")
+    print(f"##### my_aggregator_func: Aggregating {len(models)} models #####")  # TODO: print doesn't show in the logs
     
     # Collect model params
     aggregated_params = {}
@@ -35,7 +35,7 @@ class MyAggregator(ModelAggregator):
     
     def accept_model(self, model: FLModel):
         # accept submitted model and add to the sum
-        print(f"##### MyAggregator: Accepting model with {len(model.params)} variables #####")
+        self.info(f"##### MyAggregator: Accepting model with {len(model.params)} variables #####")
         for key, value in model.params.items():
             if key not in self.sum:
                 self.sum[key] = 0
@@ -43,7 +43,7 @@ class MyAggregator(ModelAggregator):
         self.count += 1
 
     def aggregate_model(self) -> FLModel:
-        print(f"##### MyAggregator: Aggregating {self.count} models #####")
+        self.info(f"##### MyAggregator: Aggregating {self.count} models #####")
 
         # compute the average
         for key in self.sum:
@@ -52,7 +52,7 @@ class MyAggregator(ModelAggregator):
         return FLModel(params=self.sum)
 
     def reset_stats(self):
-        print(f"##### MyAggregator: Resetting #####")
+        self.info(f"##### MyAggregator: Resetting #####")
         # reset the sum and count
         self.sum = {}    
         self.count = 0
