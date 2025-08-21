@@ -14,19 +14,19 @@
 
 import argparse
 
+from fedexlora import FedExLora
 from bionemo.core.data.load import load
 from bionemo_filters import BioNeMoParamsFilter, BioNeMoStateDictFilter
 
 from nvflare import FilterType
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
-from nvflare.app_common.workflows.fedavg import FedAvg
 from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import BaseScriptRunner
 
 
 def main(args):
     # Create BaseFedJob with initial model
-    job = BaseFedJob(name=f"{args.exp_name}_scl_esm2_{args.model}")
+    job = BaseFedJob(name=f"{args.exp_name}_scl_esm2_{args.model}_exlora")
 
     # Define the controller and send to server
     controller = FedAvg(
@@ -56,10 +56,9 @@ def main(args):
             val_check_interval = int(args.local_steps / 20)  # 20 times per training
 
         # define training script arguments
+        # precision = "bf16-mixed"
         precision = "bf16-mixed"
-        # precision = "fp32"
-        # --encoder-frozen
-        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --result-dir bionemo --micro-batch-size 64 --precision {precision} --save-top-k 1 --classes {classes}"
+        script_args = f"--restore-from-checkpoint-path {checkpoint_path} --train-data-path {train_data_path} --valid-data-path {val_data_path} --config-class ESM2FineTuneSeqConfig --dataset-class InMemorySingleValueDataset --task-type classification --mlp-ft-dropout 0.1 --mlp-hidden-size 256 --mlp-target-size 10 --experiment-name {job.name} --num-steps {args.local_steps} --num-gpus 1 --val-check-interval {val_check_interval} --log-every-n-steps 10 --lr 5e-4 --result-dir bionemo --micro-batch-size 64 --precision {precision} --save-top-k 1 --encoder-frozen --classes {classes} --lora-finetune"
         print(f"Running {args.train_script} with args: {script_args}")
 
         # Define training script runner
@@ -80,7 +79,7 @@ def main(args):
         job.to(BioNeMoStateDictFilter(), client_name, tasks=["train", "validate"], filter_type=FilterType.TASK_RESULT)
 
     job.export_job("./exported_jobs")
-    job.simulator_run(f"/data/nvflare/bionemo/scl/{job.name}", gpu=args.sim_gpus)
+    job.simulator_run(f"/data/nvflare/bionemo/scl/exlora/{job.name}", gpu=args.sim_gpus)
 
 
 if __name__ == "__main__":

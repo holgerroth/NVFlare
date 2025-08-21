@@ -12,5 +12,6 @@ docker run \
 --gpus='"device=all"' --network=host --ipc=host -it --rm --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 \
 -v ".":/${NB_DIR} \
 -v "/home/hroth/Code/nvflare/bionemo2:/nvflare" \
+-v "/home/hroth/Data:/data" \
 -w ${NB_DIR} \
 ${DOCKER_IMAGE} "./start_jupyter.sh"

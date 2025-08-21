@@ -297,7 +297,7 @@ def train_model(
         max_epochs=max_epochs,
         accelerator="gpu",
         strategy=strategy,
-        limit_val_batches=limit_val_batches,
+        limit_val_batches=1.0,  # frac of validation set.
         limit_test_batches=limit_test_batches,  # This controls upsampling and downsampling
         val_check_interval=val_check_interval,
         log_every_n_steps=log_every_n_steps,
