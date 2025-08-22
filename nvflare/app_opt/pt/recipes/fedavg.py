@@ -175,7 +175,8 @@ class FedAvgRecipe(Recipe):
         # Add clients
         executor = ScriptRunner(script=self.train_script, 
                                 script_args=self.train_args, 
-                                server_expected_format="pytorch")
+                                server_expected_format="pytorch",
+                                launch_external_process=True)
         if self.clients is None:
             job.to_clients(executor)
         else:
