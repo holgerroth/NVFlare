@@ -15,12 +15,13 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, PositiveInt
 
+from nvflare import FedJob
+from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.apis.dxo import DataKind
 from nvflare.app_common.abstract.aggregator import Aggregator
 from nvflare.app_common.aggregators import InTimeAccumulateWeightedAggregator
 from nvflare.app_common.shareablegenerators import FullModelShareableGenerator
 from nvflare.app_common.workflows.scatter_and_gather import ScatterAndGather
-from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.job_config.script_runner import ScriptRunner
 from nvflare.recipe.spec import Recipe
 
@@ -142,11 +143,11 @@ class FedAvgRecipe(Recipe):
         self.aggregator_data_kind = aggregator_data_kind
 
         # Create BaseFedJob with initial model
-        job = BaseFedJob(
-            initial_model=self.initial_model,
+        job = FedJob(
             name=self.name,
             min_clients=self.min_clients,
         )
+        job.to(PTFileModelPersistor(model=self.initial_model, allow_numpy_conversion=False), "server", id="persistor")
 
         # Define the controller and send to server
         if self.aggregator is None:
@@ -165,14 +166,16 @@ class FedAvgRecipe(Recipe):
             num_rounds=self.num_rounds,
             wait_time_after_min_received=10,
             aggregator_id=aggregator_id,
-            persistor_id=job.comp_ids["persistor_id"] if self.initial_model is not None else "",
+            persistor_id="persistor",
             shareable_generator_id=shareable_generator_id,
         )
         # Send the controller to the server
         job.to_server(controller)
 
         # Add clients
-        executor = ScriptRunner(script=self.train_script, script_args=self.train_args)
+        executor = ScriptRunner(script=self.train_script, 
+                                script_args=self.train_args, 
+                                server_expected_format="pytorch")
         if self.clients is None:
             job.to_clients(executor)
         else:
