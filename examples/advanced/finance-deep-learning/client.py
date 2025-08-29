@@ -20,6 +20,7 @@ from utils import load_csv_data, compute_shapley_values
 import json
 # (1) import nvflare client API
 import nvflare.client as flare
+from nvflare.client.tracking import MLflowWriter
 
 PATH = "./tf_model.weights.h5"
 
@@ -38,10 +39,10 @@ def main():
     )
 
     # debug
-    train_features = train_features[:1000]
-    train_labels = train_labels[:1000]
-    test_features = test_features[:1000]
-    test_labels = test_labels[:1000]
+    #train_features = train_features[:1000]
+    #train_labels = train_labels[:1000]
+    #test_features = test_features[:1000]
+    #test_labels = test_labels[:1000]
 
     # Get the number of features for model input shape
     n_features = train_features.shape[1]
@@ -59,6 +60,8 @@ def main():
         optimizer="adam", loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=["accuracy"]
     )
     model.summary()
+
+    mlflow = MLflowWriter()
 
     # (3) gets FLModel from NVFlare
     while flare.is_running():
@@ -103,6 +106,8 @@ def main():
         )
         # (7) send model back to NVFlare
         flare.send(output_model)
+
+        mlflow.log_metric("accuracy", test_global_acc, input_model.current_round)
 
 
 if __name__ == "__main__":
