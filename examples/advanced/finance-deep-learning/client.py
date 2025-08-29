@@ -29,12 +29,11 @@ def main():
     flare.init()
 
     # Load CSV data using the utility function
-    # Example 1: 
-    
     # Example 1: Specify specific columns
+    feature_columns=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest']
     (train_features, train_labels), (test_features, test_labels) = load_csv_data(
          file_path='/home/hroth/Code2/nvflare/jpm_demo/examples/advanced/finance-deep-learning/archive/PS_20174392719_1491204439457_log.csv',
-         feature_columns=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest'],
+         feature_columns=feature_columns,
          label_column='isFraud'
     )
 
@@ -91,7 +90,7 @@ def main():
 
         # Compute Shapley values for feature importance
         print("Computing Shapley values...")
-        shap_metrics = compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=f'round{input_model.current_round}')
+        shap_metrics = compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=f'round{input_model.current_round}', feature_names=feature_columns)
         print(f"SHAP computation completed. Used {shap_metrics['shap_samples_used']} samples.")
 
         # (6) construct trained FL model (A dict of {layer name: layer weights} from the keras model)

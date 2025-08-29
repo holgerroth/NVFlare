@@ -138,7 +138,7 @@ def create_sample_financial_data(test_size=0.2, random_state=42):
     return (train_features, train_labels), (test_features, test_labels)
 
 
-def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=""):
+def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
     """
     Compute Shapley values for feature importance using SHAP library.
     
@@ -147,6 +147,8 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         test_features: Test feature data
         test_labels: Test label data
         n_samples: Number of samples to use for SHAP computation (for performance)
+        plot_prefix: Prefix for saved plot files
+        feature_names: List of feature names/column names to display in plots
     
     Returns:
         dict: Dictionary containing SHAP metrics
@@ -183,17 +185,23 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
 
         # Plot the SHAP values and save to file
         print("Starting SHAP plotting...")
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(20, 16))
+        
+        # Create feature names for all features
+        if feature_names is None:
+            feature_names = [f'Feature_{i}' for i in range(sample_features.shape[1])]
+        elif len(feature_names) != sample_features.shape[1]:
+            print(f"Warning: feature_names length ({len(feature_names)}) doesn't match number of features ({sample_features.shape[1]})")
+            feature_names = [f'Feature_{i}' for i in range(sample_features.shape[1])]
+        
+        print(f"Using feature names: {feature_names}")
+        
         # For multi-output models, we need to specify which output to plot
-        if isinstance(shap_values, list):
-            # For binary classification, plot the first class (index 0)
-            print(f"Plotting SHAP values for class 0, shape: {shap_values[0].shape}")
-            print(f"Sample features shape for plotting: {sample_features.shape}")
-            shap.summary_plot(shap_values[0], sample_features, show=False)
-        else:
-            print(f"Plotting single SHAP values, shape: {shap_values.shape}")
-            print(f"Sample features shape for plotting: {sample_features.shape}")
-            shap.summary_plot(shap_values, sample_features, show=False)
+        print(f"Plotting single SHAP values, shape: {shap_values.shape}")
+        print(f"Sample features shape for plotting: {sample_features.shape}")
+        print(f"Number of features in sample_features: {sample_features.shape[1]}")
+        # Set max_display to show all features and force it
+        shap.summary_plot(shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1])
         plt.tight_layout()
         plt.savefig(f'{plot_prefix}_shap_summary_plot.png', dpi=300, bbox_inches='tight')
         plt.close()
@@ -201,14 +209,10 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         
         # Also save a bar plot of feature importance
         print("Starting feature importance plotting...")
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(20, 12))
         # Handle case where shap_values is a list (multiple outputs)
-        if isinstance(shap_values, list):
-            shap_values_for_importance = shap_values[0]  # Use first output for feature importance
-            print(f"Using SHAP values[0] for importance, shape: {shap_values_for_importance.shape}")
-        else:
-            shap_values_for_importance = shap_values
-            print(f"Using single SHAP values for importance, shape: {shap_values_for_importance.shape}")
+        shap_values_for_importance = shap_values
+        print(f"Using single SHAP values for importance, shape: {shap_values_for_importance.shape}")
         
         # Debug the shape issue
         print(f"SHAP values for importance shape: {shap_values_for_importance.shape}")
@@ -223,7 +227,7 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         
         feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
         print(f"Feature importance shape: {feature_importance.shape}")
-        feature_names = [f'Feature_{i}' for i in range(len(feature_importance))]
+        # Use the same feature names for the bar plot
         plt.barh(feature_names, feature_importance)
         plt.xlabel('Mean |SHAP value|')
         plt.title('Feature Importance (SHAP)')
