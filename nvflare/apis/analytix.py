@@ -93,7 +93,9 @@ class AnalyticsData:
             sender (LogWriterName): Type of sender for syntax such as Tensorboard or MLflow
             kwargs (optional, dict): additional arguments to be passed.
         """
+        print("AnalyticsData debug1")
         self._validate_data_types(data_type, key, value, **kwargs)
+        print("AnalyticsData debug2")
         self.tag = key
         self.value = value
         self.data_type = data_type
@@ -101,6 +103,7 @@ class AnalyticsData:
         self.sender = sender
         self.step = kwargs.get(TrackConst.GLOBAL_STEP_KEY, None)
         self.path = kwargs.get(TrackConst.PATH_KEY, None)
+        print("AnalyticsData debug3 - done")
 
     def to_dxo(self):
         """Converts the AnalyticsData to DXO object.
@@ -166,6 +169,7 @@ class AnalyticsData:
         value: any,
         **kwargs,
     ):
+        print("AnalyticsData _validate_data_types")
         if not isinstance(key, str):
             raise TypeError("expect tag to be an instance of str, but got {}.".format(type(key)))
         if not isinstance(data_type, AnalyticsDataType):
@@ -199,6 +203,7 @@ class AnalyticsData:
             raise TypeError(
                 f"expect '{key}' data type expects value to be an instance of dict, but got '{type(value)}'"
             )
+        print("AnalyticsData _validate_data_types - done")
 
     @classmethod
     def convert_data_type(

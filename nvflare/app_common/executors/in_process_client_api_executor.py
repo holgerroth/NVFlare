@@ -228,8 +228,10 @@ class InProcessClientAPIExecutor(Executor):
 
     def log_result_callback(self, topic, data, databus):
         result = data
+        print(f"$$$$$$$$$$ Log result callback1: {result}")
         if result and not isinstance(result, dict):
             raise ValueError(f"invalid result format, expecting Dict, but get {type(result)}")
+        print(f"$$$$$$$$$$ Log result callback2: {result}")
 
         if "key" in result:
             result["tag"] = result.pop("key")

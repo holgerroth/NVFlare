@@ -184,6 +184,7 @@ class InProcessClientAPI(APISpec):
         if self.rank != "0":
             raise RuntimeError("only rank 0 can call log!")
         msg = dict(key=key, value=value, data_type=data_type, **kwargs)
+        print(f"$$$$$$$$$$ Log data {type(value)}: ", msg, "on topic: ", TOPIC_LOG_DATA, "value: ", value)
         self.event_manager.fire_event(TOPIC_LOG_DATA, msg)
 
     def clear(self):

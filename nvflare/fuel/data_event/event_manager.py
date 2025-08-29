@@ -42,4 +42,5 @@ class EventManager:
             event_name (str): The name of the event to be fired.
             event_data (Any, optional): Additional data associated with the event (default is None).
         """
+        print(f"$$$$$$$$$$ Fire event {event_name} with data {event_data}")
         self.data_bus.publish([event_name], event_data)

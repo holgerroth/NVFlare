@@ -151,6 +151,7 @@ class MLflowWriter(_BaseWriter):
                 support larger values.
             step (int, optional): Metric step. Defaults to zero if unspecified.
         """
+        print(f"Logging mlflow metric {key} with value {value} at step {step}")
         log(
             key=key,
             value=value,

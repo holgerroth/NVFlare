@@ -221,6 +221,7 @@ def log(key: str, value: Any, data_type: AnalyticsDataType, ctx: Optional[APICon
         whether the key value pair is logged successfully
     """
     local_ctx = get_context(ctx)
+    print("$$$$$$$$$$ Local context: ", local_ctx, type(local_ctx.api))
     return local_ctx.api.log(key, value, data_type, **kwargs)
 
 

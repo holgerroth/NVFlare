@@ -24,6 +24,7 @@ from nvflare.app_opt.pt.job_config.base_fed_job import BaseFedJob
 from nvflare.client.config import ExchangeFormat, TransferType
 from nvflare.job_config.script_runner import FrameworkType, ScriptRunner
 from nvflare.recipe.spec import Recipe
+from nvflare.app_opt.tracking.mlflow.mlflow_receiver import MLflowReceiver
 
 
 # Internal — not part of the public API
@@ -44,7 +45,7 @@ class _FedAvgValidator(BaseModel):
     command: str = "python3 -u"
     server_expected_format: ExchangeFormat = ExchangeFormat.NUMPY
     params_transfer_type: TransferType = TransferType.FULL
-
+    mlflow_tracking_uri: str = ""
     def model_post_init(self, __context):
         if self.clients and self.num_clients is None:
             self.num_clients = len(self.clients)
@@ -127,6 +128,7 @@ class FedAvgRecipe(Recipe):
         command: str = "python3 -u",
         server_expected_format: ExchangeFormat = ExchangeFormat.NUMPY,
         params_transfer_type: TransferType = TransferType.FULL,
+        mlflow_tracking_uri: str = "",
     ):
         # Validate inputs internally
         v = _FedAvgValidator(
@@ -144,6 +146,7 @@ class FedAvgRecipe(Recipe):
             command=command,
             server_expected_format=server_expected_format,
             params_transfer_type=params_transfer_type,
+            mlflow_tracking_uri=mlflow_tracking_uri,
         )
 
         self.name = v.name
@@ -162,6 +165,7 @@ class FedAvgRecipe(Recipe):
         self.command = v.command
         self.server_expected_format: ExchangeFormat = v.server_expected_format
         self.params_transfer_type: TransferType = v.params_transfer_type
+        self.mlflow_tracking_uri = v.mlflow_tracking_uri
 
         # Create BaseFedJob with initial model
         job = BaseFedJob(
@@ -192,6 +196,20 @@ class FedAvgRecipe(Recipe):
         )
         # Send the controller to the server
         job.to_server(controller)
+
+        if self.mlflow_tracking_uri:
+            receiver = MLflowReceiver(
+                tracking_uri=self.mlflow_tracking_uri,
+                kw_args={
+                    "experiment_name": "nvflare-poc-lepton-fl-experiment",
+                    "run_name": "nvflare-fedavgrecipe-with-mlflow-01",
+                    "experiment_tags": {"mlflow.note.content": "## **NVFlare FedAvg experiment with MLflow**"},
+                    "run_tags": {"mlflow.note.content": "## Federated Experiment tracking with MLflow.\n"},
+                },
+                artifact_location="artifacts",
+                events=["fed.analytix_log_stats"],
+            )
+            job.to_server(receiver)
 
         # Add clients
         executor = ScriptRunner(
