@@ -209,7 +209,18 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         else:
             shap_values_for_importance = shap_values
             print(f"Using single SHAP values for importance, shape: {shap_values_for_importance.shape}")
-            
+        
+        # Debug the shape issue
+        print(f"SHAP values for importance shape: {shap_values_for_importance.shape}")
+        print(f"Sample features shape: {sample_features.shape}")
+        
+        # Check if we need to handle the shape differently
+        if len(shap_values_for_importance.shape) == 3:
+            # If 3D array (samples, features, classes), take mean across classes
+            print("3D SHAP array detected, taking mean across classes")
+            shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
+            print(f"After taking mean across classes, shape: {shap_values_for_importance.shape}")
+        
         feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
         print(f"Feature importance shape: {feature_importance.shape}")
         feature_names = [f'Feature_{i}' for i in range(len(feature_importance))]
@@ -226,6 +237,12 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
             shap_values_for_metrics = shap_values[0]
         else:
             shap_values_for_metrics = shap_values
+        
+        # Handle 3D SHAP arrays for metrics computation too
+        if len(shap_values_for_metrics.shape) == 3:
+            print("3D SHAP array detected for metrics, taking mean across classes")
+            shap_values_for_metrics = np.mean(shap_values_for_metrics, axis=2)
+            print(f"After taking mean across classes for metrics, shape: {shap_values_for_metrics.shape}")
         
         # Compute feature importance metrics
         feature_importance = np.mean(np.abs(shap_values_for_metrics), axis=0)
