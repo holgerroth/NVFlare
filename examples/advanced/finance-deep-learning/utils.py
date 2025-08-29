@@ -14,8 +14,11 @@
 
 import pandas as pd
 import numpy as np
+import shap
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+import json
 
 
 def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=0.2, random_state=42):
@@ -133,3 +136,141 @@ def create_sample_financial_data(test_size=0.2, random_state=42):
     print(f"Feature shape: {train_features.shape[1]}, Number of classes: {len(np.unique(labels))}")
     
     return (train_features, train_labels), (test_features, test_labels)
+
+
+def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=""):
+    """
+    Compute Shapley values for feature importance using SHAP library.
+    
+    Args:
+        model: Trained TensorFlow model
+        test_features: Test feature data
+        test_labels: Test label data
+        n_samples: Number of samples to use for SHAP computation (for performance)
+    
+    Returns:
+        dict: Dictionary containing SHAP metrics
+    """
+    try:
+        # Sample a subset of test data for SHAP computation (for performance)
+        if len(test_features) > n_samples:
+            indices = np.random.choice(len(test_features), n_samples, replace=False)
+            sample_features = test_features[indices]
+            sample_labels = test_labels[indices]
+        else:
+            sample_features = test_features
+            sample_labels = test_labels
+        
+        # Create a background dataset for SHAP (using a subset of the data)
+        background_size = min(50, len(sample_features))
+        background_indices = np.random.choice(len(sample_features), background_size, replace=False)
+        background_data = sample_features[background_indices]
+        
+        # Create SHAP explainer for the model
+        explainer = shap.DeepExplainer(model, background_data)
+        
+        # Compute SHAP values
+        print(f"Sample features shape: {sample_features.shape}")
+        print(f"Background data shape: {background_data.shape}")
+        shap_values = explainer.shap_values(sample_features)
+        print(f"SHAP values type: {type(shap_values)}")
+        if isinstance(shap_values, list):
+            print(f"SHAP values list length: {len(shap_values)}")
+            for i, sv in enumerate(shap_values):
+                print(f"SHAP values[{i}] shape: {sv.shape}")
+        else:
+            print(f"SHAP values shape: {shap_values.shape}")
+
+        # Plot the SHAP values and save to file
+        print("Starting SHAP plotting...")
+        plt.figure(figsize=(10, 8))
+        # For multi-output models, we need to specify which output to plot
+        if isinstance(shap_values, list):
+            # For binary classification, plot the first class (index 0)
+            print(f"Plotting SHAP values for class 0, shape: {shap_values[0].shape}")
+            print(f"Sample features shape for plotting: {sample_features.shape}")
+            shap.summary_plot(shap_values[0], sample_features, show=False)
+        else:
+            print(f"Plotting single SHAP values, shape: {shap_values.shape}")
+            print(f"Sample features shape for plotting: {sample_features.shape}")
+            shap.summary_plot(shap_values, sample_features, show=False)
+        plt.tight_layout()
+        plt.savefig(f'{plot_prefix}_shap_summary_plot.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        print("SHAP summary plot saved successfully")
+        
+        # Also save a bar plot of feature importance
+        print("Starting feature importance plotting...")
+        plt.figure(figsize=(10, 6))
+        # Handle case where shap_values is a list (multiple outputs)
+        if isinstance(shap_values, list):
+            shap_values_for_importance = shap_values[0]  # Use first output for feature importance
+            print(f"Using SHAP values[0] for importance, shape: {shap_values_for_importance.shape}")
+        else:
+            shap_values_for_importance = shap_values
+            print(f"Using single SHAP values for importance, shape: {shap_values_for_importance.shape}")
+            
+        feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
+        print(f"Feature importance shape: {feature_importance.shape}")
+        feature_names = [f'Feature_{i}' for i in range(len(feature_importance))]
+        plt.barh(feature_names, feature_importance)
+        plt.xlabel('Mean |SHAP value|')
+        plt.title('Feature Importance (SHAP)')
+        plt.tight_layout()
+        plt.savefig(f'{plot_prefix}_shap_feature_importance.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        print("Feature importance plot saved successfully")
+        
+        # If model has multiple outputs, take the first one for metrics
+        if isinstance(shap_values, list):
+            shap_values_for_metrics = shap_values[0]
+        else:
+            shap_values_for_metrics = shap_values
+        
+        # Compute feature importance metrics
+        feature_importance = np.mean(np.abs(shap_values_for_metrics), axis=0)
+        total_importance = np.sum(feature_importance)
+        
+        # Normalize feature importance
+        normalized_importance = feature_importance / total_importance if total_importance > 0 else feature_importance
+        
+        # Create metrics dictionary
+        shap_metrics = {
+            "shap_feature_importance": normalized_importance.tolist(),
+            "shap_total_importance": float(total_importance),
+            "shap_mean_abs_value": float(np.mean(np.abs(shap_values_for_metrics))),
+            "shap_std_value": float(np.std(shap_values_for_metrics)),
+            "shap_samples_used": len(sample_features)
+        }
+
+        # Save the SHAP values to a file (convert numpy arrays to lists for JSON serialization)
+        if isinstance(shap_values, list):
+            # If model has multiple outputs, save each output's SHAP values
+            shap_values_for_json = [sv.tolist() if hasattr(sv, 'tolist') else sv for sv in shap_values]
+        else:
+            # Single output model
+            shap_values_for_json = shap_values.tolist() if hasattr(shap_values, 'tolist') else shap_values
+        
+        with open(f'{plot_prefix}_shap_values.json', 'w') as f:
+            json.dump(shap_values_for_json, f)
+        
+        # Save the SHAP values to a file
+        with open(f'{plot_prefix}_shap_metrics.json', 'w') as f:
+            json.dump(shap_metrics, f)
+                
+
+        print(f"SHAP metrics: {shap_metrics}")
+        
+        return shap_metrics
+        
+    except Exception as e:
+        print(f"Error computing SHAP values: {e}")
+        # Return default metrics if SHAP computation fails
+        return {
+            "shap_feature_importance": [],
+            "shap_total_importance": 0.0,
+            "shap_mean_abs_value": 0.0,
+            "shap_std_value": 0.0,
+            "shap_samples_used": 0,
+            "shap_error": str(e)
+        }

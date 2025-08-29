@@ -16,8 +16,8 @@
 import tensorflow as tf
 import numpy as np
 from model import SimpleNetwork
-from utils import load_csv_data
-
+from utils import load_csv_data, compute_shapley_values
+import json
 # (1) import nvflare client API
 import nvflare.client as flare
 
@@ -37,6 +37,12 @@ def main():
          feature_columns=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest'],
          label_column='isFraud'
     )
+
+    # debug
+    train_features = train_features[:1000]
+    train_labels = train_labels[:1000]
+    test_features = test_features[:1000]
+    test_labels = test_labels[:1000]
 
     # Get the number of features for model input shape
     n_features = train_features.shape[1]
@@ -83,9 +89,18 @@ def main():
         _, test_acc = model.evaluate(test_features, test_labels, verbose=2)
         print(f"Accuracy of the model on the {len(test_features)} test samples: {test_acc * 100} %")
 
+        # Compute Shapley values for feature importance
+        print("Computing Shapley values...")
+        shap_metrics = compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=f'round{input_model.current_round}')
+        print(f"SHAP computation completed. Used {shap_metrics['shap_samples_used']} samples.")
+
         # (6) construct trained FL model (A dict of {layer name: layer weights} from the keras model)
+        # Combine accuracy and SHAP metrics
+        metrics = {"accuracy": test_global_acc}
+        metrics.update(shap_metrics)
+        
         output_model = flare.FLModel(
-            params={layer.name: layer.get_weights() for layer in model.layers}, metrics={"accuracy": test_global_acc}
+            params={layer.name: layer.get_weights() for layer in model.layers}, metrics=metrics
         )
         # (7) send model back to NVFlare
         flare.send(output_model)

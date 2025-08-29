@@ -22,9 +22,8 @@ recipe = FedAvgRecipe(
     name="hello-tf-mlflow",
     min_clients=1,
     num_rounds=3,
-    initial_model=SimpleNetwork(),
+    initial_model=SimpleNetwork(num_classes=2),
     train_script="client.py",
-    train_args=f"--batch_size 32",
     mlflow_tracking_uri="https://rrayrz6j-nvflmlflowserver.xenon.lepton.run"
 )
 
