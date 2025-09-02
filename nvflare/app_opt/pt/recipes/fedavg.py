@@ -75,7 +75,6 @@ class FedAvgRecipe(Recipe):
         num_clients: Number of clients expected to participate. If clients is provided,
             this will be set automatically to len(clients).
         min_clients: Minimum number of clients required to start a training round.
-            Defaults to 0 (no minimum).
         num_rounds: Number of federated training rounds to execute. Defaults to 2.
         train_script: Path to the training script that will be executed on each client.
         train_args: Command line arguments to pass to the training script.
@@ -117,7 +116,7 @@ class FedAvgRecipe(Recipe):
         initial_model: Any = None,
         clients: Optional[List[str]] = None,
         num_clients: Optional[int] = None,
-        min_clients: int = 0,
+        min_clients: int,
         num_rounds: int = 2,
         train_script: str,
         train_args: str = "",
@@ -185,7 +184,7 @@ class FedAvgRecipe(Recipe):
         controller = ScatterAndGather(
             min_clients=self.min_clients,
             num_rounds=self.num_rounds,
-            wait_time_after_min_received=10,
+            wait_time_after_min_received=0,
             aggregator_id=aggregator_id,
             persistor_id=job.comp_ids["persistor_id"] if self.initial_model is not None else "",
             shareable_generator_id=shareable_generator_id,
