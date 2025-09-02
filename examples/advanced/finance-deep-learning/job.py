@@ -24,10 +24,30 @@ recipe = FedAvgRecipe(
     num_rounds=3,
     initial_model=SimpleNetwork(num_classes=2),
     train_script="client.py",
-    mlflow_tracking_uri="https://rrayrz6j-nvflmlflowserver.xenon.lepton.run"
+    train_args="--dataset None", #"/workspace/dataset/paysim1/PS_20174392719_1491204439457_log.csv"
 )
 
+# Add experiment tracking
+mlflow_config = {
+    "tracking_uri": "https://rrayrz6j-nvflmlflowserver.xenon.lepton.run",
+    "kw_args": {
+        "experiment_name": "nvflare-poc-lepton-fl-experiment",
+        "run_name": "nvflare-fedavgrecipe-with-mlflow-01",
+        "experiment_tags": {"mlflow.note.content": "## **NVFlare FedAvg experiment with MLflow**"},
+        "run_tags": {"mlflow.note.content": "## Federated Experiment tracking with MLflow.\n"},
+    },
+    "artifact_location": "artifacts",
+    "events": ["fed.analytix_log_stats"],
+}
+recipe.enable_experiment_tracking(tracking_type="mlflow", tracking_config=mlflow_config)
+
+# Optionally export
 recipe.export("transfer")
 
-env = SimEnv(num_clients=1, num_threads=1)
+# Run simulation
+env = SimEnv(num_clients=1)
 recipe.execute(env=env)
+
+# Submit job in production environment
+#env = ProdEnv(startup_kit_dir="/scratch/hroth/Code/JPM/admin")
+#recipe.execute(env=env)

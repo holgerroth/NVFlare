@@ -106,7 +106,7 @@ def create_sample_financial_data(test_size=0.2, random_state=42):
     
     # Create sample financial features (e.g., transaction amount, time, location, etc.)
     n_samples = 1000
-    n_features = 10
+    n_features = 5
     
     # Generate random features
     features = np.random.randn(n_samples, n_features)

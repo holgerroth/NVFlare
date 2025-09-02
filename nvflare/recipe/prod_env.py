@@ -73,6 +73,7 @@ class ProdEnv(ExecEnv):
         self.startup_kit_dir = v.startup_kit_dir
         self.login_timeout = v.login_timeout
         self.admin_user = os.path.basename(startup_kit_dir)
+        self.admin_user = "admin@nvidia.com"
 
     def deploy(self, job: FedJob):
         sess = None
