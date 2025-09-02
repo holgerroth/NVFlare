@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import json
 import tensorflow as tf
 import numpy as np
+
 from model import SimpleNetwork
 from utils import load_csv_data, compute_shapley_values
-import json
-import argparse
+
 # (1) import nvflare client API
 import nvflare.client as flare
 from nvflare.client.tracking import MLflowWriter
@@ -27,13 +27,6 @@ PATH = "./tf_model.weights.h5"
 
 
 def main():
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='NVFlare Finance Deep Learning Client')
-    parser.add_argument('--dataset', type=str, 
-                       default=None,
-                       help='Path to the dataset CSV file')
-    args = parser.parse_args()
-
     # (2) initializes NVFlare client API
     flare.init()
 
@@ -41,7 +34,7 @@ def main():
     # Example 1: Specify specific columns
     feature_columns=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest']
     (train_features, train_labels), (test_features, test_labels) = load_csv_data(
-         file_path=args.dataset,
+         file_path='/workspace/dataset/paysim1/PS_20174392719_1491204439457_log.csv',
          feature_columns=feature_columns,
          label_column='isFraud'
     )
