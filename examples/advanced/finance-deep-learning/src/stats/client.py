@@ -21,11 +21,11 @@ from nvflare.app_opt.statistics.df.df_core_statistics import DFStatisticsCore
 
 
 class FinancialStatistics(DFStatisticsCore):
-    def __init__(self, data_path):
+    def __init__(self, data_path, data_features=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest', 'isFraud']):
         super().__init__()
         self.data_path = data_path
         self.data: Optional[Dict[str, pd.DataFrame]] = None
-        self.data_features = ['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest', 'isFraud']
+        self.data_features = data_features
 
     def load_data(self, fl_ctx: FLContext) -> Dict[str, pd.DataFrame]:
         client_name = fl_ctx.get_identity_name()
