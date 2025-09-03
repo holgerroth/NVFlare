@@ -1,15 +1,30 @@
 # Federated Deep Learning for Financial Fraud Detection
-The following notebooks demonstrate how to implement federated learning for financial fraud detection using NVIDIA FLARE (NVFlare). The notebooks show a complete workflow starting from federated data statistics, to training a deep learning model across multiple clients while maintaining data privacy.
+This project demonstrates how to implement federated learning for financial fraud detection using **NVIDIA FLARE (NVFlare)**. The notebooks provide an end-to-end workflow—from analyzing distributed financial datasets (using federated statistics) to training a deep learning model across multiple clients while preserving data privacy.
 
-### Key Components:
+### 🔑 Key Components:
+- **Federated Data Statistics**
+    Compute distributed statistics across client datasets without exposing raw data.
+        - Supported measures: count, mean, sum, standard deviation, histogram, quantiles
+        - Interactive visualization for exploratory data analysis
+- **Federated Learning Setup**
+    - Uses NVFlare’s FedAvg (Federated Averaging) recipe to train a SimpleNetwork model for binary fraud classification.
+    - Configurable to run in both simulation (local prototyping) and production (multi-client deployment) environments.
+- **Experiment Tracking**
+    -Integrated with MLflow for tracking of training metrics
+- **Financial Fraud Detection Use Case**
+    - Tailored for fraud detection scenarios where data privacy is critical.
+    - Enables collaborative model training across financial institutions without sharing sensitive raw data.
 
-1. *Federated Learning Setup:* Uses NVFlare's FedAvg (Federated Averaging) recipe to train a SimpleNetwork model for binary classification (fraud detection) across multiple clients.
-Experiment Tracking: Integrates MLflow for comprehensive experiment tracking, including model artifacts, training metrics, and federated learning statistics.
-Environment Flexibility: Supports both simulation and production environments, allowing developers to test locally before deploying to production.
-Financial Application: Specifically designed for financial fraud detection, where data privacy is crucial and federated learning enables collaborative model training without sharing raw data.
-The notebook demonstrates the complete pipeline from recipe definition to execution, making it a practical example of how to implement federated learning in production financial systems using NVFlare.
+### 📌 Workflow Overview
+1. Define and compute federated dataset statistics.
+2. Visualize federated statistics and training performance.
+3. Configure the federated learning recipe with NVFlare.
+4. Train the deep learning model across multiple clients using FedAvg.
+5. Track and analyze results with MLflow.
 
-### Prerequisit
+This notebook series demonstrates the full pipeline from recipe definition to execution, providing a practical example of how federated learning can be applied in real-world financial systems using NVFlare.
+
+## Prerequisit
 
 Install the dependencies and start a Jupyter Lab instance. We recommend doing this in a fresh virtual environment.
 
@@ -25,7 +40,7 @@ Start Jupyter Lab
 jupyter lab .
 ```
 
-### Data
+## Data
 
 We assume a CSV dataset with numerical features is available to provide data on each client. In this example, we use the "[Synthetic Financial Datasets For Fraud Detection](https://www.kaggle.com/datasets/ealaxi/paysim1)" from Kaggle to illustrate NVFlare's functionalities. You can download the data zipfile, unzip it and mount it under
 
