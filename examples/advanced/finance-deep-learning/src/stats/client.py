@@ -32,7 +32,7 @@ class FinancialStatistics(DFStatisticsCore):
         self.log_info(fl_ctx, f"load data for client {client_name}")
         try:
             # load data from CSV
-            df: pd.DataFrame = pd.read_csv(self.data_path, usecols=self.data_features)
+            df: pd.DataFrame = pd.read_csv(self.data_path, usecols=self.data_features, sep=r"\s*,\s*", engine="python", na_values="?")
             
             train = df.sample(frac=0.8, random_state=200)  # random state is a seed value
             test = df.drop(train.index).sample(frac=1.0)
