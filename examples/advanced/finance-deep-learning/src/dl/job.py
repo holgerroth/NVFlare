@@ -17,6 +17,7 @@ from model import SimpleNetwork
 from nvflare.app_opt.tf.recipes.fedavg import FedAvgRecipe
 from nvflare.recipe.sim_env import SimEnv
 from nvflare.recipe.prod_env import ProdEnv
+from nvflare.recipe.utils import add_experiment_tracking
 
 recipe = FedAvgRecipe(
     name="hello-tf-mlflow",
@@ -24,7 +25,7 @@ recipe = FedAvgRecipe(
     num_rounds=10,
     initial_model=SimpleNetwork(num_classes=2),
     train_script="src/dl/client.py",
-    train_args="--dataset None", #"/workspace/dataset/paysim1/PS_20174392719_1491204439457_log.csv"
+    train_args="--dataset None" # /home/hroth/Code2/nvflare/jpm_demo/examples/advanced/finance-deep-learning/paysim1/PS_20174392719_1491204439457_log.csv
 )
 
 # Add experiment tracking
@@ -39,10 +40,10 @@ mlflow_config = {
     "artifact_location": "artifacts",
     "events": ["fed.analytix_log_stats"],
 }
-recipe.enable_experiment_tracking(tracking_type="mlflow", tracking_config=mlflow_config)
+add_experiment_tracking(recipe, tracking_type="mlflow", tracking_config=mlflow_config)
 
 # Optionally export
-recipe.export("transfer")
+recipe.export("job_configs")
 
 # Run simulation
 env = SimEnv(num_clients=1)

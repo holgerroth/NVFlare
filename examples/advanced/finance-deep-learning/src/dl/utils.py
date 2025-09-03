@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import json
+from tensorflow.keras.callbacks import Callback
 
 
 def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=0.2, random_state=42):
@@ -295,3 +296,38 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
             "shap_samples_used": 0,
             "shap_error": str(e)
         }
+
+
+class MLflowCallback(Callback):
+    """
+    Custom TensorFlow callback for logging training metrics to MLflow.
+    
+    This callback logs training and validation metrics at the end of each epoch
+    to the provided MLflow writer.
+    """
+    def __init__(self, mlflow_writer):
+        super().__init__()
+        self.mlflow_writer = mlflow_writer
+        self.gobal_epoch = 0
+        
+    def on_epoch_end(self, epoch, logs=None):
+        if logs:
+            print(f"Logging training metrics for epoch {self.gobal_epoch}")
+            # Log training metrics
+            if 'loss' in logs:
+                self.mlflow_writer.log_metric("train_loss", logs.get('loss', 0), self.gobal_epoch)
+            if 'accuracy' in logs:
+                self.mlflow_writer.log_metric("train_accuracy", logs.get('accuracy', 0), self.gobal_epoch)
+            
+            # Log validation metrics if available
+            if 'val_loss' in logs:
+                self.mlflow_writer.log_metric("val_loss", logs.get('val_loss', 0), self.gobal_epoch)
+            if 'val_accuracy' in logs:
+                self.mlflow_writer.log_metric("val_accuracy", logs.get('val_accuracy', 0), self.gobal_epoch)
+            
+            # Log additional metrics if they exist
+            for key, value in logs.items():
+                if key not in ['loss', 'accuracy', 'val_loss', 'val_accuracy']:
+                    self.mlflow_writer.log_metric(f"train_{key}", value, self.gobal_epoch)
+
+        self.gobal_epoch += 1

@@ -13,11 +13,12 @@
 # limitations under the License.
 
 import json
+import argparse
 import tensorflow as tf
 import numpy as np
 
 from model import SimpleNetwork
-from utils import load_csv_data, compute_shapley_values
+from utils import load_csv_data, compute_shapley_values, MLflowCallback
 
 # (1) import nvflare client API
 import nvflare.client as flare
@@ -27,6 +28,22 @@ PATH = "./tf_model.weights.h5"
 
 
 def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='NVFlare Deep Learning Client for Financial Fraud Detection')
+    parser.add_argument('--dataset', 
+                       type=str, 
+                       default=None,
+                       help='Path to the CSV dataset file (default: None, meaning randomly generated data)')
+    parser.add_argument('--epochs',
+                       type=int,
+                       default=1,
+                       help='Number of training epochs (default: 1)')
+    parser.add_argument('--batch-size',
+                       type=int,
+                       default=32,
+                       help='Training batch size (default: 32)')
+    args = parser.parse_args()
+
     # (2) initializes NVFlare client API
     flare.init()
 
@@ -34,16 +51,10 @@ def main():
     # Example 1: Specify specific columns
     feature_columns=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest']
     (train_features, train_labels), (test_features, test_labels) = load_csv_data(
-         file_path='/workspace/dataset/paysim1/PS_20174392719_1491204439457_log.csv',
+         file_path=args.dataset,
          feature_columns=feature_columns,
          label_column='isFraud'
     )
-
-    # debug
-    #train_features = train_features[:1000]
-    #train_labels = train_labels[:1000]
-    #test_features = test_features[:1000]
-    #test_labels = test_labels[:1000]
 
     # Get the number of features for model input shape
     n_features = train_features.shape[1]
@@ -63,6 +74,9 @@ def main():
     model.summary()
 
     mlflow = MLflowWriter()
+    
+    # Create the callback to log training metrics to MLflow
+    mlflow_callback = MLflowCallback(mlflow)
 
     # (3) gets FLModel from NVFlare
     while flare.is_running():
@@ -82,8 +96,16 @@ def main():
         print(
             f"Accuracy of the received model on round {input_model.current_round} on the {len(test_features)} test samples: {test_global_acc * 100} %"
         )
-
-        model.fit(train_features, train_labels, epochs=1, batch_size=32, validation_data=(test_features, test_labels))
+        
+        # Use the callback in model.fit()
+        model.fit(
+            train_features, 
+            train_labels, 
+            epochs=args.epochs, 
+            batch_size=args.batch_size, 
+            validation_data=(test_features, test_labels),
+            callbacks=[mlflow_callback]
+        )
 
         print("Finished Training")
 
@@ -108,7 +130,7 @@ def main():
         # (7) send model back to NVFlare
         flare.send(output_model)
 
-        mlflow.log_metric("accuracy", test_global_acc, input_model.current_round)
+        mlflow.log_metric("test_global_acc", test_global_acc, input_model.current_round)
 
 
 if __name__ == "__main__":
