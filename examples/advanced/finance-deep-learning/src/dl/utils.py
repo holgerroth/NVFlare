@@ -145,6 +145,77 @@ def create_sample_financial_data(test_size=0.2, random_state=42):
     return (train_features, train_labels), (test_features, test_labels)
 
 
+def plot_shap_summary(shap_metrics, plot_prefix=""):
+    """
+    Plot SHAP summary plot from pre-computed metrics.
+    
+    Args:
+        shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
+        plot_prefix: Prefix for saved plot files
+    """
+    try:
+        shap_values = shap_metrics["shap_values"]
+        sample_features = shap_metrics["shap_sample_features"]
+        feature_names = shap_metrics["shap_feature_names"]
+        
+        plt.figure(figsize=(20, 16))
+        shap.summary_plot(shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1])
+        plt.tight_layout()
+        plt.savefig(f'{plot_prefix}_shap_summary_plot.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        print("SHAP summary plot saved successfully")
+    except Exception as e:
+        print(f"Error plotting SHAP summary: {e}")
+
+
+def plot_shap_feature_importance(shap_metrics, plot_prefix=""):
+    """
+    Plot SHAP feature importance bar chart from pre-computed metrics.
+    
+    Args:
+        shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
+        plot_prefix: Prefix for saved plot files
+    """
+    try:
+        shap_values = shap_metrics["shap_values"]
+        feature_names = shap_metrics["shap_feature_names"]
+        
+        plt.figure(figsize=(20, 12))
+        
+        # Handle case where shap_values is a list (multiple outputs)
+        shap_values_for_importance = shap_values
+        
+        # Check if we need to handle the shape differently
+        if len(shap_values_for_importance.shape) == 3:
+            # If 3D array (samples, features, classes), take mean across classes
+            shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
+        
+        feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
+        
+        # Use the same feature names for the bar plot
+        plt.barh(feature_names, feature_importance)
+        plt.xlabel('Mean |SHAP value|')
+        plt.title('Feature Importance (SHAP)')
+        plt.tight_layout()
+        plt.savefig(f'{plot_prefix}_shap_feature_importance.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        print("SHAP feature importance plot saved successfully")
+    except Exception as e:
+        print(f"Error plotting SHAP feature importance: {e}")
+
+
+def plot_all_shap_plots(shap_metrics, plot_prefix=""):
+    """
+    Generate all SHAP plots from pre-computed metrics.
+    
+    Args:
+        shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
+        plot_prefix: Prefix for saved plot files
+    """
+    plot_shap_summary(shap_metrics, plot_prefix)
+    plot_shap_feature_importance(shap_metrics, plot_prefix)
+
+
 def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
     """
     Compute Shapley values for feature importance using SHAP library.
@@ -181,10 +252,6 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         # Compute SHAP values
         shap_values = explainer.shap_values(sample_features)
 
-        # Plot the SHAP values and save to file
-        print("Starting SHAP computation...")
-        plt.figure(figsize=(20, 16))
-        
         # Create feature names for all features
         if feature_names is None:
             feature_names = [f'Feature_{i}' for i in range(sample_features.shape[1])]
@@ -199,34 +266,21 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         print(f"Sample features shape for plotting: {sample_features.shape}")
         print(f"Number of features in sample_features: {sample_features.shape[1]}")
         print(f"Background data shape: {background_data.shape}")
-        # Set max_display to show all features and force it
-        shap.summary_plot(shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1])
-        plt.tight_layout()
-        plt.savefig(f'{plot_prefix}_shap_summary_plot.png', dpi=300, bbox_inches='tight')
-        plt.close()
         
-        # Also save a bar plot of feature importance
-        plt.figure(figsize=(20, 12))
-        # Handle case where shap_values is a list (multiple outputs)
+        # Generate plots using the factored-out plotting functions
+        plot_all_shap_plots({
+            "shap_values": shap_values,
+            "shap_sample_features": sample_features,
+            "shap_feature_names": feature_names
+        }, plot_prefix)
+        
+        # Compute feature importance metrics for the return value
         shap_values_for_importance = shap_values
-        print(f"Using single SHAP values for importance, shape: {shap_values_for_importance.shape}")
-    
-        # Check if we need to handle the shape differently
         if len(shap_values_for_importance.shape) == 3:
             # If 3D array (samples, features, classes), take mean across classes
             shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
         
         feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
-        # Use the same feature names for the bar plot
-        plt.barh(feature_names, feature_importance)
-        plt.xlabel('Mean |SHAP value|')
-        plt.title('Feature Importance (SHAP)')
-        plt.tight_layout()
-        plt.savefig(f'{plot_prefix}_shap_feature_importance.png', dpi=300, bbox_inches='tight')
-        plt.close()
-        print("SHAP plots saved successfully")
-       
-        # Compute feature importance metrics
         total_importance = np.sum(feature_importance)
         
         # Create metrics dictionary
