@@ -19,7 +19,13 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import json
+from nvflare.app_common.utils.fl_model_utils import FLModelUtils
+from typing import Union
 from tensorflow.keras.callbacks import Callback
+from nvflare.apis.dxo_filter import DXOFilter
+from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
+from nvflare.apis.fl_constant import FLContextKey, FLMetaKey
+import os
 
 
 def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=0.2, random_state=42):
@@ -173,19 +179,10 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         explainer = shap.DeepExplainer(model, background_data)
         
         # Compute SHAP values
-        print(f"Sample features shape: {sample_features.shape}")
-        print(f"Background data shape: {background_data.shape}")
         shap_values = explainer.shap_values(sample_features)
-        print(f"SHAP values type: {type(shap_values)}")
-        if isinstance(shap_values, list):
-            print(f"SHAP values list length: {len(shap_values)}")
-            for i, sv in enumerate(shap_values):
-                print(f"SHAP values[{i}] shape: {sv.shape}")
-        else:
-            print(f"SHAP values shape: {shap_values.shape}")
 
         # Plot the SHAP values and save to file
-        print("Starting SHAP plotting...")
+        print("Starting SHAP computation...")
         plt.figure(figsize=(20, 16))
         
         # Create feature names for all features
@@ -201,33 +198,25 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         print(f"Plotting single SHAP values, shape: {shap_values.shape}")
         print(f"Sample features shape for plotting: {sample_features.shape}")
         print(f"Number of features in sample_features: {sample_features.shape[1]}")
+        print(f"Background data shape: {background_data.shape}")
         # Set max_display to show all features and force it
         shap.summary_plot(shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1])
         plt.tight_layout()
         plt.savefig(f'{plot_prefix}_shap_summary_plot.png', dpi=300, bbox_inches='tight')
         plt.close()
-        print("SHAP summary plot saved successfully")
         
         # Also save a bar plot of feature importance
-        print("Starting feature importance plotting...")
         plt.figure(figsize=(20, 12))
         # Handle case where shap_values is a list (multiple outputs)
         shap_values_for_importance = shap_values
         print(f"Using single SHAP values for importance, shape: {shap_values_for_importance.shape}")
-        
-        # Debug the shape issue
-        print(f"SHAP values for importance shape: {shap_values_for_importance.shape}")
-        print(f"Sample features shape: {sample_features.shape}")
-        
+    
         # Check if we need to handle the shape differently
         if len(shap_values_for_importance.shape) == 3:
             # If 3D array (samples, features, classes), take mean across classes
-            print("3D SHAP array detected, taking mean across classes")
             shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
-            print(f"After taking mean across classes, shape: {shap_values_for_importance.shape}")
         
         feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
-        print(f"Feature importance shape: {feature_importance.shape}")
         # Use the same feature names for the bar plot
         plt.barh(feature_names, feature_importance)
         plt.xlabel('Mean |SHAP value|')
@@ -235,67 +224,32 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         plt.tight_layout()
         plt.savefig(f'{plot_prefix}_shap_feature_importance.png', dpi=300, bbox_inches='tight')
         plt.close()
-        print("Feature importance plot saved successfully")
-        
-        # If model has multiple outputs, take the first one for metrics
-        if isinstance(shap_values, list):
-            shap_values_for_metrics = shap_values[0]
-        else:
-            shap_values_for_metrics = shap_values
-        
-        # Handle 3D SHAP arrays for metrics computation too
-        if len(shap_values_for_metrics.shape) == 3:
-            print("3D SHAP array detected for metrics, taking mean across classes")
-            shap_values_for_metrics = np.mean(shap_values_for_metrics, axis=2)
-            print(f"After taking mean across classes for metrics, shape: {shap_values_for_metrics.shape}")
-        
+        print("SHAP plots saved successfully")
+       
         # Compute feature importance metrics
-        feature_importance = np.mean(np.abs(shap_values_for_metrics), axis=0)
         total_importance = np.sum(feature_importance)
-        
-        # Normalize feature importance
-        normalized_importance = feature_importance / total_importance if total_importance > 0 else feature_importance
         
         # Create metrics dictionary
         shap_metrics = {
-            "shap_feature_importance": normalized_importance.tolist(),
+            "shap_values": shap_values, 
+            "shap_sample_features": sample_features, 
+            "shap_feature_names": feature_names,
+            "shap_feature_importance": feature_importance,
             "shap_total_importance": float(total_importance),
-            "shap_mean_abs_value": float(np.mean(np.abs(shap_values_for_metrics))),
-            "shap_std_value": float(np.std(shap_values_for_metrics)),
             "shap_samples_used": len(sample_features)
         }
 
-        # Save the SHAP values to a file (convert numpy arrays to lists for JSON serialization)
-        if isinstance(shap_values, list):
-            # If model has multiple outputs, save each output's SHAP values
-            shap_values_for_json = [sv.tolist() if hasattr(sv, 'tolist') else sv for sv in shap_values]
-        else:
-            # Single output model
-            shap_values_for_json = shap_values.tolist() if hasattr(shap_values, 'tolist') else shap_values
-        
-        with open(f'{plot_prefix}_shap_values.json', 'w') as f:
-            json.dump(shap_values_for_json, f)
-        
-        # Save the SHAP values to a file
-        with open(f'{plot_prefix}_shap_metrics.json', 'w') as f:
-            json.dump(shap_metrics, f)
-                
+        #print(f"SHAP metrics: {shap_metrics}")
 
-        print(f"SHAP metrics: {shap_metrics}")
+        # Save the SHAP values to a file using numpy
+        np.save(f'{plot_prefix}_shap_metrics.npy', shap_metrics)
         
         return shap_metrics
         
     except Exception as e:
         print(f"Error computing SHAP values: {e}")
         # Return default metrics if SHAP computation fails
-        return {
-            "shap_feature_importance": [],
-            "shap_total_importance": 0.0,
-            "shap_mean_abs_value": 0.0,
-            "shap_std_value": 0.0,
-            "shap_samples_used": 0,
-            "shap_error": str(e)
-        }
+        return {}
 
 
 class MLflowCallback(Callback):
@@ -331,3 +285,46 @@ class MLflowCallback(Callback):
                     self.mlflow_writer.log_metric(f"train_{key}", value, self.gobal_epoch)
 
         self.gobal_epoch += 1
+
+
+class ShapCollectionFilter(DXOFilter):
+    def __init__(self):
+        super().__init__(supported_data_kinds=[DataKind.WEIGHT_DIFF, DataKind.WEIGHTS], data_kinds_to_filter=None)
+        
+        # Global dictionary to store shape metrics for each round
+        self.all_shap_metrics = {}
+
+    def process_dxo(self, dxo, shareable, fl_ctx) -> Union[None, 'DXO']:
+        """
+        Process DXO objects, extract FLModels, store them globally, and dump to JSON.
+        
+        Args:
+            dxo: The DXO object received
+            shareable: The shareable object
+            fl_ctx: The FL context
+            
+        Returns:
+            The processed DXO object
+        """
+        try:
+            # get shap metrics from dxo
+            shap_metrics = dxo.meta['initial_metrics']['shap_metrics']
+            self.log_info(fl_ctx, f"SHAP metrics {shap_metrics.keys()}")
+
+            current_round = fl_ctx.get_prop(FLMetaKey.CURRENT_ROUND)
+            peer_context = fl_ctx.get_peer_context()
+            client_name = peer_context.get_identity_name()
+
+            if f"round{current_round}" not in self.all_shap_metrics:
+                self.all_shap_metrics[f"round{current_round}"] = {}
+            self.all_shap_metrics[f"round{current_round}"][client_name] = shap_metrics
+                
+            # Dump global dictionary to JSON file
+            np.save('shap_values.npy', self.all_shap_metrics)
+
+            self.log_info(fl_ctx, f"Saved SHAP metrics for round {current_round} and client {client_name} at 'shape_values.npy'")
+        except Exception as e:
+            self.log_error(fl_ctx, f"Error processing DXO in ShapCollectionFilter: {e}")
+            
+        # Return the DXO unchanged
+        return dxo

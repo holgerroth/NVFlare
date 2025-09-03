@@ -122,7 +122,7 @@ def main():
         # (6) construct trained FL model (A dict of {layer name: layer weights} from the keras model)
         # Combine accuracy and SHAP metrics
         metrics = {"accuracy": test_global_acc}
-        metrics.update(shap_metrics)
+        metrics["shap_metrics"] = shap_metrics
         
         output_model = flare.FLModel(
             params={layer.name: layer.get_weights() for layer in model.layers}, metrics=metrics

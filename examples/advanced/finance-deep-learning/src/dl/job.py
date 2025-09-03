@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from model import SimpleNetwork
+from utils import ShapCollectionFilter
 
 from nvflare.app_opt.tf.recipes.fedavg import FedAvgRecipe
 from nvflare.recipe.sim_env import SimEnv
@@ -22,7 +23,7 @@ from nvflare.recipe.utils import add_experiment_tracking
 recipe = FedAvgRecipe(
     name="hello-tf-mlflow",
     min_clients=1,
-    num_rounds=10,
+    num_rounds=3,
     initial_model=SimpleNetwork(num_classes=2),
     train_script="src/dl/client.py",
     train_args="--dataset None" # /home/hroth/Code2/nvflare/jpm_demo/examples/advanced/finance-deep-learning/paysim1/PS_20174392719_1491204439457_log.csv
@@ -41,6 +42,10 @@ mlflow_config = {
     "events": ["fed.analytix_log_stats"],
 }
 add_experiment_tracking(recipe, tracking_type="mlflow", tracking_config=mlflow_config)
+
+# Add filter to collect SHAP metrics on the server
+shap_filter = ShapCollectionFilter()
+recipe.add_server_input_filter(shap_filter, tasks=["train"])
 
 # Optionally export
 recipe.export("job_configs")
