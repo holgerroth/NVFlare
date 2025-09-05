@@ -27,7 +27,8 @@ recipe = FedAvgRecipe(
     num_rounds=3,
     initial_model=SimpleNetwork(num_classes=2),
     train_script="src/dl/client.py",
-    train_args=f"--data_path {os.path.join(os.getcwd(), 'paysim1')}"
+    #train_args=f"--data_path {os.path.join(os.getcwd(), 'paysim1')}"  # best provide a absolute path to the dataset
+    train_args="--data_path None"
 )
 
 # Add experiment tracking. Only tracking_uri is required but you customize the other args as needed.

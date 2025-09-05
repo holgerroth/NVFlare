@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import fcntl
-import glob
 import os
+import traceback
 import time
 from pathlib import Path
 from typing import Union
@@ -203,17 +203,25 @@ def plot_shap_summary(shap_metrics, plot_prefix="", save_fig=False):
         sample_features = shap_metrics["shap_sample_features"]
         feature_names = shap_metrics["shap_feature_names"]
 
+        shap_values_for_plot = shap_values
+        # Check if we need to handle the shape differently
+        if len(shap_values_for_plot.shape) == 3:
+            # If 3D array (samples, features, classes), take mean across classes
+            shap_values_for_plot = np.mean(shap_values_for_plot, axis=2)
+
         plt.figure(figsize=(20, 16))
-        shap.summary_plot(
-            shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1]
+        shap.plots.violin(
+            shap_values_for_plot, feature_names=feature_names, show=False, max_display=sample_features.shape[1]
         )
         if save_fig:
             save_name = f"{plot_prefix}_shap_summary_plot.png"
             plt.tight_layout()
+            os.makedirs(os.path.dirname(save_name), exist_ok=True)
             plt.savefig(save_name, dpi=300, bbox_inches="tight")
             plt.close()
             print(f"SHAP summary plot saved successfully to {save_name}")
     except Exception as e:
+        traceback.print_exc()
         print(f"Error plotting SHAP summary: {e}")
 
 
@@ -248,10 +256,12 @@ def plot_shap_feature_importance(shap_metrics, plot_prefix="", save_fig=False):
         if save_fig:
             save_name = f"{plot_prefix}_shap_feature_importance.png"
             plt.tight_layout()
+            os.makedirs(os.path.dirname(save_name), exist_ok=True)
             plt.savefig(save_name, dpi=300, bbox_inches="tight")
             plt.close()
             print(f"SHAP feature importance plot saved successfully to {save_name}")
     except Exception as e:
+        traceback.print_exc()
         print(f"Error plotting SHAP feature importance: {e}")
 
 
