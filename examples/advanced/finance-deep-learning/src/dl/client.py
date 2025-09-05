@@ -38,6 +38,7 @@ def main():
     )
     parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs (default: 1)")
     parser.add_argument("--batch-size", type=int, default=32, help="Training batch size (default: 32)")
+    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate (default: 0.001)")
     args = parser.parse_args()
 
     # (2) initializes NVFlare client API
@@ -63,7 +64,7 @@ def main():
     model = SimpleNetwork(input_shape=(None, n_features), num_classes=n_classes)
     model.build(input_shape=(None, n_features))
     model.compile(
-        optimizer="adam", loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=["accuracy"]
+        optimizer=tf.keras.optimizers.Adam(learning_rate=args.lr), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=["accuracy"]
     )
     model.summary()
 
