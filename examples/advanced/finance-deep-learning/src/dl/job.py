@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 from model import SimpleNetwork
 from utils import ShapCollectionFilter
 
@@ -25,20 +27,18 @@ recipe = FedAvgRecipe(
     num_rounds=3,
     initial_model=SimpleNetwork(num_classes=2),
     train_script="src/dl/client.py",
-    train_args="--dataset None",  # /home/hroth/Code2/nvflare/jpm_demo/examples/advanced/finance-deep-learning/paysim1/PS_20174392719_1491204439457_log.csv
+    train_args=f"--data_path {os.path.join(os.getcwd(), 'paysim1')}"
 )
 
-# Add experiment tracking
+# Add experiment tracking. Only tracking_uri is required but you customize the other args as needed.
 mlflow_config = {
     "tracking_uri": "https://rrayrz6j-nvflmlflowserver.xenon.lepton.run",
     "kw_args": {
-        "experiment_name": "nvflare-poc-lepton-fl-experiment",
-        "run_name": "nvflare-fedavgrecipe-with-mlflow-sim",
+        "experiment_name": "NVFlare Simulation",
+        "run_name": recipe.name,
         "experiment_tags": {"mlflow.note.content": "## **NVFlare FedAvg experiment with MLflow**"},
         "run_tags": {"mlflow.note.content": "## Federated Experiment tracking with MLflow.\n"},
-    },
-    "artifact_location": "artifacts",
-    "events": ["fed.analytix_log_stats"],
+    }
 }
 add_experiment_tracking(recipe, tracking_type="mlflow", tracking_config=mlflow_config)
 

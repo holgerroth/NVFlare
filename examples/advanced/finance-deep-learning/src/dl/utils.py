@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import fcntl
+import glob
 import os
 import time
+from pathlib import Path
 from typing import Union
 
 import matplotlib.pyplot as plt
@@ -30,12 +32,13 @@ from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.fl_constant import FLMetaKey
 
 
-def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=0.2, random_state=42):
+def load_csv_data(data_path, feature_columns=None, label_column=None, test_size=0.2, random_state=42):
     """
     Load CSV data for financial analysis and return train/test splits.
+    Can load from a single CSV file or concatenate multiple CSV files from a directory.
 
     Args:
-        file_path (str): Path to the CSV file
+        data_path (str): Path to a CSV file or directory containing CSV files
         feature_columns (list or None): List of column names to use as features.
                                        If None, uses all columns except the last one.
         label_column (str or None): Name of the column to use as label.
@@ -47,22 +50,61 @@ def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=
         tuple: ((train_features, train_labels), (test_features, test_labels))
     """
     try:
-        # Load the CSV data
-        data = pd.read_csv(file_path)
+        data_path = Path(data_path)
+        
+        # Check if path is a file or directory
+        if data_path.is_file():
+            # Single file case
+            csv_files = [data_path]
+        elif data_path.is_dir():
+            # Directory case - find all CSV files
+            csv_files = list(data_path.glob("*.csv"))
+            if not csv_files:
+                raise ValueError(f"No CSV files found in directory: {data_path}")
+        else:
+            raise FileNotFoundError(f"Path not found: {data_path}")
 
-        # Determine feature and label columns
+        print(f"Found {len(csv_files)} CSV file(s) to process")
+
+        # Load and concatenate all CSV files
+        dataframes = []
+        for csv_file in csv_files:
+            try:
+                df = pd.read_csv(csv_file)
+                print(f"Loaded {len(df)} rows from {csv_file.name}")
+                dataframes.append(df)
+            except Exception as e:
+                print(f"Warning: Could not load {csv_file.name}: {e}")
+                continue
+
+        if not dataframes:
+            raise ValueError("No valid CSV files could be loaded")
+
+        # Concatenate all dataframes
+        data = pd.concat(dataframes, ignore_index=True)
+        print(f"Concatenated data: {len(data)} total rows")
+
+        # Determine feature and label columns from the first dataframe
         if feature_columns is None:
             feature_columns = data.columns[:-1].tolist()
         if label_column is None:
             label_column = data.columns[-1]
 
-        # Validate that the specified columns exist
+        # Validate that the specified columns exist in all dataframes
         missing_features = [col for col in feature_columns if col not in data.columns]
         if missing_features:
-            raise ValueError(f"Feature columns not found in CSV: {missing_features}")
+            raise ValueError(f"Feature columns not found in CSV data: {missing_features}")
 
         if label_column not in data.columns:
-            raise ValueError(f"Label column '{label_column}' not found in CSV")
+            raise ValueError(f"Label column '{label_column}' not found in CSV data")
+
+        # Check that all CSV files have the same columns
+        for i, df in enumerate(dataframes):
+            df_missing_features = [col for col in feature_columns if col not in df.columns]
+            if df_missing_features:
+                raise ValueError(f"CSV file {csv_files[i].name} missing feature columns: {df_missing_features}")
+            if label_column not in df.columns:
+                raise ValueError(f"CSV file {csv_files[i].name} missing label column: {label_column}")
 
         # Extract features and labels
         X = data[feature_columns].values
@@ -87,14 +129,14 @@ def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=
         train_labels = train_labels.astype(np.int32)
         test_labels = test_labels.astype(np.int32)
 
-        print(f"Loaded CSV data from {file_path}")
+        print(f"Loaded CSV data from {data_path}")
         print(f"Loaded CSV data: {len(train_features)} training samples, {len(test_features)} test samples")
         print(f"Feature shape: {train_features.shape[1]}, Number of classes: {len(np.unique(y))}")
 
         return (train_features, train_labels), (test_features, test_labels)
 
     except FileNotFoundError:
-        print(f"CSV file {file_path} not found. Creating sample financial data...")
+        print(f"Data path {data_path} not found. Creating sample financial data...")
         return create_sample_financial_data(test_size, random_state)
     except Exception as e:
         print(f"Error loading CSV data: {e}. Creating sample financial data...")

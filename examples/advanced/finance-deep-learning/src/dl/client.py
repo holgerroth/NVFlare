@@ -31,10 +31,10 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="NVFlare Deep Learning Client for Financial Fraud Detection")
     parser.add_argument(
-        "--dataset",
+        "--data_path",
         type=str,
         default=None,
-        help="Path to the CSV dataset file (default: None, meaning randomly generated data)",
+        help="Path to the CSV dataset dir or file (default: None, meaning randomly generated data)",
     )
     parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs (default: 1)")
     parser.add_argument("--batch-size", type=int, default=32, help="Training batch size (default: 32)")
@@ -47,7 +47,7 @@ def main():
     # Example 1: Specify specific columns
     feature_columns = ["amount", "oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest"]
     (train_features, train_labels), (test_features, test_labels) = load_csv_data(
-        file_path=args.dataset, feature_columns=feature_columns, label_column="isFraud"
+        data_path=args.data_path, feature_columns=feature_columns, label_column="isFraud"
     )
 
     # Get the number of features for model input shape
