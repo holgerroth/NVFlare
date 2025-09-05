@@ -21,5 +21,3 @@ class SimpleNetwork(models.Sequential):
         self._input_shape = input_shape
         self.add(layers.Dense(64, activation="relu"))
         self.add(layers.Dense(num_classes))
-
-

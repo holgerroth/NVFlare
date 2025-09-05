@@ -12,87 +12,87 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
-import numpy as np
-import shap
+import fcntl
+import os
+import time
+from typing import Union
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import shap
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-import json
-from nvflare.app_common.utils.fl_model_utils import FLModelUtils
-from typing import Union
 from tensorflow.keras.callbacks import Callback
+
+from nvflare.apis.dxo import DXO, DataKind
 from nvflare.apis.dxo_filter import DXOFilter
-from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
-from nvflare.apis.fl_constant import FLContextKey, FLMetaKey
-import os
-import fcntl
-import time
+from nvflare.apis.fl_constant import FLMetaKey
 
 
 def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=0.2, random_state=42):
     """
     Load CSV data for financial analysis and return train/test splits.
-    
+
     Args:
         file_path (str): Path to the CSV file
-        feature_columns (list or None): List of column names to use as features. 
+        feature_columns (list or None): List of column names to use as features.
                                        If None, uses all columns except the last one.
         label_column (str or None): Name of the column to use as label.
                                    If None, uses the last column.
         test_size (float): Proportion of data to use for testing
         random_state (int): Random seed for reproducibility
-    
+
     Returns:
         tuple: ((train_features, train_labels), (test_features, test_labels))
     """
     try:
         # Load the CSV data
         data = pd.read_csv(file_path)
-        
+
         # Determine feature and label columns
         if feature_columns is None:
             feature_columns = data.columns[:-1].tolist()
         if label_column is None:
             label_column = data.columns[-1]
-        
+
         # Validate that the specified columns exist
         missing_features = [col for col in feature_columns if col not in data.columns]
         if missing_features:
             raise ValueError(f"Feature columns not found in CSV: {missing_features}")
-        
+
         if label_column not in data.columns:
             raise ValueError(f"Label column '{label_column}' not found in CSV")
-        
+
         # Extract features and labels
         X = data[feature_columns].values
         y = data[label_column].values
-        
+
         print(f"Using feature columns: {feature_columns}")
         print(f"Using label column: {label_column}")
-        
+
         # Split the data into train and test sets
         train_features, test_features, train_labels, test_labels = train_test_split(
             X, y, test_size=test_size, random_state=random_state, stratify=y
         )
-        
+
         # Scale the features
         scaler = StandardScaler()
         train_features = scaler.fit_transform(train_features)
         test_features = scaler.transform(test_features)
-        
+
         # Convert to float32 for TensorFlow
         train_features = train_features.astype(np.float32)
         test_features = test_features.astype(np.float32)
         train_labels = train_labels.astype(np.int32)
         test_labels = test_labels.astype(np.int32)
-        
+
         print(f"Loaded CSV data from {file_path}")
         print(f"Loaded CSV data: {len(train_features)} training samples, {len(test_features)} test samples")
         print(f"Feature shape: {train_features.shape[1]}, Number of classes: {len(np.unique(y))}")
-        
+
         return (train_features, train_labels), (test_features, test_labels)
-        
+
     except FileNotFoundError:
         print(f"CSV file {file_path} not found. Creating sample financial data...")
         return create_sample_financial_data(test_size, random_state)
@@ -104,54 +104,54 @@ def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=
 def create_sample_financial_data(test_size=0.2, random_state=42):
     """
     Create sample financial data for demonstration purposes.
-    
+
     Args:
         test_size (float): Proportion of data to use for testing
         random_state (int): Random seed for reproducibility
-    
+
     Returns:
         tuple: ((train_features, train_labels), (test_features, test_labels))
     """
     np.random.seed(random_state)
-    
+
     # Create sample financial features (e.g., transaction amount, time, location, etc.)
     n_samples = 1000
     n_features = 5
-    
+
     # Generate random features
     features = np.random.randn(n_samples, n_features)
-    
+
     # Create labels (0: normal transaction, 1: fraudulent transaction)
     # Simple rule: if sum of features > threshold, mark as fraudulent
     threshold = 2.0
     labels = (np.sum(features, axis=1) > threshold).astype(int)
-    
+
     # Split the data
     train_features, test_features, train_labels, test_labels = train_test_split(
         features, labels, test_size=test_size, random_state=random_state, stratify=labels
     )
-    
+
     # Scale the features
     scaler = StandardScaler()
     train_features = scaler.fit_transform(train_features)
     test_features = scaler.transform(test_features)
-    
+
     # Convert to float32 for TensorFlow
     train_features = train_features.astype(np.float32)
     test_features = test_features.astype(np.float32)
     train_labels = train_labels.astype(np.int32)
     test_labels = test_labels.astype(np.int32)
-    
+
     print(f"Created sample financial data: {len(train_features)} training samples, {len(test_features)} test samples")
     print(f"Feature shape: {train_features.shape[1]}, Number of classes: {len(np.unique(labels))}")
-    
+
     return (train_features, train_labels), (test_features, test_labels)
 
 
 def plot_shap_summary(shap_metrics, plot_prefix="", save_fig=False):
     """
     Plot SHAP summary plot from pre-computed metrics.
-    
+
     Args:
         shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
         plot_prefix: Prefix for saved plot files
@@ -160,13 +160,15 @@ def plot_shap_summary(shap_metrics, plot_prefix="", save_fig=False):
         shap_values = shap_metrics["shap_values"]
         sample_features = shap_metrics["shap_sample_features"]
         feature_names = shap_metrics["shap_feature_names"]
-        
+
         plt.figure(figsize=(20, 16))
-        shap.summary_plot(shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1])
+        shap.summary_plot(
+            shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1]
+        )
         if save_fig:
-            save_name = f'{plot_prefix}_shap_summary_plot.png'
+            save_name = f"{plot_prefix}_shap_summary_plot.png"
             plt.tight_layout()
-            plt.savefig(save_name, dpi=300, bbox_inches='tight')
+            plt.savefig(save_name, dpi=300, bbox_inches="tight")
             plt.close()
             print(f"SHAP summary plot saved successfully to {save_name}")
     except Exception as e:
@@ -176,7 +178,7 @@ def plot_shap_summary(shap_metrics, plot_prefix="", save_fig=False):
 def plot_shap_feature_importance(shap_metrics, plot_prefix="", save_fig=False):
     """
     Plot SHAP feature importance bar chart from pre-computed metrics.
-    
+
     Args:
         shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
         plot_prefix: Prefix for saved plot files
@@ -184,27 +186,27 @@ def plot_shap_feature_importance(shap_metrics, plot_prefix="", save_fig=False):
     try:
         shap_values = shap_metrics["shap_values"]
         feature_names = shap_metrics["shap_feature_names"]
-        
+
         plt.figure(figsize=(20, 12))
-        
+
         # Handle case where shap_values is a list (multiple outputs)
         shap_values_for_importance = shap_values
-        
+
         # Check if we need to handle the shape differently
         if len(shap_values_for_importance.shape) == 3:
             # If 3D array (samples, features, classes), take mean across classes
             shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
-        
+
         feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
-        
+
         # Use the same feature names for the bar plot
         plt.barh(feature_names, feature_importance)
-        plt.xlabel('Mean |SHAP value|')
-        plt.title('Feature Importance (SHAP)')
+        plt.xlabel("Mean |SHAP value|")
+        plt.title("Feature Importance (SHAP)")
         if save_fig:
-            save_name = f'{plot_prefix}_shap_feature_importance.png'    
+            save_name = f"{plot_prefix}_shap_feature_importance.png"
             plt.tight_layout()
-            plt.savefig(save_name, dpi=300, bbox_inches='tight')
+            plt.savefig(save_name, dpi=300, bbox_inches="tight")
             plt.close()
             print(f"SHAP feature importance plot saved successfully to {save_name}")
     except Exception as e:
@@ -214,10 +216,10 @@ def plot_shap_feature_importance(shap_metrics, plot_prefix="", save_fig=False):
 def plot_all_shap_plots(shap_metrics, plot_prefix="", save_fig=False):
     """
     Generate all SHAP plots from pre-computed metrics.
-    
+
     Args:
         shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
-        plot_prefix: Prefix for saved plot files        
+        plot_prefix: Prefix for saved plot files
         save_fig: Whether to save the plots
     """
     plot_shap_summary(shap_metrics, plot_prefix, save_fig)
@@ -227,7 +229,7 @@ def plot_all_shap_plots(shap_metrics, plot_prefix="", save_fig=False):
 def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
     """
     Compute Shapley values for feature importance using SHAP library.
-    
+
     Args:
         model: Trained TensorFlow model
         test_features: Test feature data
@@ -235,7 +237,7 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         n_samples: Number of samples to use for SHAP computation (for performance)
         plot_prefix: Prefix for saved plot files
         feature_names: List of feature names/column names to display in plots
-    
+
     Returns:
         dict: Dictionary containing SHAP metrics
     """
@@ -248,66 +250,68 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
         else:
             sample_features = test_features
             sample_labels = test_labels
-        
+
         # Create a background dataset for SHAP (using a subset of the data)
         background_size = min(50, len(sample_features))
         background_indices = np.random.choice(len(sample_features), background_size, replace=False)
         background_data = sample_features[background_indices]
-        
+
         # Create SHAP explainer for the model
         explainer = shap.DeepExplainer(model, background_data)
-        
+
         # Compute SHAP values
         shap_values = explainer.shap_values(sample_features)
 
         # Create feature names for all features
         if feature_names is None:
-            feature_names = [f'Feature_{i}' for i in range(sample_features.shape[1])]
+            feature_names = [f"Feature_{i}" for i in range(sample_features.shape[1])]
         elif len(feature_names) != sample_features.shape[1]:
-            print(f"Warning: feature_names length ({len(feature_names)}) doesn't match number of features ({sample_features.shape[1]})")
-            feature_names = [f'Feature_{i}' for i in range(sample_features.shape[1])]
-        
+            print(
+                f"Warning: feature_names length ({len(feature_names)}) doesn't match number of features ({sample_features.shape[1]})"
+            )
+            feature_names = [f"Feature_{i}" for i in range(sample_features.shape[1])]
+
         print(f"Using feature names: {feature_names}")
-        
+
         # For multi-output models, we need to specify which output to plot
         print(f"Plotting single SHAP values, shape: {shap_values.shape}")
         print(f"Sample features shape for plotting: {sample_features.shape}")
         print(f"Number of features in sample_features: {sample_features.shape[1]}")
         print(f"Background data shape: {background_data.shape}")
-        
+
         # Generate plots using the factored-out plotting functions
-        plot_all_shap_plots({
-            "shap_values": shap_values,
-            "shap_sample_features": sample_features,
-            "shap_feature_names": feature_names
-        }, plot_prefix, save_fig=True)
-        
+        plot_all_shap_plots(
+            {"shap_values": shap_values, "shap_sample_features": sample_features, "shap_feature_names": feature_names},
+            plot_prefix,
+            save_fig=True,
+        )
+
         # Compute feature importance metrics for the return value
         shap_values_for_importance = shap_values
         if len(shap_values_for_importance.shape) == 3:
             # If 3D array (samples, features, classes), take mean across classes
             shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
-        
+
         feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
         total_importance = np.sum(feature_importance)
-        
+
         # Create metrics dictionary
         shap_metrics = {
-            "shap_values": shap_values, 
-            "shap_sample_features": sample_features, 
+            "shap_values": shap_values,
+            "shap_sample_features": sample_features,
             "shap_feature_names": feature_names,
             "shap_feature_importance": feature_importance,
             "shap_total_importance": float(total_importance),
-            "shap_samples_used": len(sample_features)
+            "shap_samples_used": len(sample_features),
         }
 
-        #print(f"SHAP metrics: {shap_metrics}")
+        # print(f"SHAP metrics: {shap_metrics}")
 
         # Save the SHAP values to a file using numpy
-        np.save(f'{plot_prefix}_shap_metrics.npy', shap_metrics)
-        
+        np.save(f"{plot_prefix}_shap_metrics.npy", shap_metrics)
+
         return shap_metrics
-        
+
     except Exception as e:
         print(f"Error computing SHAP values: {e}")
         # Return default metrics if SHAP computation fails
@@ -317,33 +321,34 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
 class MLflowCallback(Callback):
     """
     Custom TensorFlow callback for logging training metrics to MLflow.
-    
+
     This callback logs training and validation metrics at the end of each epoch
     to the provided MLflow writer.
     """
+
     def __init__(self, mlflow_writer):
         super().__init__()
         self.mlflow_writer = mlflow_writer
         self.gobal_epoch = 0
-        
+
     def on_epoch_end(self, epoch, logs=None):
         if logs:
             print(f"Logging training metrics for epoch {self.gobal_epoch}")
             # Log training metrics
-            if 'loss' in logs:
-                self.mlflow_writer.log_metric("train_loss", logs.get('loss', 0), self.gobal_epoch)
-            if 'accuracy' in logs:
-                self.mlflow_writer.log_metric("train_accuracy", logs.get('accuracy', 0), self.gobal_epoch)
-            
+            if "loss" in logs:
+                self.mlflow_writer.log_metric("train_loss", logs.get("loss", 0), self.gobal_epoch)
+            if "accuracy" in logs:
+                self.mlflow_writer.log_metric("train_accuracy", logs.get("accuracy", 0), self.gobal_epoch)
+
             # Log validation metrics if available
-            if 'val_loss' in logs:
-                self.mlflow_writer.log_metric("val_loss", logs.get('val_loss', 0), self.gobal_epoch)
-            if 'val_accuracy' in logs:
-                self.mlflow_writer.log_metric("val_accuracy", logs.get('val_accuracy', 0), self.gobal_epoch)
-            
+            if "val_loss" in logs:
+                self.mlflow_writer.log_metric("val_loss", logs.get("val_loss", 0), self.gobal_epoch)
+            if "val_accuracy" in logs:
+                self.mlflow_writer.log_metric("val_accuracy", logs.get("val_accuracy", 0), self.gobal_epoch)
+
             # Log additional metrics if they exist
             for key, value in logs.items():
-                if key not in ['loss', 'accuracy', 'val_loss', 'val_accuracy']:
+                if key not in ["loss", "accuracy", "val_loss", "val_accuracy"]:
                     self.mlflow_writer.log_metric(f"train_{key}", value, self.gobal_epoch)
 
         self.gobal_epoch += 1
@@ -352,7 +357,7 @@ class MLflowCallback(Callback):
 class ShapCollectionFilter(DXOFilter):
     def __init__(self):
         super().__init__(supported_data_kinds=[DataKind.WEIGHT_DIFF, DataKind.WEIGHTS], data_kinds_to_filter=None)
-        
+
         # Global dictionary to store shape metrics for each round
         self.all_shap_metrics = {}
         self._save_path = None
@@ -360,13 +365,13 @@ class ShapCollectionFilter(DXOFilter):
     def _safe_save_with_lock(self, data, file_path, max_retries=5, retry_delay=0.1):
         """
         Safely save data to file with file locking to prevent concurrent access.
-        
+
         Args:
             data: Data to save
             file_path: Path to save the file
             max_retries: Maximum number of retry attempts
             retry_delay: Delay between retries in seconds
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -374,22 +379,25 @@ class ShapCollectionFilter(DXOFilter):
             try:
                 # Create directory if it doesn't exist
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                
+
                 # Open file for writing with exclusive lock
-                with open(file_path, 'wb') as f:
+                with open(file_path, "wb") as f:
                     # Try to acquire exclusive lock (non-blocking)
                     fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    
+
                     # Save the data
                     np.save(f, data)
-                    
+
                     # Lock is automatically released when file is closed
-                    
+
                 return True
-                
+
             except (OSError, IOError) as e:
                 if attempt < max_retries - 1:
-                    self.log_warning(None, f"Failed to acquire lock for {file_path}, attempt {attempt + 1}/{max_retries}. Retrying in {retry_delay}s...")
+                    self.log_warning(
+                        None,
+                        f"Failed to acquire lock for {file_path}, attempt {attempt + 1}/{max_retries}. Retrying in {retry_delay}s...",
+                    )
                     time.sleep(retry_delay)
                     retry_delay *= 2  # Exponential backoff
                 else:
@@ -398,18 +406,18 @@ class ShapCollectionFilter(DXOFilter):
             except Exception as e:
                 self.log_error(None, f"Unexpected error saving {file_path}: {e}")
                 return False
-        
+
         return False
 
-    def process_dxo(self, dxo, shareable, fl_ctx) -> Union[None, 'DXO']:
+    def process_dxo(self, dxo, shareable, fl_ctx) -> Union[None, "DXO"]:
         """
         Process DXO objects, extract FLModels, store them globally, and dump to JSON.
-        
+
         Args:
             dxo: The DXO object received
             shareable: The shareable object
             fl_ctx: The FL context
-            
+
         Returns:
             The processed DXO object
         """
@@ -417,10 +425,10 @@ class ShapCollectionFilter(DXOFilter):
             if self._save_path is None:
                 workspace = fl_ctx.get_engine().get_workspace()
                 app_root = workspace.get_app_dir(fl_ctx.get_job_id())
-                self._save_path = os.path.join(app_root, 'shap_values.npy')
-            
+                self._save_path = os.path.join(app_root, "shap_values.npy")
+
             # get shap metrics from dxo
-            shap_metrics = dxo.meta['initial_metrics']['shap_metrics']
+            shap_metrics = dxo.meta["initial_metrics"]["shap_metrics"]
             self.log_info(fl_ctx, f"SHAP metrics {shap_metrics.keys()}")
 
             current_round = fl_ctx.get_prop(FLMetaKey.CURRENT_ROUND)
@@ -430,27 +438,34 @@ class ShapCollectionFilter(DXOFilter):
             if f"round{current_round}" not in self.all_shap_metrics:
                 self.all_shap_metrics[f"round{current_round}"] = {}
             self.all_shap_metrics[f"round{current_round}"][client_name] = shap_metrics
-                
+
             # Dump global dictionary to file with file locking
             success = self._safe_save_with_lock(self.all_shap_metrics, self._save_path)
-            
+
             if success:
-                self.log_info(fl_ctx, f"Saved SHAP metrics for round {current_round} and client {client_name} at {self._save_path}")
+                self.log_info(
+                    fl_ctx,
+                    f"Saved SHAP metrics for round {current_round} and client {client_name} at {self._save_path}",
+                )
             else:
-                self.log_error(fl_ctx, f"Failed to save SHAP metrics for round {current_round} and client {client_name} at {self._save_path}")
+                self.log_error(
+                    fl_ctx,
+                    f"Failed to save SHAP metrics for round {current_round} and client {client_name} at {self._save_path}",
+                )
         except Exception as e:
             self.log_error(fl_ctx, f"Error processing DXO in ShapCollectionFilter: {e}")
-            
+
         # Return the DXO unchanged
         return dxo
+
 
 def load_shap_metrics(file_path):
     """
     Load SHAP metrics from a saved .npy file.
-    
+
     Args:
         file_path: Path to the saved SHAP metrics file
-        
+
     Returns:
         dict: Loaded SHAP metrics
     """
@@ -459,4 +474,3 @@ def load_shap_metrics(file_path):
     except Exception as e:
         print(f"Error loading SHAP metrics from {file_path}: {e}")
         return None
-        

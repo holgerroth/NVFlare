@@ -1,4 +1,4 @@
- # Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,11 @@ from nvflare.app_opt.statistics.df.df_core_statistics import DFStatisticsCore
 
 
 class FinancialStatistics(DFStatisticsCore):
-    def __init__(self, data_path, data_features=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest', 'isFraud']):
+    def __init__(
+        self,
+        data_path,
+        data_features=["amount", "oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest", "isFraud"],
+    ):
         super().__init__()
         self.data_path = data_path
         self.data: Optional[Dict[str, pd.DataFrame]] = None
@@ -32,8 +36,10 @@ class FinancialStatistics(DFStatisticsCore):
         self.log_info(fl_ctx, f"load data for client {client_name}")
         try:
             # load data from CSV
-            df: pd.DataFrame = pd.read_csv(self.data_path, usecols=self.data_features, sep=r"\s*,\s*", engine="python", na_values="?")
-            
+            df: pd.DataFrame = pd.read_csv(
+                self.data_path, usecols=self.data_features, sep=r"\s*,\s*", engine="python", na_values="?"
+            )
+
             train = df.sample(frac=0.8, random_state=200)  # random state is a seed value
             test = df.drop(train.index).sample(frac=1.0)
 

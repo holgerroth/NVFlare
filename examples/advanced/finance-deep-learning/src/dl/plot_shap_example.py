@@ -6,9 +6,7 @@ This script shows how to load pre-computed SHAP metrics and generate plots
 without needing to recompute the SHAP values.
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from utils import plot_shap_summary, plot_shap_feature_importance, plot_all_shap_plots, load_shap_metrics
+from utils import load_shap_metrics, plot_all_shap_plots
 
 
 def main():
@@ -17,10 +15,10 @@ def main():
     """
     print("SHAP Plotting Example")
     print("=" * 50)
-    
+
     # Example 1: Load pre-computed metrics and generate all plots
     print("\n1. Loading pre-computed SHAP metrics and generating all plots...")
-    
+
     # You would typically load from a saved file like this:
     # shap_metrics = load_shap_metrics("path/to/your_shap_metrics.npy")
 
@@ -28,9 +26,9 @@ def main():
     all_shap_metrics = load_shap_metrics("/tmp/nvflare/simulation/hello-tf-mlflow/server/shap_values.npy")
     print(f"All SHAP metrics: {all_shap_metrics.keys()}")
 
-    shap_metrics = all_shap_metrics[f"round0"]["site-1"]
-    print(f"SHAP metrics for round 0 and site-1: {shap_metrics.keys()}")   
-    
+    shap_metrics = all_shap_metrics["round0"]["site-1"]
+    print(f"SHAP metrics for round 0 and site-1: {shap_metrics.keys()}")
+
     # Generate all plots
     plot_all_shap_plots(shap_metrics, "example")
 

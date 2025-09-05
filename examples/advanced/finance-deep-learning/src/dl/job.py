@@ -17,7 +17,6 @@ from utils import ShapCollectionFilter
 
 from nvflare.app_opt.tf.recipes.fedavg import FedAvgRecipe
 from nvflare.recipe.sim_env import SimEnv
-from nvflare.recipe.prod_env import ProdEnv
 from nvflare.recipe.utils import add_experiment_tracking
 
 recipe = FedAvgRecipe(
@@ -26,7 +25,7 @@ recipe = FedAvgRecipe(
     num_rounds=3,
     initial_model=SimpleNetwork(num_classes=2),
     train_script="src/dl/client.py",
-    train_args="--dataset None" # /home/hroth/Code2/nvflare/jpm_demo/examples/advanced/finance-deep-learning/paysim1/PS_20174392719_1491204439457_log.csv
+    train_args="--dataset None",  # /home/hroth/Code2/nvflare/jpm_demo/examples/advanced/finance-deep-learning/paysim1/PS_20174392719_1491204439457_log.csv
 )
 
 # Add experiment tracking
@@ -54,6 +53,7 @@ recipe.export("job_configs")
 env = SimEnv(num_clients=1)
 recipe.execute(env=env)
 
+# from nvflare.recipe.prod_env import ProdEnv
 # Submit job in production environment
-#env = ProdEnv(startup_kit_dir="...")
-#recipe.execute(env=env)
+# env = ProdEnv(startup_kit_dir="...")
+# recipe.execute(env=env)

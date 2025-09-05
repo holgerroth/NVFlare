@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import json
 import argparse
-import tensorflow as tf
-import numpy as np
+import os
 
+import numpy as np
+import tensorflow as tf
 from model import SimpleNetwork
-from utils import load_csv_data, compute_shapley_values, MLflowCallback
+from utils import MLflowCallback, compute_shapley_values, load_csv_data
 
 # (1) import nvflare client API
 import nvflare.client as flare
@@ -30,19 +29,15 @@ PATH = "tf_model.weights.h5"
 
 def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='NVFlare Deep Learning Client for Financial Fraud Detection')
-    parser.add_argument('--dataset', 
-                       type=str, 
-                       default=None,
-                       help='Path to the CSV dataset file (default: None, meaning randomly generated data)')
-    parser.add_argument('--epochs',
-                       type=int,
-                       default=1,
-                       help='Number of training epochs (default: 1)')
-    parser.add_argument('--batch-size',
-                       type=int,
-                       default=32,
-                       help='Training batch size (default: 32)')
+    parser = argparse.ArgumentParser(description="NVFlare Deep Learning Client for Financial Fraud Detection")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default=None,
+        help="Path to the CSV dataset file (default: None, meaning randomly generated data)",
+    )
+    parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs (default: 1)")
+    parser.add_argument("--batch-size", type=int, default=32, help="Training batch size (default: 32)")
     args = parser.parse_args()
 
     # (2) initializes NVFlare client API
@@ -50,11 +45,9 @@ def main():
 
     # Load CSV data using the utility function
     # Example 1: Specify specific columns
-    feature_columns=['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest']
+    feature_columns = ["amount", "oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest"]
     (train_features, train_labels), (test_features, test_labels) = load_csv_data(
-         file_path=args.dataset,
-         feature_columns=feature_columns,
-         label_column='isFraud'
+        file_path=args.dataset, feature_columns=feature_columns, label_column="isFraud"
     )
 
     # Get the number of features for model input shape
@@ -75,7 +68,7 @@ def main():
     model.summary()
 
     mlflow = MLflowWriter()
-    
+
     # Create the callback to log training metrics to MLflow
     mlflow_callback = MLflowCallback(mlflow)
 
@@ -97,15 +90,15 @@ def main():
         print(
             f"Accuracy of the received model on round {input_model.current_round} on the {len(test_features)} test samples: {test_global_acc * 100} %"
         )
-        
+
         # Use the callback in model.fit()
         model.fit(
-            train_features, 
-            train_labels, 
-            epochs=args.epochs, 
-            batch_size=args.batch_size, 
+            train_features,
+            train_labels,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
             validation_data=(test_features, test_labels),
-            callbacks=[mlflow_callback]
+            callbacks=[mlflow_callback],
         )
 
         print("Finished Training")
@@ -120,8 +113,10 @@ def main():
         # Compute Shapley values for feature importance
         print("Computing Shapley values...")
 
-        plot_prefix = os.path.join(job_id, f'round{input_model.current_round}')
-        shap_metrics = compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=plot_prefix, feature_names=feature_columns)
+        plot_prefix = os.path.join(job_id, f"round{input_model.current_round}")
+        shap_metrics = compute_shapley_values(
+            model, test_features, test_labels, n_samples=100, plot_prefix=plot_prefix, feature_names=feature_columns
+        )
         if shap_metrics:
             print(f"SHAP computation completed. Used {shap_metrics['shap_samples_used']} samples.")
         else:
@@ -130,7 +125,7 @@ def main():
 
         # (6) construct trained FL model (A dict of {layer name: layer weights} from the keras model)
         # Combine accuracy and SHAP metrics
-        
+
         output_model = flare.FLModel(
             params={layer.name: layer.get_weights() for layer in model.layers}, metrics=metrics
         )
