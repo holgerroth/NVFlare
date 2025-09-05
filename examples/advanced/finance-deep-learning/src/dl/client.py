@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import json
 import argparse
 import tensorflow as tf
@@ -116,7 +117,11 @@ def main():
 
         # Compute Shapley values for feature importance
         print("Computing Shapley values...")
-        shap_metrics = compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=f'round{input_model.current_round}', feature_names=feature_columns)
+
+        # get current job_id
+        job_id = flare.system_info().get("job_id")
+        plot_prefix = os.path.join(job_id, f'round{input_model.current_round}')
+        shap_metrics = compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=plot_prefix, feature_names=feature_columns)
         print(f"SHAP computation completed. Used {shap_metrics['shap_samples_used']} samples.")
 
         # (6) construct trained FL model (A dict of {layer name: layer weights} from the keras model)

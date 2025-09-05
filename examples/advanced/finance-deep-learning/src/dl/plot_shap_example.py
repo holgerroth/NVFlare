@@ -8,24 +8,7 @@ without needing to recompute the SHAP values.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import plot_shap_summary, plot_shap_feature_importance, plot_all_shap_plots
-
-
-def load_shap_metrics(file_path):
-    """
-    Load SHAP metrics from a saved .npy file.
-    
-    Args:
-        file_path: Path to the saved SHAP metrics file
-        
-    Returns:
-        dict: Loaded SHAP metrics
-    """
-    try:
-        return np.load(file_path, allow_pickle=True).item()
-    except Exception as e:
-        print(f"Error loading SHAP metrics from {file_path}: {e}")
-        return None
+from utils import plot_shap_summary, plot_shap_feature_importance, plot_all_shap_plots, load_shap_metrics
 
 
 def main():

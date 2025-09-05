@@ -145,7 +145,7 @@ def create_sample_financial_data(test_size=0.2, random_state=42):
     return (train_features, train_labels), (test_features, test_labels)
 
 
-def plot_shap_summary(shap_metrics, plot_prefix=""):
+def plot_shap_summary(shap_metrics, plot_prefix="", save_fig=False):
     """
     Plot SHAP summary plot from pre-computed metrics.
     
@@ -160,15 +160,17 @@ def plot_shap_summary(shap_metrics, plot_prefix=""):
         
         plt.figure(figsize=(20, 16))
         shap.summary_plot(shap_values, sample_features, feature_names=feature_names, show=False, max_display=sample_features.shape[1])
-        plt.tight_layout()
-        plt.savefig(f'{plot_prefix}_shap_summary_plot.png', dpi=300, bbox_inches='tight')
-        plt.close()
-        print("SHAP summary plot saved successfully")
+        if save_fig:
+            save_name = f'{plot_prefix}_shap_summary_plot.png'
+            plt.tight_layout()
+            plt.savefig(save_name, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"SHAP summary plot saved successfully to {save_name}")
     except Exception as e:
         print(f"Error plotting SHAP summary: {e}")
 
 
-def plot_shap_feature_importance(shap_metrics, plot_prefix=""):
+def plot_shap_feature_importance(shap_metrics, plot_prefix="", save_fig=False):
     """
     Plot SHAP feature importance bar chart from pre-computed metrics.
     
@@ -196,24 +198,27 @@ def plot_shap_feature_importance(shap_metrics, plot_prefix=""):
         plt.barh(feature_names, feature_importance)
         plt.xlabel('Mean |SHAP value|')
         plt.title('Feature Importance (SHAP)')
-        plt.tight_layout()
-        plt.savefig(f'{plot_prefix}_shap_feature_importance.png', dpi=300, bbox_inches='tight')
-        plt.close()
-        print("SHAP feature importance plot saved successfully")
+        if save_fig:
+            save_name = f'{plot_prefix}_shap_feature_importance.png'    
+            plt.tight_layout()
+            plt.savefig(save_name, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"SHAP feature importance plot saved successfully to {save_name}")
     except Exception as e:
         print(f"Error plotting SHAP feature importance: {e}")
 
 
-def plot_all_shap_plots(shap_metrics, plot_prefix=""):
+def plot_all_shap_plots(shap_metrics, plot_prefix="", save_fig=False):
     """
     Generate all SHAP plots from pre-computed metrics.
     
     Args:
         shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
-        plot_prefix: Prefix for saved plot files
+        plot_prefix: Prefix for saved plot files        
+        save_fig: Whether to save the plots
     """
-    plot_shap_summary(shap_metrics, plot_prefix)
-    plot_shap_feature_importance(shap_metrics, plot_prefix)
+    plot_shap_summary(shap_metrics, plot_prefix, save_fig)
+    plot_shap_feature_importance(shap_metrics, plot_prefix, save_fig)
 
 
 def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
@@ -272,7 +277,7 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
             "shap_values": shap_values,
             "shap_sample_features": sample_features,
             "shap_feature_names": feature_names
-        }, plot_prefix)
+        }, plot_prefix, save_fig=True)
         
         # Compute feature importance metrics for the return value
         shap_values_for_importance = shap_values
@@ -347,6 +352,7 @@ class ShapCollectionFilter(DXOFilter):
         
         # Global dictionary to store shape metrics for each round
         self.all_shap_metrics = {}
+        self._save_path = None
 
     def process_dxo(self, dxo, shareable, fl_ctx) -> Union[None, 'DXO']:
         """
@@ -361,6 +367,11 @@ class ShapCollectionFilter(DXOFilter):
             The processed DXO object
         """
         try:
+            if self._save_path is None:
+                workspace = fl_ctx.get_engine().get_workspace()
+                app_root = workspace.get_app_dir(fl_ctx.get_job_id())
+                self._save_path = os.path.join(app_root, 'shap_values.npy')
+            
             # get shap metrics from dxo
             shap_metrics = dxo.meta['initial_metrics']['shap_metrics']
             self.log_info(fl_ctx, f"SHAP metrics {shap_metrics.keys()}")
@@ -374,11 +385,28 @@ class ShapCollectionFilter(DXOFilter):
             self.all_shap_metrics[f"round{current_round}"][client_name] = shap_metrics
                 
             # Dump global dictionary to JSON file
-            np.save('shap_values.npy', self.all_shap_metrics)
+            np.save(self._save_path, self.all_shap_metrics)
 
-            self.log_info(fl_ctx, f"Saved SHAP metrics for round {current_round} and client {client_name} at 'shape_values.npy'")
+            self.log_info(fl_ctx, f"Saved SHAP metrics for round {current_round} and client {client_name} at {self._save_path}")
         except Exception as e:
             self.log_error(fl_ctx, f"Error processing DXO in ShapCollectionFilter: {e}")
             
         # Return the DXO unchanged
         return dxo
+
+def load_shap_metrics(file_path):
+    """
+    Load SHAP metrics from a saved .npy file.
+    
+    Args:
+        file_path: Path to the saved SHAP metrics file
+        
+    Returns:
+        dict: Loaded SHAP metrics
+    """
+    try:
+        return np.load(file_path, allow_pickle=True).item()
+    except Exception as e:
+        print(f"Error loading SHAP metrics from {file_path}: {e}")
+        return None
+        
