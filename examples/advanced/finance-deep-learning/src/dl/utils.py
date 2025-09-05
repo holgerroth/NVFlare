@@ -26,6 +26,8 @@ from nvflare.apis.dxo_filter import DXOFilter
 from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 from nvflare.apis.fl_constant import FLContextKey, FLMetaKey
 import os
+import fcntl
+import time
 
 
 def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=0.2, random_state=42):
@@ -355,6 +357,50 @@ class ShapCollectionFilter(DXOFilter):
         self.all_shap_metrics = {}
         self._save_path = None
 
+    def _safe_save_with_lock(self, data, file_path, max_retries=5, retry_delay=0.1):
+        """
+        Safely save data to file with file locking to prevent concurrent access.
+        
+        Args:
+            data: Data to save
+            file_path: Path to save the file
+            max_retries: Maximum number of retry attempts
+            retry_delay: Delay between retries in seconds
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        for attempt in range(max_retries):
+            try:
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                # Open file for writing with exclusive lock
+                with open(file_path, 'wb') as f:
+                    # Try to acquire exclusive lock (non-blocking)
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    
+                    # Save the data
+                    np.save(f, data)
+                    
+                    # Lock is automatically released when file is closed
+                    
+                return True
+                
+            except (OSError, IOError) as e:
+                if attempt < max_retries - 1:
+                    self.log_warning(None, f"Failed to acquire lock for {file_path}, attempt {attempt + 1}/{max_retries}. Retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    self.log_error(None, f"Failed to save {file_path} after {max_retries} attempts: {e}")
+                    return False
+            except Exception as e:
+                self.log_error(None, f"Unexpected error saving {file_path}: {e}")
+                return False
+        
+        return False
+
     def process_dxo(self, dxo, shareable, fl_ctx) -> Union[None, 'DXO']:
         """
         Process DXO objects, extract FLModels, store them globally, and dump to JSON.
@@ -385,10 +431,13 @@ class ShapCollectionFilter(DXOFilter):
                 self.all_shap_metrics[f"round{current_round}"] = {}
             self.all_shap_metrics[f"round{current_round}"][client_name] = shap_metrics
                 
-            # Dump global dictionary to JSON file
-            np.save(self._save_path, self.all_shap_metrics)
-
-            self.log_info(fl_ctx, f"Saved SHAP metrics for round {current_round} and client {client_name} at {self._save_path}")
+            # Dump global dictionary to file with file locking
+            success = self._safe_save_with_lock(self.all_shap_metrics, self._save_path)
+            
+            if success:
+                self.log_info(fl_ctx, f"Saved SHAP metrics for round {current_round} and client {client_name} at {self._save_path}")
+            else:
+                self.log_error(fl_ctx, f"Failed to save SHAP metrics for round {current_round} and client {client_name} at {self._save_path}")
         except Exception as e:
             self.log_error(fl_ctx, f"Error processing DXO in ShapCollectionFilter: {e}")
             
