@@ -85,6 +85,7 @@ def load_csv_data(file_path, feature_columns=None, label_column=None, test_size=
         train_labels = train_labels.astype(np.int32)
         test_labels = test_labels.astype(np.int32)
         
+        print(f"Loaded CSV data from {file_path}")
         print(f"Loaded CSV data: {len(train_features)} training samples, {len(test_features)} test samples")
         print(f"Feature shape: {train_features.shape[1]}, Number of classes: {len(np.unique(y))}")
         

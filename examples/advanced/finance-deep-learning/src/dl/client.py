@@ -25,7 +25,7 @@ from utils import load_csv_data, compute_shapley_values, MLflowCallback
 import nvflare.client as flare
 from nvflare.client.tracking import MLflowWriter
 
-PATH = "./tf_model.weights.h5"
+PATH = "tf_model.weights.h5"
 
 
 def main():
@@ -109,25 +109,27 @@ def main():
         )
 
         print("Finished Training")
-
-        model.save_weights(PATH)
+        # get current job_id
+        job_id = flare.system_info().get("job_id")
+        model.save_weights(os.path.join(job_id, PATH))
 
         _, test_acc = model.evaluate(test_features, test_labels, verbose=2)
         print(f"Accuracy of the model on the {len(test_features)} test samples: {test_acc * 100} %")
+        metrics = {"accuracy": test_global_acc}
 
         # Compute Shapley values for feature importance
         print("Computing Shapley values...")
 
-        # get current job_id
-        job_id = flare.system_info().get("job_id")
         plot_prefix = os.path.join(job_id, f'round{input_model.current_round}')
         shap_metrics = compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix=plot_prefix, feature_names=feature_columns)
-        print(f"SHAP computation completed. Used {shap_metrics['shap_samples_used']} samples.")
+        if shap_metrics:
+            print(f"SHAP computation completed. Used {shap_metrics['shap_samples_used']} samples.")
+        else:
+            print("SHAP computation failed. Skipping SHAP metrics.")
+        metrics["shap_metrics"] = shap_metrics
 
         # (6) construct trained FL model (A dict of {layer name: layer weights} from the keras model)
         # Combine accuracy and SHAP metrics
-        metrics = {"accuracy": test_global_acc}
-        metrics["shap_metrics"] = shap_metrics
         
         output_model = flare.FLModel(
             params={layer.name: layer.get_weights() for layer in model.layers}, metrics=metrics
