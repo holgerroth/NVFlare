@@ -45,7 +45,7 @@ def main():
     flare.init()
 
     # Load CSV data using the utility function
-    # Example 1: Specify specific columns
+    print(f"Loading data from {args.data_path}")
     feature_columns = ["amount", "oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest"]
     (train_features, train_labels), (test_features, test_labels) = load_csv_data(
         data_path=args.data_path, feature_columns=feature_columns, label_column="isFraud"

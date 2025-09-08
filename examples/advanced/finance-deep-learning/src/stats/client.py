@@ -18,6 +18,7 @@ import pandas as pd
 
 from nvflare.apis.fl_context import FLContext
 from nvflare.app_opt.statistics.df.df_core_statistics import DFStatisticsCore
+from .utils import load_csv_data_from_path, validate_data_features, split_data_for_statistics
 
 
 class FinancialStatistics(DFStatisticsCore):
@@ -35,14 +36,18 @@ class FinancialStatistics(DFStatisticsCore):
         client_name = fl_ctx.get_identity_name()
         self.log_info(fl_ctx, f"load data for client {client_name}")
         try:
-            # load data from CSV
-            df: pd.DataFrame = pd.read_csv(
-                self.data_path, usecols=self.data_features, sep=r"\s*,\s*", engine="python", na_values="?"
+            # Load CSV data using the utility function
+            df = load_csv_data_from_path(
+                data_path=self.data_path,
+                data_features=self.data_features
             )
-
-            train = df.sample(frac=0.8, random_state=200)  # random state is a seed value
-            test = df.drop(train.index).sample(frac=1.0)
-
+            
+            # Validate the loaded data
+            validate_data_features(df, self.data_features)
+            
+            # Split data into train and test sets
+            train, test = split_data_for_statistics(df, train_frac=0.8, random_state=200)
+            
             self.log_info(fl_ctx, f"load data done for client {client_name}")
             return {"train": train, "test": test}
 
