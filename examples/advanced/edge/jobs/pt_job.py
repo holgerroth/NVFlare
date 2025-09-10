@@ -14,7 +14,7 @@
 
 import argparse
 
-from processors.cifar10_pt_task_processor import Cifar10PTTaskProcessor
+from processors.cifar10_pt_task_processor_carbon import Cifar10PTTaskProcessorCarbon
 from processors.models.cifar10_model import Cifar10ConvNet
 
 from nvflare.edge.tools.edge_fed_buff_recipe import (
@@ -57,7 +57,7 @@ def create_edge_recipe(fl_mode, devices_per_leaf, num_leaf_nodes, global_rounds,
         device_speed = {"mean": [100.0, 200.0, 400.0], "std": [1.0, 2.0, 4.0]}
         suffix = ""
 
-    task_processor = Cifar10PTTaskProcessor(
+    task_processor = Cifar10PTTaskProcessorCarbon(
         data_root=dataset_root,
         subset_size=subset_size,
         communication_delay=communication_delay,
@@ -117,7 +117,7 @@ def create_edge_recipe(fl_mode, devices_per_leaf, num_leaf_nodes, global_rounds,
         eval_frequency = total_devices
 
     recipe = EdgeFedBuffRecipe(
-        job_name=f"pt_job_{fl_mode}{suffix}",
+        job_name=f"pt_carbon_job_{fl_mode}{suffix}",
         model=Cifar10ConvNet(),
         model_manager_config=model_manager_config,
         device_manager_config=device_manager_config,
@@ -175,7 +175,7 @@ def main():
             no_delay=args.no_delay,
         )
 
-        print("Exporting recipe...")
+        print(f"Exporting recipe to {args.output_dir}")
         recipe.export(args.output_dir)
         print("DONE")
 

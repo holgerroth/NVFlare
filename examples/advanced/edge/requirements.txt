@@ -1,5 +1,10 @@
+nvflare~=2.7rc
 executorch
 torchvision
 torch
 safetensors
 tensorboard
+codecarbon
+seaborn
+matplotlib
+pandas
