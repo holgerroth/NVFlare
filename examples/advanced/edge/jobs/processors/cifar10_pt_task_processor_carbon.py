@@ -53,15 +53,11 @@ class Cifar10PTTaskProcessorCarbon(Cifar10PTTaskProcessor):
         #country_iso_code = "USA"
         #self.tracker = OfflineEmissionsTracker(country_iso_code=self.country_iso_code, measure_power_secs=1, experiment_id=client_name)  
         #project_name = f"{flare.get_job_id}--{client_name}"  # TODO: get unique id from job
-        project_name = "flare_edge"
-        print(f"Project name: {project_name}")
-        self.tracker = EmissionsTracker(project_name="Test", experiment_id="8e1112c9-3f9c-49f3-ad3a-005504885005", measure_power_secs=1, api_key=CODECARBON_API_TOKEN, tracking_mode="process")
         
-        self.tracker.start_task("init")
-
-    def shutdown(self) -> None:
-        pass
-
+        project_name = f"flare_edge_{job.get_device_id()}"  # TODO: why is this id
+        print(f"Project name: {project_name}")
+        self.tracker = EmissionsTracker(project_name=project_name, experiment_id="", measure_power_secs=1, api_key=CODECARBON_API_TOKEN, tracking_mode="process")
+        
     def process_task(self, task: TaskResponse) -> dict:
         # TODO: get current round
         # tracker.start_task(f"round_{input_model.current_round}")
@@ -70,6 +66,6 @@ class Cifar10PTTaskProcessorCarbon(Cifar10PTTaskProcessor):
         train_emissions_data = self.tracker.stop_task()
         print(f"train_emissions_data: {train_emissions_data}")        
 
-        result["emissions"] = train_emissions_data
+        result["meta"]["emissions"] = train_emissions_data
          
         return result

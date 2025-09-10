@@ -45,8 +45,18 @@ class ModelUpdateDXOAggregator(Aggregator):
         if dxo.data_kind != DataKind.WEIGHT_DIFF:
             raise ValueError(f"DXO data_kind must be {DataKind.WEIGHT_DIFF}, but got {dxo.data_kind}")
 
+        print(f"########### DXO meta: {dxo.meta.keys()}")
+        print(f"########### DXO data: {dxo.data.keys()}")
+
+        emissions = dxo.meta.get("emissions")
+        if emissions is not None:
+            print("############ Received emissions: ", self.emissions)
+        else:
+            print("############ WARNING: Received emissions: None")
+
         # get weights and add to base
         weight_to_add = dxo.data.get("dict")
+        print(f"########### DXO weight_to_add: {weight_to_add.keys()}")
         # convert to numpy arrays if they are lists
         if weight_to_add is not None:
             for key, value in weight_to_add.items():

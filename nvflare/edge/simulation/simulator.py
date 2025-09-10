@@ -350,6 +350,9 @@ class Simulator:
         self.logger.info(f"Device {device.device_id} is selected ({selection_id}): started training ")
         try:
             result = device.do_task(task_data)
+
+            print(f"########### _do_learn Result: {result.keys()}")
+
             status = EdgeApiStatus.OK
         except Exception as ex:
             self.logger.error(f"exception processing task: {secure_format_exception(ex)}")

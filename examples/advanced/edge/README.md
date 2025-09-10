@@ -15,7 +15,7 @@ This guide supports two distinct workflows:
 
 ## Setup the NVFlare System
 ### Install prerequisites
-Install the required packages for this example:
+Install NVFlare and the required packages for this example:
 ```commandline
 pip install -r requirements.txt
 ```
@@ -75,12 +75,6 @@ cd /tmp/nvflare/workspaces/edge_example/prod_00/
 ./start_all.sh
 ```
 
-To run with real device, we also need to start the proxy:
-```commandline
-cd /tmp/nvflare/workspaces/edge_example/prod_00/scripts/
-./start_rp.sh
-```
-
 By default, it will start listening on port 4321, feel free to adjust that.
 
 ### Simulated Cross-Device Federated Learning
@@ -96,33 +90,14 @@ cd /tmp/nvflare/workspaces/edge_example/prod_00/
 Next, let's generate job configs for cifar10 via EdgeFedBuffRecipe API.
 
 ```commandline
-python3 jobs/pt_job.py --fl_mode sync
-python3 jobs/pt_job.py --fl_mode async
 python3 jobs/pt_job.py --fl_mode sync --no_delay
 python3 jobs/pt_job.py --fl_mode async --no_delay
+python3 jobs/pt_job.py --fl_mode sync
+python3 jobs/pt_job.py --fl_mode async
 ```
 This will generate two job configurations for basic synchronous and asynchronous training in the transfer folder of your admin startup kit (see `--output_dir` option of [pt_job.py](jobs/pt_job.py)):
 - sync assumes ALL devices participate in each round
 - async assumes server updates the global model and immediately dispatch it after receiving ONE device's update.
-
-#### Step3: Submit NVFlare Job
-Start a new console for admin to interact with the NVFlare system:
-```commandline
-/tmp/nvflare/workspaces/edge_example/prod_00/admin@nvidia.com/startup/fl_admin.sh
-```
-
-For simulations performed directly at leaf nodes, simply submit the job:
-```
-submit_job pt_job_sync
-```
-similarly for other jobs:
-```
-submit_job pt_job_async
-submit_job pt_job_sync_no_delay
-submit_job pt_job_async_no_delay
-```
-
-You will then see the simulated devices start receiving the model from the server and complete local trainings.
 
 ### Results
 #### Federated Training v.s. Centralized Training
