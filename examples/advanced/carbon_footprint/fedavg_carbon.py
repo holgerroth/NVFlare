@@ -4,50 +4,78 @@ import pickle
 import re
 from nvflare.app_common.workflows.base_fedavg import BaseFedAvg
 
+
 class FedAvg(BaseFedAvg):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, inet_kwh_per_gb=0.01, grid_kg_per_kwh=0.475, **kwargs):
+        """
+        inet_kwh_per_gb: network energy intensity (kWh/GB). Default 0.01 for fixed-line.
+                         For mobile you might set ~0.13; for backbone ~0.02-0.06, etc.
+        grid_kg_per_kwh: grid emissions factor (kg CO2e / kWh).
+        """
         super().__init__(*args, **kwargs)
         self.client_emissions = {}
         self.client_log_offsets = {}
+        self.inet_kwh_per_gb = inet_kwh_per_gb
+        self.grid_kg_per_kwh = grid_kg_per_kwh
+
+        # Track totals over the whole run (bytes -> GB later)
+        self._total_comm_bytes = 0
 
     def collect_emission_data(self, results):
-        """Collect emission data from the meta information of results.
-        
-        Args:
-            results: List of results from clients containing meta information
-            
-        Returns:
-            dict: Aggregated emission data across all clients
-        """
-
+        """Collect emission data from the meta information of results."""
         for result in results:
-            client_name = result.meta['client_name']
-            if 'EMISSIONS_DATA' in result.meta:
-                emission = result.meta['EMISSIONS_DATA']
-                emission["current_round"] = result.current_round
-                self.info(f"Adding emissions data from {client_name} at round {result.current_round}")
+            client_name = result.meta.get("client_name")
+            if not client_name:
+                self.warning("Result missing client_name in meta; skipping.")
+                continue
 
-                # NEW: Compute communication energy for this round only
-                log_path = f"/groups/lingurarugrp/atapp/NVFlare/examples/advanced/carbon_footprint/run/{client_name}/log.txt"
-                offset = self.client_log_offsets.get(client_name, 0)
+            if "EMISSIONS_DATA" not in result.meta:
+                # Nothing to collect for this client in this round
+                continue
 
-                comm_kb, new_offset = self.parse_comm_since_last(client_name, log_path, offset)
-                comm_energy = comm_kb * 6.894e-8  # kWh
-                comm_emissions = comm_energy * 0.475  # kgCO2
+            emission = result.meta["EMISSIONS_DATA"]
+            emission["current_round"] = getattr(result, "current_round", None)
+            self.info(f"Adding emissions data from {client_name} at round {emission['current_round']}")
 
-                emission["comm_data_kb"] = comm_kb
-                emission["comm_energy"] = comm_energy
-                emission["comm_emissions"] = comm_emissions
+            # Parse new bytes since last offset for this client/round
+            log_path = (
+                f"/groups/lingurarugrp/atapp/NVFlare/examples/advanced/"
+                f"carbon_footprint/run/{client_name}/log.txt"
+            )
+            offset = self.client_log_offsets.get(client_name, 0)
+            comm_kb, new_offset = self.parse_comm_since_last(client_name, log_path, offset)
+            self.client_log_offsets[client_name] = new_offset
 
-                self.client_log_offsets[client_name] = new_offset
-                self.info(
-                    f"[{client_name}][Round {result.current_round}] +{comm_kb:.2f}kB, {comm_energy:.6f}kWh, {comm_emissions:.6f}kgCO2")
+            # Convert KB to GB
+            comm_gb = comm_kb / (1024.0 * 1024.0)
 
-                # Save emissions
-                if client_name not in self.client_emissions:
-                    self.client_emissions[client_name] = [emission]
-                else:
-                    self.client_emissions[client_name].append(emission)
+            # FL formula (per round, per client): E = 2 * D_gb * Inet
+            comm_energy_kwh = 2.0 * comm_gb * self.inet_kwh_per_gb
+            comm_emissions_kg = comm_energy_kwh * self.grid_kg_per_kwh
+
+            # Save fields on the record we persist
+            emission["comm_data_kb"] = comm_kb
+            emission["comm_data_gb"] = comm_gb
+            emission["comm_energy_kwh"] = comm_energy_kwh
+            emission["comm_emissions_kg"] = comm_emissions_kg
+            emission["inet_kwh_per_gb"] = self.inet_kwh_per_gb
+            emission["grid_kg_per_kwh"] = self.grid_kg_per_kwh
+
+            # Running total for final report
+            self._total_comm_bytes += comm_kb * 1024.0
+
+            self.info(
+                f"[{client_name}][Round {emission['current_round']}] "
+                f"+{comm_kb:.2f} kB ({comm_gb:.6f} GB), "
+                f"{comm_energy_kwh:.6f} kWh, {comm_emissions_kg:.6f} kgCO2e "
+                f"(Inet={self.inet_kwh_per_gb} kWh/GB, factor x2)"
+            )
+
+            # Store emissions
+            if client_name not in self.client_emissions:
+                self.client_emissions[client_name] = [emission]
+            else:
+                self.client_emissions[client_name].append(emission)
 
         self.info(f"Added emissions data to client_emissions {len(self.client_emissions)}")
 
@@ -57,16 +85,19 @@ class FedAvg(BaseFedAvg):
         total_bytes = 0
 
         try:
-            with open(log_path, "r") as f:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
                 f.seek(offset)
                 for line in f:
                     match = pattern.search(line)
                     if match:
                         total_bytes += int(match.group(1))
                 new_offset = f.tell()
-            return total_bytes / 1024.0, new_offset  # Return KB and updated offset
+            return total_bytes / 1024.0, new_offset  # KB and updated offset
         except FileNotFoundError:
-            self.warning(f"[CommLogs] Missing log file for {client_name}")
+            self.warning(f"[CommLogs] Missing log file for {client_name}: {log_path}")
+            return 0.0, offset
+        except Exception as e:
+            self.warning(f"[CommLogs] Failed to parse {client_name} log {log_path}: {e}")
             return 0.0, offset
 
     def run(self) -> None:
@@ -83,14 +114,10 @@ class FedAvg(BaseFedAvg):
             clients = self.sample_clients(self.num_clients)
 
             results = self.send_model_and_wait(targets=clients, data=model)
-            
-            # Collect emission data from results
             self.collect_emission_data(results)
 
             aggregate_results = self.aggregate(results)
-
             model = self.update_model(model, aggregate_results)
-
             self.save_model(model)
 
         self.info("Finished FedAvg.")
@@ -98,11 +125,22 @@ class FedAvg(BaseFedAvg):
         self.info(f"Received emissions from {len(self.client_emissions)} clients.")
         for client_name, emissions in self.client_emissions.items():
             self.info(f"Client {client_name}: {len(emissions)} records.")
+
+        # Final FL total using your formula over the whole run:
+        total_gb = (self._total_comm_bytes / (1024.0 ** 3))
+        total_energy_kwh = 2.0 * total_gb * self.inet_kwh_per_gb
+        total_emissions_kg = total_energy_kwh * self.grid_kg_per_kwh
+        self.info(
+            f"[FL Total] data={total_gb:.6f} GB, energy={total_energy_kwh:.6f} kWh, "
+            f"emissions={total_emissions_kg:.6f} kgCO2e "
+            f"(Inet={self.inet_kwh_per_gb} kWh/GB, factor x2)"
+        )
+
         self.save_client_emissions()
 
     def save_client_emissions(self):
-
-        with open('client_emissions.pkl', 'wb') as f:
+        # Persist full structure for later programmatic use
+        with open("client_emissions.pkl", "wb") as f:
             pickle.dump(self.client_emissions, f)
         self.info(f"Saved all client emissions to {os.path.join(os.getcwd(), 'client_emissions.pkl')}")
 
@@ -117,27 +155,45 @@ class FedAvg(BaseFedAvg):
             "ram_energy": [],
             "energy_consumed": [],
             "comm_data_kb": [],
-            "comm_energy": [],
-            "comm_emissions": [],
+            "comm_data_gb": [],
+            "comm_energy_kwh": [],
+            "comm_emissions_kg": [],
+            "inet_kwh_per_gb": [],
+            "grid_kg_per_kwh": [],
         }
 
+        # Flatten into rows
         for client_name, emissions in self.client_emissions.items():
             for emission in emissions:
-                e = emission["train"]
-                out_client_emissions["round"].append(emission["current_round"])
-                out_client_emissions["client"].append(client_name)
-                out_client_emissions["timestamp"].append(e.timestamp)
+                # "train" object is assumed to be present in your EMISSIONS_DATA
+                train = emission.get("train")
+                if train is None:
+                    # If absent, still emit a partial row for comm metrics
+                    out_client_emissions["round"].append(emission.get("current_round"))
+                    out_client_emissions["client"].append(client_name)
+                    out_client_emissions["timestamp"].append(None)
+                    out_client_emissions["emissions"].append(None)
+                    out_client_emissions["cpu_energy"].append(None)
+                    out_client_emissions["gpu_energy"].append(None)
+                    out_client_emissions["ram_energy"].append(None)
+                    out_client_emissions["energy_consumed"].append(None)
+                else:
+                    out_client_emissions["round"].append(emission.get("current_round"))
+                    out_client_emissions["client"].append(client_name)
+                    out_client_emissions["timestamp"].append(getattr(train, "timestamp", None))
+                    out_client_emissions["emissions"].append(getattr(train, "emissions", None))
+                    out_client_emissions["cpu_energy"].append(getattr(train, "cpu_energy", None))
+                    out_client_emissions["gpu_energy"].append(getattr(train, "gpu_energy", None))
+                    out_client_emissions["ram_energy"].append(getattr(train, "ram_energy", None))
+                    out_client_emissions["energy_consumed"].append(getattr(train, "energy_consumed", None))
 
-                out_client_emissions["emissions"].append(e.emissions)
-                out_client_emissions["cpu_energy"].append(e.cpu_energy)
-                out_client_emissions["gpu_energy"].append(e.gpu_energy)
-                out_client_emissions["ram_energy"].append(e.ram_energy)
-                out_client_emissions["energy_consumed"].append(e.energy_consumed)
-
-                # Add communication emissions if present; else default to 0
-                out_client_emissions["comm_data_kb"].append(emission.get("comm_data_kb", 0))
-                out_client_emissions["comm_energy"].append(emission.get("comm_energy", 0))
-                out_client_emissions["comm_emissions"].append(emission.get("comm_emissions", 0))
+                # Comm metrics (present even without "train")
+                out_client_emissions["comm_data_kb"].append(emission.get("comm_data_kb", 0.0))
+                out_client_emissions["comm_data_gb"].append(emission.get("comm_data_gb", 0.0))
+                out_client_emissions["comm_energy_kwh"].append(emission.get("comm_energy_kwh", 0.0))
+                out_client_emissions["comm_emissions_kg"].append(emission.get("comm_emissions_kg", 0.0))
+                out_client_emissions["inet_kwh_per_gb"].append(emission.get("inet_kwh_per_gb", self.inet_kwh_per_gb))
+                out_client_emissions["grid_kg_per_kwh"].append(emission.get("grid_kg_per_kwh", self.grid_kg_per_kwh))
 
         # Save to CSV
         pd.DataFrame(out_client_emissions).to_csv("client_emissions.csv", index=False)
