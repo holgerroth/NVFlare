@@ -1,0 +1,4 @@
+nvflare~=2.7.0rc
+mlflow
+fastdigest==0.4.0
+matplotlib

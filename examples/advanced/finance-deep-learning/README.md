@@ -32,7 +32,18 @@ Install the dependencies and start a Jupyter Lab instance. We recommend doing th
 python -m venv .venv
 source .venv/bin/activate
 
-pip install -r requirements.txt
+pip install jupyterlab
+pip install -r src/stats/requirements.txt
+```
+
+## TensorFlow Users
+```
+pip install -r src/tf/requirements.txt
+```
+
+## PyTorch Users
+```
+pip install -r src/pt/requirements.txt
 ```
 
 Start Jupyter Lab
