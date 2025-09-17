@@ -32,7 +32,7 @@ Install the dependencies and start a Jupyter Lab instance. We recommend doing th
 python -m venv .venv
 source .venv/bin/activate
 
-pip install jupyterlab
+pip install jupyterlab ipywidgets
 pip install -r src/stats/requirements.txt
 ```
 

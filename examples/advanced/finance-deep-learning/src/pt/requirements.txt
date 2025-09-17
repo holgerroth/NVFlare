@@ -1,0 +1,11 @@
+nvflare~=2.7.0rc
+safetensors
+torch>=2.0.0
+torchvision>=0.15.0
+filelock>=3.12.0
+shap
+mlflow
+matplotlib
+numpy
+pandas
+scikit-learn

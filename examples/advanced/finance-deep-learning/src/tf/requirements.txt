@@ -1,8 +1,6 @@
 nvflare~=2.7.0rc
 tensorflow[and-cuda]
 filelock>=3.12.0
-jupyterlab
 shap
 mlflow
-fastdigest==0.4.0
 matplotlib
