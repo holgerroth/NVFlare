@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -124,7 +124,7 @@ def load_csv_data(data_path, feature_columns=None, label_column=None, test_size=
         train_features = scaler.fit_transform(train_features)
         test_features = scaler.transform(test_features)
 
-        # Convert to float32 for TensorFlow
+        # Convert to float32 for TensorFlow/PyTorch
         train_features = train_features.astype(np.float32)
         test_features = test_features.astype(np.float32)
         train_labels = train_labels.astype(np.int32)
@@ -179,7 +179,7 @@ def create_sample_financial_data(test_size=0.2, random_state=42):
     train_features = scaler.fit_transform(train_features)
     test_features = scaler.transform(test_features)
 
-    # Convert to float32 for TensorFlow
+    # Convert to float32 for TensorFlow/PyTorch
     train_features = train_features.astype(np.float32)
     test_features = test_features.astype(np.float32)
     train_labels = train_labels.astype(np.int32)
@@ -288,10 +288,10 @@ def plot_all_attribution_plots(attribution_metrics, plot_prefix="", save_fig=Fal
 
 def compute_attributions(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
     """
-    Compute feature attributions using Captum library (pure PyTorch, no TensorFlow dependency).
+    Compute feature attributions using Captum library for PyTorch models.
     
     This function uses Captum's IntegratedGradients and GradientShap methods to compute
-    feature importance, replacing SHAP which has TensorFlow dependencies.
+    feature importance.
 
     Args:
         model: Trained PyTorch model
