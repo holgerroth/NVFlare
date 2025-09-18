@@ -77,7 +77,7 @@ def main(tracker=None):
     summary_writer = SummaryWriter()
 
     init_emissions_data = tracker.stop_task()
-    
+
     while flare.is_running():
         tracker.start_task(f"round_{input_model.current_round}")
         idle_emissions_data = tracker.stop_task()
@@ -174,12 +174,26 @@ def main(tracker=None):
             "evaluate": evaluate_emissions_data
         }
 
+        params = net.cpu().state_dict()
+
+        # Also measure just the model parameters size
+        model_params_bytes = pickle.dumps(params)
+        model_params_size = len(model_params_bytes)
+        print(f"Model parameters size: {model_params_size} bytes ({model_params_size / 1024:.2f} KB)")
+
+        emissions_data["model_params_size"] = model_params_size
+
         # (7) construct trained FL model
         output_model = flare.FLModel(
-            params=net.cpu().state_dict(),
+            params=params,
             metrics={"accuracy": accuracy},
             meta={"NUM_STEPS_CURRENT_ROUND": steps, "EMISSIONS_DATA": emissions_data},
         )
+
+        # Measure the size of output_model bytes
+        import pickle
+        import sys
+        
         # (8) send model back to NVFlare
         flare.send(output_model)
 

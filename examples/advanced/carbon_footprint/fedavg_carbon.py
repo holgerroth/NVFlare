@@ -38,23 +38,25 @@ class FedAvg(BaseFedAvg):
             self.info(f"Adding emissions data from {client_name} at round {emission['current_round']}")
 
             # Parse new bytes since last offset for this client/round
-            log_path = (
-                f"/groups/lingurarugrp/atapp/NVFlare/examples/advanced/"
-                f"carbon_footprint/run/{client_name}/log.txt"
-            )
-            offset = self.client_log_offsets.get(client_name, 0)
-            comm_kb, new_offset = self.parse_comm_since_last(client_name, log_path, offset)
-            self.client_log_offsets[client_name] = new_offset
+            #log_path = (
+            #    f"/groups/lingurarugrp/atapp/NVFlare/examples/advanced/"
+            #    f"carbon_footprint/run/{client_name}/log.txt"
+            #)
+            #offset = self.client_log_offsets.get(client_name, 0)
+            #comm_kb, new_offset = self.parse_comm_since_last(client_name, log_path, offset)
+            #elf.client_log_offsets[client_name] = new_offset
 
-            # Convert KB to GB
-            comm_gb = comm_kb / (1024.0 * 1024.0)
+            comm_bytes = emission["model_params_size"]
+
+            # Convert B to GB
+            comm_gb = comm_bytes / (1024.0 * 1024.0 * 1024.0)
 
             # FL formula (per round, per client): E = 2 * D_gb * Inet
             comm_energy_kwh = 2.0 * comm_gb * self.inet_kwh_per_gb
             comm_emissions_kg = comm_energy_kwh * self.grid_kg_per_kwh
 
             # Save fields on the record we persist
-            emission["comm_data_kb"] = comm_kb
+            emission["comm_data_b"] = comm_bytes
             emission["comm_data_gb"] = comm_gb
             emission["comm_energy_kwh"] = comm_energy_kwh
             emission["comm_emissions_kg"] = comm_emissions_kg
@@ -62,11 +64,11 @@ class FedAvg(BaseFedAvg):
             emission["grid_kg_per_kwh"] = self.grid_kg_per_kwh
 
             # Running total for final report
-            self._total_comm_bytes += comm_kb * 1024.0
+            self._total_comm_bytes += comm_bytes
 
             self.info(
                 f"[{client_name}][Round {emission['current_round']}] "
-                f"+{comm_kb:.2f} kB ({comm_gb:.6f} GB), "
+                f"+{comm_bytes:.2f} B ({comm_gb:.6f} GB), "
                 f"{comm_energy_kwh:.6f} kWh, {comm_emissions_kg:.6f} kgCO2e "
                 f"(Inet={self.inet_kwh_per_gb} kWh/GB, factor x2)"
             )
