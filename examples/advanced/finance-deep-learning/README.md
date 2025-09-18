@@ -86,10 +86,11 @@ The **isFraud** column describes wether the transactions made by fraudulent agen
 To get started run these notebooks.
 
 1. [Data Generation](./01_generate_data.ipynb)
-1. [Federated Statistics](./02_compute_fed_stats.ipynb)
+2. [Federated Statistics](./02_compute_fed_stats.ipynb)
+3. 
+    a) PyTorch version: [Training a Deep Learning Model for Fraud Detection](./03a_train_pytorch_model.ipynb)
+    
+    b) Tensorflow version: [Training a Deep Learning Model for Fraud Detection](./03b_train_tensorflow_model.ipynb)
 
-2a. PyTorch version: [Training a Deep Learning Model for Fraud Detection](./03a_train_pytorch_model.ipynb)
-2b. Tensorflow version: [Training a Deep Learning Model for Fraud Detection](./03b_train_tensorflow_model.ipynb)
-
->> Note that running the pytorch or tensorflow examples in real production requires the corresponding dependencies to be installed on the server and client machines.
+> Note that running the pytorch or tensorflow examples in real production requires the corresponding dependencies to be installed on the server and client machines.
 
