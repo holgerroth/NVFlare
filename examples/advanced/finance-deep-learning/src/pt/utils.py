@@ -22,8 +22,9 @@ from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import shap
 import torch
+from captum.attr import IntegratedGradients, GradientShap
+from captum.attr import visualization as viz
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
@@ -190,136 +191,124 @@ def create_sample_financial_data(test_size=0.2, random_state=42):
     return (train_features, train_labels), (test_features, test_labels)
 
 
-def plot_shap_summary(shap_metrics, plot_prefix="", save_fig=False):
+def plot_attribution_summary(attribution_metrics, plot_prefix="", save_fig=False):
     """
-    Plot SHAP summary plot from pre-computed metrics.
+    Plot attribution summary plot from pre-computed metrics using Captum.
 
     Args:
-        shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
+        attribution_metrics: Dictionary containing attribution metrics from compute_attributions
         plot_prefix: Prefix for saved plot files
     """
     try:
-        shap_values = shap_metrics["shap_values"]
-        sample_features = shap_metrics["shap_sample_features"]
-        feature_names = shap_metrics["shap_feature_names"]
+        attributions = attribution_metrics["attributions"]
+        sample_features = attribution_metrics["sample_features"]
+        feature_names = attribution_metrics["feature_names"]
 
-        shap_values_for_plot = shap_values
+        attributions_for_plot = attributions
         # Check if we need to handle the shape differently
-        if len(shap_values_for_plot.shape) == 3:
+        if len(attributions_for_plot.shape) == 3:
             # If 3D array (samples, features, classes), take mean across classes
-            shap_values_for_plot = np.mean(shap_values_for_plot, axis=2)
+            attributions_for_plot = np.mean(attributions_for_plot, axis=2)
 
-        plt.figure(figsize=(20, 16))
-        shap.plots.violin(
-            shap_values_for_plot, feature_names=feature_names, show=False, max_display=sample_features.shape[1]
-        )
+        plt.figure(figsize=(5, 4))
+        
+        # Create violin plot similar to SHAP
+        fig, ax = plt.subplots(figsize=(20, 16))
+        ax.violinplot([attributions_for_plot[:, i] for i in range(attributions_for_plot.shape[1])], 
+                      positions=range(attributions_for_plot.shape[1]), vert=False)
+        ax.set_yticks(range(attributions_for_plot.shape[1]))
+        ax.set_yticklabels(feature_names)
+        ax.set_xlabel('Attribution Value')
+        ax.set_title('Feature Attribution Summary')
+        
         if save_fig:
-            save_name = f"{plot_prefix}_shap_summary_plot.png"
+            save_name = f"{plot_prefix}_attribution_summary_plot.png"
             plt.tight_layout()
             os.makedirs(os.path.dirname(save_name), exist_ok=True)
             plt.savefig(save_name, dpi=300, bbox_inches="tight")
             plt.close()
-            print(f"SHAP summary plot saved successfully to {save_name}")
+            print(f"Attribution summary plot saved successfully to {save_name}")
     except Exception as e:
         traceback.print_exc()
-        print(f"Error plotting SHAP summary: {e}")
+        print(f"Error plotting attribution summary: {e}")
 
 
-def plot_shap_feature_importance(shap_metrics, plot_prefix="", save_fig=False):
+def plot_attribution_feature_importance(attribution_metrics, plot_prefix="", save_fig=False):
     """
-    Plot SHAP feature importance bar chart from pre-computed metrics.
+    Plot attribution feature importance bar chart from pre-computed metrics using Captum.
 
     Args:
-        shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
+        attribution_metrics: Dictionary containing attribution metrics from compute_attributions
         plot_prefix: Prefix for saved plot files
     """
     try:
-        shap_values = shap_metrics["shap_values"]
-        feature_names = shap_metrics["shap_feature_names"]
+        attributions = attribution_metrics["attributions"]
+        feature_names = attribution_metrics["feature_names"]
 
-        plt.figure(figsize=(20, 12))
+        plt.figure(figsize=(5, 3))
 
-        # Handle case where shap_values is a list (multiple outputs)
-        shap_values_for_importance = shap_values
+        # Handle case where attributions is a list (multiple outputs)
+        attributions_for_importance = attributions
 
         # Check if we need to handle the shape differently
-        if len(shap_values_for_importance.shape) == 3:
+        if len(attributions_for_importance.shape) == 3:
             # If 3D array (samples, features, classes), take mean across classes
-            shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
+            attributions_for_importance = np.mean(attributions_for_importance, axis=2)
 
-        feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
+        feature_importance = np.mean(np.abs(attributions_for_importance), axis=0)
 
         # Use the same feature names for the bar plot
         plt.barh(feature_names, feature_importance)
-        plt.xlabel("Mean |SHAP value|")
-        plt.title("Feature Importance (SHAP)")
+        plt.xlabel("Mean |Attribution value|")
+        plt.title("Feature Importance (Captum)")
         if save_fig:
-            save_name = f"{plot_prefix}_shap_feature_importance.png"
+            save_name = f"{plot_prefix}_attribution_feature_importance.png"
             plt.tight_layout()
             os.makedirs(os.path.dirname(save_name), exist_ok=True)
             plt.savefig(save_name, dpi=300, bbox_inches="tight")
             plt.close()
-            print(f"SHAP feature importance plot saved successfully to {save_name}")
+            print(f"Attribution feature importance plot saved successfully to {save_name}")
     except Exception as e:
         traceback.print_exc()
-        print(f"Error plotting SHAP feature importance: {e}")
+        print(f"Error plotting attribution feature importance: {e}")
 
 
-def plot_all_shap_plots(shap_metrics, plot_prefix="", save_fig=False):
+def plot_all_attribution_plots(attribution_metrics, plot_prefix="", save_fig=False):
     """
-    Generate all SHAP plots from pre-computed metrics.
+    Generate all attribution plots from pre-computed metrics using Captum.
 
     Args:
-        shap_metrics: Dictionary containing SHAP metrics from compute_shapley_values
+        attribution_metrics: Dictionary containing attribution metrics from compute_attributions
         plot_prefix: Prefix for saved plot files
         save_fig: Whether to save the plots
     """
-    plot_shap_summary(shap_metrics, plot_prefix, save_fig)
-    plot_shap_feature_importance(shap_metrics, plot_prefix, save_fig)
+    plot_attribution_summary(attribution_metrics, plot_prefix, save_fig)
+    plot_attribution_feature_importance(attribution_metrics, plot_prefix, save_fig)
 
 
-class PyTorchModelWrapper:
+def compute_attributions(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
     """
-    Wrapper class to make PyTorch models compatible with SHAP.
-    """
-    def __init__(self, model, device):
-        self.model = model
-        self.device = device
-        
-    def __call__(self, x):
-        """
-        Forward pass for SHAP compatibility.
-        """
-        if isinstance(x, np.ndarray):
-            x = torch.FloatTensor(x).to(self.device)
-        
-        self.model.eval()
-        with torch.no_grad():
-            outputs = self.model(x)
-            # Convert to numpy for SHAP
-            return outputs.cpu().numpy()
-
-
-def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
-    """
-    Compute Shapley values for feature importance using SHAP library.
+    Compute feature attributions using Captum library (pure PyTorch, no TensorFlow dependency).
+    
+    This function uses Captum's IntegratedGradients and GradientShap methods to compute
+    feature importance, replacing SHAP which has TensorFlow dependencies.
 
     Args:
         model: Trained PyTorch model
         test_features: Test feature data
         test_labels: Test label data
-        n_samples: Number of samples to use for SHAP computation (for performance)
+        n_samples: Number of samples to use for attribution computation (for performance)
         plot_prefix: Prefix for saved plot files
         feature_names: List of feature names/column names to display in plots
 
     Returns:
-        dict: Dictionary containing SHAP metrics
+        dict: Dictionary containing attribution metrics
     """
     try:
         # Get device from model
         device = next(model.parameters()).device
         
-        # Sample a subset of test data for SHAP computation (for performance)
+        # Sample a subset of test data for attribution computation (for performance)
         if len(test_features) > n_samples:
             indices = np.random.choice(len(test_features), n_samples, replace=False)
             sample_features = test_features[indices]
@@ -328,19 +317,28 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
             sample_features = test_features
             sample_labels = test_labels
 
-        # Create a background dataset for SHAP (using a subset of the data)
+        # Convert to PyTorch tensors
+        sample_features_tensor = torch.FloatTensor(sample_features).to(device)
+        sample_labels_tensor = torch.LongTensor(sample_labels).to(device)
+
+        # Create a background dataset for GradientShap (using a subset of the data)
         background_size = min(50, len(sample_features))
         background_indices = np.random.choice(len(sample_features), background_size, replace=False)
-        background_data = sample_features[background_indices]
+        background_data = torch.FloatTensor(sample_features[background_indices]).to(device)
 
-        # Create wrapper for PyTorch model
-        model_wrapper = PyTorchModelWrapper(model, device)
+        # Set model to evaluation mode
+        model.eval()
 
-        # Create SHAP explainer for the model
-        explainer = shap.DeepExplainer(model_wrapper, background_data)
+        # Compute attributions using IntegratedGradients
+        ig = IntegratedGradients(model)
+        attributions_ig = ig.attribute(sample_features_tensor, target=sample_labels_tensor, n_steps=50)
+        
+        # Compute attributions using GradientShap for comparison
+        gs = GradientShap(model)
+        attributions_gs = gs.attribute(sample_features_tensor, baselines=background_data, target=sample_labels_tensor)
 
-        # Compute SHAP values
-        shap_values = explainer.shap_values(sample_features)
+        # Use IntegratedGradients as primary attribution method
+        attributions = attributions_ig.cpu().detach().numpy()
 
         # Create feature names for all features
         if feature_names is None:
@@ -352,32 +350,36 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
             feature_names = [f"Feature_{i}" for i in range(sample_features.shape[1])]
 
         print(f"Using feature names: {feature_names}")
-
-        # For multi-output models, we need to specify which output to plot
-        print(f"Plotting single SHAP values, shape: {shap_values.shape}")
-        print(f"Sample features shape for plotting: {sample_features.shape}")
-        print(f"Number of features in sample_features: {sample_features.shape[1]}")
+        print(f"Attributions shape: {attributions.shape}")
+        print(f"Sample features shape: {sample_features.shape}")
         print(f"Background data shape: {background_data.shape}")
 
         # Generate plots using the factored-out plotting functions
-        plot_all_shap_plots(
-            {"shap_values": shap_values, "shap_sample_features": sample_features, "shap_feature_names": feature_names},
+        plot_all_attribution_plots(
+            {"attributions": attributions, "sample_features": sample_features, "feature_names": feature_names},
             plot_prefix,
             save_fig=True,
         )
 
         # Compute feature importance metrics for the return value
-        shap_values_for_importance = shap_values
-        if len(shap_values_for_importance.shape) == 3:
+        attributions_for_importance = attributions
+        if len(attributions_for_importance.shape) == 3:
             # If 3D array (samples, features, classes), take mean across classes
-            shap_values_for_importance = np.mean(shap_values_for_importance, axis=2)
+            attributions_for_importance = np.mean(attributions_for_importance, axis=2)
 
-        feature_importance = np.mean(np.abs(shap_values_for_importance), axis=0)
+        feature_importance = np.mean(np.abs(attributions_for_importance), axis=0)
         total_importance = np.sum(feature_importance)
 
-        # Create metrics dictionary
-        shap_metrics = {
-            "shap_values": shap_values,
+        # Create metrics dictionary (keeping similar structure to SHAP for compatibility)
+        attribution_metrics = {
+            "attributions": attributions,
+            "sample_features": sample_features,
+            "feature_names": feature_names,
+            "feature_importance": feature_importance,
+            "total_importance": float(total_importance),
+            "samples_used": len(sample_features),
+            # Keep SHAP-like keys for backward compatibility
+            "shap_values": attributions,
             "shap_sample_features": sample_features,
             "shap_feature_names": feature_names,
             "shap_feature_importance": feature_importance,
@@ -385,17 +387,24 @@ def compute_shapley_values(model, test_features, test_labels, n_samples=100, plo
             "shap_samples_used": len(sample_features),
         }
 
-        # print(f"SHAP metrics: {shap_metrics}")
+        # Save the attribution values to a file using numpy
+        np.save(f"{plot_prefix}_attribution_metrics.npy", attribution_metrics)
 
-        # Save the SHAP values to a file using numpy
-        np.save(f"{plot_prefix}_shap_metrics.npy", shap_metrics)
-
-        return shap_metrics
+        return attribution_metrics
 
     except Exception as e:
-        print(f"Error computing SHAP values: {e}")
-        # Return default metrics if SHAP computation fails
+        print(f"Error computing attributions: {e}")
+        traceback.print_exc()
+        # Return default metrics if attribution computation fails
         return {}
+
+
+# Alias for backward compatibility
+def compute_shapley_values(model, test_features, test_labels, n_samples=100, plot_prefix="", feature_names=None):
+    """
+    Backward compatibility alias for compute_attributions.
+    """
+    return compute_attributions(model, test_features, test_labels, n_samples, plot_prefix, feature_names)
 
 
 class MLflowCallback:

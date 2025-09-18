@@ -168,8 +168,7 @@ def main():
 
         # (6) construct trained FL model (A dict of {parameter name: parameter weights} from the PyTorch model)
         # Combine accuracy and SHAP metrics
-        model_params = {name: param.cpu().detach().numpy() for name, param in model.named_parameters()}
-        output_model = flare.FLModel(params=model_params, metrics=metrics)
+        output_model = flare.FLModel(params=model.cpu().state_dict(), metrics=metrics)
         
         # (7) send model back to NVFlare
         flare.send(output_model)
