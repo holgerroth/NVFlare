@@ -74,10 +74,15 @@ def main(tracker=None):
 
     net = Net()
 
-    init_emissions_data = tracker.stop_task()
-
     summary_writer = SummaryWriter()
+
+    init_emissions_data = tracker.stop_task()
+    
     while flare.is_running():
+        tracker.start_task(f"round_{input_model.current_round}")
+        idle_emissions_data = tracker.stop_task()
+        print(f"idle_emissions_data: {idle_emissions_data}")
+
         # (3) receives FLModel from NVFlare
         input_model = flare.receive()
         print(f"current_round={input_model.current_round}")
@@ -163,6 +168,7 @@ def main(tracker=None):
         print(f"evaluate_emissions_data: {evaluate_emissions_data}")
 
         emissions_data = {
+            "idle": idle_emissions_data,
             "init": init_emissions_data if input_model.current_round == 0 else None,
             "train": train_emissions_data,
             "evaluate": evaluate_emissions_data
