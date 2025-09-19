@@ -7,6 +7,7 @@ import torchvision
 import torchvision.transforms as transforms
 from codecarbon import OfflineEmissionsTracker, EmissionsTracker
 import argparse
+import pickle
 
 
 class Net(nn.Module):
@@ -79,7 +80,7 @@ def main(tracker=None):
     init_emissions_data = tracker.stop_task()
 
     while flare.is_running():
-        tracker.start_task(f"round_{input_model.current_round}")
+        tracker.start_task(f"idle_time")
         idle_emissions_data = tracker.stop_task()
         print(f"idle_emissions_data: {idle_emissions_data}")
 
@@ -189,10 +190,6 @@ def main(tracker=None):
             metrics={"accuracy": accuracy},
             meta={"NUM_STEPS_CURRENT_ROUND": steps, "EMISSIONS_DATA": emissions_data},
         )
-
-        # Measure the size of output_model bytes
-        import pickle
-        import sys
         
         # (8) send model back to NVFlare
         flare.send(output_model)
