@@ -37,7 +37,7 @@ import nvflare.client as flare
 from nvflare.client.tracking import SummaryWriter
 
 # (optional) set a fix place so we don't need to download everytime
-DATASET_PATH = "/tmp/nvflare/data"
+DATASET_PATH = "/groups/lingurarugrp/atapp/NVFlare/examples/advanced/carbon_footprint/data"
 # If available, we use GPU to speed things up.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -84,41 +84,32 @@ def main(tracker=None):
         idle_emissions_data = tracker.stop_task()
         print(f"idle_emissions_data: {idle_emissions_data}")
 
-        # (3) receives FLModel from NVFlare
         input_model = flare.receive()
         print(f"current_round={input_model.current_round}")
         tracker.start_task(f"round_{input_model.current_round}")
 
-        # (4) loads model from NVFlare
         net.load_state_dict(input_model.params)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-        # (optional) use GPU to speed things up
         net.to(DEVICE)
-        # (optional) calculate total steps
         steps = epochs * len(trainloader)
         for epoch in range(epochs):  # loop over the dataset multiple times
 
             running_loss = 0.0
             for i, data in enumerate(trainloader, 0):
-                # get the inputs; data is a list of [inputs, labels]
-                # (optional) use GPU to speed things up
                 inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
 
-                # zero the parameter gradients
                 optimizer.zero_grad()
 
-                # forward + backward + optimize
                 outputs = net(inputs)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
 
-                # print statistics
                 running_loss += loss.item()
-                if i % 100 == 99:  # print every 100 mini-batches
+                if i % 100 == 99:
                     print(f"{client_name} [Round {input_model.current_round}, Epoch: {epoch + 1}, Step: {i + 1:5d}] loss: {running_loss / 100:.3f}")
                     global_step = input_model.current_round * steps + epoch * len(trainloader) + i
 
@@ -137,24 +128,17 @@ def main(tracker=None):
         train_emissions_data = tracker.stop_task()
         print(f"train_emissions_data: {train_emissions_data}")
 
-        # (5) wraps evaluation logic into a method to re-use for
-        #       evaluation on both trained and received model
         def evaluate(input_weights):
             net = Net()
             net.load_state_dict(input_weights)
-            # (optional) use GPU to speed things up
             net.to(DEVICE)
 
             correct = 0
             total = 0
-            # since we're not training, we don't need to calculate the gradients for our outputs
             with torch.no_grad():
                 for data in testloader:
-                    # (optional) use GPU to speed things up
                     images, labels = data[0].to(DEVICE), data[1].to(DEVICE)
-                    # calculate outputs by running images through the network
                     outputs = net(images)
-                    # the class with the highest energy is what we choose as prediction
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
@@ -162,7 +146,6 @@ def main(tracker=None):
             print(f"Accuracy of the network on the 10000 test images: {100 * correct // total} %")
             return 100 * correct // total
 
-        # (6) evaluate on received model for model selection
         tracker.start_task("evaluate")
         accuracy = evaluate(input_model.params)
         evaluate_emissions_data = tracker.stop_task()
@@ -176,30 +159,24 @@ def main(tracker=None):
         }
 
         params = net.cpu().state_dict()
-
-        # Also measure just the model parameters size
         model_params_bytes = pickle.dumps(params)
         model_params_size = len(model_params_bytes)
         print(f"Model parameters size: {model_params_size} bytes ({model_params_size / 1024:.2f} KB)")
 
         emissions_data["model_params_size"] = model_params_size
 
-        # (7) construct trained FL model
         output_model = flare.FLModel(
             params=params,
             metrics={"accuracy": accuracy},
             meta={"NUM_STEPS_CURRENT_ROUND": steps, "EMISSIONS_DATA": emissions_data},
         )
         
-        # (8) send model back to NVFlare
         flare.send(output_model)
 
-    # stop emissions tracking
     tracker.stop()
 
 
 if __name__ == "__main__":
-    # Parse command line arguments
     parser = argparse.ArgumentParser(description='CIFAR10 FL Training with Carbon Footprint Tracking')
     parser.add_argument('--country_iso_code', type=str, default='USA',
                       help='3-letter ISO code for the country to use for carbon emissions calculation')

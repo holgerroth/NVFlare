@@ -17,12 +17,9 @@ class FedAvg(BaseFedAvg):
         self.client_log_offsets = {}
         self.inet_kwh_per_gb = inet_kwh_per_gb
         self.grid_kg_per_kwh = grid_kg_per_kwh
-
-        # Track totals over the whole run (bytes -> GB later)
         self._total_comm_bytes = 0
 
     def collect_emission_data(self, results):
-        """Collect emission data from the meta information of results."""
         for result in results:
             client_name = result.meta.get("client_name")
             if not client_name:
@@ -30,21 +27,11 @@ class FedAvg(BaseFedAvg):
                 continue
 
             if "EMISSIONS_DATA" not in result.meta:
-                # Nothing to collect for this client in this round
                 continue
 
             emission = result.meta["EMISSIONS_DATA"]
             emission["current_round"] = getattr(result, "current_round", None)
             self.info(f"Adding emissions data from {client_name} at round {emission['current_round']}")
-
-            # Parse new bytes since last offset for this client/round
-            #log_path = (
-            #    f"/groups/lingurarugrp/atapp/NVFlare/examples/advanced/"
-            #    f"carbon_footprint/run/{client_name}/log.txt"
-            #)
-            #offset = self.client_log_offsets.get(client_name, 0)
-            #comm_kb, new_offset = self.parse_comm_since_last(client_name, log_path, offset)
-            #elf.client_log_offsets[client_name] = new_offset
 
             comm_bytes = emission["model_params_size"]
 
@@ -55,15 +42,12 @@ class FedAvg(BaseFedAvg):
             comm_energy_kwh = 2.0 * comm_gb * self.inet_kwh_per_gb
             comm_emissions_kg = comm_energy_kwh * self.grid_kg_per_kwh
 
-            # Save fields on the record we persist
             emission["comm_data_b"] = comm_bytes
             emission["comm_data_gb"] = comm_gb
             emission["comm_energy_kwh"] = comm_energy_kwh
             emission["comm_emissions_kg"] = comm_emissions_kg
             emission["inet_kwh_per_gb"] = self.inet_kwh_per_gb
             emission["grid_kg_per_kwh"] = self.grid_kg_per_kwh
-
-            # Running total for final report
             self._total_comm_bytes += comm_bytes
 
             self.info(
@@ -73,7 +57,6 @@ class FedAvg(BaseFedAvg):
                 f"(Inet={self.inet_kwh_per_gb} kWh/GB, factor x2)"
             )
 
-            # Store emissions
             if client_name not in self.client_emissions:
                 self.client_emissions[client_name] = [emission]
             else:
@@ -82,7 +65,6 @@ class FedAvg(BaseFedAvg):
         self.info(f"Added emissions data to client_emissions {len(self.client_emissions)}")
 
     def parse_comm_since_last(self, client_name, log_path, offset):
-        """Parse new communication entries from log file since last offset."""
         pattern = re.compile(r"size:.*\((\d+) Bytes\)")
         total_bytes = 0
 
@@ -141,38 +123,54 @@ class FedAvg(BaseFedAvg):
         self.save_client_emissions()
 
     def save_client_emissions(self):
-        # Persist full structure for later programmatic use
         with open("client_emissions.pkl", "wb") as f:
             pickle.dump(self.client_emissions, f)
         self.info(f"Saved all client emissions to {os.path.join(os.getcwd(), 'client_emissions.pkl')}")
 
-        # Prepare selected fields for CSV export
         out_client_emissions = {
             "round": [],
             "timestamp": [],
             "client": [],
+            # Train (CodeCarbon "train" task)
             "emissions": [],
             "cpu_energy": [],
             "gpu_energy": [],
             "ram_energy": [],
             "energy_consumed": [],
-            "comm_data_kb": [],
+            # Communication (GB-based only)
             "comm_data_gb": [],
             "comm_energy_kwh": [],
             "comm_emissions_kg": [],
             "inet_kwh_per_gb": [],
             "grid_kg_per_kwh": [],
+            # Idle (CodeCarbon "idle" task)
+            "idle_timestamp": [],
+            "idle_emissions": [],
+            "idle_cpu_energy": [],
+            "idle_gpu_energy": [],
+            "idle_ram_energy": [],
+            "idle_energy_consumed": [],
+            "idle_duration_sec": [],
         }
 
-        # Flatten into rows
+        def _get(x, name, alt=None):
+            try:
+                return getattr(x, name)
+            except Exception:
+                try:
+                    return x.get(name, alt)
+                except Exception:
+                    return alt
+
         for client_name, emissions in self.client_emissions.items():
             for emission in emissions:
-                # "train" object is assumed to be present in your EMISSIONS_DATA
                 train = emission.get("train")
+                idle = emission.get("idle")
+                out_client_emissions["round"].append(emission.get("current_round"))
+                out_client_emissions["client"].append(client_name)
+
+                # Train metrics
                 if train is None:
-                    # If absent, still emit a partial row for comm metrics
-                    out_client_emissions["round"].append(emission.get("current_round"))
-                    out_client_emissions["client"].append(client_name)
                     out_client_emissions["timestamp"].append(None)
                     out_client_emissions["emissions"].append(None)
                     out_client_emissions["cpu_energy"].append(None)
@@ -180,22 +178,40 @@ class FedAvg(BaseFedAvg):
                     out_client_emissions["ram_energy"].append(None)
                     out_client_emissions["energy_consumed"].append(None)
                 else:
-                    out_client_emissions["round"].append(emission.get("current_round"))
-                    out_client_emissions["client"].append(client_name)
-                    out_client_emissions["timestamp"].append(getattr(train, "timestamp", None))
-                    out_client_emissions["emissions"].append(getattr(train, "emissions", None))
-                    out_client_emissions["cpu_energy"].append(getattr(train, "cpu_energy", None))
-                    out_client_emissions["gpu_energy"].append(getattr(train, "gpu_energy", None))
-                    out_client_emissions["ram_energy"].append(getattr(train, "ram_energy", None))
-                    out_client_emissions["energy_consumed"].append(getattr(train, "energy_consumed", None))
+                    out_client_emissions["timestamp"].append(_get(train, "timestamp"))
+                    out_client_emissions["emissions"].append(_get(train, "emissions"))
+                    out_client_emissions["cpu_energy"].append(_get(train, "cpu_energy"))
+                    out_client_emissions["gpu_energy"].append(_get(train, "gpu_energy"))
+                    out_client_emissions["ram_energy"].append(_get(train, "ram_energy"))
+                    out_client_emissions["energy_consumed"].append(_get(train, "energy_consumed"))
 
-                # Comm metrics (present even without "train")
-                out_client_emissions["comm_data_kb"].append(emission.get("comm_data_kb", 0.0))
+                # Communication (GB only)
                 out_client_emissions["comm_data_gb"].append(emission.get("comm_data_gb", 0.0))
                 out_client_emissions["comm_energy_kwh"].append(emission.get("comm_energy_kwh", 0.0))
                 out_client_emissions["comm_emissions_kg"].append(emission.get("comm_emissions_kg", 0.0))
                 out_client_emissions["inet_kwh_per_gb"].append(emission.get("inet_kwh_per_gb", self.inet_kwh_per_gb))
                 out_client_emissions["grid_kg_per_kwh"].append(emission.get("grid_kg_per_kwh", self.grid_kg_per_kwh))
+
+                # Idle metrics
+                if idle is None:
+                    out_client_emissions["idle_timestamp"].append(None)
+                    out_client_emissions["idle_emissions"].append(None)
+                    out_client_emissions["idle_cpu_energy"].append(None)
+                    out_client_emissions["idle_gpu_energy"].append(None)
+                    out_client_emissions["idle_ram_energy"].append(None)
+                    out_client_emissions["idle_energy_consumed"].append(None)
+                    out_client_emissions["idle_duration_sec"].append(None)
+                else:
+                    out_client_emissions["idle_timestamp"].append(_get(idle, "timestamp"))
+                    out_client_emissions["idle_emissions"].append(_get(idle, "emissions"))
+                    out_client_emissions["idle_cpu_energy"].append(_get(idle, "cpu_energy"))
+                    out_client_emissions["idle_gpu_energy"].append(_get(idle, "gpu_energy"))
+                    out_client_emissions["idle_ram_energy"].append(_get(idle, "ram_energy"))
+                    out_client_emissions["idle_energy_consumed"].append(_get(idle, "energy_consumed"))
+                    duration = _get(idle, "duration")
+                    if duration is None:
+                        duration = _get(idle, "duration_sec", _get(idle, "duration_seconds"))
+                    out_client_emissions["idle_duration_sec"].append(duration)
 
         # Save to CSV
         pd.DataFrame(out_client_emissions).to_csv("client_emissions.csv", index=False)
