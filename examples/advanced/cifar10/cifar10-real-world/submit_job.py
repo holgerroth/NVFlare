@@ -17,7 +17,7 @@ import json
 import os
 import uuid
 
-from nvflare.fuel.flare_api.flare_api import new_insecure_session
+from nvflare.fuel.flare_api.flare_api import new_insecure_session, new_secure_session
 
 
 def read_json(filename):
@@ -35,6 +35,7 @@ def write_json(data, filename):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--admin_dir", type=str, default="./admin/", help="Path to admin directory.")
+    parser.add_argument("--username", type=str, default="admin@nvidia.com", help="Admin username.")
     parser.add_argument("--job", type=str, default="cifar10_fedavg", help="Path to job")
     parser.add_argument("--poc", action="store_true", help="Whether admin does not use SSL.")
     parser.add_argument("--central", action="store_true", help="Whether we assume all data is centralized.")
@@ -55,7 +56,10 @@ def main():
     assert os.path.isdir(args.admin_dir), f"admin directory does not exist at {args.admin_dir}"
 
     # Initialize the runner
-    sess = new_insecure_session(startup_kit_location=args.admin_dir)
+    if args.poc:
+        sess = new_insecure_session(startup_kit_location=args.admin_dir)
+    else:
+        sess = new_secure_session(username=args.username, startup_kit_location=args.admin_dir)
 
     # update alpha and split data dir
     job_name = os.path.basename(args.job)

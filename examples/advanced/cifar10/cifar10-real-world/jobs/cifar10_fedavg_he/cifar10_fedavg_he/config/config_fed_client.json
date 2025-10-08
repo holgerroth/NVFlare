@@ -1,69 +1,74 @@
 {
-  "format_version": 2,
-
-  "TRAIN_SPLIT_ROOT": "/tmp/cifar10_splits",
-  "AGGREGATION_EPOCHS": 4,
-
-  "executors": [
-    {
-      "tasks": [
-        "train", "submit_model", "validate"
-      ],
-      "executor": {
-        "id": "Executor",
-        "path": "nvflare.app_common.executors.model_learner_executor.ModelLearnerExecutor",
-        "args": {
-          "learner_id": "cifar10-learner"
+    "format_version": 2,
+    "TRAIN_SPLIT_ROOT": "/tmp/cifar10_splits/cifar10_fedavg_he_alpha1.0_74813856-8112-4c70-9ee2-d85c4f7b8b3f",
+    "AGGREGATION_EPOCHS": 4,
+    "executors": [
+        {
+            "tasks": [
+                "train",
+                "submit_model",
+                "validate"
+            ],
+            "executor": {
+                "id": "Executor",
+                "path": "nvflare.app_common.executors.model_learner_executor.ModelLearnerExecutor",
+                "args": {
+                    "learner_id": "cifar10-learner"
+                }
+            }
         }
-      }
-    }
-  ],
-  "task_result_filters": [
-    {
-      "tasks": ["train"],
-      "filters":[
-          {
-          "path": "nvflare.app_opt.he.model_encryptor.HEModelEncryptor",
-          "args": {
-            "weigh_by_local_iter": true
-          }
+    ],
+    "task_result_filters": [
+        {
+            "tasks": [
+                "train"
+            ],
+            "filters": [
+                {
+                    "path": "nvflare.app_opt.he.model_encryptor.HEModelEncryptor",
+                    "args": {
+                        "weigh_by_local_iter": true
+                    }
+                }
+            ]
+        },
+        {
+            "tasks": [
+                "submit_model"
+            ],
+            "filters": [
+                {
+                    "path": "nvflare.app_opt.he.model_encryptor.HEModelEncryptor",
+                    "args": {
+                        "weigh_by_local_iter": false
+                    }
+                }
+            ]
         }
-      ]
-    },
-    {
-      "tasks": ["submit_model"],
-      "filters":[
-          {
-          "path": "nvflare.app_opt.he.model_encryptor.HEModelEncryptor",
-          "args": {
-            "weigh_by_local_iter": false
-          }
+    ],
+    "task_data_filters": [
+        {
+            "tasks": [
+                "train",
+                "validate"
+            ],
+            "filters": [
+                {
+                    "path": "nvflare.app_opt.he.model_decryptor.HEModelDecryptor",
+                    "args": {}
+                }
+            ]
         }
-      ]
-    }
-  ],
-  "task_data_filters": [
-    {
-      "tasks": ["train", "validate"],
-      "filters":[
-          {
-          "path": "nvflare.app_opt.he.model_decryptor.HEModelDecryptor",
-          "args": {
-          }
+    ],
+    "components": [
+        {
+            "id": "cifar10-learner",
+            "path": "pt.learners.cifar10_model_learner.CIFAR10ModelLearner",
+            "args": {
+                "train_idx_root": "{TRAIN_SPLIT_ROOT}",
+                "aggregation_epochs": "{AGGREGATION_EPOCHS}",
+                "lr": 0.01
+            }
         }
-      ]
-    }
-  ],
-
-  "components": [
-    {
-      "id": "cifar10-learner",
-      "path": "pt.learners.cifar10_model_learner.CIFAR10ModelLearner",
-      "args": {
-        "train_idx_root": "{TRAIN_SPLIT_ROOT}",
-        "aggregation_epochs": "{AGGREGATION_EPOCHS}",
-        "lr": 1e-2
-      }
-    }
-  ]
+    ]
 }

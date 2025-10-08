@@ -1,5 +1,5 @@
 {
-    "name": "cifar10_fedavg_he",
+    "name": "cifar10_fedavg_he_alpha1.0",
     "resource_spec": {
         "site-1": {
             "num_of_gpus": 1,

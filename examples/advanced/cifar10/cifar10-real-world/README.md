@@ -60,7 +60,7 @@ memory, are available on the host system. To find the available number of
 GPUs, run
 ```
 export N_GPU=$(nvidia-smi --list-gpus | wc -l)
-echo "There are ${N_GPU} GPUs available."
+echo "There are ${N_GPU} GPU(s) available."
 ```
 We can change the clients' local `GPUResourceManager` configurations to 
 show the available `N_GPU` GPUs at each client.
