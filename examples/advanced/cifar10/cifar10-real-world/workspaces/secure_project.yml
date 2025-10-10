@@ -41,7 +41,11 @@ builders:
   - path: nvflare.lighter.impl.workspace.WorkspaceBuilder
   - path: nvflare.lighter.impl.static_file.StaticFileBuilder
     args:
+      # config_folder can be set to inform NVIDIA FLARE where to get configuration
       config_folder: config
+
+      # scheme for communication driver (grpc, tcp, http).
+      scheme: http
   - path: nvflare.lighter.impl.he.HEBuilder
     args:
       poly_modulus_degree: 8192
@@ -50,3 +54,4 @@ builders:
       scheme: CKKS
   - path: nvflare.lighter.impl.cert.CertBuilder
   - path: nvflare.lighter.impl.signature.SignatureBuilder
+
