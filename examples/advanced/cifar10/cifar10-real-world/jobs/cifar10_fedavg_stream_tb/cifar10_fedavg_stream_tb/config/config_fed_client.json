@@ -1,6 +1,6 @@
 {
     "format_version": 2,
-    "TRAIN_SPLIT_ROOT": "/tmp/cifar10_splits",
+    "TRAIN_SPLIT_ROOT": "/tmp/cifar10_splits/cifar10_fedavg_stream_tb_alpha1.0_998d2a56-3a1a-4aa6-9b24-4717d7f70914",
     "AGGREGATION_EPOCHS": 4,
     "executors": [
         {

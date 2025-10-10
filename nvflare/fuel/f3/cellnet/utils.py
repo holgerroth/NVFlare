@@ -156,7 +156,14 @@ def encode_payload(message: Message, encoding_key=MessageHeaderKey.PAYLOAD_ENCOD
             encoding = Encoding.BYTES
         else:
             encoding = Encoding.FOBS
-            message.payload = fobs.dumps(message.payload, buffer_list=True, fobs_ctx=fobs_ctx)
+            # Disable externalization by setting very high threshold (1GB)
+            # Cell protocol doesn't support LOBS format with externalized datums
+            message.payload = fobs.dumps(
+                message.payload, 
+                buffer_list=True, 
+                max_value_size=1024*1024*1024,  # 1GB threshold
+                fobs_ctx=fobs_ctx
+            )
         message.set_header(encoding_key, encoding)
 
     size = buffer_len(message.payload)

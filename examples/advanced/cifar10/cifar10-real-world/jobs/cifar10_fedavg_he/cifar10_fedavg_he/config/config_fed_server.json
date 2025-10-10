@@ -2,7 +2,7 @@
     "format_version": 2,
     "min_clients": 8,
     "num_rounds": 50,
-    "TRAIN_SPLIT_ROOT": "/tmp/cifar10_splits/cifar10_fedavg_he_alpha1.0_05ac02cb-ef48-4499-b45f-9403b568686e",
+    "TRAIN_SPLIT_ROOT": "/tmp/cifar10_splits/cifar10_fedavg_he_alpha1.0_c5276f57-a9cb-4f12-afa8-afa086a89743",
     "alpha": 1.0,
     "server": {
         "heart_beat_timeout": 600
@@ -86,8 +86,8 @@
             "path": "nvflare.app_opt.he.cross_site_model_eval.HECrossSiteModelEval",
             "args": {
                 "model_locator_id": "model_locator",
-                "submit_model_timeout": 600,
-                "validation_timeout": 6000,
+                "submit_model_timeout": 0,
+                "validation_timeout": 0,
                 "cleanup_models": true
             }
         }

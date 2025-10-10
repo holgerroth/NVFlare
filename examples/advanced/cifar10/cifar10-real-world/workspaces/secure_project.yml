@@ -45,7 +45,7 @@ builders:
       config_folder: config
 
       # scheme for communication driver (grpc, tcp, http).
-      scheme: http
+      scheme: grpc
   - path: nvflare.lighter.impl.he.HEBuilder
     args:
       poly_modulus_degree: 8192

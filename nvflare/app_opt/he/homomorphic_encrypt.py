@@ -69,6 +69,9 @@ def deserialize_nested_dict(d, context):
         if isinstance(v, dict):
             deserialize_nested_dict(v, context)
         else:
-            if isinstance(v, bytes):
+            if isinstance(v, (bytes, memoryview)):
+                # Convert memoryview to bytes if necessary
+                if isinstance(v, memoryview):
+                    v = bytes(v)
                 d[k] = ts.ckks_vector_from(context, v)
     return d
