@@ -120,12 +120,13 @@ def _ensure_round_client_types(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _save_fig(prefix: str):
-    os.makedirs("figs", exist_ok=True)
+    pdir = "figLow"
+    os.makedirs(pdir, exist_ok=True)
     plt.tight_layout()
-    plt.savefig(f"figs/{prefix}.png", dpi=200)
-    plt.savefig(f"figs/{prefix}.svg")
+    plt.savefig(f"{pdir}/{prefix}.png", dpi=200)
+    plt.savefig(f"{pdir}/{prefix}.svg")
     plt.close()
-    print(f"Plot saved as 'figs/{prefix}.png' and '.svg'")
+    print(f"Plot saved as '{pdir}/{prefix}.png' and '.svg'")
 
 
 def plot_emissions(emissions_csv_file: str, emissions_pkl_file: Optional[str] = None):
@@ -256,74 +257,74 @@ def plot_emissions(emissions_csv_file: str, emissions_pkl_file: Optional[str] = 
         _save_fig(metric.lower().replace(" ", "_") + "_plot")
 
     
-if "round" in df.columns:
-    # Choose aggregation per metric
-    sum_metrics = [
-        "comm_data_gb", "comm_energy_kwh", "comm_emissions_kg",
-        "cpu_energy", "gpu_energy", "ram_energy", "energy_consumed",
-        "idle_emissions", "idle_cpu_energy", "idle_gpu_energy",
-        "idle_ram_energy", "idle_energy_consumed", "idle_duration_sec",
-        "total_energy_kwh", "total_emissions_kg",
-    ]
-    mean_metrics = [
-        "round_total_seconds", "train_seconds", "eval_seconds",
-        "train_energy_kwh_per_client", "train_emissions_kg_per_client",
-    ]
-    max_metrics = ["n_clients_round"]
-
-    # Build a dict of available columns -> aggregation
-    agg_plan = {}
-    for col in df.columns:
-        if col in sum_metrics:
-            agg_plan[col] = "sum"
-        elif col in mean_metrics:
-            agg_plan[col] = "mean"
-        elif col in max_metrics:
-            agg_plan[col] = "max"
-
-    if agg_plan:
-        totals = df.groupby("round", as_index=False).agg(agg_plan)
-
-        for metric, how in agg_plan.items():
-            if metric not in totals.columns or totals[metric].dropna().empty:
-                continue
-            plt.figure(figsize=(12, 6))
-            sns.lineplot(data=totals, x="round", y=metric, marker="o", linewidth=1.8)
-            title_prefix = "Average" if how == "mean" else ("Max" if how == "max" else "Total")
-            title = f"{title_prefix} {metric.replace('_',' ').title()} Over Time (All Clients)"
-            ylabel = f"{title_prefix} " + metric.replace("_", " ").title()
-            units = unit_map.get(metric, "")
-            if units:
-                ylabel += f" [{units}]"
-            plt.title(title)
-            plt.xlabel("Round")
-            plt.ylabel(ylabel)
-            plt.grid(True, axis="y", linestyle="--", alpha=0.4)
-            _save_fig(f"{title_prefix.lower()}_" + metric.lower().replace(" ", "_") + "_plot")
-
-    try:
-        need = {"energy_consumed", "comm_energy_kwh", "idle_energy_consumed", "round"}
-        if need.issubset(df.columns):
-            st = df.groupby("round", as_index=False)[
-                ["energy_consumed", "comm_energy_kwh", "idle_energy_consumed"]
-            ].sum(numeric_only=True)
-            plt.figure(figsize=(12, 6))
-            plt.stackplot(
-                st["round"],
-                st["energy_consumed"].fillna(0),
-                st["comm_energy_kwh"].fillna(0),
-                st["idle_energy_consumed"].fillna(0),
-                labels=["Train Energy (kWh)", "Comm Energy (kWh)", "Idle Energy (kWh)"],
-            )
-            plt.legend(loc="upper left")
-            plt.title("Energy Breakdown Over Time (All Clients)")
-            plt.xlabel("Round")
-            plt.ylabel("kWh")
-            plt.grid(True, axis="y", linestyle="--", alpha=0.5)
-            _save_fig("total_energy_breakdown_stacked")
-    except Exception as e:
-        print(f"Skipping stacked breakdown: {e}")
-
+    if "round" in df.columns:
+        # Choose aggregation per metric
+        sum_metrics = [
+            "comm_data_gb", "comm_energy_kwh", "comm_emissions_kg",
+            "cpu_energy", "gpu_energy", "ram_energy", "energy_consumed",
+            "idle_emissions", "idle_cpu_energy", "idle_gpu_energy",
+            "idle_ram_energy", "idle_energy_consumed", "idle_duration_sec",
+            "total_energy_kwh", "total_emissions_kg",
+        ]
+        mean_metrics = [
+            "round_total_seconds", "train_seconds", "eval_seconds",
+            "train_energy_kwh_per_client", "train_emissions_kg_per_client",
+        ]
+        max_metrics = ["n_clients_round"]
+    
+        # Build a dict of available columns -> aggregation
+        agg_plan = {}
+        for col in df.columns:
+            if col in sum_metrics:
+                agg_plan[col] = "sum"
+            elif col in mean_metrics:
+                agg_plan[col] = "mean"
+            elif col in max_metrics:
+                agg_plan[col] = "max"
+    
+        if agg_plan:
+            totals = df.groupby("round", as_index=False).agg(agg_plan)
+    
+            for metric, how in agg_plan.items():
+                if metric not in totals.columns or totals[metric].dropna().empty:
+                    continue
+                plt.figure(figsize=(12, 6))
+                sns.lineplot(data=totals, x="round", y=metric, marker="o", linewidth=1.8)
+                title_prefix = "Average" if how == "mean" else ("Max" if how == "max" else "Total")
+                title = f"{title_prefix} {metric.replace('_',' ').title()} Over Time (All Clients)"
+                ylabel = f"{title_prefix} " + metric.replace("_", " ").title()
+                units = unit_map.get(metric, "")
+                if units:
+                    ylabel += f" [{units}]"
+                plt.title(title)
+                plt.xlabel("Round")
+                plt.ylabel(ylabel)
+                plt.grid(True, axis="y", linestyle="--", alpha=0.4)
+                _save_fig(f"{title_prefix.lower()}_" + metric.lower().replace(" ", "_") + "_plot")
+    
+        try:
+            need = {"energy_consumed", "comm_energy_kwh", "idle_energy_consumed", "round"}
+            if need.issubset(df.columns):
+                st = df.groupby("round", as_index=False)[
+                    ["energy_consumed", "comm_energy_kwh", "idle_energy_consumed"]
+                ].sum(numeric_only=True)
+                plt.figure(figsize=(12, 6))
+                plt.stackplot(
+                    st["round"],
+                    st["energy_consumed"].fillna(0),
+                    st["comm_energy_kwh"].fillna(0),
+                    st["idle_energy_consumed"].fillna(0),
+                    labels=["Train Energy (kWh)", "Comm Energy (kWh)", "Idle Energy (kWh)"],
+                )
+                plt.legend(loc="upper left")
+                plt.title("Energy Breakdown Over Time (All Clients)")
+                plt.xlabel("Round")
+                plt.ylabel("kWh")
+                plt.grid(True, axis="y", linestyle="--", alpha=0.5)
+                _save_fig("total_energy_breakdown_stacked")
+        except Exception as e:
+            print(f"Skipping stacked breakdown: {e}")
+    
 
 
 def main():
@@ -342,7 +343,6 @@ def main():
     )
     args = parser.parse_args()
     plot_emissions(args.emissions_csv_file, args.emissions_pkl_file)
-
 
 
 if __name__ == "__main__":
