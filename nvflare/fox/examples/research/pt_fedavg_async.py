@@ -1,0 +1,144 @@
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+PyTorch FedAvg - Decorator-based implementation.
+
+This example shows both the old Strategy-based approach and the new
+decorator-based approach for comparison.
+"""
+import torch
+import time
+from nvflare.fox.api import flare
+from nvflare.fox.sys.recipe import FlareRecipe
+from nvflare.fox.sim.simulator import SimEnv
+
+
+# ============================================================================
+# Server Implementation 
+# ============================================================================
+
+@flare.server
+class FedAvgAsyncServer():
+    def __init__(self, initial_model, num_rounds=3):
+        self.initial_model = initial_model
+        self.num_rounds = num_rounds
+        self.results = []
+
+    @flare.main
+    def run_fedavg_async(self):
+        """
+        Decorator-based federated averaging implementation.
+        
+        This replaces the PTFedAvg Strategy class with a simple function.
+        """
+        print(f"System info: {flare.sys_info()}")
+        
+        # Parse the initial model
+        current_model = self.initial_model
+        
+        flare.clients.train_async(current_model)
+    
+        for i in range(self.num_rounds):
+            # wait for all clients to submit results
+            while True:
+                if len(self.results) == len(flare.clients):
+                    current_model = self.aggregate_results(current_model, self.results)
+                    print(f"Aggregated from {len(self.results)} clients")
+                    self.results = []
+                    break
+                
+                time.sleep(1)  # wait for results to be submitted
+
+            # Update the model with the aggregated results
+            current_model = self.aggregate_results(current_model, self.results)
+            print(f"Round {i}: Aggregated from {len(self.results)} clients")
+            self.results = []
+
+
+
+    @flare.collab
+    def submit_result(self, result):
+        self.results.append(result)
+
+    def aggregate_results(self, current_model, results):
+        """
+        Aggregate model weights from multiple clients using averaging.
+        
+        Args:
+            current_model: Dictionary containing current model weights
+            results: List of dictionaries containing client model updates
+            
+        Returns:
+            Dictionary containing aggregated model weights
+        """
+        aggregated = {}
+        for key in current_model.keys():
+            total = None
+            for result in results:
+                if key in result:
+                    if total is None:
+                        total = result[key]
+                    else:
+                        total = total + result[key]
+            
+            if total is not None:
+                aggregated[key] = torch.div(total, len(results))
+        
+        return aggregated
+
+
+# ============================================================================
+# Client Implementation 
+# ============================================================================
+
+@flare.client
+class MyClient:
+
+    def __init__(self, delta: float):
+        self.delta = delta
+
+    @flare.collab(blocking=False)
+    def train_async(self, current_round, weights):
+        result = {}
+        for k, v in weights.items():
+            result[k] = v + self.delta
+
+        print(f"Finished training round {current_round}")
+        
+        flare.server.submit_result(result)
+
+        return 0  # SUCCESS
+
+# ============================================================================
+# Main execution
+# ============================================================================
+
+def main():
+    initial_model={
+        "x": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+    }
+
+    recipe = FlareRecipe(
+        name="pt_fedavg_async",
+        server=FedAvgAsyncServer(initial_model=initial_model, num_rounds=4),
+        client=MyClient(delta=1.0),
+    )
+
+    env = SimEnv(num_clients=2, num_threads=2)
+    run = recipe.execute(env)
+    print(f"final result: {run.get_result()}")
+
+
+if __name__ == "__main__":
+    main()

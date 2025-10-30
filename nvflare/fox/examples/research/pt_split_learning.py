@@ -71,22 +71,14 @@ class SplitLearningServer():
             for batch_idx in range(self.num_batches):
                 # Step 1: Front client (client 0) performs forward pass
                 front_results = front_client.forward_pass(round_idx, batch_idx)
-                
-                if not front_results or len(front_results) == 0:
-                    print(f"Round {round_idx}, Batch {batch_idx}: No results from front client")
-                    continue
                     
-                activations = front_results[0]['activations']
+                activations = front_results['activations']
                 
                 # Step 2: Back client (client 1) receives activations, computes forward pass and loss
                 back_results = back_client.forward_and_backward(round_idx, batch_idx, activations)
-                
-                if not back_results or len(back_results) == 0:
-                    print(f"Round {round_idx}, Batch {batch_idx}: No results from back client")
-                    continue
                     
-                gradients = back_results[0]['gradients']
-                loss = back_results[0]['loss']
+                gradients = back_results['gradients']
+                loss = back_results['loss']
                 
                 # Step 3: Front client receives gradients and performs backward pass
                 front_client.backward_pass(round_idx, batch_idx, gradients)
