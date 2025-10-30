@@ -103,6 +103,77 @@ Round 2:  Client A → Client B (pass aggregated model)
 
 ---
 
+## 4. Functional Programming Implementation
+
+In addition to the class-based examples above, we provide a functional programming approach that is **RECOMMENDED for production use**:
+
+### **RECOMMENDED** Production Approach - `pt_fedavg_functional_collab.py`
+
+**Approach:** Pure functional core with `@flare.collab` decorators
+
+**Why this is the BEST approach for real-world use:**
+- **Business logic** in pure functions (no framework dependencies)
+- **Framework integration** through thin wrapper classes
+- **Easily testable** - test pure functions without any setup
+- **Production-ready** - works with FlareRecipe and FOX deployment
+- **Maintainable** - clear separation between logic and framework
+- **Flexible** - easy to swap strategies or adapt to other frameworks
+
+**Architecture:**
+```
+Pure Functions (Core Logic)        Framework Wrappers
+━━━━━━━━━━━━━━━━━━━━━━━━━━        ━━━━━━━━━━━━━━━━━━━━
+aggregate_weights()          ←───  @flare.server
+weighted_aggregate()              FunctionalFedAvgServer
+local_train()               ←───  @flare.client
+compute_metrics()                 FunctionalFedAvgClient
+create_initial_weights()            with @flare.collab
+```
+
+**Key Components:**
+```python
+# Pure Functions (100% testable without framework)
+aggregate_weights(weight_list)                      # Simple aggregation
+weighted_aggregate(weight_list, sample_counts)      # Weighted aggregation
+local_train(weights, client_id, learning_rate, ...)  # Training logic
+compute_metrics(weights)                            # Monitoring
+
+# Thin Framework Wrappers
+@flare.server
+class FunctionalFedAvgServer:
+    @flare.main
+    def run(self):
+        # Orchestrate workflow, delegate to pure functions
+        
+@flare.client
+class FunctionalFedAvgClient:
+    @flare.collab
+    def train(self, weights, round_idx):
+        # Delegate to pure function
+        return local_train(weights, ...)
+```
+
+**Testing Example:**
+```python
+# Test pure functions without ANY framework setup!
+def test_aggregation():
+    weights1 = {"w": torch.tensor([1.0, 2.0, 3.0])}
+    weights2 = {"w": torch.tensor([3.0, 4.0, 5.0])}
+    
+    result = aggregate_weights([weights1, weights2])
+    # Assert result is correct - no FlareRecipe needed!
+```
+
+**Benefits:**
+- ✓ **Testable:** Unit test pure functions instantly
+- ✓ **Debuggable:** Step through pure functions easily
+- ✓ **Maintainable:** Logic separated from framework
+- ✓ **Deployable:** Works with FlareRecipe for production
+- ✓ **Flexible:** Swap aggregation algorithms easily
+- ✓ **Portable:** Core logic could work with other FL frameworks
+
+---
+
 ## Comparison Table
 
 | Feature | FedAvg | Split Learning | Swarm Learning |
@@ -143,11 +214,14 @@ Round 2:  Client A → Client B (pass aggregated model)
 
 ## Running the Examples
 
-All examples use the same research API style with decorators:
+### Class-Based Examples (FOX Framework)
 
-```python
-# Run FedAvg
+All class-based examples use the research API style with decorators:
+
+```bash
+# Run FedAvg (class-based)
 python pt_avg_research_api.py
+python pt_fedavg.py  # Alternative name
 
 # Run Split Learning
 python pt_split_learning.py
@@ -156,5 +230,23 @@ python pt_split_learning.py
 python pt_swarm_learning.py
 ```
 
+### Functional Programming Example
+
+```bash
+# RECOMMENDED: Pure functional core with @flare.collab (production-ready)
+python pt_fedavg_functional_collab.py
+```
+
 Each example demonstrates the core concepts with synthetic data and simple PyTorch models.
+
+---
+
+## Programming Style Comparison
+
+| Style | Examples | Framework | Classes | State Management | Testing | Best For |
+|-------|----------|-----------|---------|------------------|---------|----------|
+| **Class-Based** | pt_fedavg.py, pt_split_learning.py, pt_swarm_learning.py | FOX | Yes | Instance variables | Framework-dependent | Traditional OOP approach |
+| **Functional + Collab** ⭐ | pt_fedavg_functional_collab.py | FOX | Thin wrappers | Pure functions | Independent of framework | **PRODUCTION USE** ⭐ |
+
+**⭐ Recommended:** `pt_fedavg_functional_collab.py` provides the best approach for real-world federated learning projects by combining testable pure functions with production-ready framework integration.
 
