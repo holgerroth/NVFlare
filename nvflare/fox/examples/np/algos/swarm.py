@@ -48,7 +48,7 @@ class NPSwarm(Strategy):
         self.logger.info(f"[{context.header_str()}]: received {event_type} from client: {context.caller}: {data}")
         self.all_done(data, context)
 
-    @collab
+    @flare
     def all_done(self, reason: str, context: Context):
         self.logger.info(f"[{context.header_str()}]: all done from client: {context.caller}: {reason}")
         self.waiter.set()
@@ -61,7 +61,7 @@ class NPSwarmClient(ClientApp):
         self.delta = delta
         self.register_event_handler("final_model", self._accept_final_model)
 
-    @collab
+    @flare
     def train(self, weights, current_round, context: Context):
         self.logger.info(f"[{context.header_str()}]: train asked by {context.caller}: {current_round=}")
         return weights + self.delta
@@ -75,7 +75,7 @@ class NPSwarmClient(ClientApp):
             total += results[i]
         return total / len(results)
 
-    @collab
+    @flare
     def swarm_learn(self, num_rounds, model, current_round, context: Context):
         self.logger.info(f"[{context.header_str()}]: swarm learn asked: {num_rounds=} {current_round=} {model=}")
         new_model = self.sag(model, current_round, context)
@@ -100,7 +100,7 @@ class NPSwarmClient(ClientApp):
         next_client = self.clients[next_client_idx]
         next_client.swarm_learn(num_rounds, new_model, next_round, _blocking=False)
 
-    @collab
+    @flare
     def start(self, num_rounds, initial_model, context: Context):
         self.swarm_learn(num_rounds, initial_model, 0, context)
 

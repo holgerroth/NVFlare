@@ -21,7 +21,7 @@ class MetricReceiver:
     def __init__(self):
         self.logger = get_obj_logger(self)
 
-    @collab
+    @flare
     def accept_metric(self, metrics: dict, context: Context):
         self.logger.info(f"[{context.callee}] received metric report from {context.caller}: {metrics}")
 

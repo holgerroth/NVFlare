@@ -113,7 +113,7 @@ class NPTrainer(ClientApp):
         ClientApp.__init__(self)
         self.delta = delta
 
-    @collab
+    @flare
     def train(self, current_round, weights, model_type: str, context: Context):
         if context.is_aborted():
             self.logger.debug("training aborted")

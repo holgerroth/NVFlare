@@ -30,7 +30,7 @@ class NPTrainer(ClientApp):
         self.delta = delta_config.get(self.name, self.delta)
         self.logger.info(f"client {self.name}: delta={self.delta}")
 
-    @collab
+    @flare
     def train(self, current_round, weights, context: Context):
         if context.is_aborted():
             self.logger.debug("training aborted")
@@ -45,7 +45,7 @@ class NPTrainer(ClientApp):
         self.server.fire_event("metrics", {"round": current_round, "y": 10}, _blocking=False)
         return weights + self.delta
 
-    @collab
+    @flare
     def evaluate(self, model, context: Context):
         self.logger.debug(f"[{context.header_str()}] evaluate")
         return random.random()
@@ -57,7 +57,7 @@ class NPHierarchicalTrainer(ClientApp):
         ClientApp.__init__(self)
         self.delta = delta
 
-    @collab
+    @flare
     def train(self, current_round, weights, context: Context):
         if context.is_aborted():
             self.logger.debug("training aborted")
@@ -83,7 +83,7 @@ class NPHierarchicalTrainer(ClientApp):
         self.logger.info(f"[{context.header_str()}] local trained round {current_round} {weights} {type(weights)}")
         return weights + self.delta
 
-    @collab
+    @flare
     def evaluate(self, model, context: Context):
         self.logger.debug(f"[{context.header_str()}] evaluate")
         return random.random()
