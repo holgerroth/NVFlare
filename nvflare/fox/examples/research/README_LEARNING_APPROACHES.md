@@ -123,9 +123,9 @@ In addition to the class-based examples above, we provide a functional programmi
 ```
 Pure Functions (Core Logic)        Framework Wrappers
 ━━━━━━━━━━━━━━━━━━━━━━━━━━        ━━━━━━━━━━━━━━━━━━━━
-aggregate_weights()          ←───  @flare.server
+aggregate_weights()          ←───  
 weighted_aggregate()              FunctionalFedAvgServer
-local_train()               ←───  @flare.client
+local_train()               ←───  
 compute_metrics()                 FunctionalFedAvgClient
 create_initial_weights()            with @flare.collab
 ```
@@ -139,13 +139,13 @@ local_train(weights, client_id, learning_rate, ...)  # Training logic
 compute_metrics(weights)                            # Monitoring
 
 # Thin Framework Wrappers
-@flare.server
+
 class FunctionalFedAvgServer:
-    @flare.main
+    @flare.algo
     def run(self):
         # Orchestrate workflow, delegate to pure functions
         
-@flare.client
+
 class FunctionalFedAvgClient:
     @flare.collab
     def train(self, weights, round_idx):

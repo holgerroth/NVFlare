@@ -28,13 +28,13 @@ from nvflare.fox.sim.simulator import SimEnv
 # Server Implementation 
 # ============================================================================
 
-@flare.server
-class FedAvgServer():
+
+class MyFedAvg():
     def __init__(self, initial_model, num_rounds=3):
         self.initial_model = initial_model
         self.num_rounds = num_rounds
 
-    @flare.main
+    @flare.algo
     def run_fedavg(self):
         """
         Decorator-based federated averaging implementation.
@@ -95,7 +95,6 @@ class FedAvgServer():
 # Client Implementation 
 # ============================================================================
 
-@flare.client
 class MyClient:
 
     def __init__(self, delta: float):
@@ -108,7 +107,7 @@ class MyClient:
             result[k] = v + self.delta
 
         print(f"Finished training round {current_round}")
-        return result
+        return result, metrics
 
 
 # ============================================================================
@@ -121,9 +120,10 @@ def main():
     }
 
     recipe = FlareRecipe(
-        name="pt_fedavg_intime",
-        server=FedAvgServer(initial_model=initial_model, num_rounds=4),
-        client=MyClient(delta=1.0),
+        name="pt_fedavg",
+        server=MyFedAvg(initial_model=initial_model, num_rounds=4),
+        #client=MyClient(delta=1.0),
+        client=ScriptRunnerClient(train_script="client.py", train_args="--delta 1.0"),
     )
 
     env = SimEnv(num_clients=2, num_threads=2)

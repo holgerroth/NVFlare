@@ -174,7 +174,7 @@ def compute_metrics(weights: Dict[str, torch.Tensor]) -> Dict[str, float]:
 # FRAMEWORK INTEGRATION - Thin wrappers around pure functions
 # ============================================================================
 
-@flare.server
+
 class FunctionalFedAvgServer:
     """
     Minimal server wrapper that orchestrates federated learning.
@@ -189,7 +189,7 @@ class FunctionalFedAvgServer:
         self.num_rounds = num_rounds
         self.use_weighted_avg = use_weighted_avg
     
-    @flare.main
+    @flare.algo
     def run(self):
         """
         Main federated learning loop.
@@ -251,7 +251,7 @@ class FunctionalFedAvgServer:
         return global_weights
 
 
-@flare.client
+
 class FunctionalFedAvgClient:
     """
     Minimal client wrapper that performs local training.

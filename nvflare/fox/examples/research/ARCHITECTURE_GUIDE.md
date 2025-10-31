@@ -11,7 +11,7 @@ This document explains why the hybrid functional approach (`pt_fedavg_functional
 ### Traditional Class-Based Approach
 ```
 ┌────────────────────────────────────────┐
-│   @flare.server                        │
+│                           │
 │   class FedAvgServer:                  │
 │   ┌──────────────────────────────────┐ │
 │   │  __init__(self, ...)             │ │
@@ -19,7 +19,7 @@ This document explains why the hybrid functional approach (`pt_fedavg_functional
 │   │  ├─ self.num_rounds              │ │
 │   │  └─ self.aggregated_results      │ │
 │   │                                  │ │
-│   │  @flare.main                     │ │
+│   │  @flare.algo                     │ │
 │   │  run_fedavg(self):               │ │
 │   │  ├─ training loop                │ │
 │   │  ├─ call clients                 │ │
@@ -61,14 +61,14 @@ Issues:
 │  THIN WRAPPERS (Framework Integration)                       │
 │  ═══════════════════════════════════════                     │
 │                                                               │
-│  @flare.server                                               │
+│                                                 │
 │  class FunctionalFedAvgServer:                               │
-│      @flare.main                                             │
+│      @flare.algo                                             │
 │      def run(self):                                          │
 │          results = flare.clients.train(...)                  │
 │          weights = aggregate_weights(results)  ← Pure func!  │
 │                                                               │
-│  @flare.client                                               │
+│                                                 │
 │  class FunctionalFedAvgClient:                               │
 │      @flare.collab                                           │
 │      def train(self, weights, round_idx):                    │
@@ -90,13 +90,13 @@ Benefits:
 
 ### Traditional Approach (Class-Based)
 ```python
-@flare.server
+
 class FedAvgServer:
     def __init__(self, initial_model, num_rounds):
         self.initial_model = initial_model
         self.num_rounds = num_rounds
     
-    @flare.main
+    @flare.algo
     def run_fedavg(self):
         current_model = self.initial_model
         for i in range(self.num_rounds):
@@ -155,13 +155,13 @@ def local_train(weights: Dict, client_id: int, lr: float) -> Dict:
 # THIN WRAPPERS - Just orchestration, no business logic
 # ============================================================================
 
-@flare.server
+
 class FunctionalFedAvgServer:
     def __init__(self, initial_weights, num_rounds):
         self.initial_weights = initial_weights
         self.num_rounds = num_rounds
     
-    @flare.main
+    @flare.algo
     def run(self):
         global_weights = self.initial_weights
         for round_idx in range(self.num_rounds):
@@ -172,7 +172,7 @@ class FunctionalFedAvgServer:
         return global_weights
 
 
-@flare.client
+
 class FunctionalFedAvgClient:
     def __init__(self, client_id, learning_rate):
         self.client_id = client_id
@@ -256,7 +256,7 @@ If you have existing class-based code, here's how to refactor:
 
 ```python
 # BEFORE: Mixed business logic and framework
-@flare.server
+
 class MyServer:
     def process_data(self, data):
         # Business logic mixed in...
@@ -269,7 +269,7 @@ def process_data_pure(data, config):
     result = complicated_computation(data, config)
     return result
 
-@flare.server
+
 class MyServer:
     def process_data(self, data):
         # Thin wrapper delegates to pure function

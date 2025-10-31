@@ -28,14 +28,14 @@ from nvflare.fox.sim.simulator import SimEnv
 # Server Implementation 
 # ============================================================================
 
-@flare.server
+
 class FedAvgAsyncServer():
     def __init__(self, initial_model, num_rounds=3):
         self.initial_model = initial_model
         self.num_rounds = num_rounds
         self.results = []
 
-    @flare.main
+    @flare.algo
     def run_fedavg_async(self):
         """
         Decorator-based federated averaging implementation.
@@ -47,7 +47,7 @@ class FedAvgAsyncServer():
         # Parse the initial model
         current_model = self.initial_model
         
-        flare.clients.train_async(current_model)
+        self.results = flare.non_blocking.clients.train(current_model)
     
         for i in range(self.num_rounds):
             # wait for all clients to submit results
@@ -64,12 +64,6 @@ class FedAvgAsyncServer():
             current_model = self.aggregate_results(current_model, self.results)
             print(f"Round {i}: Aggregated from {len(self.results)} clients")
             self.results = []
-
-
-
-    @flare.collab
-    def submit_result(self, result):
-        self.results.append(result)
 
     def aggregate_results(self, current_model, results):
         """
@@ -102,13 +96,12 @@ class FedAvgAsyncServer():
 # Client Implementation 
 # ============================================================================
 
-@flare.client
 class MyClient:
 
     def __init__(self, delta: float):
         self.delta = delta
 
-    @flare.collab(blocking=False)
+    @flare.collab
     def train_async(self, current_round, weights):
         result = {}
         for k, v in weights.items():
@@ -116,9 +109,7 @@ class MyClient:
 
         print(f"Finished training round {current_round}")
         
-        flare.server.submit_result(result)
-
-        return 0  # SUCCESS
+        return result  # SUCCESS
 
 # ============================================================================
 # Main execution

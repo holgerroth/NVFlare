@@ -72,8 +72,8 @@ python pt_fedavg_functional_collab.py
 Pure Functions              Thin Framework Wrappers
 (Business Logic)            (Deployment)
 ───────────────────         ───────────────────────
-aggregate_weights()    →    @flare.server
-local_train()          →    @flare.client
+aggregate_weights()    →    
+local_train()          →    
 compute_metrics()           @flare.collab
 ```
 

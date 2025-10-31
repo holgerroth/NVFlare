@@ -44,7 +44,7 @@ from nvflare.fox.sim.simulator import SimEnv
 # Server Implementation (minimal role - just coordination)
 # ============================================================================
 
-@flare.server
+
 class SwarmServer():
     """
     Minimal server for swarm learning.
@@ -60,7 +60,7 @@ class SwarmServer():
         self.num_rounds = num_rounds
         self.completed = False
 
-    @flare.main
+    @flare.algo
     def run_swarm(self):
         """
         Initiate swarm learning by selecting a random client to start.
@@ -95,7 +95,7 @@ class SwarmServer():
 # Client Implementation (handles both training and aggregation)
 # ============================================================================
 
-@flare.client
+
 class SwarmClient:
     """
     Swarm learning client that can both train and aggregate.

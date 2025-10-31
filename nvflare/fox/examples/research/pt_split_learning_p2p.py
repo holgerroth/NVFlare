@@ -12,17 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-PyTorch Split Learning - Two-client split learning implementation.
+PyTorch Split Learning - Peer-to-Peer Implementation
 
-This example demonstrates split learning between two clients:
-- Client 1 holds the front layers of the model (feature extraction)
-- Client 2 holds the back layers of the model (classification/prediction)
+This example demonstrates PEER-TO-PEER split learning between two clients:
+- Client 0 (front client) holds the front layers of the model (feature extraction)
+- Client 1 (back client) holds the back layers of the model (classification/prediction)
 
-The training proceeds as follows:
-1. Client 1 performs forward pass and sends activations to Client 2
-2. Client 2 performs forward pass, computes loss, and backpropagates
-3. Client 2 sends gradients back to Client 1
-4. Client 1 performs backward pass and updates its weights
+Key Difference from pt_split_learning.py:
+- **Server**: Only initiates the process, doesn't coordinate every step
+- **Clients**: Directly call each other's @flare.collab methods
+- **Communication**: Peer-to-peer between clients without server mediation
+
+Training Flow (Peer-to-Peer):
+1. Server tells front client to start training
+2. Front client performs forward pass and DIRECTLY calls back client
+3. Back client computes loss, backpropagates, and DIRECTLY calls front client
+4. Front client performs backward pass
+5. Repeat without server involvement
+
+This demonstrates the flexibility of FOX's @flare.collab decorator for 
+truly decentralized communication patterns.
 """
 import torch
 import torch.nn as nn
@@ -33,57 +42,43 @@ from nvflare.fox.sim.simulator import SimEnv
 
 
 # ============================================================================
-# Server Implementation 
+# Server Implementation - Minimal, Just Initiates
 # ============================================================================
 
-class SplitLearningServer():
+class SplitLearningP2PServer():
     def __init__(self, num_rounds=3, num_batches=5):
         self.num_rounds = num_rounds
         self.num_batches = num_batches
 
     @flare.algo
-    def run_split_learning(self):
+    def run_split_learning_p2p(self):
         """
-        Coordinate split learning between two clients.
+        Initiate peer-to-peer split learning.
         
-        In split learning, the model is split vertically:
-        - Client 0 (front client) has the bottom layers
-        - Client 1 (back client) has the top layers
+        Unlike traditional split learning where the server coordinates every step,
+        here the server only:
+        1. Initiates the training process
+        2. Collects final statistics
         
-        Training flow:
-        1. Front client computes forward pass -> activations
-        2. Back client receives activations, completes forward pass, computes loss
-        3. Back client computes gradients and sends back to front client
-        4. Front client completes backward pass
+        All forward/backward communication happens DIRECTLY between clients.
         """
         print(f"System info: {flare.sys_info()}")
-        print(f"\n=== Starting Split Learning ===")
+        print(f"\n=== Starting Peer-to-Peer Split Learning ===")
         print(f"Training for {self.num_rounds} rounds with {self.num_batches} batches per round")
+        print(f"Server role: Minimal - only initiating and collecting stats")
         
         assert len(flare.clients) == 2, "Split learning requires 2 clients"
         front_client = flare.clients[0]
         back_client = flare.clients[1]
-
-        for round_idx in range(self.num_rounds):
-            print(f"\n=== Round {round_idx} ===")
-            
-            for batch_idx in range(self.num_batches):
-                # Step 1: Front client (client 0) performs forward pass
-                front_results = front_client.forward_pass(round_idx, batch_idx)
-                    
-                activations = front_results['activations']
-                
-                # Step 2: Back client (client 1) receives activations, computes forward pass and loss
-                back_results = back_client.forward_and_backward(round_idx, batch_idx, activations)
-                    
-                gradients = back_results['gradients']
-                loss = back_results['loss']
-                
-                # Step 3: Front client receives gradients and performs backward pass
-                front_client.backward_pass(round_idx, batch_idx, gradients)
-                
-                if batch_idx % 2 == 0:
-                    print(f"Round {round_idx}, Batch {batch_idx}: Loss = {loss:.4f}")
+        
+        # Tell the front client to start training
+        # The front client will then coordinate with the back client directly
+        print(f"\n=== Server: Initiating training on front client ===")
+        front_client.start_training(
+            back_client_idx=1,  # Tell front client which client is the back client
+            num_rounds=self.num_rounds,
+            num_batches=self.num_batches
+        )
         
         # Get final statistics from both clients
         print("\n=== Training Complete ===")
@@ -99,13 +94,17 @@ class SplitLearningServer():
 
 
 # ============================================================================
-# Client Implementations 
+# Client Implementations - Direct Peer-to-Peer Communication
 # ============================================================================
 
-class FrontClient:
+
+class FrontClientP2P:
     """
     Front client holds the bottom layers of the split model.
-    Performs forward pass and receives gradients for backward pass.
+    
+    Key difference from traditional approach:
+    - DIRECTLY calls back client's methods (no server mediation)
+    - Coordinates its own training loop
     """
     
     def __init__(self, input_dim=10, hidden_dim=20, learning_rate=0.01):
@@ -126,9 +125,48 @@ class FrontClient:
         self.total_batches = 0
     
     @flare.collab
-    def forward_pass(self, round_idx, batch_idx):
+    def start_training(self, back_client_idx, num_rounds, num_batches):
         """
-        Perform forward pass through front layers and return activations.
+        Start the training process and coordinate DIRECTLY with back client.
+        
+        This method controls the entire training loop and calls the back client
+        directly without going through the server for each step.
+        """
+        print(f"\n[Front Client] Starting peer-to-peer training")
+        print(f"[Front Client] Will communicate directly with client {back_client_idx}")
+        
+        # Get reference to back client
+        back_client = flare.clients[back_client_idx]
+        
+        for round_idx in range(num_rounds):
+            print(f"\n=== Round {round_idx} ===")
+            
+            for batch_idx in range(num_batches):
+                # Step 1: Perform forward pass
+                activations = self._forward_pass(round_idx, batch_idx)
+                
+                # Step 2: DIRECTLY call back client (no server mediation!)
+                back_results = back_client.forward_and_backward(
+                    round_idx, 
+                    batch_idx, 
+                    activations
+                )
+                
+                gradients = back_results['gradients']
+                loss = back_results['loss']
+                
+                # Step 3: Perform backward pass with received gradients
+                self._backward_pass(gradients)
+                
+                if batch_idx % 2 == 0:
+                    print(f"[Front Client] Round {round_idx}, Batch {batch_idx}: Loss = {loss:.4f}")
+        
+        print(f"\n[Front Client] Training complete!")
+        return {"status": "completed"}
+    
+    def _forward_pass(self, round_idx, batch_idx):
+        """
+        Internal method: Perform forward pass through front layers.
         """
         # Generate synthetic input data
         x = torch.randn(32, self.input_dim)  # Batch size of 32
@@ -140,18 +178,15 @@ class FrontClient:
         # Save activations for backward pass (need to keep gradients)
         self.saved_activations = activations.clone().detach().requires_grad_(True)
         
-        return {
-            'activations': self.saved_activations.detach()
-        }
+        return self.saved_activations.detach()
     
-    @flare.collab
-    def backward_pass(self, round_idx, batch_idx, gradients):
+    def _backward_pass(self, gradients):
         """
-        Receive gradients from back client and perform backward pass.
+        Internal method: Perform backward pass with received gradients.
         """
         if self.saved_activations is None:
-            print(f"Warning: No saved activations for backward pass")
-            return {}
+            print(f"[Front Client] Warning: No saved activations for backward pass")
+            return
         
         # Backward pass through front layers
         self.optimizer.zero_grad()
@@ -160,8 +195,6 @@ class FrontClient:
         
         self.total_batches += 1
         self.saved_activations = None  # Clear saved activations
-        
-        return {"status": "completed"}
     
     @flare.collab
     def get_stats(self):
@@ -169,14 +202,19 @@ class FrontClient:
         return {
             "total_batches_processed": self.total_batches,
             "model_type": "front_layers",
-            "learning_rate": self.learning_rate
+            "learning_rate": self.learning_rate,
+            "communication_pattern": "peer-to-peer"
         }
 
 
-class BackClient:
+  
+class BackClientP2P:
     """
     Back client holds the top layers of the split model.
-    Receives activations, computes loss, and sends gradients back.
+    
+    Key difference from traditional approach:
+    - Called DIRECTLY by front client (no server mediation)
+    - Can optionally call front client directly if needed
     """
     
     def __init__(self, hidden_dim=20, output_dim=5, learning_rate=0.01):
@@ -198,8 +236,10 @@ class BackClient:
     @flare.collab
     def forward_and_backward(self, round_idx, batch_idx, activations):
         """
-        Receive activations from front client, complete forward pass,
+        Receive activations DIRECTLY from front client, complete forward pass,
         compute loss, and return gradients.
+        
+        This is called directly by the front client without server involvement.
         """
         # Prepare activations (they need to have gradients)
         activations = activations.requires_grad_(True)
@@ -239,7 +279,8 @@ class BackClient:
             "total_batches_processed": self.total_batches,
             "average_loss": avg_loss,
             "model_type": "back_layers",
-            "learning_rate": self.learning_rate
+            "learning_rate": self.learning_rate,
+            "communication_pattern": "peer-to-peer"
         }
 
 
@@ -249,14 +290,17 @@ class BackClient:
 
 def main():
     """
-    Setup and execute split learning between two clients.
+    Setup and execute peer-to-peer split learning between two clients.
+    
+    This demonstrates how clients can directly communicate with each other
+    using @flare.collab decorators, without server mediation for every step.
     """
     recipe = FlareRecipe(
-        name="pt_split_learning",
-        server=SplitLearningServer(num_rounds=3, num_batches=5),
+        name="pt_split_learning_p2p",
+        server=SplitLearningP2PServer(num_rounds=3, num_batches=5),
         clients=[
-            FrontClient(input_dim=10, hidden_dim=20, learning_rate=0.01),
-            BackClient(hidden_dim=20, output_dim=5, learning_rate=0.01),
+            FrontClientP2P(input_dim=10, hidden_dim=20, learning_rate=0.01),
+            BackClientP2P(hidden_dim=20, output_dim=5, learning_rate=0.01),
         ],
     )
     
@@ -266,6 +310,13 @@ def main():
     
     print(f"\n=== Final Result ===")
     print(run.get_result())
+    
+    print(f"\n=== Key Takeaway ===")
+    print("In this peer-to-peer version:")
+    print("- Server ONLY initiated training (1 call)")
+    print("- Front client DIRECTLY called back client methods")
+    print("- No server mediation for forward/backward passes")
+    print("- Demonstrates true peer-to-peer @flare.collab communication")
 
 
 if __name__ == "__main__":
