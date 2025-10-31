@@ -23,9 +23,9 @@ pip install -r requirements.txt
 
 1. Download the data
 ```bash
-DATASET_ROOT="/tmp/nvflare/data"
+export DATASET_PATH="/tmp/nvflare/data"
 
-python3 -c "import torchvision.datasets as datasets; datasets.CIFAR10(root='${DATASET_ROOT}', train=True, download=True)"
+python3 -c "import torchvision.datasets as datasets; datasets.CIFAR10(root='${DATASET_PATH}', train=True, download=True)"
 ```
 
 1. Run the example:
@@ -61,7 +61,7 @@ To visualize the carbon emissions data from all clients:
 
 1. Run the plotting script:
 ```bash
-python plot_emissions.py --emissions_csv_file /tmp/nvflare/carbon_footprint/server/client_emissions.csv
+python plot_emissions_updated.py --emissions_csv_file /tmp/nvflare/carbon_footprint/server/client_emissions.csv
 ```
 
 The resulting plots should look like

@@ -9,6 +9,9 @@ from codecarbon import OfflineEmissionsTracker, EmissionsTracker
 import argparse
 import pickle
 
+# Disable cuDNN for reference
+#torch.backends.cudnn.benchmark = False
+#torch.backends.cudnn.enabled = True
 
 class Net(nn.Module):
     def __init__(self):
@@ -37,7 +40,10 @@ import nvflare.client as flare
 from nvflare.client.tracking import SummaryWriter
 
 # (optional) set a fix place so we don't need to download everytime
-DATASET_PATH = "/groups/lingurarugrp/atapp/NVFlare/examples/advanced/carbon_footprint/data"
+DATASET_PATH = os.getenv("DATASET_PATH", "/tmp/nvflare/data")
+
+assert os.path.exists(DATASET_PATH), f"Dataset path {DATASET_PATH} does not exist"
+
 # If available, we use GPU to speed things up.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
