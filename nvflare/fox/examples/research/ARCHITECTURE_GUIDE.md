@@ -1,98 +1,24 @@
-# Architecture Comparison: Functional vs Class-Based Approaches
+# FOX Architecture Guide: Class-Based vs Functional Approaches
 
-## Recommended Production Approach: Pure Functions + @flare.collab
+## Overview
 
-This document explains why the hybrid functional approach (`pt_fedavg_functional_collab.py`) is recommended for production federated learning.
-
----
-
-## Architecture Diagram
-
-### Traditional Class-Based Approach
-```
-┌────────────────────────────────────────┐
-│                           │
-│   class FedAvgServer:                  │
-│   ┌──────────────────────────────────┐ │
-│   │  __init__(self, ...)             │ │
-│   │  ├─ self.initial_model           │ │
-│   │  ├─ self.num_rounds              │ │
-│   │  └─ self.aggregated_results      │ │
-│   │                                  │ │
-│   │  @flare.algo                     │ │
-│   │  run_fedavg(self):               │ │
-│   │  ├─ training loop                │ │
-│   │  ├─ call clients                 │ │
-│   │  └─ aggregate inline             │ │    ← Hard to test!
-│   │                                  │ │
-│   │  aggregate_results(self, ...):   │ │
-│   │  └─ uses self.state              │ │    ← Tightly coupled
-│   └──────────────────────────────────┘ │
-└────────────────────────────────────────┘
-
-Issues:
-❌ Logic mixed with framework
-❌ Hard to unit test (need framework setup)
-❌ State in self.* variables
-❌ Tightly coupled to FOX
-```
-
-### Recommended: Functional Core + Thin Wrappers
-```
-┌──────────────────────────────────────────────────────────────┐
-│  PURE FUNCTIONS (Business Logic)                             │
-│  ════════════════════════════════════════                     │
-│                                                               │
-│  def aggregate_weights(weight_list) -> weights               │
-│      """Pure function - easy to test!"""                     │
-│      # No self, no framework, no side effects                │
-│                                                               │
-│  def local_train(weights, client_id, lr, ...) -> weights     │
-│      """Pure function - framework independent!"""            │
-│                                                               │
-│  def compute_metrics(weights) -> metrics                     │
-│      """Pure function - returns data only!"""                │
-│                                                               │
-└──────────────────────────────────────────────────────────────┘
-                        ▲
-                        │ delegates to
-                        │
-┌──────────────────────────────────────────────────────────────┐
-│  THIN WRAPPERS (Framework Integration)                       │
-│  ═══════════════════════════════════════                     │
-│                                                               │
-│                                                 │
-│  class FunctionalFedAvgServer:                               │
-│      @flare.algo                                             │
-│      def run(self):                                          │
-│          results = flare.clients.train(...)                  │
-│          weights = aggregate_weights(results)  ← Pure func!  │
-│                                                               │
-│                                                 │
-│  class FunctionalFedAvgClient:                               │
-│      @flare.collab                                           │
-│      def train(self, weights, round_idx):                    │
-│          return local_train(weights, ...)  ← Pure func!      │
-│                                                               │
-└──────────────────────────────────────────────────────────────┘
-
-Benefits:
-✓ Business logic is pure & testable
-✓ Framework is just a thin wrapper
-✓ Easy to swap FL frameworks
-✓ Can test without any setup
-✓ Clear separation of concerns
-```
+This guide compares two programming styles for implementing federated learning algorithms in FOX. Both styles work, but each has different trade-offs.
 
 ---
 
-## Code Comparison
+## The Two Approaches
 
-### Traditional Approach (Class-Based)
+### 1. Class-Based Approach (`pt_fedavg.py`)
+
+**Structure:**
+- Business logic in class methods
+- State stored in instance variables (`self.*`)
+- All code in one class
+
+**Example:**
 ```python
-
-class FedAvgServer:
-    def __init__(self, initial_model, num_rounds):
+class MyFedAvg:
+    def __init__(self, initial_model, num_rounds=3):
         self.initial_model = initial_model
         self.num_rounds = num_rounds
     
@@ -105,7 +31,7 @@ class FedAvgServer:
         return current_model
     
     def aggregate_results(self, current_model, results):
-        # Aggregation logic mixed with class state
+        # Aggregation logic uses self
         aggregated = {}
         for key in current_model.keys():
             total = None
@@ -118,24 +44,39 @@ class FedAvgServer:
             if total is not None:
                 aggregated[key] = torch.div(total, len(results))
         return aggregated
-
-# ❌ Can't test aggregate_results without creating server instance!
-# ❌ Can't test without FlareRecipe setup
 ```
 
-### Recommended Approach (Functional + @flare.collab)
+**Pros:**
+- ✓ Familiar to OOP developers
+- ✓ All related code in one place
+- ✓ Simple for small examples
+
+**Cons:**
+- ✗ Hard to test methods without framework setup
+- ✗ Business logic tightly coupled to FOX
+- ✗ Can't easily reuse logic in other contexts
+
+---
+
+### 2. Functional Approach (`pt_fedavg_functional_collab.py`) ⭐ RECOMMENDED
+
+**Structure:**
+- Business logic in pure functions (no `self`, no framework)
+- Thin wrapper classes for FOX integration
+- Clear separation of concerns
+
+**Example:**
 ```python
 # ============================================================================
-# PURE FUNCTIONS - Can be imported and tested anywhere!
+# PURE FUNCTIONS - No framework dependencies
 # ============================================================================
 
-def aggregate_weights(weight_list: List[Dict]) -> Dict:
-    """Pure function - no dependencies, no side effects."""
+def aggregate_weights(weight_list):
+    """Pure function - easy to test, easy to reuse."""
     averaged = {}
     num_clients = len(weight_list)
-    param_names = list(weight_list[0].keys())
     
-    for param_name in param_names:
+    for param_name in weight_list[0].keys():
         param_sum = torch.zeros_like(weight_list[0][param_name])
         for client_weights in weight_list:
             param_sum += client_weights[param_name]
@@ -144,17 +85,9 @@ def aggregate_weights(weight_list: List[Dict]) -> Dict:
     return averaged
 
 
-def local_train(weights: Dict, client_id: int, lr: float) -> Dict:
-    """Pure function - completely framework independent."""
-    updated_weights = {k: v.clone() for k, v in weights.items()}
-    # Training logic here...
-    return updated_weights
-
-
 # ============================================================================
-# THIN WRAPPERS - Just orchestration, no business logic
+# THIN WRAPPERS - FOX integration only
 # ============================================================================
-
 
 class FunctionalFedAvgServer:
     def __init__(self, initial_weights, num_rounds):
@@ -167,128 +100,71 @@ class FunctionalFedAvgServer:
         for round_idx in range(self.num_rounds):
             results = flare.clients.train(global_weights, round_idx)
             client_weights = [r[0] for r in results]
-            # Delegate to pure function!
+            # Delegate to pure function
             global_weights = aggregate_weights(client_weights)
         return global_weights
-
-
-
-class FunctionalFedAvgClient:
-    def __init__(self, client_id, learning_rate):
-        self.client_id = client_id
-        self.learning_rate = learning_rate
-    
-    @flare.collab
-    def train(self, weights, round_idx):
-        # Delegate to pure function!
-        return local_train(weights, self.client_id, self.learning_rate)
-
-
-# ✅ Can test aggregate_weights() instantly - just call it!
-# ✅ Can test local_train() instantly - no framework needed!
-# ✅ Business logic is framework-agnostic
 ```
+
+**Pros:**
+- ✓ Easy to test (just call the function)
+- ✓ Business logic is framework-independent
+- ✓ Easy to reuse in other projects
+- ✓ Clear separation of concerns
+- ✓ Easy to swap algorithms
+
+**Cons:**
+- ✗ More files/functions to organize
+- ✗ Less familiar to OOP-only developers
 
 ---
 
 ## Testing Comparison
 
-### Traditional Approach - Difficult to Test
+### Class-Based - Harder to Test
 ```python
-# ❌ Need to create instances, mock framework
+# Need to create instance and mock framework
 def test_aggregation():
-    # Need to instantiate server
-    server = FedAvgServer(initial_model={...}, num_rounds=1)
-    
-    # Can't call aggregate_results directly without setup
-    # Need to mock self.initial_model and other state
-    # Tightly coupled to class structure
+    server = MyFedAvg(initial_model={...}, num_rounds=1)
+    # aggregate_results needs self and framework context
+    # Requires more setup
 ```
 
-### Functional Approach - Easy to Test
+### Functional - Easy to Test
 ```python
-# ✅ Just call the function!
+# Just call the function
 def test_aggregation():
-    # Arrange
     weights1 = {"layer1": torch.tensor([1.0, 2.0])}
     weights2 = {"layer1": torch.tensor([3.0, 4.0])}
     
-    # Act
     result = aggregate_weights([weights1, weights2])
     
-    # Assert
     expected = torch.tensor([2.0, 3.0])
     assert torch.allclose(result["layer1"], expected)
-    
-    # ✅ No framework setup required!
-    # ✅ No mocking needed!
-    # ✅ Pure function is predictable!
+    # No framework setup needed!
 ```
 
 ---
 
-## When to Use Each Approach
+## When to Use Each
 
-### Use Traditional Class-Based When:
-- You're already familiar with OOP patterns
-- Your team prefers class-based code
-- You have simple logic that doesn't need testing
+### Use Class-Based When:
+- Learning the FOX framework
+- Building quick prototypes
+- Simple logic that doesn't need independent testing
+- You prefer OOP style
 
-### Use Functional + @flare.collab When: ⭐ **RECOMMENDED**
-- **Production deployments** (most reliable)
-- **Testing is important** (always!)
-- **Maintainability matters** (always!)
-- You want to **swap algorithms easily**
-- You might **migrate frameworks** in the future
-- You want to **understand what's happening** clearly
-
-### Use Pure Functional When:
-- **Learning** federated learning concepts
-- **Prototyping** new algorithms quickly
-- **Teaching** FL to others
-- You don't need production deployment yet
-
----
-
-## Migration Path
-
-If you have existing class-based code, here's how to refactor:
-
-```python
-# BEFORE: Mixed business logic and framework
-
-class MyServer:
-    def process_data(self, data):
-        # Business logic mixed in...
-        result = complicated_computation(data, self.state)
-        return result
-
-# AFTER: Extract pure function
-def process_data_pure(data, config):
-    """Pure function - easy to test!"""
-    result = complicated_computation(data, config)
-    return result
-
-
-class MyServer:
-    def process_data(self, data):
-        # Thin wrapper delegates to pure function
-        return process_data_pure(data, self.config)
-```
+### Use Functional When: ⭐ RECOMMENDED
+- **Production deployments**
+- **Testing is important**
+- **Maintainability matters**
+- You want to reuse logic across projects
+- You want framework-independent business logic
 
 ---
 
 ## Summary
 
-**The functional + @flare.collab approach (`pt_fedavg_functional_collab.py`) provides:**
+Both approaches work in FOX. The **functional approach is recommended for production** because it provides better testability, maintainability, and portability. The class-based approach is simpler for learning and prototyping.
 
-1. ✅ **Testability** - Test business logic without framework
-2. ✅ **Maintainability** - Clear separation of concerns
-3. ✅ **Deployability** - Works with FlareRecipe for production
-4. ✅ **Flexibility** - Easy to modify and extend
-5. ✅ **Portability** - Core logic is framework-agnostic
-6. ✅ **Debuggability** - Pure functions are easy to trace
-7. ✅ **Understandability** - Explicit data flow
-
-**This is the recommended approach for real-world federated learning projects!** ⭐
+**Key Insight:** Separate your business logic (pure functions) from framework integration (thin wrappers).
 

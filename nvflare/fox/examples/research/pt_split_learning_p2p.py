@@ -69,7 +69,6 @@ class SplitLearningP2PServer():
         
         assert len(flare.clients) == 2, "Split learning requires 2 clients"
         front_client = flare.clients[0]
-        back_client = flare.clients[1]
         
         # Tell the front client to start training
         # The front client will then coordinate with the back client directly
@@ -136,7 +135,6 @@ class FrontClientP2P:
         print(f"[Front Client] Will communicate directly with client {back_client_idx}")
         
         # Get reference to back client
-        back_client = flare.clients[back_client_idx]
         
         for round_idx in range(num_rounds):
             print(f"\n=== Round {round_idx} ===")
@@ -146,7 +144,7 @@ class FrontClientP2P:
                 activations = self._forward_pass(round_idx, batch_idx)
                 
                 # Step 2: DIRECTLY call back client (no server mediation!)
-                back_results = back_client.forward_and_backward(
+                back_results = flare.other_clients[0].forward_and_backward(
                     round_idx, 
                     batch_idx, 
                     activations

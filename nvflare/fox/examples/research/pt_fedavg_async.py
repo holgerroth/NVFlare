@@ -102,14 +102,14 @@ class MyClient:
         self.delta = delta
 
     @flare.collab
-    def train_async(self, current_round, weights):
+    def train(self, current_round, weights):
         result = {}
         for k, v in weights.items():
             result[k] = v + self.delta
 
         print(f"Finished training round {current_round}")
         
-        return result  # SUCCESS
+        return result
 
 # ============================================================================
 # Main execution
