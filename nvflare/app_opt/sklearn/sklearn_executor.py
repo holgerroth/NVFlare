@@ -37,17 +37,27 @@ def _get_global_params(shareable: Shareable, fl_ctx: FLContext):
 
 
 class SKLearnExecutor(Executor):
-    def __init__(self, learner_id: str, train_task=AppConstants.TASK_TRAIN):
+    def __init__(
+        self,
+        learner_id: str,
+        train_task=AppConstants.TASK_TRAIN,
+        submit_model_task=AppConstants.TASK_SUBMIT_MODEL,
+        validate_task=AppConstants.TASK_VALIDATION,
+    ):
         """An Executor interface for scikit-learn Learner.
 
         Args:
             learner_id (str): id pointing to the learner object
             train_task (str, optional): label to dispatch train task. Defaults to AppConstants.TASK_TRAIN.
+            submit_model_task (str, optional): label to dispatch submit_model task. Defaults to AppConstants.TASK_SUBMIT_MODEL.
+            validate_task (str, optional): label to dispatch validate task. Defaults to AppConstants.TASK_VALIDATION.
         """
         super().__init__()
         self.learner_id = learner_id
         self.learner = None
         self.train_task = train_task
+        self.submit_model_task = submit_model_task
+        self.validate_task = validate_task
         self.local_model_path = None
         self.global_model_path = None
         self.client_id = None
@@ -103,8 +113,12 @@ class SKLearnExecutor(Executor):
                 if current_round > 0:
                     # first round for parameter initialization
                     # no model evaluation
-                    self.validate(current_round, global_params, fl_ctx)
+                    self.validate_model(current_round, global_params, fl_ctx)
                 return self.train(current_round, global_params, fl_ctx)
+            elif task_name == self.submit_model_task:
+                return self.submit_model(shareable, fl_ctx)
+            elif task_name == self.validate_task:
+                return self.validate(shareable, fl_ctx, abort_signal)
             else:
                 self.log_error(fl_ctx, f"Could not handle task: {task_name}")
                 return make_reply(ReturnCode.TASK_UNKNOWN)
@@ -128,7 +142,77 @@ class SKLearnExecutor(Executor):
 
         return dxo.to_shareable()
 
-    def validate(self, current_round, global_param, fl_ctx: FLContext) -> Shareable:
+    def submit_model(self, shareable: Shareable, fl_ctx: FLContext) -> Shareable:
+        """Handle submit_model task for cross-site validation.
+        
+        Args:
+            shareable: Shareable containing model submission request
+            fl_ctx: FLContext
+            
+        Returns:
+            Shareable containing the local model
+        """
+        try:
+            model_name = shareable.get_header(AppConstants.SUBMIT_MODEL_NAME, "best_model")
+            self.log_info(fl_ctx, f"Submitting local model: {model_name}")
+            
+            # Load the local model
+            if os.path.exists(self.local_model_path):
+                model = joblib.load(self.local_model_path)
+                # Extract model parameters
+                if hasattr(model, 'coef_'):
+                    params = {"coef": model.coef_}
+                    if hasattr(model, 'intercept_'):
+                        params["intercept"] = model.intercept_
+                    dxo = DXO(data_kind=DataKind.WEIGHTS, data=params)
+                    return dxo.to_shareable()
+                else:
+                    self.log_error(fl_ctx, "Local model does not have required parameters")
+                    return make_reply(ReturnCode.EXECUTION_EXCEPTION)
+            else:
+                self.log_error(fl_ctx, f"Local model not found at {self.local_model_path}")
+                return make_reply(ReturnCode.EXECUTION_EXCEPTION)
+        except Exception as e:
+            self.log_exception(fl_ctx, f"Error submitting model: {secure_format_exception(e)}")
+            return make_reply(ReturnCode.EXECUTION_EXCEPTION)
+
+    def validate(self, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
+        """Handle validate task for cross-site validation.
+        
+        Args:
+            shareable: Shareable containing model to validate
+            fl_ctx: FLContext
+            abort_signal: Signal to abort the task
+            
+        Returns:
+            Shareable containing validation metrics
+        """
+        try:
+            (current_round, global_params) = _get_global_params(shareable, fl_ctx)
+            self.log_info(fl_ctx, f"Validating model from round {current_round}")
+            
+            metrics, model = self.learner.validate(current_round, global_params, fl_ctx)
+            self.save_model_global(model)
+            
+            # Log metrics
+            for key, value in metrics.items():
+                self.log_value(key, value, current_round)
+            
+            # Return metrics as DXO
+            dxo = DXO(data_kind=DataKind.METRICS, data=metrics)
+            return dxo.to_shareable()
+        except Exception as e:
+            self.log_exception(fl_ctx, f"Error during validation: {secure_format_exception(e)}")
+            return make_reply(ReturnCode.EXECUTION_EXCEPTION)
+
+    def validate_model(self, current_round, global_param, fl_ctx: FLContext):
+        """Internal validation method called during training.
+        
+        Args:
+            current_round: current training round
+            global_param: global model parameters
+            fl_ctx: FLContext
+        """
         # retrieve current global center download from server's shareable
         self.log_info(fl_ctx, f"Client {self.client_id} perform local evaluation")
         metrics, model = self.learner.validate(current_round, global_param, fl_ctx)

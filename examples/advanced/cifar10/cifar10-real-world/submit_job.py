@@ -17,7 +17,7 @@ import json
 import os
 import uuid
 
-from nvflare.fuel.flare_api.flare_api import new_insecure_session, new_secure_session
+from nvflare.fuel.flare_api.flare_api import new_session
 
 
 def read_json(filename):
@@ -55,11 +55,13 @@ def main():
 
     assert os.path.isdir(args.admin_dir), f"admin directory does not exist at {args.admin_dir}"
 
-    # Initialize the runner
-    if args.poc:
-        sess = new_insecure_session(startup_kit_location=args.admin_dir)
-    else:
-        sess = new_secure_session(username=args.username, startup_kit_location=args.admin_dir)
+    # Initialize the session using FLARE API
+    sess = new_session(
+        username=args.username if not args.poc else "",
+        startup_kit_location=args.admin_dir,
+        secure_mode=not args.poc,
+        debug=False
+    )
 
     # update alpha and split data dir
     job_name = os.path.basename(args.job)

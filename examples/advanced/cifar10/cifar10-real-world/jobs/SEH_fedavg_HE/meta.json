@@ -1,0 +1,9 @@
+{
+    "name": "SEH_fedavg_HE",
+    "resource_spec": {},
+    "deploy_map": {
+        "SEH_fedavg_HE": [
+            "@ALL"
+        ]
+    }
+}
