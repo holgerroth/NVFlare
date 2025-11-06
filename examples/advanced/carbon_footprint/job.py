@@ -30,7 +30,8 @@ if __name__ == "__main__":
 
     data_path = os.getenv("DATASET_PATH")
     data_split_dir = os.path.join(data_path, "cifar10_splits")
-    cifar10_split(num_sites=n_clients, split_dir=data_split_dir, alpha=1.0)
+    cifar10_split(num_sites=n_clients, split_dir=data_split_dir, alpha=1.0, seed=0)
+    print(f"Data split directory: {data_split_dir}")
 
     # Create BaseFedJob with initial model
     job = BaseFedJob(
