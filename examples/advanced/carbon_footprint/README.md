@@ -24,8 +24,6 @@ pip install -r requirements.txt
 1. Download the data
 ```bash
 export DATASET_PATH="/tmp/nvflare/data"
-
-python3 -c "import torchvision.datasets as datasets; datasets.CIFAR10(root='${DATASET_PATH}', train=True, download=True)"
 ```
 
 1. Run the example:

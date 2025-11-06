@@ -1,10 +1,26 @@
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
+import torchvision.datasets as datasets
 from codecarbon import OfflineEmissionsTracker, EmissionsTracker
 import argparse
 import pickle
@@ -39,18 +55,17 @@ import nvflare.client as flare
 # (optional) metrics
 from nvflare.client.tracking import SummaryWriter
 
-# (optional) set a fix place so we don't need to download everytime
-DATASET_PATH = os.getenv("DATASET_PATH", "/tmp/nvflare/data")
-
-assert os.path.exists(DATASET_PATH), f"Dataset path {DATASET_PATH} does not exist"
-
 # If available, we use GPU to speed things up.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 CODECARBON_API_TOKEN = os.getenv("CODECARBON_API_TOKEN")
 
+data_path = os.getenv("DATASET_PATH")
+assert data_path is not None, "DATASET_PATH environment variable is not set"
+assert os.path.exists(data_path), f"CIFAR-10 data path {data_path} does not exist"
 
-def main(tracker=None):
+
+def main(args):
 
     # (2) initializes NVFlare client API
     flare.init()
@@ -84,10 +99,30 @@ def main(tracker=None):
     epochs = 1
 
     # See README.md for how to download the dataset
-    trainset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=True, download=False, transform=transform)
+    train_idx_path = os.path.join(args.split_data_root, f"{client_name}.npy")
+    assert os.path.exists(train_idx_path), f"Train index file {train_idx_path} does not exist"
+    print(f"Loading train indices from {train_idx_path}")
+    train_idx = np.load(train_idx_path)
+
+    # get partitioned training dataset with transforms
+    train_dataset = datasets.CIFAR10(root=data_path, train=True, download=False, transform=transform)
+    
+    # Use Subset to get only the indices for this client
+    trainset = torch.utils.data.Subset(train_dataset, train_idx)
+    
+    # Get label distribution for logging
+    train_labels = np.array(train_dataset.targets)[train_idx]
+    unq, unq_cnt = np.unique(train_labels, return_counts=True)
+    print(
+        (
+            f"Loaded {len(train_idx)} training indices from {train_idx_path} "
+            f"with label distribution:\nUnique labels: {unq}\nUnique Counts: {unq_cnt}"
+        )
+    )
+    
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(root=DATASET_PATH, train=False, download=False, transform=transform)
+    testset = torchvision.datasets.CIFAR10(root=data_path, train=False, download=False, transform=transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     net = Net()
@@ -238,6 +273,7 @@ if __name__ == "__main__":
     parser.add_argument('--sleep_ms_mean', type=float, default=0.0, help='Mean per-step sleep (ms) to simulate device delay.')
     parser.add_argument('--sleep_ms_std', type=float, default=0.0, help='Std dev of per-step sleep (ms); Gaussian, clipped at 0.')
     parser.add_argument('--extra_no_update_iters', type=int, default=0, help='Extra forward-only iterations per batch (no backward/step).')
+    parser.add_argument('--split_data_root', type=str, default='', help='Root directory for the split data.')
     args = parser.parse_args()
 
     main(args)
