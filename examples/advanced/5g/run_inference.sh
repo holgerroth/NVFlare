@@ -27,7 +27,7 @@ echo "Starting inference..."
 echo ""
 python inference.py \
     --checkpoint outputs/best_model.pth \
-    --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv \
+    --data_path ./val.csv \
     --output_dir inference_outputs \
     --batch_size 256 \
     --plot

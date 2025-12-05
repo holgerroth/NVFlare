@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 import numpy as np
+import pandas as pd
 import argparse
 import os
 from tqdm import tqdm
@@ -117,16 +118,44 @@ def main(args):
     input_dim = full_dataset.get_feature_dim()
     sequence_length = full_dataset.get_sequence_length()
     
-    # Split dataset
-    train_size = int(args.train_split * len(full_dataset))
-    val_size = len(full_dataset) - train_size
-    train_dataset, val_dataset = random_split(
-        full_dataset, 
-        [train_size, val_size],
-        generator=torch.Generator().manual_seed(args.seed)
-    )
+    # Split dataset using run-based split
+    # For time series, we use run-based split to avoid data leakage
+    # and properly evaluate generalization to new trajectories
+    print("Using run-based split: entire trajectories assigned to train or validation")
     
-    print(f"Train size: {len(train_dataset)}, Validation size: {len(val_dataset)}")
+    # Get unique run numbers from the original dataframe
+    run_nums = pd.read_csv(args.data_path)['run_num'].unique()
+    np.random.seed(args.seed)
+    np.random.shuffle(run_nums)
+    
+    # Split runs
+    num_train_runs = int(len(run_nums) * args.train_split)
+    train_runs = set(run_nums[:num_train_runs])
+    val_runs = set(run_nums[num_train_runs:])
+    
+    print(f"Total runs: {len(run_nums)}, Train runs: {len(train_runs)}, Validation runs: {len(val_runs)}")
+    
+    # Get sequences and their corresponding run numbers
+    # We need to map each sequence back to its run
+    df = pd.read_csv(args.data_path)
+    df = df.sort_values(['run_num', 'seq_num']).reset_index(drop=True)
+    
+    # Recreate the sequence-to-run mapping
+    sequence_runs = []
+    for run_num in df['run_num'].unique():
+        run_mask = df['run_num'] == run_num
+        run_indices = np.where(run_mask)[0]
+        num_sequences = len(run_indices) - sequence_length - args.prediction_horizon + 1
+        sequence_runs.extend([run_num] * max(0, num_sequences))
+    
+    # Create train and validation indices
+    train_indices = [i for i, run in enumerate(sequence_runs) if run in train_runs]
+    val_indices = [i for i, run in enumerate(sequence_runs) if run in val_runs]
+    
+    train_dataset = Subset(full_dataset, train_indices)
+    val_dataset = Subset(full_dataset, val_indices)
+    
+    print(f"Train sequences: {len(train_dataset)}, Validation sequences: {len(val_dataset)}")
     
     # Create dataloaders
     train_loader = DataLoader(
@@ -242,7 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir', type=str, default='outputs',
                        help='Directory to save outputs')
     parser.add_argument('--train_split', type=float, default=0.8,
-                       help='Train/validation split ratio')
+                       help='Train/validation split ratio (by runs)')
     parser.add_argument('--sequence_length', type=int, default=10,
                        help='Number of past timesteps to use for prediction')
     parser.add_argument('--prediction_horizon', type=int, default=1,

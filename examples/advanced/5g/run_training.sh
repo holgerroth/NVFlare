@@ -10,7 +10,7 @@ echo ""
 echo "Starting training..."
 echo ""
 python train.py \
-    --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv \
+    --data_path ./train.csv \
     --output_dir outputs \
     --epochs 50 \
     --batch_size 256 \

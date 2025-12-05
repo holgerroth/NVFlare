@@ -77,6 +77,46 @@ For a run with 100 timesteps:
 pip install -r requirements.txt
 ```
 
+## Quick Start Workflows
+
+### Workflow 1: Quick Training (Simple, but not ideal for evaluation)
+
+```bash
+# Train on full dataset (internally splits into train/val)
+python train.py --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv --epochs 50
+
+# Run inference
+python inference.py \
+    --checkpoint outputs/best_model.pth \
+    --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv \
+    --plot
+```
+
+⚠️ **Note**: This evaluates on ALL data (train + validation), giving **mixed metrics**.
+
+### Workflow 2: Proper Train/Test Split (✅ Recommended)
+
+```bash
+# Step 1: Split data into clean train and test sets
+python split_data.py --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv
+
+# This creates:
+#   train.csv - 80% of runs (for training)
+#   val.csv   - 20% of runs (your test set)
+
+# Step 2: Train on ONLY training data
+python train.py --data_path train.csv --epochs 50
+
+# Step 3: Evaluate on ONLY test data
+python inference.py \
+    --checkpoint outputs/best_model.pth \
+    --data_path val.csv \
+    --output_dir inference_test \
+    --plot
+```
+
+✅ **Result**: True test metrics on completely unseen data!
+
 ## Usage
 
 ### Basic Training
@@ -113,12 +153,35 @@ This configuration:
 - Larger model with 256-dimensional embeddings
 - 16 attention heads and 4 transformer layers
 
+### Data Split Strategy for Time Series
+
+The training script uses a **run-based split** to properly handle time series data:
+
+**How it works:**
+- Entire trajectories (runs) are assigned to either training or validation
+- By default, 80% of runs for training, 20% for validation (configurable with `--train_split`)
+- **No data leakage**: validation runs are completely unseen during training
+- **Best for**: Generalizing to new trajectories/users/locations
+
+**Example:**
+```
+10 runs total → 8 runs for training, 2 runs for validation
+Training never sees data from validation runs
+Model must generalize to completely new trajectories
+```
+
+**Why run-based split?**
+- ✅ Prevents data leakage across time
+- ✅ Evaluates generalization to new trajectories
+- ✅ Realistic for deployment scenarios
+- ✅ Matches real-world use case: predict for new users/locations
+
 ### Command-Line Arguments
 
 **Data Parameters**:
 - `--data_path`: Path to the CSV file (default: `Lumos5G-v1.0/Lumos5G-v1.0.csv`)
 - `--output_dir`: Directory to save outputs (default: `outputs`)
-- `--train_split`: Train/validation split ratio (default: `0.8`)
+- `--train_split`: Train/validation split ratio by runs (default: `0.8`)
 - `--sequence_length`: Number of past timesteps to use (default: `10`)
 - `--prediction_horizon`: Number of timesteps ahead to predict (default: `1`)
 
@@ -299,6 +362,92 @@ python inference.py \
     --data_path new_data_without_labels.csv \
     --output_dir predictions
 ```
+
+### Using Test/Validation Data for Inference
+
+**Important: Current Behavior**
+
+⚠️ **The current `inference.py` script processes ALL data from the CSV file**, including both training and validation runs. This means the reported metrics are **not** true test metrics.
+
+For proper evaluation on unseen data, you should split the data first.
+
+#### Recommended Approach: Split Data Before Training
+
+Use the provided `split_data.py` utility to create clean train/val splits:
+
+```bash
+# Split the data into train.csv and val.csv
+python split_data.py --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv
+
+# This creates:
+#   - train.csv (80% of runs)
+#   - val.csv (20% of runs - YOUR TEST SET)
+#   - run_splits.txt (which runs went where)
+```
+
+**Then train on ONLY the training set:**
+
+```bash
+# Train using only train.csv
+python train.py --data_path train.csv --epochs 50
+```
+
+**Finally, run inference on ONLY the validation set:**
+
+```bash
+# Evaluate on val.csv (true test data)
+python inference.py \
+    --checkpoint outputs/best_model.pth \
+    --data_path val.csv \
+    --output_dir inference_val \
+    --plot
+```
+
+This gives you **true test metrics** since the model has never seen any data from `val.csv`.
+
+#### Split Script Options
+
+```bash
+# Custom split ratio (70/30)
+python split_data.py --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv --train_split 0.7
+
+# Different random seed
+python split_data.py --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv --seed 123
+
+# Save to specific directory
+python split_data.py --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv --output_dir data_splits
+
+# Add prefix to output files
+python split_data.py --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv --prefix my_experiment_
+```
+
+#### What About the Training Script's Internal Split?
+
+The training script (`train.py`) uses its own internal 80/20 split **within the training data** to create a validation set for:
+- Early stopping
+- Learning rate scheduling
+- Monitoring during training
+
+This is **different** from the final test set:
+
+```
+Original Data
+├── train.csv (80% of runs) ────┐
+│                                ├─> Training script splits this again
+│                                │   ├─> 80% for training
+│                                │   └─> 20% for validation (early stopping)
+│
+└── val.csv (20% of runs) ──────┐
+                                 └─> TRUE TEST SET (never seen by model)
+```
+
+#### Summary: Data Split Strategy
+
+| Dataset | Purpose | Model Sees It? | What It Tests |
+|---------|---------|----------------|---------------|
+| `train.csv` (64% of total) | Model training | ✅ Yes | - |
+| Training validation (16% of total) | Early stopping, LR scheduling | ⚠️ Indirectly | Internal validation during training |
+| `val.csv` (20% of total) | Final evaluation | ❌ Never | True generalization to unseen runs |
 
 ## Model Checkpoint
 
