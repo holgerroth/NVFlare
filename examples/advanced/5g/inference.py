@@ -7,8 +7,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from model import TransformerRegressor
-from data import preprocess_data
+from model import TransformerTimeSeriesRegressor
+from data import preprocess_timeseries_data
 
 
 def run_inference(model, data, device, batch_size=256):
@@ -130,7 +130,10 @@ def main(args):
     
     # Load model
     print("Loading model...")
-    model = TransformerRegressor(
+    sequence_length = checkpoint.get('sequence_length', 10)  # Default to 10 if not found
+    prediction_horizon = checkpoint.get('prediction_horizon', 1)
+    
+    model = TransformerTimeSeriesRegressor(
         input_dim=checkpoint['input_dim'],
         **checkpoint['model_config']
     ).to(device)
@@ -139,6 +142,7 @@ def main(args):
     
     print(f"Model loaded successfully!")
     print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
+    print(f"Sequence length: {sequence_length}, Prediction horizon: {prediction_horizon}")
     print(f"Model configuration: {checkpoint['model_config']}")
     
     # Load data
@@ -156,16 +160,31 @@ def main(args):
     
     # Preprocess data
     print("\nPreprocessing data...")
-    X = preprocess_data(df.copy(), scaler, label_encoders)
-    print(f"Preprocessed data shape: {X.shape}")
+    X, sequence_indices = preprocess_timeseries_data(df.copy(), scaler, label_encoders, sequence_length)
+    print(f"Created {len(X)} sequences with shape: {X.shape}")
     
     # Run inference
     print("\nRunning inference...")
     predictions = run_inference(model, X, device, batch_size=args.batch_size)
     print(f"Generated {len(predictions)} predictions")
     
-    # Add predictions to dataframe
-    df['Predicted_Throughput'] = predictions
+    # Map predictions back to dataframe
+    # Create a new column initialized with NaN
+    df['Predicted_Throughput'] = np.nan
+    
+    # Assign predictions to the corresponding indices
+    for i, idx in enumerate(sequence_indices):
+        if idx < len(df):
+            df.loc[idx, 'Predicted_Throughput'] = predictions[i]
+    
+    # For evaluation, only use rows where we have predictions
+    if has_ground_truth:
+        valid_mask = df['Predicted_Throughput'].notna()
+        valid_df = df[valid_mask]
+        actuals = valid_df['Throughput'].values
+        valid_predictions = valid_df['Predicted_Throughput'].values
+        
+        print(f"\nValid predictions: {len(valid_predictions)} out of {len(df)} total rows")
     
     # Save predictions
     output_file = os.path.join(args.output_dir, 'predictions.csv')
@@ -178,7 +197,7 @@ def main(args):
         print("EVALUATION METRICS")
         print("="*60)
         
-        metrics = calculate_metrics(predictions, actuals)
+        metrics = calculate_metrics(valid_predictions, actuals)
         
         print(f"MAE (Mean Absolute Error):       {metrics['MAE']:.4f} Mbps")
         print(f"MSE (Mean Squared Error):        {metrics['MSE']:.4f}")
@@ -191,6 +210,9 @@ def main(args):
         with open(metrics_file, 'w') as f:
             f.write("EVALUATION METRICS\n")
             f.write("="*60 + "\n")
+            f.write(f"Valid predictions: {len(valid_predictions)} out of {len(df)} rows\n")
+            f.write(f"Sequence length: {sequence_length}, Prediction horizon: {prediction_horizon}\n")
+            f.write("="*60 + "\n")
             f.write(f"MAE (Mean Absolute Error):       {metrics['MAE']:.4f} Mbps\n")
             f.write(f"MSE (Mean Squared Error):        {metrics['MSE']:.4f}\n")
             f.write(f"RMSE (Root Mean Squared Error):  {metrics['RMSE']:.4f} Mbps\n")
@@ -202,19 +224,20 @@ def main(args):
         if args.plot:
             print("\nGenerating comparison plots...")
             plot_file = os.path.join(args.output_dir, 'inference_comparison.png')
-            plot_predictions_comparison(predictions, actuals, plot_file)
+            plot_predictions_comparison(valid_predictions, actuals, plot_file)
     
     # Display prediction statistics
     print("\n" + "="*60)
     print("PREDICTION STATISTICS")
     print("="*60)
-    print(f"Mean:      {np.mean(predictions):.4f} Mbps")
-    print(f"Median:    {np.median(predictions):.4f} Mbps")
-    print(f"Std Dev:   {np.std(predictions):.4f} Mbps")
-    print(f"Min:       {np.min(predictions):.4f} Mbps")
-    print(f"Max:       {np.max(predictions):.4f} Mbps")
-    print(f"Q1 (25%):  {np.percentile(predictions, 25):.4f} Mbps")
-    print(f"Q3 (75%):  {np.percentile(predictions, 75):.4f} Mbps")
+    valid_preds = df['Predicted_Throughput'].dropna()
+    print(f"Mean:      {np.mean(valid_preds):.4f} Mbps")
+    print(f"Median:    {np.median(valid_preds):.4f} Mbps")
+    print(f"Std Dev:   {np.std(valid_preds):.4f} Mbps")
+    print(f"Min:       {np.min(valid_preds):.4f} Mbps")
+    print(f"Max:       {np.max(valid_preds):.4f} Mbps")
+    print(f"Q1 (25%):  {np.percentile(valid_preds, 25):.4f} Mbps")
+    print(f"Q3 (75%):  {np.percentile(valid_preds, 75):.4f} Mbps")
     
     if has_ground_truth:
         print("\n" + "="*60)

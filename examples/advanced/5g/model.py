@@ -5,27 +5,27 @@ import torch
 import torch.nn as nn
 
 
-class TransformerRegressor(nn.Module):
-    """Transformer-based model for throughput prediction"""
+class TransformerTimeSeriesRegressor(nn.Module):
+    """Transformer-based model for time series throughput prediction"""
     
     def __init__(self, input_dim, d_model=128, nhead=8, num_layers=3, 
                  dim_feedforward=512, dropout=0.1):
         """
         Args:
-            input_dim: Number of input features
+            input_dim: Number of input features per timestep
             d_model: Dimension of the model
             nhead: Number of attention heads
             num_layers: Number of transformer encoder layers
             dim_feedforward: Dimension of feedforward network
             dropout: Dropout rate
         """
-        super(TransformerRegressor, self).__init__()
+        super(TransformerTimeSeriesRegressor, self).__init__()
         
         # Input embedding layer
         self.input_embedding = nn.Linear(input_dim, d_model)
         
         # Positional encoding (learnable)
-        self.pos_embedding = nn.Parameter(torch.randn(1, 1, d_model))
+        self.pos_embedding = nn.Parameter(torch.randn(1, 100, d_model))  # Max sequence length 100
         
         # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
@@ -44,22 +44,20 @@ class TransformerRegressor(nn.Module):
         self.fc2 = nn.Linear(dim_feedforward // 2, 1)
         
     def forward(self, x):
-        # x shape: (batch_size, input_dim)
+        # x shape: (batch_size, sequence_length, input_dim)
         
         # Embed input
-        x = self.input_embedding(x)  # (batch_size, d_model)
-        
-        # Add batch dimension for sequence (treating each sample as a sequence of length 1)
-        x = x.unsqueeze(1)  # (batch_size, 1, d_model)
+        x = self.input_embedding(x)  # (batch_size, sequence_length, d_model)
         
         # Add positional encoding
-        x = x + self.pos_embedding
+        seq_len = x.size(1)
+        x = x + self.pos_embedding[:, :seq_len, :]
         
         # Pass through transformer encoder
-        x = self.transformer_encoder(x)  # (batch_size, 1, d_model)
+        x = self.transformer_encoder(x)  # (batch_size, sequence_length, d_model)
         
-        # Remove sequence dimension
-        x = x.squeeze(1)  # (batch_size, d_model)
+        # Use the last timestep's representation for prediction
+        x = x[:, -1, :]  # (batch_size, d_model)
         
         # Pass through output layers
         x = self.fc1(x)

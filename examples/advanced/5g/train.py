@@ -8,8 +8,8 @@ import os
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from model import TransformerRegressor
-from data import Lumos5GDataset
+from model import TransformerTimeSeriesRegressor
+from data import Lumos5GTimeSeriesDataset
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -104,11 +104,18 @@ def main(args):
     
     # Load dataset
     print(f"Loading dataset from {args.data_path}")
-    full_dataset = Lumos5GDataset(args.data_path, fit_transform=True)
+    full_dataset = Lumos5GTimeSeriesDataset(
+        args.data_path, 
+        sequence_length=args.sequence_length,
+        prediction_horizon=args.prediction_horizon,
+        fit_transform=True
+    )
     
-    # Get scaler and label encoders for validation set
+    # Get scaler, label encoders, and dimensions
     scaler = full_dataset.get_scaler()
     label_encoders = full_dataset.get_label_encoders()
+    input_dim = full_dataset.get_feature_dim()
+    sequence_length = full_dataset.get_sequence_length()
     
     # Split dataset
     train_size = int(args.train_split * len(full_dataset))
@@ -136,11 +143,10 @@ def main(args):
     )
     
     # Get input dimension
-    input_dim = full_dataset.features.shape[1]
-    print(f"Input dimension: {input_dim}")
+    print(f"Input dimension: {input_dim}, Sequence length: {sequence_length}")
     
     # Create model
-    model = TransformerRegressor(
+    model = TransformerTimeSeriesRegressor(
         input_dim=input_dim,
         d_model=args.d_model,
         nhead=args.nhead,
@@ -196,6 +202,8 @@ def main(args):
                 'scaler': scaler,
                 'label_encoders': label_encoders,
                 'input_dim': input_dim,
+                'sequence_length': sequence_length,
+                'prediction_horizon': args.prediction_horizon,
                 'model_config': {
                     'd_model': args.d_model,
                     'nhead': args.nhead,
@@ -235,6 +243,10 @@ if __name__ == '__main__':
                        help='Directory to save outputs')
     parser.add_argument('--train_split', type=float, default=0.8,
                        help='Train/validation split ratio')
+    parser.add_argument('--sequence_length', type=int, default=10,
+                       help='Number of past timesteps to use for prediction')
+    parser.add_argument('--prediction_horizon', type=int, default=1,
+                       help='Number of timesteps ahead to predict')
     
     # Model parameters
     parser.add_argument('--d_model', type=int, default=128,
