@@ -78,6 +78,7 @@ def filter_notebook(notebook_path, kernel_name):
             # else: kernel is registered and matches current spec, no change needed
     
     # Filter cells
+    original_cell_count = len(nb.cells)
     filtered_cells = []
     for cell in nb.cells:
         tags = cell.get('metadata', {}).get('tags', [])
@@ -85,7 +86,7 @@ def filter_notebook(notebook_path, kernel_name):
             continue
         filtered_cells.append(cell)
     
-    cell_skipped = len(filtered_cells) != len(nb.cells)
+    cell_skipped = len(filtered_cells) != original_cell_count
     if cell_skipped:
         nb.cells = filtered_cells
     
@@ -107,7 +108,7 @@ def filter_notebook(notebook_path, kernel_name):
         # Write modified notebook
         nbformat.write(nb, notebook_path)
         if cell_skipped:
-            print(f"Filtered {len(nb.cells)} → {len(filtered_cells)} cells in {notebook_path.name}")
+            print(f"Filtered {original_cell_count} → {len(filtered_cells)} cells in {notebook_path.name}")
         if kernel_spec_updated:
             print(f"Updated kernel spec in {notebook_path.name}")
 
