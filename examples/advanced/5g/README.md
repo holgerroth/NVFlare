@@ -95,12 +95,22 @@ python train.py \
 
 ## Model Architecture
 
-The `TransformerRegressor` model consists of:
+The `TransformerRegressor` model (defined in `model.py`) consists of:
 
 1. **Input Embedding Layer**: Projects input features to model dimension
 2. **Positional Encoding**: Learnable positional embeddings
 3. **Transformer Encoder**: Multi-layer transformer with self-attention
 4. **Output Layers**: Fully connected layers for regression
+
+## Code Structure
+
+The project is organized into modular components:
+
+- **`model.py`**: Contains the `TransformerRegressor` model architecture
+- **`data.py`**: Contains data loading, preprocessing, and the `Lumos5GDataset` class
+- **`train.py`**: Training script with full pipeline
+- **`inference.py`**: Inference script with metrics and visualization
+- **`inference_example.py`**: Example of programmatic inference usage
 
 ## Outputs
 
@@ -109,6 +119,69 @@ After training, the following files will be saved in the output directory:
 - `best_model.pth`: Best model checkpoint with lowest validation loss
 - `loss_plot.png`: Training and validation loss curves
 - `predictions_plot.png`: Scatter plot of predictions vs actual values
+
+## Inference
+
+### Running Inference on New Data
+
+Use the `inference.py` script to run predictions on new or existing data:
+
+#### Basic Inference
+
+```bash
+python inference.py \
+    --checkpoint outputs/best_model.pth \
+    --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv \
+    --output_dir inference_outputs
+```
+
+Or use the quick start script:
+
+```bash
+./run_inference.sh
+```
+
+#### Inference with Visualization
+
+```bash
+python inference.py \
+    --checkpoint outputs/best_model.pth \
+    --data_path Lumos5G-v1.0/Lumos5G-v1.0.csv \
+    --output_dir inference_outputs \
+    --batch_size 512 \
+    --plot
+```
+
+### Inference Arguments
+
+- `--checkpoint`: Path to model checkpoint file (required)
+- `--data_path`: Path to CSV file for inference (required)
+- `--output_dir`: Directory to save outputs (default: `inference_outputs`)
+- `--batch_size`: Batch size for inference (default: `256`)
+- `--plot`: Generate comparison plots if ground truth is available (flag)
+
+### Inference Outputs
+
+The inference script generates:
+
+1. **`predictions.csv`**: Original data with added `Predicted_Throughput` column
+2. **`metrics.txt`**: Evaluation metrics (if ground truth available)
+3. **`inference_comparison.png`**: Comprehensive comparison plots (if `--plot` flag is used)
+   - Predictions vs Actual scatter plot
+   - Residuals plot
+   - Distribution comparison
+   - Error distribution histogram
+
+### Inference on Data Without Ground Truth
+
+The script automatically detects if the `Throughput` column is missing and will only generate predictions without computing metrics:
+
+```bash
+python inference.py \
+    --checkpoint outputs/best_model.pth \
+    --data_path new_data_without_labels.csv \
+    --output_dir predictions
+```
 
 ## Model Checkpoint
 
@@ -123,7 +196,7 @@ The saved model checkpoint includes:
 
 ```python
 import torch
-from train import TransformerRegressor
+from model import TransformerRegressor
 
 # Load checkpoint (weights_only=False is required for PyTorch 2.6+
 # because we save preprocessing objects like scaler and label encoders)
@@ -143,6 +216,40 @@ label_encoders = checkpoint['label_encoders']
 ```
 
 **Note**: The `weights_only=False` parameter is required when loading the checkpoint because it contains non-tensor objects (StandardScaler and LabelEncoders). This is safe since you're loading your own trained model.
+
+## Programmatic Inference
+
+For more control over the inference process, you can use the model programmatically:
+
+```python
+import torch
+from model import TransformerRegressor
+from data import preprocess_data
+
+# Load checkpoint
+checkpoint = torch.load('outputs/best_model.pth', weights_only=False)
+
+# Load model
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = TransformerRegressor(
+    input_dim=checkpoint['input_dim'],
+    **checkpoint['model_config']
+).to(device)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# Load and preprocess data
+df = pd.read_csv('your_data.csv')
+X = preprocess_data(df, checkpoint['scaler'], checkpoint['label_encoders'])
+
+# Run inference
+predictions = run_inference(model, X, device, batch_size=256)
+
+# Add predictions to dataframe
+df['Predicted_Throughput'] = predictions
+```
+
+See `inference_example.py` for a complete working example.
 
 ## Performance Metrics
 
