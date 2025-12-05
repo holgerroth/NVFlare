@@ -115,6 +115,93 @@ def plot_predictions_comparison(predictions, actuals, save_path):
     print(f"Comparison plots saved to {save_path}")
 
 
+def plot_timeseries(df, save_path, max_samples=500):
+    """Plot time series of actual vs predicted throughput
+    
+    Args:
+        df: Dataframe with 'Throughput' and 'Predicted_Throughput' columns
+        save_path: Path to save the plot
+        max_samples: Maximum number of samples to plot (to avoid overcrowding)
+    """
+    fig, axes = plt.subplots(2, 1, figsize=(15, 10))
+    
+    # Get valid predictions
+    valid_mask = df['Predicted_Throughput'].notna()
+    valid_df = df[valid_mask].copy()
+    
+    # If we have run_num, plot one run as an example
+    if 'run_num' in valid_df.columns:
+        # Select a run with good coverage
+        run_lengths = valid_df.groupby('run_num').size()
+        selected_run = run_lengths.idxmax()  # Run with most predictions
+        plot_df = valid_df[valid_df['run_num'] == selected_run].copy()
+        
+        # Limit samples if needed
+        if len(plot_df) > max_samples:
+            plot_df = plot_df.iloc[:max_samples]
+        
+        # Create time index
+        plot_df['time_idx'] = range(len(plot_df))
+        
+        # Top plot: Actual vs Predicted
+        axes[0].plot(plot_df['time_idx'], plot_df['Throughput'], 
+                    label='Actual', linewidth=1.5, alpha=0.8, color='blue')
+        axes[0].plot(plot_df['time_idx'], plot_df['Predicted_Throughput'], 
+                    label='Predicted', linewidth=1.5, alpha=0.8, color='red')
+        axes[0].set_xlabel('Time Step')
+        axes[0].set_ylabel('Throughput (Mbps)')
+        axes[0].set_title(f'Time Series: Actual vs Predicted Throughput (Run {selected_run})')
+        axes[0].legend()
+        axes[0].grid(True, alpha=0.3)
+        
+        # Bottom plot: Prediction error over time
+        plot_df['error'] = plot_df['Predicted_Throughput'] - plot_df['Throughput']
+        axes[1].plot(plot_df['time_idx'], plot_df['error'], 
+                    linewidth=1, alpha=0.7, color='green')
+        axes[1].axhline(y=0, color='black', linestyle='--', lw=1)
+        axes[1].fill_between(plot_df['time_idx'], 0, plot_df['error'], 
+                            alpha=0.3, color='green')
+        axes[1].set_xlabel('Time Step')
+        axes[1].set_ylabel('Prediction Error (Mbps)')
+        axes[1].set_title('Prediction Error Over Time')
+        axes[1].grid(True, alpha=0.3)
+        
+        # Add statistics as text
+        mae = np.mean(np.abs(plot_df['error']))
+        rmse = np.sqrt(np.mean(plot_df['error']**2))
+        axes[1].text(0.02, 0.98, f'MAE: {mae:.2f} Mbps\nRMSE: {rmse:.2f} Mbps',
+                    transform=axes[1].transAxes, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    else:
+        # If no run_num, just plot first max_samples
+        plot_df = valid_df.iloc[:max_samples].copy()
+        plot_df['time_idx'] = range(len(plot_df))
+        
+        axes[0].plot(plot_df['time_idx'], plot_df['Throughput'], 
+                    label='Actual', linewidth=1.5, alpha=0.8)
+        axes[0].plot(plot_df['time_idx'], plot_df['Predicted_Throughput'], 
+                    label='Predicted', linewidth=1.5, alpha=0.8)
+        axes[0].set_xlabel('Time Step')
+        axes[0].set_ylabel('Throughput (Mbps)')
+        axes[0].set_title('Time Series: Actual vs Predicted Throughput')
+        axes[0].legend()
+        axes[0].grid(True, alpha=0.3)
+        
+        # Error plot
+        plot_df['error'] = plot_df['Predicted_Throughput'] - plot_df['Throughput']
+        axes[1].plot(plot_df['time_idx'], plot_df['error'], linewidth=1, alpha=0.7)
+        axes[1].axhline(y=0, color='black', linestyle='--', lw=1)
+        axes[1].set_xlabel('Time Step')
+        axes[1].set_ylabel('Prediction Error (Mbps)')
+        axes[1].set_title('Prediction Error Over Time')
+        axes[1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"Time series plot saved to {save_path}")
+
+
 def main(args):
     # Set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -225,6 +312,11 @@ def main(args):
             print("\nGenerating comparison plots...")
             plot_file = os.path.join(args.output_dir, 'inference_comparison.png')
             plot_predictions_comparison(valid_predictions, actuals, plot_file)
+            
+            # Generate time series plot
+            print("Generating time series plot...")
+            timeseries_file = os.path.join(args.output_dir, 'timeseries_comparison.png')
+            plot_timeseries(df, timeseries_file)
     
     # Display prediction statistics
     print("\n" + "="*60)

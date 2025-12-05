@@ -284,6 +284,10 @@ The inference script generates:
    - Residuals plot
    - Distribution comparison
    - Error distribution histogram
+4. **`timeseries_comparison.png`**: Time series visualization (if `--plot` flag is used)
+   - Actual vs Predicted throughput over time
+   - Prediction error over time
+   - Shows temporal patterns and model performance across timesteps
 
 ### Inference on Data Without Ground Truth
 
