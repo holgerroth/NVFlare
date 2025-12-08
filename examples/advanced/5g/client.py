@@ -243,25 +243,23 @@ def main():
         for epoch in range(epochs_per_round):
             train_loss = train_epoch(model, train_loader, criterion, optimizer, device)
             
-            print(f"  Epoch {epoch + 1}/{epochs_per_round}: Train Loss = {train_loss:.4f}")
+            # Evaluate on local data after each epoch
+            eval_loss, eval_mae, eval_rmse = evaluate(model, train_loader, criterion, device)
             
-            # Log metrics
-            global_step = current_round * steps + epoch * len(train_loader)
-            summary_writer.add_scalar(
-                tag="train_loss",
-                scalar=train_loss,
-                global_step=global_step
-            )
+            print(f"  Epoch {epoch + 1}/{epochs_per_round}:")
+            print(f"    Train Loss: {train_loss:.4f}")
+            print(f"    Eval Loss: {eval_loss:.4f}, MAE: {eval_mae:.4f}, RMSE: {eval_rmse:.4f}")
+            
+            # Log metrics at the end of each epoch
+            global_step = current_round * steps + (epoch + 1) * len(train_loader)
+            summary_writer.add_scalar(tag="train_loss", scalar=train_loss, global_step=global_step)
+            summary_writer.add_scalar(tag="eval_loss", scalar=eval_loss, global_step=global_step)
+            summary_writer.add_scalar(tag="eval_mae", scalar=eval_mae, global_step=global_step)
+            summary_writer.add_scalar(tag="eval_rmse", scalar=eval_rmse, global_step=global_step)
         
-        # Evaluate on local data
-        eval_loss, eval_mae, eval_rmse = evaluate(model, train_loader, criterion, device)
-        print(f"\n  Local Evaluation:")
-        print(f"    Loss: {eval_loss:.4f}, MAE: {eval_mae:.4f}, RMSE: {eval_rmse:.4f}")
-        
-        # Log evaluation metrics
-        summary_writer.add_scalar(tag="eval_loss", scalar=eval_loss, global_step=current_round)
-        summary_writer.add_scalar(tag="eval_mae", scalar=eval_mae, global_step=current_round)
-        summary_writer.add_scalar(tag="eval_rmse", scalar=eval_rmse, global_step=current_round)
+        # Final evaluation results for the round
+        print(f"\n  Round {current_round} Training Complete:")
+        print(f"    Final Loss: {eval_loss:.4f}, MAE: {eval_mae:.4f}, RMSE: {eval_rmse:.4f}")
         
         print(f"\n  Finished training for round {current_round}")
         
