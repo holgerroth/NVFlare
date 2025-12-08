@@ -73,7 +73,7 @@ def split_train_federated(data_path, output_dir, num_clients, seed=42, prefix='s
     print("=" * 60)
     
     for i, client_runs in enumerate(runs_per_client):
-        client_name = f"{prefix}_{i+1}"
+        client_name = f"{prefix}-{i+1}"
         client_df = df[df['run_num'].isin(client_runs)].copy()
         
         # Save file
@@ -164,12 +164,12 @@ Examples:
   python split_train_federated.py --data_path train.csv --num_clients 3 --seed 123
 
 Output:
-  - site_1.csv, site_2.csv, ..., site_N.csv
-  - site_run_assignments.txt (documentation)
+  - site-1.csv, site-2.csv, ..., site-N.csv
+  - site-run_assignments.txt (documentation)
 
 After splitting, train each client:
-  python train.py --data_path federated_data/site_1.csv --output_dir outputs/site_1
-  python train.py --data_path federated_data/site_2.csv --output_dir outputs/site_2
+  python train.py --data_path federated_data/site-1.csv --output_dir outputs/site-1
+  python train.py --data_path federated_data/site-2.csv --output_dir outputs/site-2
   ...
         """
     )

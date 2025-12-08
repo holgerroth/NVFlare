@@ -21,6 +21,14 @@ class TransformerTimeSeriesRegressor(nn.Module):
         """
         super(TransformerTimeSeriesRegressor, self).__init__()
         
+        # Store initialization parameters as member variables for NVFlare persistence
+        self.input_dim = input_dim
+        self.d_model = d_model
+        self.nhead = nhead
+        self.num_layers = num_layers
+        self.dim_feedforward = dim_feedforward
+        self.dropout_rate = dropout
+        
         # Input embedding layer
         self.input_embedding = nn.Linear(input_dim, d_model)
         
