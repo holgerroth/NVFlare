@@ -66,7 +66,7 @@ class Lumos5GTimeSeriesDataset(Dataset):
             if col in self.df.columns:
                 self.df[col] = self.df[col].fillna('UNKNOWN')
         
-        # Encode categorical features
+        # Encode categorical features and convert to one-hot
         if fit_transform:
             self.label_encoders = {}
             for col in self.categorical_features:
@@ -75,34 +75,70 @@ class Lumos5GTimeSeriesDataset(Dataset):
                     self.df[col] = le.fit_transform(self.df[col].astype(str))
                     self.label_encoders[col] = le
         else:
-            self.label_encoders = label_encoders
+            # Use provided label encoders
+            self.label_encoders = label_encoders if label_encoders is not None else {}
             for col in self.categorical_features:
-                if col in self.df.columns and col in self.label_encoders:
-                    # Handle unseen labels
-                    le = self.label_encoders[col]
-                    self.df[col] = self.df[col].apply(
-                        lambda x: le.transform([str(x)])[0] if str(x) in le.classes_ else 0
-                    )
+                if col in self.df.columns:
+                    if col in self.label_encoders:
+                        # Use provided encoder
+                        le = self.label_encoders[col]
+                        # Handle unseen labels - map to 'UNKNOWN' if it exists in classes
+                        def safe_encode(x):
+                            x_str = str(x)
+                            if x_str in le.classes_:
+                                return le.transform([x_str])[0]
+                            elif 'UNKNOWN' in le.classes_:
+                                return le.transform(['UNKNOWN'])[0]
+                            else:
+                                # Return first class as fallback
+                                return 0
+                        self.df[col] = self.df[col].apply(safe_encode)
+                    else:
+                        # No encoder provided for this column - fit on the fly
+                        le = LabelEncoder()
+                        self.df[col] = le.fit_transform(self.df[col].astype(str))
+                        self.label_encoders[col] = le
         
-        # Prepare features
-        feature_cols = [col for col in self.numerical_features + self.categorical_features 
-                       if col in self.df.columns]
-        X = self.df[feature_cols].values.astype(np.float32)
+        # Prepare features - separate numerical and categorical
+        numerical_cols = [col for col in self.numerical_features if col in self.df.columns]
+        categorical_cols = [col for col in self.categorical_features if col in self.df.columns]
         
-        # Replace any remaining NaN or inf values with 0
-        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+        # Get numerical features
+        X_numerical = self.df[numerical_cols].values.astype(np.float32)
+        X_numerical = np.nan_to_num(X_numerical, nan=0.0, posinf=0.0, neginf=0.0)
         
-        # Scale features
+        # Scale numerical features only
         if fit_transform:
             self.scaler = StandardScaler()
-            X = self.scaler.fit_transform(X)
-            # Handle any NaN values that might appear after scaling
-            X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+            X_numerical = self.scaler.fit_transform(X_numerical)
+            X_numerical = np.nan_to_num(X_numerical, nan=0.0, posinf=0.0, neginf=0.0)
         else:
             self.scaler = scaler
-            X = self.scaler.transform(X)
-            # Handle any NaN values that might appear after scaling
-            X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+            if self.scaler is not None:
+                X_numerical = self.scaler.transform(X_numerical)
+                X_numerical = np.nan_to_num(X_numerical, nan=0.0, posinf=0.0, neginf=0.0)
+        
+        # Convert categorical features to one-hot encoding
+        X_categorical_list = []
+        for col in categorical_cols:
+            if col in self.label_encoders:
+                # Create one-hot encoding
+                n_classes = len(self.label_encoders[col].classes_)
+                col_data = self.df[col].values.astype(int)
+                # Create one-hot matrix
+                one_hot = np.zeros((len(col_data), n_classes), dtype=np.float32)
+                # Set the appropriate class to 1 for each sample
+                one_hot[np.arange(len(col_data)), col_data] = 1
+                X_categorical_list.append(one_hot)
+        
+        # Concatenate all one-hot encoded categorical features
+        if X_categorical_list:
+            X_categorical = np.concatenate(X_categorical_list, axis=1)
+        else:
+            X_categorical = np.empty((len(self.df), 0), dtype=np.float32)
+        
+        # Combine numerical and categorical features
+        X = np.concatenate([X_numerical, X_categorical], axis=1)
         
         # Create sequences
         self.sequences = []
@@ -204,23 +240,50 @@ def preprocess_timeseries_data(df, scaler, label_encoders, sequence_length):
         if col in df.columns and col in label_encoders:
             # Handle unseen labels
             le = label_encoders[col]
-            df[col] = df[col].apply(
-                lambda x: le.transform([str(x)])[0] if str(x) in le.classes_ else 0
-            )
+            def safe_encode(x):
+                x_str = str(x)
+                if x_str in le.classes_:
+                    return le.transform([x_str])[0]
+                elif 'UNKNOWN' in le.classes_:
+                    return le.transform(['UNKNOWN'])[0]
+                else:
+                    return 0
+            df[col] = df[col].apply(safe_encode)
     
-    # Prepare features
-    feature_cols = [col for col in numerical_features + categorical_features 
-                   if col in df.columns]
-    X = df[feature_cols].values.astype(np.float32)
+    # Prepare features - separate numerical and categorical
+    numerical_cols = [col for col in numerical_features if col in df.columns]
+    categorical_cols = [col for col in categorical_features if col in df.columns]
     
-    # Replace any remaining NaN or inf values with 0
-    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    # Get numerical features
+    X_numerical = df[numerical_cols].values.astype(np.float32)
+    X_numerical = np.nan_to_num(X_numerical, nan=0.0, posinf=0.0, neginf=0.0)
     
-    # Scale features
-    X = scaler.transform(X)
+    # Scale numerical features only
+    if scaler is not None:
+        X_numerical = scaler.transform(X_numerical)
+        X_numerical = np.nan_to_num(X_numerical, nan=0.0, posinf=0.0, neginf=0.0)
     
-    # Handle any NaN values that might appear after scaling
-    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    # Convert categorical features to one-hot encoding
+    X_categorical_list = []
+    for col in categorical_cols:
+        if col in label_encoders:
+            # Create one-hot encoding
+            n_classes = len(label_encoders[col].classes_)
+            col_data = df[col].values.astype(int)
+            # Create one-hot matrix
+            one_hot = np.zeros((len(col_data), n_classes), dtype=np.float32)
+            # Set the appropriate class to 1 for each sample
+            one_hot[np.arange(len(col_data)), col_data] = 1
+            X_categorical_list.append(one_hot)
+    
+    # Concatenate all one-hot encoded categorical features
+    if X_categorical_list:
+        X_categorical = np.concatenate(X_categorical_list, axis=1)
+    else:
+        X_categorical = np.empty((len(df), 0), dtype=np.float32)
+    
+    # Combine numerical and categorical features
+    X = np.concatenate([X_numerical, X_categorical], axis=1)
     
     # Create sequences
     sequences = []
@@ -293,23 +356,50 @@ def preprocess_data(df, scaler, label_encoders):
         if col in df.columns and col in label_encoders:
             # Handle unseen labels
             le = label_encoders[col]
-            df[col] = df[col].apply(
-                lambda x: le.transform([str(x)])[0] if str(x) in le.classes_ else 0
-            )
+            def safe_encode(x):
+                x_str = str(x)
+                if x_str in le.classes_:
+                    return le.transform([x_str])[0]
+                elif 'UNKNOWN' in le.classes_:
+                    return le.transform(['UNKNOWN'])[0]
+                else:
+                    return 0
+            df[col] = df[col].apply(safe_encode)
     
-    # Prepare features
-    feature_cols = [col for col in numerical_features + categorical_features 
-                   if col in df.columns]
-    X = df[feature_cols].values.astype(np.float32)
+    # Prepare features - separate numerical and categorical
+    numerical_cols = [col for col in numerical_features if col in df.columns]
+    categorical_cols = [col for col in categorical_features if col in df.columns]
     
-    # Replace any remaining NaN or inf values with 0
-    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    # Get numerical features
+    X_numerical = df[numerical_cols].values.astype(np.float32)
+    X_numerical = np.nan_to_num(X_numerical, nan=0.0, posinf=0.0, neginf=0.0)
     
-    # Scale features
-    X = scaler.transform(X)
+    # Scale numerical features only
+    if scaler is not None:
+        X_numerical = scaler.transform(X_numerical)
+        X_numerical = np.nan_to_num(X_numerical, nan=0.0, posinf=0.0, neginf=0.0)
     
-    # Handle any NaN values that might appear after scaling
-    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    # Convert categorical features to one-hot encoding
+    X_categorical_list = []
+    for col in categorical_cols:
+        if col in label_encoders:
+            # Create one-hot encoding
+            n_classes = len(label_encoders[col].classes_)
+            col_data = df[col].values.astype(int)
+            # Create one-hot matrix
+            one_hot = np.zeros((len(col_data), n_classes), dtype=np.float32)
+            # Set the appropriate class to 1 for each sample
+            one_hot[np.arange(len(col_data)), col_data] = 1
+            X_categorical_list.append(one_hot)
+    
+    # Concatenate all one-hot encoded categorical features
+    if X_categorical_list:
+        X_categorical = np.concatenate(X_categorical_list, axis=1)
+    else:
+        X_categorical = np.empty((len(df), 0), dtype=np.float32)
+    
+    # Combine numerical and categorical features
+    X = np.concatenate([X_numerical, X_categorical], axis=1)
     
     return X
 
