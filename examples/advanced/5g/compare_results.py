@@ -301,6 +301,17 @@ def create_comparison_plots(results, exp_dir):
             ax.set_title(f'{title}\n(Lower is Better)', fontsize=13, fontweight='bold')
             ax.grid(axis='y', alpha=0.3)
             
+            # Set y-axis limits starting from min value with buffer
+            if values:
+                min_val = min(values)
+                max_val = max(values)
+                # Calculate buffer based on range
+                y_range = max_val - min_val
+                buffer = y_range * 0.1 if y_range > 0 else min_val * 0.05
+                y_min = min_val - buffer
+                y_max = max_val + buffer
+                ax.set_ylim(y_min, y_max)
+            
             # Add value labels on bars
             for bar, val in zip(bars, values):
                 height = bar.get_height()
@@ -353,6 +364,24 @@ def create_comparison_plots(results, exp_dir):
                           color='#2ecc71', linestyle='--', linewidth=2,
                           label='Centralized', alpha=0.8)
             
+            # Set y-axis limits based on all values (local bars + federated + centralized lines)
+            all_values = []
+            if local_values:
+                all_values.extend(local_values)
+            if 'final' in results['federated'] and metric in results['federated']['final']:
+                all_values.append(results['federated']['final'][metric])
+            if 'final' in results['centralized'] and metric in results['centralized']['final']:
+                all_values.append(results['centralized']['final'][metric])
+            
+            if all_values:
+                min_val = min(all_values)
+                max_val = max(all_values)
+                y_range = max_val - min_val
+                buffer = y_range * 0.1 if y_range > 0 else min_val * 0.05
+                y_min = min_val - buffer
+                y_max = max_val + buffer
+                ax.set_ylim(y_min, y_max)
+            
             ax.set_ylabel(title, fontsize=11)
             ax.set_xlabel('Client', fontsize=11)
             ax.set_title(f'{title} per Client', fontsize=12, fontweight='bold')
@@ -403,6 +432,27 @@ def create_timeseries_comparison(results, exp_dir, plots_dir, max_samples=500):
     
     print(f"  Loading validation data from {val_csv}...")
     
+    # Load CSV to get run information
+    val_df = pd.read_csv(val_csv)
+    unique_runs = sorted(val_df['run_num'].unique())
+    num_runs = len(unique_runs)
+    
+    # Select a single run for visualization (the one with most samples)
+    run_lengths = val_df.groupby('run_num').size()
+    selected_run = run_lengths.idxmax()
+    
+    print(f"  Validation data contains {num_runs} runs")
+    print(f"  Plotting run {selected_run} (longest run with {run_lengths[selected_run]} samples)")
+    
+    # Filter validation data to only the selected run
+    val_df_filtered = val_df[val_df['run_num'] == selected_run].copy()
+    
+    # Save filtered data to temporary file for dataset loading
+    temp_val_csv = Path(exp_dir) / 'temp_val_single_run.csv'
+    val_df_filtered.to_csv(temp_val_csv, index=False)
+    
+    run_info = f"Validation Run {selected_run}"
+    
     # Load shared preprocessors (for federated and local models)
     config_dir = Path('federated_data')
     if not config_dir.exists():
@@ -444,7 +494,7 @@ def create_timeseries_comparison(results, exp_dir, plots_dir, max_samples=500):
             
             # Create dataset with appropriate preprocessors
             dataset = Lumos5GTimeSeriesDataset(
-                val_csv,
+                temp_val_csv,  # Use filtered single-run data
                 scaler=scaler,
                 label_encoders=label_encoders,
                 fit_transform=False,
@@ -581,7 +631,7 @@ def create_timeseries_comparison(results, exp_dir, plots_dir, max_samples=500):
     
     axes[0].set_xlabel('Time Step', fontsize=12)
     axes[0].set_ylabel('Throughput (Mbps)', fontsize=12)
-    axes[0].set_title('Time Series Comparison: Actual vs Model Predictions', 
+    axes[0].set_title(f'Time Series Comparison: Actual vs Model Predictions\n{run_info}', 
                      fontsize=14, fontweight='bold')
     axes[0].legend(fontsize=11, loc='best')
     axes[0].grid(True, alpha=0.3)
@@ -666,7 +716,7 @@ def create_timeseries_comparison(results, exp_dir, plots_dir, max_samples=500):
         
         axes[0].set_xlabel('Time Step', fontsize=12)
         axes[0].set_ylabel('Throughput (Mbps)', fontsize=12)
-        axes[0].set_title(f'Time Series Comparison (Zoomed: Steps {zoom_start}-{zoom_end})', 
+        axes[0].set_title(f'Time Series Comparison (Zoomed: Steps {zoom_start}-{zoom_end})\n{run_info}', 
                          fontsize=14, fontweight='bold')
         axes[0].legend(fontsize=11, loc='best')
         axes[0].grid(True, alpha=0.3)
@@ -725,6 +775,10 @@ def create_timeseries_comparison(results, exp_dir, plots_dir, max_samples=500):
         print(f"  Saved: {zoom_save_path}")
     else:
         print(f"  Not enough data points for zoom (need > 300, have {len(time_idx)})")
+    
+    # Clean up temporary file
+    if temp_val_csv.exists():
+        temp_val_csv.unlink()
 
 
 def create_summary_table(results, plots_dir):

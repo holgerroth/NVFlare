@@ -12,10 +12,10 @@ set -e  # Exit on error
 
 # Configuration
 NUM_CLIENTS=5
-NUM_ROUNDS=10
-EPOCHS=20
-EPOCHS_PER_ROUND=2
+NUM_ROUNDS=25
+EPOCHS=50
 BATCH_SIZE=256
+EPOCHS_PER_ROUND=$((EPOCHS / NUM_ROUNDS))  # Computed: EPOCHS / NUM_ROUNDS
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 EXP_NAME="comparison_exp_${TIMESTAMP}"
 EXP_DIR="experiments/${EXP_NAME}"
