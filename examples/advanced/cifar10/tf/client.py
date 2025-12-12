@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 from cifar10_data_split import load_cifar10_with_retry
-from tf_net import TFNet
+from model import TFNet
 
 # (1) import nvflare client API
 import nvflare.client as flare
