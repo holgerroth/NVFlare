@@ -72,26 +72,6 @@ class MyAggregator(ModelAggregator):
         self.sum = {}
         self.count = 0
 
-    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
-        """Accept a shareable from a client."""
-        dxo = from_shareable(shareable)
-        if dxo.data_kind == DataKind.WEIGHTS:
-            # Convert to FLModel format for our custom logic
-            model = FLModel(params=dxo.data, params_type=ParamsType.FULL)
-            self.accept_model(model)
-            return True
-        return False
-
-    def aggregate(self, fl_ctx: FLContext) -> Shareable:
-        """Perform aggregation and return result as Shareable."""
-        aggregated_model = self.aggregate_model()
-        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_model.params)
-        return dxo.to_shareable()
-
-    def reset(self, fl_ctx: FLContext):
-        """Reset the aggregator state."""
-        self.reset_stats()
-
 
 class InvalidAggregator:
     """Invalid aggregator that doesn't inherit from Aggregator."""
