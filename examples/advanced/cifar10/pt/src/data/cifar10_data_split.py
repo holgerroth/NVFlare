@@ -158,7 +158,10 @@ def main():
     )
 
     parser.add_argument(
-        "--split_dir", type=str, required=True, help="Absolute path to directory where split data will be saved"
+        "--split_dir_prefix",
+        type=str,
+        required=True,
+        help="Path with prefix to directory where split data will be saved",
     )
 
     parser.add_argument("--num_sites", type=int, default=8, help="Number of sites to partition data into")

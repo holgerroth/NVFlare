@@ -44,6 +44,7 @@ class _FedOptValidator(BaseModel):
     command: str = "python3 -u"
     server_expected_format: ExchangeFormat = ExchangeFormat.NUMPY
     params_transfer_type: TransferType = TransferType.FULL
+    device: Optional[str] = None
 
 
 class FedOptRecipe(Recipe):
@@ -78,6 +79,8 @@ class FedOptRecipe(Recipe):
             - path: Path to scheduler class (e.g., "torch.optim.lr_scheduler.CosineAnnealingLR")
             - args: Dictionary of scheduler arguments (e.g., {"T_max": 100, "eta_min": 0.9})
             - config_type: Type of configuration, typically "dict"
+        device (str): specify the device to run server-side optimization, e.g. "cpu" or "cuda:0"
+            (default is None; will default to cuda if available and no device is specified).
 
     Example:
         ```python
@@ -126,7 +129,7 @@ class FedOptRecipe(Recipe):
         command: str = "python3 -u",
         server_expected_format: ExchangeFormat = ExchangeFormat.NUMPY,
         params_transfer_type: TransferType = TransferType.FULL,
-        device: str = "cpu",
+        device: Optional[str] = None,
         source_model: str = "model",
         optimizer_args: Optional[dict] = None,
         lr_scheduler_args: Optional[dict] = None,
@@ -144,6 +147,7 @@ class FedOptRecipe(Recipe):
             command=command,
             server_expected_format=server_expected_format,
             params_transfer_type=params_transfer_type,
+            device=device,
         )
 
         self.name = v.name
@@ -203,7 +207,7 @@ class FedOptRecipe(Recipe):
             optimizer_args=self.optimizer_args,
             lr_scheduler_args=processed_lr_scheduler_args,
             source_model=self.source_model,
-            # device=self.device, # TODO: support device type with job api
+            device=self.device,
         )
         shareable_generator_id = job.to_server(shareable_generator, id="shareable_generator")
         aggregator_id = job.to_server(self.aggregator, id="aggregator")

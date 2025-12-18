@@ -84,17 +84,13 @@ class HEModelEncryptor(DXOFilter):
             if self.encrypt_layers is not None:
                 if not (isinstance(self.encrypt_layers, list) or isinstance(self.encrypt_layers, str)):
                     raise ValueError(
-                        "Must provide a list of layer names or a string for regex matching, but got {}".format(
-                            type(self.encrypt_layers)
-                        )
+                        f"Must provide a list of layer names or a string for regex matching, but got {type(self.encrypt_layers)}"
                     )
             if isinstance(self.encrypt_layers, list):
                 for encrypt_layer in self.encrypt_layers:
                     if not isinstance(encrypt_layer, str):
                         raise ValueError(
-                            "encrypt_layers needs to be a list of layer names to encrypt, but found element of type {}".format(
-                                type(encrypt_layer)
-                            )
+                            f"encrypt_layers needs to be a list of layer names to encrypt, but found element of type {type(encrypt_layer)}"
                         )
                 self.encrypt_layers = self.encrypt_layers
                 self.logger.info(f"Encrypting {len(self.encrypt_layers)} layers")
@@ -103,7 +99,7 @@ class HEModelEncryptor(DXOFilter):
                 self.logger.info(f'Encrypting all layers based on regex matches with "{self.encrypt_layers}"')
             else:
                 self.encrypt_layers = [True]  # needs to be list for logic in encryption()
-                self.logger.info("Encrypting all layers")            
+                self.logger.info("Encrypting all layers")
         elif event_type == EventType.END_RUN:
             self.tenseal_context = None
 
