@@ -17,11 +17,8 @@ from unittest.mock import patch
 import pytest
 import torch.nn as nn
 
-from nvflare.apis.dxo import DXO, DataKind, from_shareable
-from nvflare.apis.fl_context import FLContext
-from nvflare.apis.shareable import Shareable
 from nvflare.app_common.abstract.aggregator import Aggregator
-from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
+from nvflare.app_common.abstract.fl_model import FLModel
 from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 from nvflare.app_opt.pt.recipes.fedavg import FedAvgRecipe
 

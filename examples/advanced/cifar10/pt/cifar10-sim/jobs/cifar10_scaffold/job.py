@@ -68,7 +68,7 @@ def main():
     if alpha > 0.0:
         print(f"Preparing CIFAR10 and doing data split with alpha = {alpha}")
         train_idx_root = split_and_save(
-            num_sites=n_clients, alpha=alpha, split_dir_prefix=f"/tmp/cifar10_splits/cifar10_scaffold"
+            num_sites=n_clients, alpha=alpha, split_dir_prefix="/tmp/cifar10_splits/cifar10_scaffold"
         )
     else:
         raise ValueError("Alpha must be greater than 0 for federated settings")
