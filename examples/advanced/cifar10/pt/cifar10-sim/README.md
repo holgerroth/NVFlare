@@ -231,3 +231,225 @@ Both FedOpt and SCAFFOLD achieve significantly better performance with the same 
 | cifar10_scaffold |	0.1 |	0.8299 |
 
 ![FedProx vs. FedOpt](./figs/fedopt_fedprox_scaffold.png)
+
+
+### 5. Using your own Aggregator
+
+The `FedAvgRecipe` allows you to provide your own custom aggregator implementation. This is useful when you want to implement custom aggregation logic beyond the default weighted averaging, such as:
+- Custom weighting schemes based on client performance
+- Aggregation with privacy constraints
+- Specialized aggregation for specific model architectures
+- Advanced aggregation algorithms like trimmed mean, median, or Krum
+
+#### 5.1 Creating a Custom Aggregator
+
+To create a custom aggregator, you need to inherit from NVFlare's `ModelAggregator` base class and implement the required methods. Here's an example:
+
+```python
+from nvflare.apis.dxo import DXO, DataKind, from_shareable
+from nvflare.apis.fl_context import FLContext
+from nvflare.apis.shareable import Shareable
+from nvflare.app_common.abstract.aggregator import Aggregator
+from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
+
+
+class MyCustomAggregator(Aggregator):
+    """Custom aggregator with specialized aggregation logic."""
+
+    def __init__(self):
+        super().__init__()
+        self.sum = {}
+        self.count = 0
+
+    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
+        """Accept a shareable from a client."""
+        dxo = from_shareable(shareable)
+        if dxo.data_kind == DataKind.WEIGHTS:
+            # Convert to FLModel format for custom logic
+            self.info(f"Accepting model with {len(dxo.data)} parameters")
+            
+            # Custom accumulation logic
+            for key, value in dxo.data.items():
+                if key not in self.sum:
+                    self.sum[key] = 0
+                self.sum[key] += value
+            self.count += 1
+            return True
+        return False
+
+    def aggregate(self, fl_ctx: FLContext) -> Shareable:
+        """Perform aggregation and return result as Shareable."""
+        self.info(f"Aggregating {self.count} models")
+        
+        # Compute the average (or implement your custom logic here)
+        aggregated_params = {}
+        for key in self.sum:
+            aggregated_params[key] = self.sum[key] / self.count
+        
+        # Return as DXO wrapped in Shareable
+        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
+        return dxo.to_shareable()
+
+    def reset(self, fl_ctx: FLContext):
+        """Reset the aggregator state for next round."""
+        self.info("Resetting aggregator")
+        self.sum = {}
+        self.count = 0
+```
+
+**Key methods to implement:**
+- `accept()`: Called when each client submits their model. Use this to accumulate or store client contributions.
+- `aggregate()`: Called when all clients have submitted. Implement your aggregation logic here.
+- `reset()`: Called after aggregation to prepare for the next round.
+
+#### 5.2 Using Custom Aggregator in job.py
+
+To use your custom aggregator with `FedAvgRecipe`, pass it as the `aggregator` parameter. Here's a complete example of a `job.py` file:
+
+```python
+import argparse
+from net import Net  # Your model definition
+from my_custom_aggregator import MyCustomAggregator
+from nvflare.app_opt.pt.recipes.fedavg import FedAvgRecipe
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_clients", type=int, default=8)
+    parser.add_argument("--num_rounds", type=int, default=50)
+    parser.add_argument("--epochs", type=int, default=4)
+    parser.add_argument("--alpha", type=float, default=1.0)
+    args = parser.parse_args()
+
+    # Instantiate your custom aggregator
+    custom_aggregator = MyCustomAggregator()
+    
+    # Create initial model
+    initial_model = Net()
+    
+    # Create recipe with custom aggregator
+    recipe = FedAvgRecipe(
+        name=f"cifar10_custom_agg_alpha{args.alpha}",
+        train_script="../../src/trainers/client.py",
+        train_args=f"--epochs {args.epochs} --alpha {args.alpha}",
+        min_clients=args.n_clients,
+        num_rounds=args.num_rounds,
+        initial_model=initial_model,
+        aggregator=custom_aggregator  # Pass your custom aggregator here
+    )
+    
+    # Run the job
+    recipe.simulator_run("/tmp/nvflare/simulation", gpu="0")
+
+if __name__ == "__main__":
+    main()
+```
+
+#### 5.3 Running the Job
+
+Once you've created your custom aggregator and updated your `job.py`, you can run it just like any other job:
+
+```bash
+python ./jobs/my_custom_job/job.py --n_clients 8 --num_rounds 50 --alpha 0.1
+```
+
+**Important Notes:**
+- Your custom aggregator class must inherit from `nvflare.app_common.aggregators.model_aggregator import ModelAggregator` or `nvflare.app_common.abstract.aggregator.Aggregator`
+- The aggregator receives model updates as `Shareable` objects containing DXO (Data eXchange Object) with `DataKind.WEIGHTS`
+- All aggregation state should be reset in the `reset()` method to ensure clean state between rounds
+- Use `self.info()`, `self.warning()`, and `self.error()` for logging within your aggregator
+
+#### 5.4 Advanced Aggregator Examples
+
+**Example 1: Weighted Aggregation by Client Data Size**
+
+```python
+class WeightedAggregator(Aggregator):
+    def __init__(self):
+        super().__init__()
+        self.weighted_sum = {}
+        self.total_weight = 0
+
+    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
+        dxo = from_shareable(shareable)
+        if dxo.data_kind == DataKind.WEIGHTS:
+            # Get client's data size from metadata
+            weight = dxo.get_meta_prop("num_steps", 1.0)
+            
+            for key, value in dxo.data.items():
+                if key not in self.weighted_sum:
+                    self.weighted_sum[key] = 0
+                self.weighted_sum[key] += value * weight
+            self.total_weight += weight
+            return True
+        return False
+
+    def aggregate(self, fl_ctx: FLContext) -> Shareable:
+        aggregated_params = {
+            key: val / self.total_weight 
+            for key, val in self.weighted_sum.items()
+        }
+        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
+        return dxo.to_shareable()
+
+    def reset(self, fl_ctx: FLContext):
+        self.weighted_sum = {}
+        self.total_weight = 0
+```
+
+**Example 2: Median Aggregation for Byzantine Robustness**
+
+```python
+import torch
+
+class MedianAggregator(Aggregator):
+    def __init__(self):
+        super().__init__()
+        self.client_models = []
+
+    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
+        dxo = from_shareable(shareable)
+        if dxo.data_kind == DataKind.WEIGHTS:
+            self.client_models.append(dxo.data)
+            return True
+        return False
+
+    def aggregate(self, fl_ctx: FLContext) -> Shareable:
+        # Stack all client parameters and compute median
+        aggregated_params = {}
+        param_keys = self.client_models[0].keys()
+        
+        for key in param_keys:
+            stacked = torch.stack([m[key] for m in self.client_models])
+            aggregated_params[key] = torch.median(stacked, dim=0)[0]
+        
+        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
+        return dxo.to_shareable()
+
+    def reset(self, fl_ctx: FLContext):
+        self.client_models = []
+```
+
+These examples demonstrate how you can implement sophisticated aggregation strategies by providing custom aggregators to the `FedAvgRecipe`.
+
+#### 5.5 Complete Working Example
+
+A complete, ready-to-run implementation of custom aggregators is available in the `jobs/my_custom_job/` directory. This example includes:
+
+- **`custom_aggregators.py`**: Full implementations of `WeightedAggregator` and `MedianAggregator`
+- **`job.py`**: Complete job script with command-line options to select between aggregators
+- **`README.md`**: Detailed usage instructions and implementation guide
+
+To run the example:
+
+```bash
+# Run with weighted aggregator
+python ./jobs/my_custom_job/job.py --aggregator weighted --n_clients 8 --num_rounds 50 --alpha 0.1
+
+# Run with median aggregator (Byzantine-robust)
+python ./jobs/my_custom_job/job.py --aggregator median --n_clients 8 --num_rounds 50 --alpha 0.1
+
+# Run with default aggregator for comparison
+python ./jobs/my_custom_job/job.py --aggregator default --n_clients 8 --num_rounds 50 --alpha 0.1
+```
+
+See the [custom job README](./jobs/my_custom_job/README.md) for more details and advanced usage examples.
