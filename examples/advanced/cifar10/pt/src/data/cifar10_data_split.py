@@ -179,7 +179,7 @@ def main():
     args = parser.parse_args()
 
     # Run the data splitting
-    split_and_save(split_dir=args.split_dir, num_sites=args.num_sites, alpha=args.alpha, seed=args.seed)
+    split_and_save(split_dir_prefix=args.split_dir_prefix, num_sites=args.num_sites, alpha=args.alpha, seed=args.seed)
 
 
 if __name__ == "__main__":

@@ -92,7 +92,6 @@ class HEModelEncryptor(DXOFilter):
                         raise ValueError(
                             f"encrypt_layers needs to be a list of layer names to encrypt, but found element of type {type(encrypt_layer)}"
                         )
-                self.encrypt_layers = self.encrypt_layers
                 self.logger.info(f"Encrypting {len(self.encrypt_layers)} layers")
             elif isinstance(self.encrypt_layers, str):
                 self.encrypt_layers = re.compile(self.encrypt_layers) if self.encrypt_layers else None
