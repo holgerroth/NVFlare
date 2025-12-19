@@ -51,6 +51,20 @@ The `--alpha` parameter controls data heterogeneity:
 - Higher alpha (e.g., 1.0) = more uniform/homogeneous data distribution across clients
 - Lower alpha (e.g., 0.1) = more heterogeneous/non-IID data distribution across clients
 
+#### Visualizing Label Distributions
+
+To understand how the `alpha` parameter affects data distribution across clients, you can visualize the label distributions using the provided plotting script.
+
+Then generate the visualizations:
+
+```bash
+python3 ./figs/plot_label_distributions.py --alpha_values 1.0 0.1 --n_clients 8
+```
+
+This will generate a stacked bar chart in the `figs` directory with stacked bar charts showing the actual sample counts per class:
+
+![Label Distributions](./figs/label_distributions.png)
+
 ### 3.2 Centralized training
 
 To simulate a centralized training baseline, we run FL with 1 client for 25 local epochs but only for one round. 
