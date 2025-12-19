@@ -229,7 +229,7 @@ def main(args):
             )
 
         # Load model from NVFlare
-        model.load_state_dict(input_model.params)
+        model.load_state_dict(input_model.params, strict=True)  # make sure all parameters are loaded with strict mode
 
         # Copy global model for computing weight differences and for FedProx loss
         global_model = copy.deepcopy(model)

@@ -246,14 +246,11 @@ The `FedAvgRecipe` allows you to provide your own custom aggregator implementati
 To create a custom aggregator, you need to inherit from NVFlare's `ModelAggregator` base class and implement the required methods. Here's an example:
 
 ```python
-from nvflare.apis.dxo import DXO, DataKind, from_shareable
-from nvflare.apis.fl_context import FLContext
-from nvflare.apis.shareable import Shareable
-from nvflare.app_common.abstract.aggregator import Aggregator
 from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
+from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 
 
-class MyCustomAggregator(Aggregator):
+class MyCustomAggregator(ModelAggregator):
     """Custom aggregator with specialized aggregation logic."""
 
     def __init__(self):
@@ -261,24 +258,19 @@ class MyCustomAggregator(Aggregator):
         self.sum = {}
         self.count = 0
 
-    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
-        """Accept a shareable from a client."""
-        dxo = from_shareable(shareable)
-        if dxo.data_kind == DataKind.WEIGHTS:
-            # Convert to FLModel format for custom logic
-            self.info(f"Accepting model with {len(dxo.data)} parameters")
-            
-            # Custom accumulation logic
-            for key, value in dxo.data.items():
-                if key not in self.sum:
-                    self.sum[key] = 0
-                self.sum[key] += value
-            self.count += 1
-            return True
-        return False
+    def accept_model(self, model: FLModel):
+        """Accept submitted model and add to the sum."""
+        self.info(f"Accepting model with {len(model.params)} parameters")
+        
+        # Custom accumulation logic
+        for key, value in model.params.items():
+            if key not in self.sum:
+                self.sum[key] = 0
+            self.sum[key] += value
+        self.count += 1
 
-    def aggregate(self, fl_ctx: FLContext) -> Shareable:
-        """Perform aggregation and return result as Shareable."""
+    def aggregate_model(self) -> FLModel:
+        """Aggregate the collected models."""
         self.info(f"Aggregating {self.count} models")
         
         # Compute the average (or implement your custom logic here)
@@ -286,11 +278,10 @@ class MyCustomAggregator(Aggregator):
         for key in self.sum:
             aggregated_params[key] = self.sum[key] / self.count
         
-        # Return as DXO wrapped in Shareable
-        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
-        return dxo.to_shareable()
+        # Return as DIFF since clients send weight differences
+        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
 
-    def reset(self, fl_ctx: FLContext):
+    def reset_stats(self):
         """Reset the aggregator state for next round."""
         self.info("Resetting aggregator")
         self.sum = {}
@@ -298,9 +289,9 @@ class MyCustomAggregator(Aggregator):
 ```
 
 **Key methods to implement:**
-- `accept()`: Called when each client submits their model. Use this to accumulate or store client contributions.
-- `aggregate()`: Called when all clients have submitted. Implement your aggregation logic here.
-- `reset()`: Called after aggregation to prepare for the next round.
+- `accept_model(model: FLModel)`: Called when each client submits their model. Use this to accumulate or store client contributions.
+- `aggregate_model() -> FLModel`: Called when all clients have submitted. Implement your aggregation logic here and return the aggregated model.
+- `reset_stats()`: Called after aggregation to prepare for the next round.
 
 #### 5.2 Using Custom Aggregator in job.py
 
@@ -353,45 +344,51 @@ python ./jobs/my_custom_job/job.py --n_clients 8 --num_rounds 50 --alpha 0.1
 ```
 
 **Important Notes:**
-- Your custom aggregator class must inherit from `nvflare.app_common.aggregators.model_aggregator import ModelAggregator` or `nvflare.app_common.abstract.aggregator.Aggregator`
-- The aggregator receives model updates as `Shareable` objects containing DXO (Data eXchange Object) with `DataKind.WEIGHTS`
-- All aggregation state should be reset in the `reset()` method to ensure clean state between rounds
-- Use `self.info()`, `self.warning()`, and `self.error()` for logging within your aggregator
+- Your custom aggregator class should inherit from `nvflare.app_common.aggregators.model_aggregator.ModelAggregator`
+- `ModelAggregator` provides a clean API with `FLModel` objects and built-in logging methods (`self.info()`, `self.error()`, etc.)
+- The base `ModelAggregator` class handles conversion between `Shareable` objects and `FLModel` objects automatically
+- All aggregation state should be reset in the `reset_stats()` method to ensure clean state between rounds
+- You can also inherit from the base `Aggregator` class if you need lower-level control over `Shareable` objects
 
 #### 5.4 Advanced Aggregator Examples
 
 **Example 1: Weighted Aggregation by Client Data Size**
 
 ```python
-class WeightedAggregator(Aggregator):
+from nvflare.apis.fl_constant import FLMetaKey
+from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
+from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
+
+
+class WeightedAggregator(ModelAggregator):
     def __init__(self):
         super().__init__()
         self.weighted_sum = {}
         self.total_weight = 0
 
-    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
-        dxo = from_shareable(shareable)
-        if dxo.data_kind == DataKind.WEIGHTS:
-            # Get client's data size from metadata
-            weight = dxo.get_meta_prop("num_steps", 1.0)
-            
-            for key, value in dxo.data.items():
-                if key not in self.weighted_sum:
-                    self.weighted_sum[key] = 0
-                self.weighted_sum[key] += value * weight
-            self.total_weight += weight
-            return True
-        return False
+    def accept_model(self, model: FLModel):
+        """Accept submitted model and add to the weighted sum."""
+        # Get client's data size from metadata (NUM_STEPS_CURRENT_ROUND is sent by client)
+        weight = model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0)
+        
+        self.info(f"Accepting model with weight={weight}")
+        
+        for key, value in model.params.items():
+            if key not in self.weighted_sum:
+                self.weighted_sum[key] = 0
+            self.weighted_sum[key] += value * weight
+        self.total_weight += weight
 
-    def aggregate(self, fl_ctx: FLContext) -> Shareable:
+    def aggregate_model(self) -> FLModel:
+        """Perform weighted aggregation and return result as FLModel."""
         aggregated_params = {
             key: val / self.total_weight 
             for key, val in self.weighted_sum.items()
         }
-        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
-        return dxo.to_shareable()
+        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
 
-    def reset(self, fl_ctx: FLContext):
+    def reset_stats(self):
+        """Reset the aggregator state for next round."""
         self.weighted_sum = {}
         self.total_weight = 0
 ```
@@ -399,33 +396,36 @@ class WeightedAggregator(Aggregator):
 **Example 2: Median Aggregation for Byzantine Robustness**
 
 ```python
-import torch
+import numpy as np
+from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
+from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 
-class MedianAggregator(Aggregator):
+
+class MedianAggregator(ModelAggregator):
     def __init__(self):
         super().__init__()
         self.client_models = []
 
-    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
-        dxo = from_shareable(shareable)
-        if dxo.data_kind == DataKind.WEIGHTS:
-            self.client_models.append(dxo.data)
-            return True
-        return False
+    def accept_model(self, model: FLModel):
+        """Accept submitted model and add to collection."""
+        self.info(f"Accepting model {len(self.client_models) + 1}")
+        self.client_models.append(model.params)
 
-    def aggregate(self, fl_ctx: FLContext) -> Shareable:
-        # Stack all client parameters and compute median
+    def aggregate_model(self) -> FLModel:
+        """Perform median aggregation and return result as FLModel."""
+        # Stack all client parameters and compute median using numpy
         aggregated_params = {}
         param_keys = self.client_models[0].keys()
         
         for key in param_keys:
-            stacked = torch.stack([m[key] for m in self.client_models])
-            aggregated_params[key] = torch.median(stacked, dim=0)[0]
+            # Stack arrays from all clients along axis 0
+            stacked = np.stack([m[key] for m in self.client_models], axis=0)
+            aggregated_params[key] = np.median(stacked, axis=0)
         
-        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
-        return dxo.to_shareable()
+        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
 
-    def reset(self, fl_ctx: FLContext):
+    def reset_stats(self):
+        """Reset the aggregator state for next round."""
         self.client_models = []
 ```
 

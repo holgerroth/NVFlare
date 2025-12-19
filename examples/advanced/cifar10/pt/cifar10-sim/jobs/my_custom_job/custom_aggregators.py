@@ -18,15 +18,14 @@ This module provides two example aggregators:
 2. MedianAggregator: Uses median aggregation for Byzantine robustness
 """
 
-import torch
+import numpy as np
 
-from nvflare.apis.dxo import DXO, DataKind, from_shareable
-from nvflare.apis.fl_context import FLContext
-from nvflare.apis.shareable import Shareable
-from nvflare.app_common.abstract.aggregator import Aggregator
+from nvflare.apis.fl_constant import FLMetaKey
+from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
+from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 
 
-class WeightedAggregator(Aggregator):
+class WeightedAggregator(ModelAggregator):
     """
     Weighted aggregation based on client data size.
     
@@ -38,48 +37,69 @@ class WeightedAggregator(Aggregator):
         super().__init__()
         self.weighted_sum = {}
         self.total_weight = 0
+        self.client_weights = []  # Track individual client weights for debugging
 
-    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
-        """Accept a shareable from a client."""
-        dxo = from_shareable(shareable)
-        if dxo.data_kind == DataKind.WEIGHTS or dxo.data_kind == DataKind.WEIGHT_DIFF:
-            # Get client's data size from metadata (num_steps is sent by client)
-            weight = dxo.get_meta_prop("num_steps", 1.0)
-            
-            self.info(f"Accepting model with weight={weight}, {len(dxo.data)} parameters")
-            
-            for key, value in dxo.data.items():
-                if key not in self.weighted_sum:
-                    self.weighted_sum[key] = 0
+    def accept_model(self, model: FLModel):
+        """Accept submitted model and add to the weighted sum."""
+        # Get client's data size from metadata (NUM_STEPS_CURRENT_ROUND is sent by client)
+        weight = model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0)
+        self.client_weights.append(weight)
+        
+        self.info(f"Accepting model with weight={weight}, {len(model.params)} parameters")
+        
+        for key, value in model.params.items():
+            if key not in self.weighted_sum:
+                self.weighted_sum[key] = value * weight
+            else:
                 self.weighted_sum[key] += value * weight
-            self.total_weight += weight
-            return True
-        return False
+        self.total_weight += weight
+        
+        # Debug: check a sample parameter
+        if len(model.params) > 0:
+            sample_key = list(model.params.keys())[0]
+            sample_value = model.params[sample_key]
+            self.info(f"Sample param '{sample_key}': shape={sample_value.shape}, "
+                     f"mean={np.mean(np.abs(sample_value)):.6f}, "
+                     f"weighted_mean={np.mean(np.abs(sample_value * weight)):.6f}")
 
-    def aggregate(self, fl_ctx: FLContext) -> Shareable:
-        """Perform weighted aggregation and return result as Shareable."""
-        self.info(f"Aggregating with total weight: {self.total_weight}")
+    def aggregate_model(self) -> FLModel:
+        """Perform weighted aggregation and return result as FLModel."""
+        self.info(f"Aggregating {len(self.client_weights)} clients with weights: {self.client_weights}")
+        self.info(f"Total weight: {self.total_weight}, Mean weight: {np.mean(self.client_weights):.2f}, "
+                 f"Std weight: {np.std(self.client_weights):.2f}")
         
         if self.total_weight == 0:
             self.error("Total weight is zero, cannot aggregate!")
-            return None
+            return FLModel(params={})
         
         aggregated_params = {
             key: val / self.total_weight 
             for key, val in self.weighted_sum.items()
         }
         
-        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
-        return dxo.to_shareable()
-
-    def reset(self, fl_ctx: FLContext):
-        """Reset the aggregator state for next round."""
-        self.info("Resetting WeightedAggregator")
+        # Debug: check a sample aggregated parameter
+        if len(aggregated_params) > 0:
+            sample_key = list(aggregated_params.keys())[0]
+            sample_value = aggregated_params[sample_key]
+            self.info(f"Aggregated sample param '{sample_key}': shape={sample_value.shape}, "
+                     f"mean={np.mean(np.abs(sample_value)):.6f}")
+        
+        # Reset state after aggregation for next round
         self.weighted_sum = {}
         self.total_weight = 0
+        self.client_weights = []
+        
+        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
+
+    def reset_stats(self):
+        """Reset the aggregator state for next round."""
+        self.info(f"Resetting WeightedAggregator (had {len(self.client_weights)} clients)")
+        self.weighted_sum = {}
+        self.total_weight = 0
+        self.client_weights = []
 
 
-class MedianAggregator(Aggregator):
+class MedianAggregator(ModelAggregator):
     """
     Median aggregation for Byzantine robustness.
     
@@ -92,38 +112,35 @@ class MedianAggregator(Aggregator):
         super().__init__()
         self.client_models = []
 
-    def accept(self, shareable: Shareable, fl_ctx: FLContext) -> bool:
-        """Accept a shareable from a client."""
-        dxo = from_shareable(shareable)
-        if dxo.data_kind == DataKind.WEIGHTS or dxo.data_kind == DataKind.WEIGHT_DIFF:
-            self.info(f"Accepting model {len(self.client_models) + 1} with {len(dxo.data)} parameters")
-            self.client_models.append(dxo.data)
-            return True
-        return False
+    def accept_model(self, model: FLModel):
+        """Accept submitted model and add to collection."""
+        self.info(f"Accepting model {len(self.client_models) + 1} with {len(model.params)} parameters")
+        self.client_models.append(model.params)
 
-    def aggregate(self, fl_ctx: FLContext) -> Shareable:
-        """Perform median aggregation and return result as Shareable."""
+    def aggregate_model(self) -> FLModel:
+        """Perform median aggregation and return result as FLModel."""
         self.info(f"Aggregating {len(self.client_models)} models using median")
         
         if len(self.client_models) == 0:
             self.error("No client models to aggregate!")
-            return None
+            return FLModel(params={})
         
-        # Stack all client parameters and compute median
+        # Stack all client parameters and compute median using numpy
         aggregated_params = {}
         param_keys = self.client_models[0].keys()
         
         for key in param_keys:
-            # Stack tensors from all clients
-            stacked = torch.stack([m[key] for m in self.client_models])
-            # Compute median along the client dimension (dim=0)
-            aggregated_params[key] = torch.median(stacked, dim=0)[0]
+            # Stack arrays from all clients along axis 0
+            stacked = np.stack([m[key] for m in self.client_models], axis=0)
+            # Compute median along the client dimension (axis=0)
+            aggregated_params[key] = np.median(stacked, axis=0)
         
-        dxo = DXO(data_kind=DataKind.WEIGHTS, data=aggregated_params)
-        return dxo.to_shareable()
+        # Reset state after aggregation for next round
+        self.client_models = []
+        
+        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
 
-    def reset(self, fl_ctx: FLContext):
+    def reset_stats(self):
         """Reset the aggregator state for next round."""
         self.info("Resetting MedianAggregator")
         self.client_models = []
-
