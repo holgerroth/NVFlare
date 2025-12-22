@@ -73,14 +73,8 @@ class WeightedAggregator(ModelAggregator):
             for key, val in self.weighted_sum.items()
         }
         
-        # Save params_type before resetting
-        params_type = self.params_type
-        
-        # Reset state after aggregation for next round
-        self.reset_stats()
-        
         # Return with the same params_type as the accepted models
-        return FLModel(params=aggregated_params, params_type=params_type)
+        return FLModel(params=aggregated_params, params_type=self.params_type)
 
     def reset_stats(self):
         """Reset the aggregator state for next round."""
@@ -133,14 +127,8 @@ class MedianAggregator(ModelAggregator):
             # Compute median along the client dimension (axis=0)
             aggregated_params[key] = np.median(stacked, axis=0)
         
-        # Save params_type before resetting
-        params_type = self.params_type
-        
-        # Reset state after aggregation for next round
-        self.reset_stats()
-        
         # Return with the same params_type as the accepted models
-        return FLModel(params=aggregated_params, params_type=params_type)
+        return FLModel(params=aggregated_params, params_type=self.params_type)
 
     def reset_stats(self):
         """Reset the aggregator state for next round."""
