@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import glob
 import json
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import tensorflow as tf
+
+# Import our standalone tfevents reader (avoids C++ mutex issues)
+from tfevents_reader import read_tfevents_file, get_available_tags
+
+import logging
+logging.basicConfig(level=logging.ERROR)
 
 # secure workspace
 client_results_root = "/tmp/nvflare/simulation"
@@ -47,33 +54,45 @@ experiments = {
 #               "save_path": "figs/fedopt_fedprox_scaffold.png"
 # }
 
+# 5.4 Custom Aggregators Comparison
+# experiments = {"cifar10_custom_default": {"tag": "val_acc_global_model", "alpha": 0.1},
+#               "cifar10_custom_weighted": {"tag": "val_acc_global_model", "alpha": 0.1},
+#               "cifar10_custom_median": {"tag": "val_acc_global_model", "alpha": 0.1},
+#               "save_path": "figs/custom_aggregators.png"
+# }
+
 add_cross_site_val = False
 
 
 def read_eventfile(filepath, tags=["val_acc_global_model"]):
-    data = {}
-    for summary in tf.compat.v1.train.summary_iterator(filepath):
-        for v in summary.summary.value:
-            if v.tag in tags:
-                # print(v.tag, summary.step, v.simple_value)
-                if v.tag in data.keys():
-                    data[v.tag].append([summary.step, v.simple_value])
-                else:
-                    data[v.tag] = [[summary.step, v.simple_value]]
-    return data
+    """
+    Read TensorBoard event file using pure Python protobuf parsing.
+    This avoids the C++ mutex locking issues in TensorFlow.
+    """
+    try:
+        data = read_tfevents_file(filepath, tags=tags)
+        return data
+    except Exception as e:
+        print(f"Warning: Error reading {filepath}: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
 
 
 def add_eventdata(data, config, filepath, tag="val_acc_global_model"):
+    print(f"Reading {os.path.basename(filepath)}...")
     event_data = read_eventfile(filepath, tags=[tag])
 
-    assert len(event_data[tag]) > 0, f"No data for key {tag}"
-    # print(event_data)
+    if tag not in event_data or len(event_data[tag]) == 0:
+        print(f"  Warning: No data for tag '{tag}' in {filepath}")
+        return
+    
+    # Add data to the collection
     for e in event_data[tag]:
-        # print(e)
         data["Config"].append(config)
         data["Step"].append(e[0])
         data["Accuracy"].append(e[1])
-    print(f"added {len(event_data[tag])} entries for {tag}")
+    print(f"  ✓ Added {len(event_data[tag])} entries for {tag}")
 
 
 def main():
@@ -91,6 +110,10 @@ def main():
     save_path = experiments.get("save_path", "figs/accuracy_plot.png")
 
     # add event files
+    print("=" * 60)
+    print("Processing experiments...")
+    print("=" * 60)
+    
     for config, exp in experiments.items():
         if not isinstance(exp, dict):
             continue
@@ -99,13 +122,16 @@ def main():
         if alpha is not None:
             config_name = config_name + f"*alpha{alpha}"
 
-        eventfile = glob.glob(
+        eventfiles = glob.glob(
             os.path.join(client_results_root, config_name, "**", "site-1", "events.*"), recursive=True
         )
-        assert len(eventfile) > 0, f"No event file found in {os.path.join(client_results_root, config_name)}!"
-        # assert len(eventfile) == 1, f"No unique event file found in {os.path.join(client_results_root, config_name)} but found {len(eventfile)}!"
-        eventfile = eventfile[0]
-        print("adding", eventfile)
+        assert len(eventfiles) > 0, f"No event file found in {os.path.join(client_results_root, config_name)}!"
+        
+        # Sort by modification time and use the most recent one
+        eventfiles.sort(key=os.path.getmtime, reverse=True)
+        eventfile = eventfiles[0]
+        
+        print(f"\n[{config}]")
         add_eventdata(data, config, eventfile, tag=exp["tag"])
 
         if add_cross_site_val:
@@ -124,7 +150,9 @@ def main():
                     xsite_data[k].append(None)
                     print(f"Warning: No val_accuracy for {k} in {xsite_file}!")
 
+    print("\n" + "=" * 60)
     print("Training TB data (Max Accuracy per Config):")
+    print("=" * 60)
     print(pd.DataFrame(data).groupby("Config")["Accuracy"].max())
 
     if xsite_data:
@@ -133,7 +161,7 @@ def main():
 
     sns.lineplot(x="Step", y="Accuracy", hue="Config", data=data)
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    print(f"Saved plot to {save_path}")
+    print(f"\n✓ Saved plot to {save_path}")
 
 
 if __name__ == "__main__":

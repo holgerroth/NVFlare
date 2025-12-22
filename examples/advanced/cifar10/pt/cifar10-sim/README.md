@@ -241,7 +241,7 @@ The `FedAvgRecipe` allows you to provide your own custom aggregator implementati
 - Byzantine-robust aggregation (e.g., median, trimmed mean, Krum)
 - Specialized aggregation for specific model architectures
 
-#### 5.1 Creating a Custom Aggregator
+#### 5.1 Creating a custom Aggregator
 
 To create a custom aggregator, inherit from `ModelAggregator` and implement three key methods:
 
@@ -276,14 +276,14 @@ class MyCustomAggregator(ModelAggregator):
 - **Important**: Return the aggregated `FLModel` with the same `params_type` as the accepted models. For instance, you can track the `model.params_type` from the first accepted model and use it when creating the aggregated result
 - Use `self.info()`, `self.error()`, etc. for logging (provided by `ModelAggregator`)
 
-#### 5.2 Complete Working Examples
+#### 5.2 Complete working examples
 
 See [`jobs/my_custom_job/custom_aggregators.py`](./jobs/my_custom_job/custom_aggregators.py) for two complete implementations:
 
 1. **`WeightedAggregator`**: Weights each client's contribution by their training steps (dataset size)
 2. **`MedianAggregator`**: Uses median aggregation for Byzantine robustness
 
-#### 5.3 Using Custom Aggregator in job.py
+#### 5.3 Using custom Aggregator in job.py
 
 Pass your aggregator to the `FedAvgRecipe`:
 
@@ -308,7 +308,7 @@ recipe = FedAvgRecipe(
 recipe.simulator_run("/tmp/nvflare/simulation", gpu="0")
 ```
 
-#### 5.4 Running the Example
+#### 5.4 Running the example
 
 The complete working example is in `jobs/my_custom_job/`:
 
@@ -332,3 +332,16 @@ python ./jobs/my_custom_job/job.py --aggregator default --n_clients 8 --num_roun
 For fully deterministic results, additional seeding of augmentations and disabling CUDNN benchmark mode would be required.
 
 See the [custom job README](./jobs/my_custom_job/README.md) for more details.
+
+### 5.5 Compare the results
+
+After running the three custom aggregator experiments, you can visualize and compare their performance (using [figs/plot_tensorboard_events.py](figs/plot_tensorboard_events.py)):
+```
+
+![Custom Aggregators Comparison](figs/custom_aggregators.png)
+
+As expected, the **default** and **weighted** aggregators perform nearly identically (both reaching ~80-81% accuracy).
+The **median** aggregator significantly underperforms (~66%), converging much more slowly. This is because the coordinate-wise median is overly conservative and can discard useful gradient information, especially in early training rounds (steps 0-15) before stabilizing.
+
+This shows you how to provide your own custom aggregators with NVFlare! 
+

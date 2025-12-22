@@ -1,3 +1,2 @@
-tensorflow
 seaborn
 pandas
