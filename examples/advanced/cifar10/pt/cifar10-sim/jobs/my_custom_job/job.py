@@ -20,8 +20,11 @@ Available aggregators:
 3. 'default' - Uses the default FedAvg aggregator (InTimeAccumulateWeightedAggregator)
 
 Example usage:
-    python job.py --aggregator weighted --n_clients 8 --num_rounds 50 --alpha 0.1
-    python job.py --aggregator median --n_clients 8 --num_rounds 50 --alpha 0.1
+    python job.py --aggregator weighted --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
+    python job.py --aggregator median --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
+    python job.py --aggregator default --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
+
+Note: Use the same --seed value across experiments for reproducible model initialization!
 """
 import argparse
 import os
@@ -42,13 +45,15 @@ def define_parser():
         epilog="""
 Examples:
   # Run with weighted aggregator
-  python job.py --aggregator weighted --n_clients 8 --num_rounds 50 --alpha 0.1
+  python job.py --aggregator weighted --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
   
   # Run with median aggregator  
-  python job.py --aggregator median --n_clients 8 --num_rounds 50 --alpha 0.1
+  python job.py --aggregator median --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
   
   # Run with default aggregator
-  python job.py --aggregator default --n_clients 8 --num_rounds 50 --alpha 0.1
+  python job.py --aggregator default --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
+
+Note: Use the same --seed for reproducible model initialization!
         """,
     )
     
@@ -81,6 +86,12 @@ Examples:
         default=0.5,
         help="Dirichlet distribution parameter (controls data heterogeneity: "
         "lower values create more heterogeneous distributions)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Random seed for model initialization and reproducibility (default: 0)"
     )
     parser.add_argument("--name", type=str, default=None, help="Custom name for the recipe (overrides default naming)")
 
@@ -116,6 +127,7 @@ def main():
     n_clients = args.n_clients
     num_rounds = args.num_rounds
     alpha = args.alpha
+    seed = args.seed
     num_workers = args.num_workers
     lr = args.lr
     batch_size = args.batch_size
@@ -131,6 +143,7 @@ def main():
     print(f"Aggregator Type: {aggregator_type}")
     print(f"Number of Rounds: {num_rounds}")
     print(f"Alpha (heterogeneity): {alpha}")
+    print(f"Random Seed: {seed}")
     print(f"Number of Clients: {n_clients}")
     print(f"Local Epochs per Round: {aggregation_epochs}")
     print(f"Job Name: {job_name}")
@@ -153,7 +166,7 @@ def main():
         "name": job_name,
         "min_clients": n_clients,
         "num_rounds": num_rounds,
-        "initial_model": ModerateCNN(),
+        "initial_model": ModerateCNN(seed=seed),  # Use seed for reproducible initialization
         "train_script": f"{os.getcwd()}/../src/client.py",
         "train_args": f"--train_idx_root {train_idx_root} --num_workers {num_workers} --lr {lr} --batch_size {batch_size} --aggregation_epochs {aggregation_epochs}",
         "aggregator_data_kind": DataKind.WEIGHT_DIFF,
