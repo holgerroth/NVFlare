@@ -314,13 +314,21 @@ The complete working example is in `jobs/my_custom_job/`:
 
 ```bash
 # Run with weighted aggregator
-python ./jobs/my_custom_job/job.py --aggregator weighted --n_clients 8 --num_rounds 50 --alpha 0.1
+python ./jobs/my_custom_job/job.py --aggregator weighted --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
 
 # Run with median aggregator (Byzantine-robust)
-python ./jobs/my_custom_job/job.py --aggregator median --n_clients 8 --num_rounds 50 --alpha 0.1
+python ./jobs/my_custom_job/job.py --aggregator median --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
 
 # Run with default aggregator for comparison
-python ./jobs/my_custom_job/job.py --aggregator default --n_clients 8 --num_rounds 50 --alpha 0.1
+python ./jobs/my_custom_job/job.py --aggregator default --n_clients 8 --num_rounds 50 --alpha 0.1 --seed 0
 ```
+
+**Note on Reproducibility**: Even with the same `--seed`, you may observe small differences (typically < 1%) between mathematically equivalent aggregators (e.g., `weighted` vs `default`) due to:
+- Non-deterministic CUDNN operations (controlled by `cudnn.benchmark` setting in client.py)
+- Random data augmentations (random crops, flips) that vary per training run
+- Client processing order variations in the simulation
+- Floating-point arithmetic order differences
+
+For fully deterministic results, additional seeding of augmentations and disabling CUDNN benchmark mode would be required.
 
 See the [custom job README](./jobs/my_custom_job/README.md) for more details.
