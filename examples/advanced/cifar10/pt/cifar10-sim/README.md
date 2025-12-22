@@ -236,14 +236,14 @@ Both FedOpt and SCAFFOLD achieve significantly better performance with the same 
 ### 5. Using your own Aggregator
 
 The `FedAvgRecipe` allows you to provide your own custom aggregator implementation. This is useful when you want to implement custom aggregation logic beyond the default weighted averaging, such as:
-- Custom weighting schemes based on client performance
+- Custom weighting schemes based on client data sizes or performance
 - Aggregation with privacy constraints
+- Byzantine-robust aggregation (e.g., median, trimmed mean, Krum)
 - Specialized aggregation for specific model architectures
-- Advanced aggregation algorithms like trimmed mean, median, or Krum
 
 #### 5.1 Creating a Custom Aggregator
 
-To create a custom aggregator, you need to inherit from NVFlare's `ModelAggregator` base class and implement the required methods. Here's an example:
+To create a custom aggregator, inherit from `ModelAggregator` and implement three key methods:
 
 ```python
 from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
@@ -251,195 +251,66 @@ from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 
 
 class MyCustomAggregator(ModelAggregator):
-    """Custom aggregator with specialized aggregation logic."""
-
     def __init__(self):
         super().__init__()
-        self.sum = {}
-        self.count = 0
-
+        # Initialize your state variables here
+    
     def accept_model(self, model: FLModel):
-        """Accept submitted model and add to the sum."""
-        self.info(f"Accepting model with {len(model.params)} parameters")
-        
-        # Custom accumulation logic
-        for key, value in model.params.items():
-            if key not in self.sum:
-                self.sum[key] = 0
-            self.sum[key] += value
-        self.count += 1
-
+        """Called for each client submission - accumulate their contributions."""
+        pass
+    
     def aggregate_model(self) -> FLModel:
-        """Aggregate the collected models."""
-        self.info(f"Aggregating {self.count} models")
-        
-        # Compute the average (or implement your custom logic here)
-        aggregated_params = {}
-        for key in self.sum:
-            aggregated_params[key] = self.sum[key] / self.count
-        
-        # Return as DIFF since clients send weight differences
+        """Called after all clients submit - perform aggregation and return result."""
+        # Important: Return FLModel with params_type=ParamsType.DIFF
         return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
-
+    
     def reset_stats(self):
-        """Reset the aggregator state for next round."""
-        self.info("Resetting aggregator")
-        self.sum = {}
-        self.count = 0
+        """Reset internal state for the next round."""
+        pass
 ```
 
-**Key methods to implement:**
-- `accept_model(model: FLModel)`: Called when each client submits their model. Use this to accumulate or store client contributions.
-- `aggregate_model() -> FLModel`: Called when all clients have submitted. Implement your aggregation logic here and return the aggregated model.
-- `reset_stats()`: Called after aggregation to prepare for the next round.
+**Key Points:**
+- **`accept_model(model: FLModel)`**: Accumulate or store client contributions as they arrive
+- **`aggregate_model() -> FLModel`**: Perform your aggregation logic and return the aggregated model
+- **`reset_stats()`**: Clear all internal state for the next round (or call this at the end of `aggregate_model()`)
+- **Important**: Return the aggregated `FLModel` with the same `params_type` as the accepted models. For instance, you can track the `model.params_type` from the first accepted model and use it when creating the aggregated result
+- Use `self.info()`, `self.error()`, etc. for logging (provided by `ModelAggregator`)
 
-#### 5.2 Using Custom Aggregator in job.py
+#### 5.2 Complete Working Examples
 
-To use your custom aggregator with `FedAvgRecipe`, pass it as the `aggregator` parameter. Here's a complete example of a `job.py` file:
+See [`jobs/my_custom_job/custom_aggregators.py`](./jobs/my_custom_job/custom_aggregators.py) for two complete implementations:
+
+1. **`WeightedAggregator`**: Weights each client's contribution by their training steps (dataset size)
+2. **`MedianAggregator`**: Uses median aggregation for Byzantine robustness
+
+#### 5.3 Using Custom Aggregator in job.py
+
+Pass your aggregator to the `FedAvgRecipe`:
 
 ```python
-import argparse
-from net import Net  # Your model definition
 from my_custom_aggregator import MyCustomAggregator
 from nvflare.app_opt.pt.recipes.fedavg import FedAvgRecipe
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n_clients", type=int, default=8)
-    parser.add_argument("--num_rounds", type=int, default=50)
-    parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--alpha", type=float, default=1.0)
-    args = parser.parse_args()
+# Instantiate your custom aggregator
+custom_aggregator = MyCustomAggregator()
 
-    # Instantiate your custom aggregator
-    custom_aggregator = MyCustomAggregator()
-    
-    # Create initial model
-    initial_model = Net()
-    
-    # Create recipe with custom aggregator
-    recipe = FedAvgRecipe(
-        name=f"cifar10_custom_agg_alpha{args.alpha}",
-        train_script="../../src/trainers/client.py",
-        train_args=f"--epochs {args.epochs} --alpha {args.alpha}",
-        min_clients=args.n_clients,
-        num_rounds=args.num_rounds,
-        initial_model=initial_model,
-        aggregator=custom_aggregator  # Pass your custom aggregator here
-    )
-    
-    # Run the job
-    recipe.simulator_run("/tmp/nvflare/simulation", gpu="0")
+# Create recipe with custom aggregator
+recipe = FedAvgRecipe(
+    name="my_job",
+    train_script="path/to/client.py",
+    min_clients=8,
+    num_rounds=50,
+    initial_model=initial_model,
+    aggregator=custom_aggregator  # Pass your custom aggregator here
+)
 
-if __name__ == "__main__":
-    main()
+# Run the job
+recipe.simulator_run("/tmp/nvflare/simulation", gpu="0")
 ```
 
-#### 5.3 Running the Job
+#### 5.4 Running the Example
 
-Once you've created your custom aggregator and updated your `job.py`, you can run it just like any other job:
-
-```bash
-python ./jobs/my_custom_job/job.py --n_clients 8 --num_rounds 50 --alpha 0.1
-```
-
-**Important Notes:**
-- Your custom aggregator class should inherit from `nvflare.app_common.aggregators.model_aggregator.ModelAggregator`
-- `ModelAggregator` provides a clean API with `FLModel` objects and built-in logging methods (`self.info()`, `self.error()`, etc.)
-- The base `ModelAggregator` class handles conversion between `Shareable` objects and `FLModel` objects automatically
-- All aggregation state should be reset in the `reset_stats()` method to ensure clean state between rounds
-- You can also inherit from the base `Aggregator` class if you need lower-level control over `Shareable` objects
-
-#### 5.4 Advanced Aggregator Examples
-
-**Example 1: Weighted Aggregation by Client Data Size**
-
-```python
-from nvflare.apis.fl_constant import FLMetaKey
-from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
-from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
-
-
-class WeightedAggregator(ModelAggregator):
-    def __init__(self):
-        super().__init__()
-        self.weighted_sum = {}
-        self.total_weight = 0
-
-    def accept_model(self, model: FLModel):
-        """Accept submitted model and add to the weighted sum."""
-        # Get client's data size from metadata (NUM_STEPS_CURRENT_ROUND is sent by client)
-        weight = model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0)
-        
-        self.info(f"Accepting model with weight={weight}")
-        
-        for key, value in model.params.items():
-            if key not in self.weighted_sum:
-                self.weighted_sum[key] = 0
-            self.weighted_sum[key] += value * weight
-        self.total_weight += weight
-
-    def aggregate_model(self) -> FLModel:
-        """Perform weighted aggregation and return result as FLModel."""
-        aggregated_params = {
-            key: val / self.total_weight 
-            for key, val in self.weighted_sum.items()
-        }
-        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
-
-    def reset_stats(self):
-        """Reset the aggregator state for next round."""
-        self.weighted_sum = {}
-        self.total_weight = 0
-```
-
-**Example 2: Median Aggregation for Byzantine Robustness**
-
-```python
-import numpy as np
-from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
-from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
-
-
-class MedianAggregator(ModelAggregator):
-    def __init__(self):
-        super().__init__()
-        self.client_models = []
-
-    def accept_model(self, model: FLModel):
-        """Accept submitted model and add to collection."""
-        self.info(f"Accepting model {len(self.client_models) + 1}")
-        self.client_models.append(model.params)
-
-    def aggregate_model(self) -> FLModel:
-        """Perform median aggregation and return result as FLModel."""
-        # Stack all client parameters and compute median using numpy
-        aggregated_params = {}
-        param_keys = self.client_models[0].keys()
-        
-        for key in param_keys:
-            # Stack arrays from all clients along axis 0
-            stacked = np.stack([m[key] for m in self.client_models], axis=0)
-            aggregated_params[key] = np.median(stacked, axis=0)
-        
-        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
-
-    def reset_stats(self):
-        """Reset the aggregator state for next round."""
-        self.client_models = []
-```
-
-These examples demonstrate how you can implement sophisticated aggregation strategies by providing custom aggregators to the `FedAvgRecipe`.
-
-#### 5.5 Complete Working Example
-
-A complete, ready-to-run implementation of custom aggregators is available in the `jobs/my_custom_job/` directory. This example includes:
-
-- **`custom_aggregators.py`**: Full implementations of `WeightedAggregator` and `MedianAggregator`
-- **`job.py`**: Complete job script with command-line options to select between aggregators
-- **`README.md`**: Detailed usage instructions and implementation guide
-
-To run the example:
+The complete working example is in `jobs/my_custom_job/`:
 
 ```bash
 # Run with weighted aggregator
@@ -452,4 +323,4 @@ python ./jobs/my_custom_job/job.py --aggregator median --n_clients 8 --num_round
 python ./jobs/my_custom_job/job.py --aggregator default --n_clients 8 --num_rounds 50 --alpha 0.1
 ```
 
-See the [custom job README](./jobs/my_custom_job/README.md) for more details and advanced usage examples.
+See the [custom job README](./jobs/my_custom_job/README.md) for more details.

@@ -38,6 +38,7 @@ class WeightedAggregator(ModelAggregator):
         self.weighted_sum = {}
         self.total_weight = 0
         self.client_weights = []  # Track individual client weights for debugging
+        self.params_type = None  # Track params_type from accepted models
 
     def accept_model(self, model: FLModel):
         """Accept submitted model and add to the weighted sum."""
@@ -45,7 +46,14 @@ class WeightedAggregator(ModelAggregator):
         weight = model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0)
         self.client_weights.append(weight)
         
-        self.info(f"Accepting model with weight={weight}, {len(model.params)} parameters")
+        # Track and validate params_type from all models
+        if self.params_type is None:
+            self.params_type = model.params_type
+        elif self.params_type != model.params_type:
+            raise ValueError(
+                f"ParamsType mismatch: expected {self.params_type}, got {model.params_type}. "
+                "All client models must have the same params_type."
+            )
         
         for key, value in model.params.items():
             if key not in self.weighted_sum:
@@ -53,21 +61,9 @@ class WeightedAggregator(ModelAggregator):
             else:
                 self.weighted_sum[key] += value * weight
         self.total_weight += weight
-        
-        # Debug: check a sample parameter
-        if len(model.params) > 0:
-            sample_key = list(model.params.keys())[0]
-            sample_value = model.params[sample_key]
-            self.info(f"Sample param '{sample_key}': shape={sample_value.shape}, "
-                     f"mean={np.mean(np.abs(sample_value)):.6f}, "
-                     f"weighted_mean={np.mean(np.abs(sample_value * weight)):.6f}")
 
     def aggregate_model(self) -> FLModel:
         """Perform weighted aggregation and return result as FLModel."""
-        self.info(f"Aggregating {len(self.client_weights)} clients with weights: {self.client_weights}")
-        self.info(f"Total weight: {self.total_weight}, Mean weight: {np.mean(self.client_weights):.2f}, "
-                 f"Std weight: {np.std(self.client_weights):.2f}")
-        
         if self.total_weight == 0:
             self.error("Total weight is zero, cannot aggregate!")
             return FLModel(params={})
@@ -77,26 +73,21 @@ class WeightedAggregator(ModelAggregator):
             for key, val in self.weighted_sum.items()
         }
         
-        # Debug: check a sample aggregated parameter
-        if len(aggregated_params) > 0:
-            sample_key = list(aggregated_params.keys())[0]
-            sample_value = aggregated_params[sample_key]
-            self.info(f"Aggregated sample param '{sample_key}': shape={sample_value.shape}, "
-                     f"mean={np.mean(np.abs(sample_value)):.6f}")
+        # Save params_type before resetting
+        params_type = self.params_type
         
         # Reset state after aggregation for next round
-        self.weighted_sum = {}
-        self.total_weight = 0
-        self.client_weights = []
+        self.reset_stats()
         
-        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
+        # Return with the same params_type as the accepted models
+        return FLModel(params=aggregated_params, params_type=params_type)
 
     def reset_stats(self):
         """Reset the aggregator state for next round."""
-        self.info(f"Resetting WeightedAggregator (had {len(self.client_weights)} clients)")
         self.weighted_sum = {}
         self.total_weight = 0
         self.client_weights = []
+        self.params_type = None
 
 
 class MedianAggregator(ModelAggregator):
@@ -111,16 +102,23 @@ class MedianAggregator(ModelAggregator):
     def __init__(self):
         super().__init__()
         self.client_models = []
+        self.params_type = None  # Track params_type from accepted models
 
     def accept_model(self, model: FLModel):
         """Accept submitted model and add to collection."""
-        self.info(f"Accepting model {len(self.client_models) + 1} with {len(model.params)} parameters")
+        # Track and validate params_type from all models
+        if self.params_type is None:
+            self.params_type = model.params_type
+        elif self.params_type != model.params_type:
+            raise ValueError(
+                f"ParamsType mismatch: expected {self.params_type}, got {model.params_type}. "
+                "All client models must have the same params_type."
+            )
+        
         self.client_models.append(model.params)
 
     def aggregate_model(self) -> FLModel:
         """Perform median aggregation and return result as FLModel."""
-        self.info(f"Aggregating {len(self.client_models)} models using median")
-        
         if len(self.client_models) == 0:
             self.error("No client models to aggregate!")
             return FLModel(params={})
@@ -135,12 +133,16 @@ class MedianAggregator(ModelAggregator):
             # Compute median along the client dimension (axis=0)
             aggregated_params[key] = np.median(stacked, axis=0)
         
-        # Reset state after aggregation for next round
-        self.client_models = []
+        # Save params_type before resetting
+        params_type = self.params_type
         
-        return FLModel(params=aggregated_params, params_type=ParamsType.DIFF)
+        # Reset state after aggregation for next round
+        self.reset_stats()
+        
+        # Return with the same params_type as the accepted models
+        return FLModel(params=aggregated_params, params_type=params_type)
 
     def reset_stats(self):
         """Reset the aggregator state for next round."""
-        self.info("Resetting MedianAggregator")
         self.client_models = []
+        self.params_type = None
