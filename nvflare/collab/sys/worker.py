@@ -21,13 +21,13 @@ this directly - they just write normal @collab.publish decorated functions.
 Architecture:
     User writes:        train.py with @collab.publish decorated functions
 
-    CollabExecutor runs:   torchrun --nproc_per_node=4 -m nvflare.fox.sys.worker train
+    CollabExecutor runs:   torchrun --nproc_per_node=4 -m nvflare.collab.sys.worker train
                                                     ↑ this module        ↑ user's module
 
     Environment vars (set by CollabExecutor, invisible to user):
-        FOX_PARENT_URL    = tcp://localhost:8002  (protocol from FLARE config)
-        FOX_PARENT_FQCN   = site-1.job123
-        FOX_SITE_NAME     = site-1
+        COLLAB_PARENT_URL    = tcp://localhost:8002  (protocol from FLARE config)
+        COLLAB_PARENT_FQCN   = site-1.job123
+        COLLAB_SITE_NAME     = site-1
 
 Example:
     # User's train.py - completely normal, no worker code needed!
@@ -58,16 +58,16 @@ from nvflare.fuel.f3.message import Message
 from nvflare.fuel.utils.log_utils import get_obj_logger
 
 # Environment variable names (set by CollabExecutor)
-ENV_PARENT_URL = "FOX_PARENT_URL"
-ENV_PARENT_FQCN = "FOX_PARENT_FQCN"
-ENV_SITE_NAME = "FOX_SITE_NAME"
-ENV_WORKER_ID = "FOX_WORKER_ID"
-ENV_SUBPROCESS_TIMEOUT = "FOX_SUBPROCESS_TIMEOUT"
-ENV_TRACKING_TYPE = "FOX_TRACKING_TYPE"
-ENV_CLIENT_CLASS = "FOX_CLIENT_CLASS"  # Optional: class name for class-based clients
+ENV_PARENT_URL = "COLLAB_PARENT_URL"
+ENV_PARENT_FQCN = "COLLAB_PARENT_FQCN"
+ENV_SITE_NAME = "COLLAB_SITE_NAME"
+ENV_WORKER_ID = "COLLAB_WORKER_ID"
+ENV_SUBPROCESS_TIMEOUT = "COLLAB_SUBPROCESS_TIMEOUT"
+ENV_TRACKING_TYPE = "COLLAB_TRACKING_TYPE"
+ENV_CLIENT_CLASS = "COLLAB_CLIENT_CLASS"  # Optional: class name for class-based clients
 
 # CellNet channel and topics for worker communication
-WORKER_CHANNEL = "fox_worker"
+WORKER_CHANNEL = "collab_worker"
 WORKER_CALL_TOPIC = "call"
 WORKER_READY_TOPIC = "ready"
 WORKER_SHUTDOWN_TOPIC = "shutdown"
@@ -182,7 +182,7 @@ class CollabWorker:
         """Load the user's training module and wrap it for Collab calls.
 
         Supports two modes:
-        1. Class-based clients (FOX_CLIENT_CLASS set): Instantiates the specified class
+        1. Class-based clients (COLLAB_CLIENT_CLASS set): Instantiates the specified class
         2. Module-level functions: Uses ModuleWrapper to expose @collab.publish functions
         """
         self.logger.info(f"Loading training module: {self.training_module_name}")
@@ -407,8 +407,8 @@ class CollabWorker:
 
             # Set up the unified Client API pattern:
             # 1. Set environment variable so nvflare.client uses Collab API
-            # 2. Set the global API instance in the Fox client API module
-            os.environ["CLIENT_API_TYPE"] = "FOX_SUBPROCESS_API"
+            # 2. Set the global API instance in the Collab client API module
+            os.environ["CLIENT_API_TYPE"] = "COLLAB_SUBPROCESS_API"
 
             from nvflare.client.in_process import fox_client_api_module
 
@@ -417,7 +417,7 @@ class CollabWorker:
             # Also update the legacy worker module for backward compatibility
             import sys
 
-            worker_module_name = "nvflare.fox.sys.worker"
+            worker_module_name = "nvflare.collab.sys.worker"
             worker_module = sys.modules.get(worker_module_name)
             if worker_module:
                 worker_module._client_api = _client_api
@@ -505,13 +505,13 @@ def main():
     """Entry point for Collab worker subprocess.
 
     Usage (by CollabExecutor, not directly by users):
-        torchrun --nproc_per_node=4 -m nvflare.fox.sys.worker my_training_module
+        torchrun --nproc_per_node=4 -m nvflare.collab.sys.worker my_training_module
 
     The training module name is passed as a command-line argument.
     Connection details are passed via environment variables.
     """
     if len(sys.argv) < 2:
-        print("Usage: python -m nvflare.fox.sys.worker <training_module>")
+        print("Usage: python -m nvflare.collab.sys.worker <training_module>")
         print()
         print("This module is used internally by CollabExecutor.")
         print("Users should not run this directly.")
@@ -520,7 +520,7 @@ def main():
     training_module = sys.argv[1]
 
     # Configure logging
-    log_level = os.environ.get("FOX_LOG_LEVEL", "INFO")
+    log_level = os.environ.get("COLLAB_LOG_LEVEL", "INFO")
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",

@@ -31,7 +31,7 @@ from nvflare.fuel.utils.log_utils import get_obj_logger
 from .base_writer import BaseWriter
 
 # Environment variable to detect subprocess mode
-ENV_SUBPROCESS_MODE = "FOX_PARENT_URL"  # Set by SubprocessLauncher
+ENV_SUBPROCESS_MODE = "COLLAB_PARENT_URL"  # Set by SubprocessLauncher
 
 # Global auto writer instance
 _auto_writer: Optional["AutoWriter"] = None

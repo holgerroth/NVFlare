@@ -32,7 +32,7 @@ from nvflare.fuel.utils.log_utils import get_obj_logger
 
 
 class AppRunner:
-    """Runner for Fox simulation that manages server and client apps.
+    """Runner for Collab simulation that manages server and client apps.
 
     This is the simulation equivalent of CollabExecutor - it manages client-side
     execution and supports both in-process and subprocess modes.
@@ -214,7 +214,7 @@ class AppRunner:
         server_app.set_backend_type(BackendType.SIMULATION)
         self.server_app = server_app
         self.client_app = client_app
-        self.thread_executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="fox_call")
+        self.thread_executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="collab_call")
 
         # Subprocess options
         self.inprocess = inprocess
@@ -497,9 +497,9 @@ class AppRunner:
 
 
 class CollabSimulator:
-    """High-level Fox simulation runner.
+    """High-level Collab simulation runner.
 
-    Provides a simple API to run Fox simulations with server and client objects.
+    Provides a simple API to run Collab simulations with server and client objects.
     Supports both in-process and subprocess execution modes.
     """
 

@@ -33,7 +33,7 @@ class TensorReceiver:
         self.logger = get_obj_logger(self)
 
     def __call__(self, gcc: GroupCallContext, result):
-        self.logger.info(f"[{fox.call_info}] got train result from {fox.caller}: {result}")
+        self.logger.info(f"[{collab.call_info}] got train result from {collab.caller}: {result}")
         model, model_type = result
         if model_type == "ref":
             err, _ = download_tensors(

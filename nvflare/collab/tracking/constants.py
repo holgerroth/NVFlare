@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Constants for Fox tracking/metrics system."""
+"""Constants for Collab tracking/metrics system."""
 
 # CellNet channel and topic for metrics
 METRICS_CHANNEL = "fox_metrics"

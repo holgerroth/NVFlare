@@ -130,7 +130,6 @@ def fed_avg(num_rounds=5):
 # =============================================================================
 
 if __name__ == "__main__":
-    # That's it! CollabRecipe uses the caller's module automatically
     recipe = CollabRecipe(name="fed_avg", min_clients=5)
     env = SimEnv(num_clients=5)
 

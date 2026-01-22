@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base writer class for Fox tracking in subprocess mode.
+"""Base writer class for Collab tracking in subprocess mode.
 
 This provides a similar interface to nvflare.client.tracking._BaseWriter
 but designed for subprocess execution where metrics are sent via CellNet.
@@ -26,7 +26,7 @@ from nvflare.apis.analytix import AnalyticsDataType
 
 
 class BaseWriter(ABC):
-    """Abstract base class for tracking writers in Fox subprocess mode.
+    """Abstract base class for tracking writers in Collab subprocess mode.
 
     Writers are used in the subprocess (CollabWorker) to log metrics during
     training. The metrics are sent via CellNet to CollabExecutor, which then
@@ -45,7 +45,7 @@ class BaseWriter(ABC):
         # Get rank for DDP - only rank 0 should log
         self.rank = os.environ.get("RANK", "0")
         self.local_rank = os.environ.get("LOCAL_RANK", "0")
-        self.site_name = os.environ.get("FOX_SITE_NAME", "unknown")
+        self.site_name = os.environ.get("COLLAB_SITE_NAME", "unknown")
 
     def _check_rank(self):
         """Check if this is rank 0 (only rank 0 should log in DDP)."""

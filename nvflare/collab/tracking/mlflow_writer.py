@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""MLflow-compatible writer for Fox subprocess mode.
+"""MLflow-compatible writer for Collab subprocess mode.
 
 This writer mimics the MLflow logging API, allowing users to change
-only the import statement when running in Fox subprocess mode.
+only the import statement when running in Collab subprocess mode.
 
 Original MLflow usage:
     import mlflow
     mlflow.log_metric("loss", 0.5, step=100)
     mlflow.log_param("learning_rate", 0.001)
 
-Fox subprocess usage (same API, different import):
+Collab subprocess usage (same API, different import):
     from nvflare.collab.tracking import mlflow
     mlflow.log_metric("loss", 0.5, step=100)
     mlflow.log_param("learning_rate", 0.001)
@@ -48,7 +48,7 @@ def _get_or_create_writer() -> "MLflowWriter":
 
 
 class MLflowWriter:
-    """MLflow-compatible writer for Fox (works in both in-process and subprocess modes).
+    """MLflow-compatible writer for Collab (works in both in-process and subprocess modes).
 
     This class provides the same API as MLflow's logging functions.
     It automatically detects the execution mode and uses the appropriate

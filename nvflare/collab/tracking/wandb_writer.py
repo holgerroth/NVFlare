@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Weights & Biases (wandb) compatible writer for Fox subprocess mode.
+"""Weights & Biases (wandb) compatible writer for Collab subprocess mode.
 
 This writer mimics the wandb logging API, allowing users to change
-only the import statement when running in Fox subprocess mode.
+only the import statement when running in Collab subprocess mode.
 
 Original W&B usage:
     import wandb
     wandb.init(project="my-project")
     wandb.log({"loss": 0.5, "accuracy": 0.9})
 
-Fox subprocess usage (same API, different import):
+Collab subprocess usage (same API, different import):
     from nvflare.collab.tracking import wandb
     wandb.init(project="my-project")
     wandb.log({"loss": 0.5, "accuracy": 0.9})
@@ -48,7 +48,7 @@ def _get_or_create_writer() -> "WandbWriter":
 
 
 class WandbWriter:
-    """Weights & Biases compatible writer for Fox (works in both modes).
+    """Weights & Biases compatible writer for Collab (works in both modes).
 
     This class provides the same API as wandb's logging functions.
     It automatically detects the execution mode and uses the appropriate

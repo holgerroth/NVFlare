@@ -13,7 +13,7 @@
 # limitations under the License.
 SYNC_TASK_NAME = "sync"
 
-MSG_CHANNEL = "fox"
+MSG_CHANNEL = "collab"
 MSG_TOPIC = "call"
 
 
