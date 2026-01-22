@@ -72,7 +72,7 @@ class CollabRecipe(Recipe):
 
     def __init__(
         self,
-        job_name: str,
+        name: str,
         server: Optional[object] = None,
         client: Optional[object] = None,
         server_objects: Optional[Dict[str, object]] = None,
@@ -90,7 +90,7 @@ class CollabRecipe(Recipe):
         """Create a CollabRecipe for federated learning.
 
         Args:
-            job_name: Name of the job.
+            name: Name of the job.
             server: Server object with @collab.main methods. If None, uses the caller's module.
             client: Client object with @collab.publish methods. If None, uses the caller's module.
             server_objects: Additional named objects for the server.
@@ -110,18 +110,18 @@ class CollabRecipe(Recipe):
 
         Examples:
             # Class-based (traditional)
-            recipe = CollabRecipe(job_name="job", server=FedAvg(), client=Trainer())
+            recipe = CollabRecipe(name="job", server=FedAvg(), client=Trainer())
 
             # Module-based (pass module directly)
             import my_module
-            recipe = CollabRecipe(job_name="job", server=my_module, client=my_module)
+            recipe = CollabRecipe(name="job", server=my_module, client=my_module)
 
             # Simplest: use caller's module (contains both @collab.main and @collab.publish)
-            recipe = CollabRecipe(job_name="job", min_clients=5)
+            recipe = CollabRecipe(name="job", min_clients=5)
 
             # Subprocess mode for multi-GPU DDP training (training_module auto-detected)
             recipe = CollabRecipe(
-                job_name="fedavg_ddp",
+                name="fedavg_ddp",
                 min_clients=2,
                 inprocess=False,
                 run_cmd="torchrun --nproc_per_node=4",
@@ -129,7 +129,7 @@ class CollabRecipe(Recipe):
 
             # Client API with explicit training module
             recipe = CollabRecipe(
-                job_name="fedavg_client_api",
+                name="fedavg_client_api",
                 server=FedAvg(),
                 client=CollabClientAPI(),
                 min_clients=2,
@@ -138,7 +138,7 @@ class CollabRecipe(Recipe):
                 training_module="my_training_script",
             )
         """
-        check_str("job_name", job_name)
+        check_str("name", name)
         check_positive_number("sync_task_timeout", sync_task_timeout)
         check_positive_int("max_call_threads_for_server", max_call_threads_for_server)
         check_positive_int("max_call_threads_for_client", max_call_threads_for_client)
@@ -152,7 +152,7 @@ class CollabRecipe(Recipe):
             if client is None:
                 client = caller_module
 
-        self.job_name = job_name
+        self.job_name = name
         # Auto-wrap modules with ModuleWrapper
         self.server = _wrap_if_module(server)
         self.client = _wrap_if_module(client)
