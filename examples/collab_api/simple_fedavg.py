@@ -106,7 +106,7 @@ def fed_avg(num_rounds=5):
         num_rounds: Number of federated learning rounds to execute (default: 5)
     """
     print(f"Starting FedAvg for {num_rounds} rounds")
-    global_weights = None
+    global_weights = SimpleModel().state_dict()
 
     for round_num in range(num_rounds):
         print(f"\n=== Round {round_num + 1} ===")
