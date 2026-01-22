@@ -130,7 +130,7 @@ def fed_avg(num_rounds=5):
 # =============================================================================
 
 if __name__ == "__main__":
-    recipe = CollabRecipe(name="fed_avg", min_clients=5)
+    recipe = CollabRecipe(name="fed_avg")
     env = SimEnv(num_clients=5)
 
     run = recipe.execute(env)
