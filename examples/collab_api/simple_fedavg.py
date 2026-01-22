@@ -73,7 +73,7 @@ def train(weights=None):
 # =============================================================================
 
 
-def weighted_avg(client_results):
+def simple_avg(client_results):
     """Aggregate client results using simple averaging."""
     valid_results = {}
     for client_id, result in client_results:
@@ -115,7 +115,7 @@ def fed_avg(num_rounds=5):
         client_results = collab.clients.train(global_weights)
 
         # Aggregate results using weighted average
-        global_weights, global_loss = weighted_avg(client_results)
+        global_weights, global_loss = simple_avg(client_results)
 
         # Print global loss
         print(f"  Global average loss: {global_loss:.4f}")
