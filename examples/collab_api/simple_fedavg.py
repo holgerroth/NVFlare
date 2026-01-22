@@ -112,7 +112,6 @@ def fed_avg(num_rounds=5):
         print(f"\n=== Round {round_num + 1} ===")
 
         # Each client trains (in parallel via collab.clients)
-        # Same pattern as simulate_parallel_fedavg_train.py!
         client_results = collab.clients.train(global_weights)
 
         # Aggregate results using weighted average
