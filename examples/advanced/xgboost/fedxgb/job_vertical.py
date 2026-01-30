@@ -109,9 +109,10 @@ def run_training_job(args):
     per_site_config = {}
     for site_id in range(1, args.site_num + 1):
         site_name = f"site-{site_id}"
+        # Keep {SITE_NAME} placeholders - they'll be replaced at runtime with client_id
         data_loader = VerticalDataLoader(
-            data_split_path=args.data_split_path.replace("{SITE_NAME}", site_name),
-            psi_path=psi_path.replace("{SITE_NAME}", site_name),
+            data_split_path=args.data_split_path,
+            psi_path=psi_path,
             id_col=args.id_col,
             label_owner=args.label_owner,
             train_proportion=args.train_proportion,

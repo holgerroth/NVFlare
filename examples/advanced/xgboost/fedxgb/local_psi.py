@@ -28,7 +28,8 @@ class LocalPSI(PSI):
 
     def load_items(self) -> list[str]:
         client_id = self.fl_ctx.get_identity_name()
-        client_data_split_path = self.data_split_path.replace("site-x", client_id)
+        # Replace {SITE_NAME} placeholder with actual client_id
+        client_data_split_path = self.data_split_path.replace("{SITE_NAME}", client_id)
         if os.path.isfile(client_data_split_path):
             df = pd.read_csv(client_data_split_path, header=0)
         else:

@@ -63,8 +63,9 @@ class VerticalDataLoader(XGBDataLoader):
         self.train_proportion = train_proportion
 
     def load_data(self):
-        client_data_split_path = self.data_split_path.replace("site-x", self.client_id)
-        client_psi_path = self.psi_path.replace("site-x", self.client_id)
+        # Replace {SITE_NAME} placeholder with actual client_id
+        client_data_split_path = self.data_split_path.replace("{SITE_NAME}", self.client_id)
+        client_psi_path = self.psi_path.replace("{SITE_NAME}", self.client_id)
 
         data_split_dir = os.path.dirname(client_data_split_path)
         train_path = os.path.join(data_split_dir, "train.csv")

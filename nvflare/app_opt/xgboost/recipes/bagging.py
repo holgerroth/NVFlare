@@ -251,30 +251,44 @@ class XGBBaggingRecipe(Recipe):
                     raise ValueError(f"per_site_config for '{site_name}' must include 'data_loader' key")
 
                 data_loaders.append(data_loader)
-
-                # Get lr_scale from config, default to 1.0
-                lr_scale = site_config.get("lr_scale", 1.0)
-
-                # Create executor for this site
-                executor = FedXGBTreeExecutor(
-                    data_loader_id=self.data_loader_id,
-                    training_mode=self.training_mode,
-                    num_client_bagging=self.num_client_bagging,
-                    num_local_parallel_tree=self.num_local_parallel_tree,
-                    local_subsample=self.local_subsample,
-                    local_model_path="model.json",
-                    global_model_path="model_global.json",
-                    learning_rate=self.learning_rate,
-                    objective=self.objective,
-                    max_depth=self.max_depth,
-                    eval_metric=self.eval_metric,
-                    tree_method=self.tree_method,
-                    use_gpus=self.use_gpus,
-                    nthread=self.nthread,
-                    lr_scale=lr_scale,
-                    lr_mode=self.lr_mode,
-                )
-                job.to(executor, site_name, id="xgb_tree_executor")
+            
+            # For uniform lr_mode, use default lr_scale=1.0 for all clients
+            # For scaled lr_mode with per_site_config, all clients will use the same lr_scale
+            # (limitation of single client config export)
+            first_site_config = list(self.per_site_config.values())[0]
+            lr_scale = first_site_config.get("lr_scale", 1.0)
+            
+            if self.lr_mode == "scaled":
+                # Check if different sites have different lr_scale values
+                lr_scales = [cfg.get("lr_scale", 1.0) for cfg in self.per_site_config.values()]
+                if len(set(lr_scales)) > 1:
+                    import warnings
+                    warnings.warn(
+                        "Warning: Different lr_scale values detected in per_site_config with lr_mode='scaled'. "
+                        "Due to single client config limitation, all clients will use lr_scale={lr_scale}. "
+                        "For true per-site lr_scale, manually create per-site job configs."
+                    )
+            
+            # Create a single executor for all clients
+            executor = FedXGBTreeExecutor(
+                data_loader_id=self.data_loader_id,
+                training_mode=self.training_mode,
+                num_client_bagging=self.num_client_bagging,
+                num_local_parallel_tree=self.num_local_parallel_tree,
+                local_subsample=self.local_subsample,
+                local_model_path="model.json",
+                global_model_path="model_global.json",
+                learning_rate=self.learning_rate,
+                objective=self.objective,
+                max_depth=self.max_depth,
+                eval_metric=self.eval_metric,
+                tree_method=self.tree_method,
+                use_gpus=self.use_gpus,
+                nthread=self.nthread,
+                lr_scale=lr_scale,
+                lr_mode=self.lr_mode,
+            )
+            job.to_clients(executor, id="xgb_tree_executor")
             
             # Add the FIRST data loader to all clients
             # The data loader's load_data() method will check client_id at runtime

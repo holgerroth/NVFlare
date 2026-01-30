@@ -89,7 +89,8 @@ def main():
     per_site_config = {}
     for site_id in range(1, args.site_num + 1):
         site_name = f"site-{site_id}"
-        data_loader = HIGGSDataLoader(data_split_filename=f"{dataset_path}/data_site-{site_id}.json")
+        # Use {SITE_NAME} placeholder which will be replaced at runtime
+        data_loader = HIGGSDataLoader(data_split_filename=f"{dataset_path}/data_{{SITE_NAME}}.json")
 
         site_config = {"data_loader": data_loader}
 
@@ -122,7 +123,7 @@ def main():
     )
 
     # Run simulation
-    env = SimEnv(num_clients=args.site_num, workspace_root=f"/tmp/nvflare/workspace/works/{job_name}")
+    env = SimEnv(num_clients=args.site_num, workspace_root=f"/tmp/nvflare/workspace/works")
     run = recipe.execute(env)
     print()
     print("Job Status is:", run.get_status())

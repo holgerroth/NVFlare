@@ -37,12 +37,17 @@ class HIGGSDataLoader(XGBDataLoader):
         """Reads HIGGS dataset and return XGB data matrix.
 
         Args:
-            data_split_filename: file name to data splits
+            data_split_filename: file name to data splits. Can include {SITE_NAME} placeholder
+                                which will be replaced with the actual client_id at runtime.
         """
         self.data_split_filename = data_split_filename
 
     def load_data(self):
-        with open(self.data_split_filename, "r") as file:
+        # Replace {SITE_NAME} placeholder with actual client_id
+        data_file = self.data_split_filename.replace("{SITE_NAME}", self.client_id)
+        print("#### LOADING DATA FROM FILE: ", data_file)
+        
+        with open(data_file, "r") as file:
             data_split = json.load(file)
 
         data_path = data_split["data_path"]

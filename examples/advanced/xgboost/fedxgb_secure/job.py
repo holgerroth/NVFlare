@@ -114,7 +114,7 @@ def main():
         print("Please see README for next steps.")
         print("=" * 80 + "\n")
     else:
-        run.simulator_run(f"/tmp/nvflare/workspace/fedxgb_secure/train_fl/works/{job_name}")
+        run.simulator_run(f"/tmp/nvflare/workspace/fedxgb_secure/train_fl/works")
         print("\n" + "=" * 80)
         print("Training Complete!")
         print("=" * 80 + "\n")
