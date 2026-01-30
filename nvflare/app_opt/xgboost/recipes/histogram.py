@@ -219,10 +219,19 @@ class XGBHorizontalRecipe(Recipe):
 
         # Add per-site data loaders if configured
         if self.per_site_config:
+            # Collect all data loaders
+            data_loaders = []
+            
             for site_name, site_config in self.per_site_config.items():
                 data_loader = site_config.get("data_loader")
                 if data_loader is None:
                     raise ValueError(f"per_site_config for '{site_name}' must include 'data_loader' key")
-                job.to(data_loader, site_name, id=self.data_loader_id)
+                
+                data_loaders.append(data_loader)
+            
+            # Add the FIRST data loader to all clients with the expected ID
+            # The data loader's load_data() method will check client_id at runtime
+            if data_loaders:
+                job.to_clients(data_loaders[0], id=self.data_loader_id)
 
         return job

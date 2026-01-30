@@ -242,10 +242,15 @@ class XGBBaggingRecipe(Recipe):
         from nvflare.app_opt.xgboost.tree_based.executor import FedXGBTreeExecutor
 
         if self.per_site_config:
+            # Collect all data loaders
+            data_loaders = []
+            
             for site_name, site_config in self.per_site_config.items():
                 data_loader = site_config.get("data_loader")
                 if data_loader is None:
                     raise ValueError(f"per_site_config for '{site_name}' must include 'data_loader' key")
+
+                data_loaders.append(data_loader)
 
                 # Get lr_scale from config, default to 1.0
                 lr_scale = site_config.get("lr_scale", 1.0)
@@ -270,6 +275,10 @@ class XGBBaggingRecipe(Recipe):
                     lr_mode=self.lr_mode,
                 )
                 job.to(executor, site_name, id="xgb_tree_executor")
-                job.to(data_loader, site_name, id=self.data_loader_id)
+            
+            # Add the FIRST data loader to all clients
+            # The data loader's load_data() method will check client_id at runtime
+            if data_loaders:
+                job.to_clients(data_loaders[0], id=self.data_loader_id)
 
         return job

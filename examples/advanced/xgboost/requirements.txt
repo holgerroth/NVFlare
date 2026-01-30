@@ -1,4 +1,4 @@
-nvflare~=2.7.2
+nvflare~=2.7.2rc
 kagglehub
 openmined-psi>=2.0.5
 pandas

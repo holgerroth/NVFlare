@@ -93,9 +93,15 @@ def main():
         per_site_config=per_site_config,
     )
 
+    recipe.export("exported_jobs")
+
     # Run simulation
-    env = SimEnv()
-    env.run(recipe, work_dir=f"/tmp/nvflare/workspace/works/{job_name}")
+    env = SimEnv(num_clients=args.site_num, workspace_root=f"/tmp/nvflare/workspace/works/{job_name}")
+    run = recipe.execute(env)
+    print()
+    print("Job Status is:", run.get_status())
+    print("Result can be found in:", run.get_result())
+    print()
 
 
 if __name__ == "__main__":
