@@ -198,6 +198,9 @@ class FLContextKey(object):
     CELL_MESSAGE = "__cell_message__"
     CLIENT_HIERARCHY = "__client_hierarchy__"
 
+    # Tensor streaming: minimum get_task_timeout required by server (stored in FLContext)
+    MIN_GET_TASK_TIMEOUT = "__min_get_task_timeout__"
+
 
 class ProcessType:
     SERVER_PARENT = "SP"
@@ -561,6 +564,11 @@ class ConfigVarName:
 
     # SJ and CJ: chunk size for downloading
     DOWNLOAD_CHUNK_SIZE = "download_chunk_size"
+
+    # SJ and CJ: minimum transaction lifetime for large-tensor downloads.
+    # Raise via job config when model size or network latency exceeds the default 60s.
+    # Example: recipe.add_client_config({"np_min_download_timeout": 600.0})
+    MIN_DOWNLOAD_TIMEOUT = "min_download_timeout"
 
     # SJ and CJ: min file size for streaming. If file size is less than this, it will be attached to msg directly.
     MIN_FILE_SIZE_FOR_STREAMING = "min_file_size_for_streaming"

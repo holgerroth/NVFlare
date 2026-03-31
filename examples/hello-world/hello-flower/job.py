@@ -45,7 +45,7 @@ def main():
         name=args.job_name,
         flower_content=args.content_dir,
         min_clients=num_of_clients,
-        run_config=run_config,
+        run_config=run_config if run_config else None,
     )
 
     if args.stream_metrics:
