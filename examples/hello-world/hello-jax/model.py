@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-JAX/Flax model utilities for the hello-jax MNIST example.
-"""
+"""JAX/Flax model utilities for the hello-jax MNIST example."""
 
 from functools import lru_cache
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
 from flax import linen as nn
+from flax import serialization
 from flax.training import train_state
-from jax.flatten_util import ravel_pytree
 
 
 class ConvNet(nn.Module):
@@ -50,25 +47,21 @@ INPUT_SHAPE = (1, 28, 28, 1)
 
 
 @lru_cache(maxsize=1)
-def _template_tree_and_unravel_fn():
+def _template_params():
     params = MODEL.init(jax.random.PRNGKey(0), jnp.ones(INPUT_SHAPE, dtype=jnp.float32))["params"]
-    _, unravel_fn = ravel_pytree(params)
-    return params, unravel_fn
-
-
-def create_initial_params():
-    params, _ = _template_tree_and_unravel_fn()
     return params
 
 
-def flatten_params(params) -> np.ndarray:
-    flat_params, _ = ravel_pytree(params)
-    return np.asarray(flat_params, dtype=np.float32)
+def create_initial_params():
+    return _template_params()
 
 
-def unflatten_params(flat_params):
-    _, unravel_fn = _template_tree_and_unravel_fn()
-    return unravel_fn(jnp.asarray(flat_params, dtype=jnp.float32))
+def params_to_state_dict(params):
+    return serialization.to_state_dict(params)
+
+
+def params_from_state_dict(state_dict):
+    return serialization.from_state_dict(_template_params(), state_dict)
 
 
 def create_train_state(params, learning_rate: float, momentum: float) -> train_state.TrainState:

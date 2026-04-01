@@ -98,3 +98,21 @@ class TestFLModelUtils:
         assert dxo.data[FLModelConst.PARAMS_TYPE] == ParamsType.FULL
         assert dxo.data[FLModelConst.CURRENT_ROUND] == current_round
         assert dxo.data[FLModelConst.TOTAL_ROUNDS] == num_rounds
+
+    def test_update_model_with_nested_diff(self):
+        model = FLModel(
+            params={"params": {"dense": {"kernel": 1.0, "bias": 2.0}}},
+            params_type=ParamsType.FULL,
+            meta={},
+        )
+        update = FLModel(
+            params={"params": {"dense": {"kernel": 0.5, "bias": -1.0}}},
+            params_type=ParamsType.DIFF,
+            meta={"round": 1},
+        )
+
+        updated = FLModelUtils.update_model(model, update)
+
+        assert updated.params["params"]["dense"]["kernel"] == 1.5
+        assert updated.params["params"]["dense"]["bias"] == 1.0
+        assert updated.meta == {"round": 1}

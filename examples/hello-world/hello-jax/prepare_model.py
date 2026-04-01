@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Prepare an initial flattened JAX model checkpoint for hello-jax."""
+"""Prepare an initial JAX state-dict checkpoint for hello-jax."""
 
 import argparse
 import os
 
-import numpy as np
-from model import create_initial_params, flatten_params
+from flax import serialization
+from model import create_initial_params, params_to_state_dict
 
-DEFAULT_OUTPUT = "/tmp/nvflare/data/hello-jax/initial_model.npy"
+DEFAULT_OUTPUT = "/tmp/nvflare/data/hello-jax/initial_model.msgpack"
 
 
 def parse_args():
@@ -31,11 +31,14 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if not args.output.endswith(".msgpack"):
+        raise ValueError("hello-jax checkpoints must use the .msgpack extension.")
     output_dir = os.path.dirname(args.output)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-    initial_params = flatten_params(create_initial_params())
-    np.save(args.output, initial_params)
+    initial_state_dict = params_to_state_dict(create_initial_params())
+    with open(args.output, "wb") as f:
+        f.write(serialization.msgpack_serialize(initial_state_dict))
 
 
 if __name__ == "__main__":

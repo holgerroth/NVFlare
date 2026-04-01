@@ -36,8 +36,8 @@ def _load_client_module_without_jax():
     fake_model = types.ModuleType("model")
     fake_model.MODEL = types.SimpleNamespace(apply=lambda *args, **kwargs: None)
     fake_model.create_train_state = lambda *args, **kwargs: None
-    fake_model.flatten_params = lambda *args, **kwargs: None
-    fake_model.unflatten_params = lambda *args, **kwargs: None
+    fake_model.params_to_state_dict = lambda *args, **kwargs: None
+    fake_model.params_from_state_dict = lambda *args, **kwargs: None
 
     overrides = {
         "jax": fake_jax,

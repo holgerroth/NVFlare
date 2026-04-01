@@ -17,11 +17,10 @@ import argparse
 import os
 import shlex
 
-from nvflare.client.config import ExchangeFormat
-from nvflare.fuel.utils.constants import FrameworkType
-from nvflare.recipe import FedAvgRecipe, SimEnv
+from nvflare.app_opt.jax.recipes import FedAvgRecipe
+from nvflare.recipe import SimEnv
 
-DEFAULT_INITIAL_CKPT = "/tmp/nvflare/data/hello-jax/initial_model.npy"
+DEFAULT_INITIAL_CKPT = "/tmp/nvflare/data/hello-jax/initial_model.msgpack"
 DEFAULT_DATA_DIR = "/tmp/nvflare/data/hello-jax/mnist"
 REQUIRED_DATA_FILES = ("train_images.npy", "train_labels.npy", "test_images.npy", "test_labels.npy")
 
@@ -94,8 +93,6 @@ def main():
         train_script=args.train_script,
         train_args=train_args,
         launch_external_process=args.launch_external_process,
-        framework=FrameworkType.NUMPY,
-        server_expected_format=ExchangeFormat.NUMPY,
     )
 
     env = SimEnv(num_clients=args.n_clients)

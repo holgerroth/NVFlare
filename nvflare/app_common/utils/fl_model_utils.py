@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+from collections.abc import Mapping
 from typing import Any, Optional
 
 from nvflare.apis.dxo import DXO, DataKind, from_shareable
@@ -42,6 +43,35 @@ data_kind_to_params_type = {v: k for k, v in params_type_to_data_kind.items()}
 
 
 class FLModelUtils:
+    @staticmethod
+    def _tree_add(base, delta, path: str = ""):
+        if isinstance(delta, Mapping):
+            if not isinstance(base, Mapping):
+                raise RuntimeError(f"parameter tree mismatch at {path or '<root>'}: expected Mapping")
+            updated = dict(base)
+            for key, value in delta.items():
+                if key not in base:
+                    raise RuntimeError(f"parameter tree mismatch at {path or '<root>'}: missing key '{key}'")
+                child_path = f"{path}/{key}" if path else str(key)
+                updated[key] = FLModelUtils._tree_add(base[key], value, child_path)
+            return updated
+
+        if isinstance(delta, list):
+            if not isinstance(base, list):
+                raise RuntimeError(f"parameter tree mismatch at {path or '<root>'}: expected list")
+            if len(base) != len(delta):
+                raise RuntimeError(f"parameter list length mismatch at {path or '<root>'}")
+            return [FLModelUtils._tree_add(b, d, f"{path}[{idx}]") for idx, (b, d) in enumerate(zip(base, delta))]
+
+        if isinstance(delta, tuple):
+            if not isinstance(base, tuple):
+                raise RuntimeError(f"parameter tree mismatch at {path or '<root>'}: expected tuple")
+            if len(base) != len(delta):
+                raise RuntimeError(f"parameter tuple length mismatch at {path or '<root>'}")
+            return tuple(FLModelUtils._tree_add(b, d, f"{path}[{idx}]") for idx, (b, d) in enumerate(zip(base, delta)))
+
+        return base + delta
+
     @staticmethod
     def to_shareable(fl_model: FLModel) -> Shareable:
         """From FLModel to NVFlare side shareable.
@@ -233,8 +263,7 @@ class FLModelUtils:
         if model_update.params_type == ParamsType.FULL:
             model.params = model_update.params
         elif model_update.params_type == ParamsType.DIFF:
-            for v_name, v_value in model_update.params.items():
-                model.params[v_name] = model.params[v_name] + v_value
+            model.params = FLModelUtils._tree_add(model.params, model_update.params)
         else:
             raise RuntimeError(f"params_type {model_update.params_type} of `model_update` not supported!")
         return model

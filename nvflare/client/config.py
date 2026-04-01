@@ -23,6 +23,7 @@ from nvflare.fuel.utils.log_utils import get_obj_logger
 
 
 class ExchangeFormat(str, Enum):
+    JAX = "jax"
     RAW = "raw"
     PYTORCH = "pytorch"
     NUMPY = "numpy"

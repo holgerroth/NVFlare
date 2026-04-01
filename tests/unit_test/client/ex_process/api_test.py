@@ -64,6 +64,36 @@ def test_create_params_converters_for_pytorch_format():
     assert to_converter.supported_tasks == ["train", "submit_model"]
 
 
+def test_create_params_converters_for_jax_format():
+    config = ClientConfig(
+        {
+            ConfigKey.TASK_EXCHANGE: {
+                ConfigKey.EXCHANGE_FORMAT: ExchangeFormat.JAX,
+                ConfigKey.SERVER_EXPECTED_FORMAT: ExchangeFormat.NUMPY,
+                ConfigKey.TRAIN_TASK_NAME: "train",
+                ConfigKey.EVAL_TASK_NAME: "validate",
+                ConfigKey.SUBMIT_MODEL_TASK_NAME: "submit_model",
+            }
+        }
+    )
+
+    with patch("nvflare.client.converter_utils.optional_import", side_effect=_fake_optional_import):
+        from_converter, to_converter = create_default_params_converters(
+            server_expected_format=config.get_server_expected_format(),
+            params_exchange_format=config.get_exchange_format(),
+            train_task_name=config.get_train_task(),
+            eval_task_name=config.get_eval_task(),
+            submit_model_task_name=config.get_submit_model_task(),
+        )
+
+    assert from_converter is not None
+    assert to_converter is not None
+    assert from_converter.__class__.__name__ == "NumpyToJAXParamsConverter"
+    assert to_converter.__class__.__name__ == "JAXToNumpyParamsConverter"
+    assert from_converter.supported_tasks == ["train", "validate"]
+    assert to_converter.supported_tasks == ["train", "submit_model"]
+
+
 def test_create_params_converters_skips_when_server_expected_format_is_not_numpy():
     config = ClientConfig(
         {

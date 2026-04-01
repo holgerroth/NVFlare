@@ -12,9 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
+from collections.abc import Mapping
+from typing import Any, Dict
 
 from .config import ExchangeFormat
+
+
+def _diff_values(original: Any, new: Any, path: str):
+    if isinstance(original, Mapping):
+        if not isinstance(new, Mapping):
+            raise RuntimeError(f"parameter tree mismatch at {path or '<root>'}: expected Mapping")
+
+        diff_dict = {}
+        for key in original:
+            if key not in new:
+                continue
+            child_path = f"{path}/{key}" if path else str(key)
+            diff_dict[key] = _diff_values(original[key], new[key], child_path)
+        if diff_dict == {}:
+            raise RuntimeError(f"no common keys between original and new dict at {path or '<root>'}")
+        return diff_dict
+
+    if isinstance(original, list):
+        if not isinstance(new, list):
+            raise RuntimeError(f"parameter tree mismatch at {path or '<root>'}: expected list")
+        if len(original) != len(new):
+            raise RuntimeError(f"parameter list length mismatch at {path or '<root>'}")
+        return [_diff_values(o, n, f"{path}[{idx}]") for idx, (o, n) in enumerate(zip(original, new))]
+
+    if isinstance(original, tuple):
+        if not isinstance(new, tuple):
+            raise RuntimeError(f"parameter tree mismatch at {path or '<root>'}: expected tuple")
+        if len(original) != len(new):
+            raise RuntimeError(f"parameter tuple length mismatch at {path or '<root>'}")
+        return tuple(_diff_values(o, n, f"{path}[{idx}]") for idx, (o, n) in enumerate(zip(original, new)))
+
+    if isinstance(new, list) and isinstance(original, list):
+        return [new[i] - original[i] for i in range(len(new))]
+
+    return new - original
 
 
 def numerical_params_diff(original: Dict, new: Dict) -> Dict:
@@ -28,19 +64,11 @@ def numerical_params_diff(original: Dict, new: Dict) -> Dict:
         A dict with common keys that exist in both original dict and new dict,
         values are the difference between original and new.
     """
-    diff_dict = {}
-    for k in original:
-        if k not in new:
-            continue
-        if isinstance(new[k], list) and isinstance(original[k], list):
-            diff = [new[k][i] - original[k][i] for i in range(len(new[k]))]
-        else:
-            diff = new[k] - original[k]
-
-        diff_dict[k] = diff
-    if diff_dict == {}:
-        raise RuntimeError("no common keys between original and new dict, parameters difference are empty.")
-    return diff_dict
+    return _diff_values(original=original, new=new, path="")
 
 
-DIFF_FUNCS = {ExchangeFormat.PYTORCH: numerical_params_diff, ExchangeFormat.NUMPY: numerical_params_diff}
+DIFF_FUNCS = {
+    ExchangeFormat.PYTORCH: numerical_params_diff,
+    ExchangeFormat.NUMPY: numerical_params_diff,
+    ExchangeFormat.JAX: numerical_params_diff,
+}

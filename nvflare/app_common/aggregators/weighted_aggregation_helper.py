@@ -14,6 +14,7 @@
 
 import re
 import threading
+from collections.abc import Mapping
 from typing import Any, Callable, Dict, Optional, Set
 
 
@@ -103,60 +104,160 @@ class WeightedAggregationHelper(object):
         """Check if tensor is a PyTorch tensor with in-place operation support."""
         return hasattr(tensor, "add_") and hasattr(tensor, "mul_") and hasattr(tensor, "clone")
 
+    @staticmethod
+    def _join_path(path: str, child: str) -> str:
+        return child if not path else f"{path}/{child}"
+
+    @staticmethod
+    def _is_sequence_node(value: Any) -> bool:
+        return isinstance(value, (list, tuple))
+
+    @staticmethod
+    def _materialize_leaf(value: Any) -> Any:
+        materialize_fn = getattr(value, "materialize", None)
+        if callable(materialize_fn):
+            return materialize_fn()
+        return value
+
+    def _init_leaf(self, value: Any, weight: float):
+        if self._is_pytorch_tensor(value):
+            if self.weigh_by_local_iter:
+                return value.mul(weight)
+            return value.clone()
+
+        if self.weigh_by_local_iter:
+            return value * weight
+
+        try:
+            return value.copy() if hasattr(value, "copy") else value
+        except (ValueError, RuntimeError):
+            return value
+
+    def _accumulate_leaf(self, current_total: Any, value: Any, weight: float):
+        if self._is_pytorch_tensor(value) and self._is_pytorch_tensor(current_total):
+            if self.weigh_by_local_iter:
+                current_total.add_(value, alpha=weight)
+            else:
+                current_total.add_(value)
+            return current_total
+
+        if self.weigh_by_local_iter:
+            return current_total + value * weight
+        return current_total + value
+
+    def _divide_leaf(self, value: Any, count: float):
+        if self._is_pytorch_tensor(value):
+            return value.div_(count)
+        return value * (1.0 / count)
+
+    def _add_value(self, current_total: Any, current_count: Any, value: Any, weight: float, path: str):
+        if self.exclude_vars is not None and self.exclude_vars.search(path):
+            return None, None, True
+
+        value = self._materialize_leaf(value)
+
+        if isinstance(value, Mapping):
+            if current_total is not None and not isinstance(current_total, Mapping):
+                raise ValueError(f"Aggregation structure mismatch at {path}: expected Mapping accumulator")
+            if current_count is not None and not isinstance(current_count, Mapping):
+                raise ValueError(f"Aggregation count mismatch at {path}: expected Mapping accumulator")
+
+            total_result = {}
+            count_result = {}
+            seen_keys = set()
+            for key, child_value in value.items():
+                child_path = self._join_path(path, str(key))
+                existing_total = None if current_total is None else current_total.get(key)
+                existing_count = None if current_count is None else current_count.get(key)
+                if current_total is not None and key not in current_total:
+                    raise ValueError(f"Aggregation structure mismatch at {child_path}: unexpected key")
+
+                child_total, child_count, skipped = self._add_value(
+                    existing_total,
+                    existing_count,
+                    child_value,
+                    weight,
+                    child_path,
+                )
+                if skipped:
+                    continue
+                total_result[key] = child_total
+                count_result[key] = child_count
+                seen_keys.add(key)
+
+            if current_total is not None:
+                missing_keys = set(current_total.keys()) - seen_keys
+                if missing_keys:
+                    raise ValueError(
+                        f"Aggregation structure mismatch at {path}: missing keys {sorted(str(k) for k in missing_keys)}"
+                    )
+            if not total_result:
+                return None, None, True
+            return total_result, count_result, False
+
+        if self._is_sequence_node(value):
+            if current_total is not None and not self._is_sequence_node(current_total):
+                raise ValueError(f"Aggregation structure mismatch at {path}: expected sequence accumulator")
+            if current_count is not None and not self._is_sequence_node(current_count):
+                raise ValueError(f"Aggregation count mismatch at {path}: expected sequence accumulator")
+
+            if current_total is not None and len(current_total) != len(value):
+                raise ValueError(f"Aggregation sequence length mismatch at {path}")
+
+            total_items = []
+            count_items = []
+            for idx, child_value in enumerate(value):
+                child_path = f"{path}[{idx}]"
+                existing_total = None if current_total is None else current_total[idx]
+                existing_count = None if current_count is None else current_count[idx]
+                child_total, child_count, skipped = self._add_value(
+                    existing_total,
+                    existing_count,
+                    child_value,
+                    weight,
+                    child_path,
+                )
+                if skipped:
+                    raise ValueError(f"exclude_vars is not supported for sequence children at {child_path}")
+                total_items.append(child_total)
+                count_items.append(child_count)
+
+            if isinstance(value, tuple):
+                return tuple(total_items), tuple(count_items), False
+            return total_items, count_items, False
+
+        if current_total is None:
+            return self._init_leaf(value, weight), weight, False
+
+        return self._accumulate_leaf(current_total, value, weight), current_count + weight, False
+
+    def _get_result_value(self, total_value: Any, count_value: Any):
+        if isinstance(total_value, Mapping):
+            return {key: self._get_result_value(total_value[key], count_value[key]) for key in total_value.keys()}
+
+        if self._is_sequence_node(total_value):
+            values = [self._get_result_value(v, c) for v, c in zip(total_value, count_value)]
+            if isinstance(total_value, tuple):
+                return tuple(values)
+            return values
+
+        return self._divide_leaf(total_value, count_value)
+
     def add(self, data, weight, contributor_name, contribution_round):
         """Compute weighted sum and sum of weights."""
         with self.lock:
             for k, v in data.items():
-                if self.exclude_vars is not None and self.exclude_vars.search(k):
+                total_value, count_value, skipped = self._add_value(
+                    self.total.get(k, None),
+                    self.counts.get(k, None),
+                    v,
+                    weight,
+                    str(k),
+                )
+                if skipped:
                     continue
-
-                # Disk-streamed payloads may pass lazy refs
-                # instead of in-memory tensors. If present, materialize() loads
-                # the tensor from disk before weighted aggregation math.
-                materialize_fn = getattr(v, "materialize", None)
-                if callable(materialize_fn):
-                    v = materialize_fn()
-
-                current_total = self.total.get(k, None)
-
-                if current_total is None:
-                    # First contribution: initialize accumulator
-                    # We must create a copy to avoid mutating caller's input tensors
-                    if self._is_pytorch_tensor(v):
-                        if self.weigh_by_local_iter:
-                            # Weigh by local iter: create weighted copy (multiply by weight)
-                            self.total[k] = v.mul(weight)
-                        else:
-                            self.total[k] = v.clone()
-                    else:
-                        # Fallback for non-PyTorch tensors
-                        if self.weigh_by_local_iter:
-                            # Multiply creates a new array/tensor, no aliasing issue
-                            self.total[k] = v * weight
-                        else:
-                            # For HE mode: try to copy to avoid aliasing
-                            # But encrypted tensors can't be copied (requires secret key)
-                            try:
-                                self.total[k] = v.copy() if hasattr(v, "copy") else v
-                            except (ValueError, RuntimeError):
-                                # Encrypted tensor copy failed, use reference (safe, immutable)
-                                self.total[k] = v
-                    self.counts[k] = weight
-                else:
-                    # Subsequent contributions: use in-place operations
-                    if self._is_pytorch_tensor(v) and self._is_pytorch_tensor(current_total):
-                        if self.weigh_by_local_iter:
-                            # Weigh by local iter: weighted accumulation
-                            self.total[k].add_(v, alpha=weight)
-                        else:
-                            self.total[k].add_(v)
-                    else:
-                        # Fallback for non-PyTorch tensors
-                        if self.weigh_by_local_iter:
-                            self.total[k] = current_total + v * weight
-                        else:
-                            self.total[k] = current_total + v
-                    self.counts[k] = self.counts[k] + weight
+                self.total[k] = total_value
+                self.counts[k] = count_value
 
             self.history.append(
                 {
@@ -169,14 +270,9 @@ class WeightedAggregationHelper(object):
     def get_result(self):
         """Divide weighted sum by sum of weights."""
         with self.lock:
-            aggregated_dict = {}
-            for k, v in self.total.items():
-                if self._is_pytorch_tensor(v):
-                    # For PyTorch tensors, use in-place division to avoid creating a copy
-                    aggregated_dict[k] = v.div_(self.counts[k])
-                else:
-                    # Fallback for non-PyTorch tensors (including encrypted tensors)
-                    aggregated_dict[k] = v * (1.0 / self.counts[k])
+            aggregated_dict = {
+                key: self._get_result_value(total_value, self.counts[key]) for key, total_value in self.total.items()
+            }
 
             self.reset_stats()
             return aggregated_dict

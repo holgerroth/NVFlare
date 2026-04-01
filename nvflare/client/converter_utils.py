@@ -69,4 +69,20 @@ def create_default_params_converters(
             keras_to_numpy([train_task_name, submit_model_task_name]),
         )
 
+    if params_exchange_format == ExchangeFormat.JAX:
+        numpy_to_jax = _load_converter(
+            module="nvflare.app_opt.jax.params_converter",
+            name="NumpyToJAXParamsConverter",
+            format_name=ExchangeFormat.JAX,
+        )
+        jax_to_numpy = _load_converter(
+            module="nvflare.app_opt.jax.params_converter",
+            name="JAXToNumpyParamsConverter",
+            format_name=ExchangeFormat.JAX,
+        )
+        return (
+            numpy_to_jax([train_task_name, eval_task_name]),
+            jax_to_numpy([train_task_name, submit_model_task_name]),
+        )
+
     return None, None

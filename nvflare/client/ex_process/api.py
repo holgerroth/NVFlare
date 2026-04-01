@@ -106,6 +106,14 @@ def _register_tensor_decomposer():
         raise RuntimeError(f"Can't import TensorDecomposer for format: {ExchangeFormat.PYTORCH}")
 
 
+def _register_jax_decomposer():
+    jax_decomposer, ok = optional_import(module="nvflare.app_opt.jax.decomposers", name="JaxArrayDecomposer")
+    if ok:
+        fobs.register(jax_decomposer)
+    else:
+        raise RuntimeError(f"Can't import JaxArrayDecomposer for format: {ExchangeFormat.JAX}")
+
+
 class ExProcessClientAPI(APISpec):
     def __init__(self, config_file: str):
         super().__init__()  # Initialize memory management from base class
@@ -182,6 +190,8 @@ class ExProcessClientAPI(APISpec):
             if rank == "0":
                 if client_config.get_exchange_format() == ExchangeFormat.PYTORCH:
                     _register_tensor_decomposer()
+                elif client_config.get_exchange_format() == ExchangeFormat.JAX:
+                    _register_jax_decomposer()
 
                 pipe, task_channel_name = None, ""
                 if ConfigKey.TASK_EXCHANGE in client_config.config:

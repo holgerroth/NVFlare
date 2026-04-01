@@ -24,11 +24,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from model import MODEL, create_train_state, flatten_params, unflatten_params
+from model import MODEL, create_train_state, params_from_state_dict, params_to_state_dict
 
 import nvflare.client as flare
 from nvflare.apis.fl_constant import FLMetaKey
-from nvflare.app_common.np.constants import NPConstants
 
 
 def parse_args():
@@ -154,8 +153,7 @@ def main():
     while flare.is_running():
         input_model = flare.receive()
         current_round = input_model.current_round
-        flat_params = input_model.params[NPConstants.NUMPY_KEY]
-        params = unflatten_params(flat_params)
+        params = params_from_state_dict(input_model.params)
 
         received_eval_loss, received_accuracy = evaluate(params, test_images, test_labels, args.batch_size)
         print(
@@ -190,9 +188,9 @@ def main():
             f"trained_model_eval_loss={updated_eval_loss:.4f}, accuracy={updated_accuracy:.4f}"
         )
 
-        updated_params = flatten_params(state.params)
+        updated_params = params_to_state_dict(state.params)
         output_model = flare.FLModel(
-            params={NPConstants.NUMPY_KEY: updated_params},
+            params=updated_params,
             params_type=flare.ParamsType.FULL,
             metrics={"accuracy": updated_accuracy, "eval_loss": updated_eval_loss},
             meta={FLMetaKey.NUM_STEPS_CURRENT_ROUND: args.epochs * steps_per_epoch},

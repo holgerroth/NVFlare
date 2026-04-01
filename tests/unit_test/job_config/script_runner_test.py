@@ -20,6 +20,7 @@ from unittest.mock import patch
 import pytest
 
 from nvflare.app_common.launchers.subprocess_launcher import SubprocessLauncher
+from nvflare.client.config import ExchangeFormat
 from nvflare.job_config.script_runner import FrameworkType, ScriptRunner
 
 
@@ -104,6 +105,13 @@ class TestScriptRunner:
         # Verify the runner stores custom values
         assert runner._launch_once is False
         assert runner._shutdown_timeout == 20.0
+
+    def test_jax_framework_selects_jax_exchange_format(self):
+        with patch("nvflare.job_config.script_runner.optional_import", return_value=(object(), True)):
+            runner = ScriptRunner(script="train.py", framework=FrameworkType.JAX)
+
+        assert runner._framework == FrameworkType.JAX
+        assert runner._params_exchange_format == ExchangeFormat.JAX
 
     def test_exported_job_contains_launch_parameters(self, base_script_runner_params):
         """Test that exported job configuration contains launch_once and shutdown_timeout parameters."""

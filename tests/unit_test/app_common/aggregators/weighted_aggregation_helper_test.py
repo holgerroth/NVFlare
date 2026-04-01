@@ -290,6 +290,52 @@ class TestWeightedAggregationHelper:
         expected = np.array([8.0 / 3, 16.0 / 3, 24.0 / 3])
         np.testing.assert_allclose(result["w"], expected)
 
+    def test_nested_numpy_contributions(self):
+        helper = WeightedAggregationHelper()
+
+        data1 = {
+            "params": {
+                "dense": {
+                    "kernel": np.array([1.0, 2.0], dtype=np.float32),
+                    "bias": np.array([0.5], dtype=np.float32),
+                }
+            }
+        }
+        data2 = {
+            "params": {
+                "dense": {
+                    "kernel": np.array([3.0, 6.0], dtype=np.float32),
+                    "bias": np.array([1.5], dtype=np.float32),
+                }
+            }
+        }
+
+        helper.add(data1, weight=1.0, contributor_name="site-1", contribution_round=0)
+        helper.add(data2, weight=2.0, contributor_name="site-2", contribution_round=0)
+
+        result = helper.get_result()
+
+        np.testing.assert_allclose(result["params"]["dense"]["kernel"], np.array([7.0 / 3.0, 14.0 / 3.0]))
+        np.testing.assert_allclose(result["params"]["dense"]["bias"], np.array([7.0 / 6.0]))
+
+    def test_nested_structure_mismatch_raises(self):
+        helper = WeightedAggregationHelper()
+
+        helper.add(
+            {"params": {"dense": {"kernel": np.array([1.0], dtype=np.float32)}}},
+            weight=1.0,
+            contributor_name="site-1",
+            contribution_round=0,
+        )
+
+        with pytest.raises(ValueError, match="unexpected key"):
+            helper.add(
+                {"params": {"dense": {"kernel": np.array([1.0], dtype=np.float32), "bias": np.array([0.0])}}},
+                weight=1.0,
+                contributor_name="site-2",
+                contribution_round=0,
+            )
+
     def test_exclude_vars_regex(self):
         """Test exclude_vars regex filtering."""
         helper = WeightedAggregationHelper(exclude_vars="bias")

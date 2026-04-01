@@ -136,6 +136,12 @@ class BaseScriptRunner:
                 self._params_exchange_format = ExchangeFormat.PYTORCH
             else:
                 raise ValueError("Using FrameworkType.PYTORCH, but unable to import torch")
+        elif self._framework == FrameworkType.JAX:
+            _, jax_ok = optional_import(module="jax")
+            if jax_ok:
+                self._params_exchange_format = ExchangeFormat.JAX
+            else:
+                raise ValueError("Using FrameworkType.JAX, but unable to import jax")
         elif self._framework == FrameworkType.TENSORFLOW:
             _, tf_ok = optional_import(module="tensorflow")
             if tf_ok:
@@ -284,6 +290,10 @@ class BaseScriptRunner:
             from nvflare.app_opt.pt.client_api_launcher_executor import PTClientAPILauncherExecutor
 
             return PTClientAPILauncherExecutor
+        elif framework == FrameworkType.JAX:
+            from nvflare.app_opt.jax.client_api_launcher_executor import JAXClientAPILauncherExecutor
+
+            return JAXClientAPILauncherExecutor
         elif framework == FrameworkType.TENSORFLOW:
             from nvflare.app_opt.tf.client_api_launcher_executor import TFClientAPILauncherExecutor
 
@@ -296,6 +306,10 @@ class BaseScriptRunner:
             from nvflare.app_opt.pt.in_process_client_api_executor import PTInProcessClientAPIExecutor
 
             return PTInProcessClientAPIExecutor
+        elif framework == FrameworkType.JAX:
+            from nvflare.app_opt.jax.in_process_client_api_executor import JAXInProcessClientAPIExecutor
+
+            return JAXInProcessClientAPIExecutor
         elif framework == FrameworkType.TENSORFLOW:
             from nvflare.app_opt.tf.in_process_client_api_executor import TFInProcessClientAPIExecutor
 

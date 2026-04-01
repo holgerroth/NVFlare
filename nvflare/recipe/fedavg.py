@@ -104,6 +104,7 @@ class FedAvgRecipe(Recipe):
             Defaults to "python3 -u".
         framework: The framework type. One of:
             - FrameworkType.PYTORCH (default)
+            - FrameworkType.JAX
             - FrameworkType.TENSORFLOW
             - FrameworkType.NUMPY
             - FrameworkType.RAW (for custom frameworks, e.g., sklearn, XGBoost)
@@ -228,7 +229,7 @@ class FedAvgRecipe(Recipe):
         from nvflare.recipe.utils import recipe_model_to_job_model, validate_ckpt
 
         validate_ckpt(self.initial_ckpt)
-        if isinstance(self.model, dict):
+        if isinstance(self.model, dict) and ("class_path" in self.model or "path" in self.model):
             self.model = recipe_model_to_job_model(self.model)
 
         self.min_clients = v.min_clients
@@ -479,6 +480,24 @@ class FedAvgRecipe(Recipe):
             job.comp_ids["persistor_id"] = persistor_id
         return persistor_id
 
+    def _setup_jax_model_and_persistor(self, job: BaseFedJob, *, model: Any, initial_ckpt: Optional[str]) -> str:
+        """Configure JAXModelPersistor for structured JAX/Flax parameter trees."""
+        from nvflare.app_opt.jax.model_persistor import JAXModelPersistor
+        from nvflare.recipe.utils import extract_persistor_id, resolve_initial_ckpt
+
+        if isinstance(model, dict) and ("path" in model or "class_path" in model):
+            raise TypeError(
+                "FrameworkType.JAX expects `model` to be a JAX/Flax parameter pytree or state dict, "
+                "not a class config."
+            )
+
+        ckpt_path = resolve_initial_ckpt(initial_ckpt, getattr(self, "_prepared_initial_ckpt", None), job)
+        persistor = JAXModelPersistor(model=model, source_ckpt_file_full_name=ckpt_path)
+        persistor_id = extract_persistor_id(job.to_server(persistor, id="persistor"))
+        if persistor_id and hasattr(job, "comp_ids"):
+            job.comp_ids["persistor_id"] = persistor_id
+        return persistor_id
+
     def _setup_model_and_persistor(self, job: BaseFedJob) -> str:
         """Setup generic custom persistor only.
 
@@ -495,6 +514,9 @@ class FedAvgRecipe(Recipe):
             if hasattr(job, "comp_ids"):
                 job.comp_ids.setdefault("persistor_id", persistor_id)
             return persistor_id
+
+        if self.framework == FrameworkType.JAX and (self.model is not None or self.initial_ckpt is not None):
+            return self._setup_jax_model_and_persistor(job, model=self.model, initial_ckpt=self.initial_ckpt)
 
         if self.framework == FrameworkType.NUMPY and (self.model is not None or self.initial_ckpt is not None):
             return self._setup_numpy_model_and_persistor(job, model=self.model, initial_ckpt=self.initial_ckpt)

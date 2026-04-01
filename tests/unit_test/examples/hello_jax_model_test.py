@@ -15,6 +15,7 @@
 import importlib.util
 import os
 import sys
+from collections.abc import Mapping
 
 import numpy as np
 import pytest
@@ -38,17 +39,45 @@ def _load_hello_jax_module(file_name: str, module_name: str):
     return module
 
 
-def test_jax_param_flatten_roundtrip():
+def _assert_tree_allclose(module, expected, actual):
+    if isinstance(expected, Mapping):
+        assert isinstance(actual, Mapping)
+        assert set(expected.keys()) == set(actual.keys())
+        for key in expected.keys():
+            _assert_tree_allclose(module, expected[key], actual[key])
+        return
+
+    if isinstance(expected, list):
+        assert isinstance(actual, list)
+        assert len(expected) == len(actual)
+        for expected_item, actual_item in zip(expected, actual):
+            _assert_tree_allclose(module, expected_item, actual_item)
+        return
+
+    if isinstance(expected, tuple):
+        assert isinstance(actual, tuple)
+        assert len(expected) == len(actual)
+        for expected_item, actual_item in zip(expected, actual):
+            _assert_tree_allclose(module, expected_item, actual_item)
+        return
+
+    expected_array = module.jnp.asarray(expected)
+    actual_array = module.jnp.asarray(actual)
+    assert expected_array.shape == actual_array.shape
+    assert bool(module.jnp.allclose(expected_array, actual_array, rtol=1e-6, atol=1e-6))
+
+
+def test_jax_param_state_dict_roundtrip():
     model_module = _load_hello_jax_module("model.py", "hello_jax_model")
     params = model_module.create_initial_params()
 
-    flat_params = model_module.flatten_params(params)
-    restored_params = model_module.unflatten_params(flat_params)
-    restored_flat_params = model_module.flatten_params(restored_params)
+    state_dict = model_module.params_to_state_dict(params)
+    restored_params = model_module.params_from_state_dict(state_dict)
+    restored_state_dict = model_module.params_to_state_dict(restored_params)
 
-    assert isinstance(flat_params, np.ndarray)
-    assert flat_params.ndim == 1
-    np.testing.assert_allclose(flat_params, restored_flat_params, rtol=1e-6, atol=1e-6)
+    assert isinstance(state_dict, dict)
+    assert state_dict
+    _assert_tree_allclose(model_module, state_dict, restored_state_dict)
 
 
 def test_jax_train_state_uses_same_param_structure():
@@ -56,9 +85,20 @@ def test_jax_train_state_uses_same_param_structure():
     params = model_module.create_initial_params()
     state = model_module.create_train_state(params, learning_rate=0.05, momentum=0.9)
 
-    flat_params = model_module.flatten_params(params)
-    flat_state_params = model_module.flatten_params(state.params)
-    np.testing.assert_allclose(flat_params, flat_state_params, rtol=1e-6, atol=1e-6)
+    state_dict = model_module.params_to_state_dict(params)
+    state_state_dict = model_module.params_to_state_dict(state.params)
+    _assert_tree_allclose(model_module, state_dict, state_state_dict)
+
+
+def test_jax_state_dict_rejects_missing_keys():
+    model_module = _load_hello_jax_module("model.py", "hello_jax_model")
+    params = model_module.create_initial_params()
+    state_dict = model_module.params_to_state_dict(params)
+    missing_key = next(iter(state_dict.keys()))
+    state_dict.pop(missing_key)
+
+    with pytest.raises(ValueError):
+        model_module.params_from_state_dict(state_dict)
 
 
 def test_jax_train_epoch_rejects_empty_data():

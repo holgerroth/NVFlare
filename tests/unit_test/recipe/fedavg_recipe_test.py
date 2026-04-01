@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib.util
 from unittest.mock import patch
 
 import pytest
@@ -25,6 +26,8 @@ from nvflare.app_common.aggregators.model_aggregator import ModelAggregator
 from nvflare.app_common.np.recipes import NumpyFedAvgRecipe
 from nvflare.app_common.widgets.intime_model_selector import IntimeModelSelector
 from nvflare.app_opt.pt.recipes.fedavg import FedAvgRecipe
+
+HAS_JAX_DEPS = all(importlib.util.find_spec(dep) is not None for dep in ("jax", "flax"))
 
 
 class SimpleTestModel(nn.Module):
@@ -642,6 +645,27 @@ class TestFedAvgRecipeInitialCkpt:
         persistor = server_app.app_config.components.get("persistor")
         assert isinstance(persistor, NPModelPersistor)
         assert persistor.model == [1.0, 2.0, 3.0]
+
+    @pytest.mark.skipif(not HAS_JAX_DEPS, reason="JAX dependencies are not installed")
+    def test_unified_jax_initial_ckpt_only(self, mock_file_system, base_recipe_params):
+        from nvflare.app_opt.jax.model_persistor import JAXModelPersistor
+        from nvflare.client.config import ExchangeFormat
+        from nvflare.fuel.utils.constants import FrameworkType
+        from nvflare.recipe import FedAvgRecipe as UnifiedFedAvgRecipe
+
+        recipe = UnifiedFedAvgRecipe(
+            name="test_unified_jax_ckpt",
+            model=None,
+            initial_ckpt="/abs/path/to/model.msgpack",
+            framework=FrameworkType.JAX,
+            server_expected_format=ExchangeFormat.JAX,
+            **base_recipe_params,
+        )
+
+        server_app = recipe.job._deploy_map[SERVER_SITE_NAME]
+        persistor = server_app.app_config.components.get("persistor")
+        assert isinstance(persistor, JAXModelPersistor)
+        assert persistor.source_ckpt_file_full_name == "/abs/path/to/model.msgpack"
 
 
 class TestFedAvgRecipeDictConfigJobExport:

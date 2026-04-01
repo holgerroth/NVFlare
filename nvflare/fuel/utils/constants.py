@@ -22,6 +22,7 @@ class FrameworkType(str, Enum):
     and checkpoint validation across both server and client components.
     """
 
+    JAX = "jax"
     RAW = "raw"
     NUMPY = "numpy"
     PYTORCH = "pytorch"

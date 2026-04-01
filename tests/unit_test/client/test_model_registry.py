@@ -19,17 +19,19 @@ from unittest.mock import MagicMock
 
 import numpy as np
 
-from nvflare.app_common.abstract.fl_model import FLModel
+from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
 from nvflare.client.config import ClientConfig, ConfigKey, ExchangeFormat, TransferType
 from nvflare.client.flare_agent import Task
 from nvflare.client.model_registry import ModelRegistry
 
 
-def _make_registry(transfer_type: str = TransferType.FULL) -> ModelRegistry:
+def _make_registry(
+    transfer_type: str = TransferType.FULL, exchange_format: str = ExchangeFormat.NUMPY
+) -> ModelRegistry:
     config = ClientConfig(
         config={
             ConfigKey.TASK_EXCHANGE: {
-                ConfigKey.EXCHANGE_FORMAT: ExchangeFormat.NUMPY,
+                ConfigKey.EXCHANGE_FORMAT: exchange_format,
                 ConfigKey.TRANSFER_TYPE: transfer_type,
                 ConfigKey.TRAIN_TASK_NAME: "train",
                 ConfigKey.EVAL_TASK_NAME: "evaluate",
@@ -176,6 +178,18 @@ class TestReleaseParamsDiffMode(unittest.TestCase):
 
         self.assertIsNone(sent.params)
         self.assertIsNone(received.params)
+
+    def test_nested_jax_diff_mode_prepares_tree_diff(self):
+        registry = _make_registry(transfer_type=TransferType.DIFF, exchange_format=ExchangeFormat.JAX)
+        received = FLModel(params={"params": {"dense": {"kernel": np.array([1.0, 2.0])}}})
+        task = Task(task_name="train", task_id="test-task-1", data=received)
+        registry._set_task(task)
+
+        sent = FLModel(params={"params": {"dense": {"kernel": np.array([2.5, 5.0])}}})
+        diff_model = registry._prepare_param_diff(sent)
+
+        np.testing.assert_allclose(diff_model.params["params"]["dense"]["kernel"], np.array([1.5, 3.0]))
+        self.assertEqual(diff_model.params_type, ParamsType.DIFF)
 
 
 if __name__ == "__main__":
