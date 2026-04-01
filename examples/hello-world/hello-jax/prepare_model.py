@@ -17,8 +17,9 @@
 import argparse
 import os
 
-from flax import serialization
 from model import create_initial_params, params_to_state_dict
+
+from nvflare.app_opt.jax.serialization import msgpack_serialize
 
 DEFAULT_OUTPUT = "/tmp/nvflare/data/hello-jax/initial_model.msgpack"
 
@@ -38,7 +39,7 @@ def main():
         os.makedirs(output_dir, exist_ok=True)
     initial_state_dict = params_to_state_dict(create_initial_params())
     with open(args.output, "wb") as f:
-        f.write(serialization.msgpack_serialize(initial_state_dict))
+        f.write(msgpack_serialize(initial_state_dict))
 
 
 if __name__ == "__main__":

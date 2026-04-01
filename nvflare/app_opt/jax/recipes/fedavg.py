@@ -37,7 +37,7 @@ class FedAvgRecipe(UnifiedFedAvgRecipe):
         aggregator_data_kind: Optional[DataKind] = DataKind.WEIGHTS,
         launch_external_process: bool = False,
         command: str = "python3 -u",
-        server_expected_format: ExchangeFormat = ExchangeFormat.JAX,
+        server_expected_format: ExchangeFormat = ExchangeFormat.NUMPY,
         params_transfer_type: TransferType = TransferType.FULL,
         model_persistor: Optional[ModelPersistor] = None,
         per_site_config: Optional[dict[str, dict]] = None,

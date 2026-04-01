@@ -15,7 +15,6 @@
 from io import BytesIO
 from typing import Tuple
 
-import jax.numpy as jnp
 import numpy as np
 
 import nvflare.fuel.utils.fobs.dots as dots
@@ -28,12 +27,16 @@ from nvflare.fuel.utils.fobs.decomposers.via_downloader import ViaDownloaderDeco
 
 def _arrays_to_jax(arrays: dict[str, np.ndarray], **kwargs):
     _ = kwargs
+    import jax.numpy as jnp
+
     return {key: jnp.asarray(value) for key, value in arrays.items()}
 
 
 def _supported_jax_array_type():
     # FOBS matches decomposers by the exact runtime class name, so we must register
     # the concrete array implementation rather than the abstract jax.Array alias.
+    import jax.numpy as jnp
+
     return type(jnp.asarray(0))
 
 
@@ -77,5 +80,7 @@ class JaxArrayDecomposer(ViaDownloaderDecomposer):
         return stream.getvalue()
 
     def native_recompose(self, data: bytes, manager: DatumManager = None):
+        import jax.numpy as jnp
+
         stream = BytesIO(data)
         return jnp.asarray(np.load(stream, allow_pickle=False))

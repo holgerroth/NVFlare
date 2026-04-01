@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .model_persistor import JAXModelPersistor
-
 __all__ = ["JAXModelPersistor"]
+
+
+def __getattr__(name):
+    if name == "JAXModelPersistor":
+        from .model_persistor import JAXModelPersistor
+
+        return JAXModelPersistor
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

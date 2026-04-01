@@ -20,8 +20,8 @@ import pytest
 HAS_JAX_DEPS = all(importlib.util.find_spec(dep) is not None for dep in ("jax", "flax"))
 pytestmark = pytest.mark.skipif(not HAS_JAX_DEPS, reason="JAX dependencies are not installed")
 
-import jax.numpy as jnp
-from flax import serialization
+jnp = pytest.importorskip("jax.numpy")
+serialization = pytest.importorskip("flax.serialization")
 
 from nvflare.app_common.abstract.model import ModelLearnableKey, make_model_learnable
 from nvflare.app_opt.jax.decomposers import JaxArrayDecomposer

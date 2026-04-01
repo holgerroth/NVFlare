@@ -14,7 +14,6 @@
 
 from collections.abc import Mapping
 
-import jax.numpy as jnp
 import numpy as np
 
 from nvflare.app_common.abstract.params_converter import ParamsConverter
@@ -33,6 +32,8 @@ def _tree_convert(data, leaf_fn):
 class NumpyToJAXParamsConverter(ParamsConverter):
     def convert(self, params, fl_ctx):
         _ = fl_ctx
+        import jax.numpy as jnp
+
         return _tree_convert(params, lambda x: jnp.asarray(x))
 
 

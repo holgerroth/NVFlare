@@ -107,7 +107,7 @@ class TestScriptRunner:
         assert runner._shutdown_timeout == 20.0
 
     def test_jax_framework_selects_jax_exchange_format(self):
-        with patch("nvflare.job_config.script_runner.optional_import", return_value=(object(), True)):
+        with patch("nvflare.job_config.script_runner.importlib.util.find_spec", return_value=object()):
             runner = ScriptRunner(script="train.py", framework=FrameworkType.JAX)
 
         assert runner._framework == FrameworkType.JAX

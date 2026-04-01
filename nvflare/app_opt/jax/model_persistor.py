@@ -16,8 +16,7 @@ import os
 from collections.abc import Mapping
 from typing import Any, Optional
 
-import jax.numpy as jnp
-from flax import serialization
+import numpy as np
 
 from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_constant import FLContextKey, WorkspaceConstants
@@ -25,19 +24,20 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.app_common.abstract.model import ModelLearnable, ModelLearnableKey, make_model_learnable
 from nvflare.app_common.abstract.model_persistor import ModelPersistor
 from nvflare.app_opt.jax.decomposers import JaxArrayDecomposer
+from nvflare.app_opt.jax.serialization import msgpack_restore, msgpack_serialize
 from nvflare.fuel.utils import fobs
 
 
-def _to_jax_tree(tree):
+def _to_array_tree(tree):
     if isinstance(tree, Mapping):
-        return {key: _to_jax_tree(value) for key, value in tree.items()}
+        return {key: _to_array_tree(value) for key, value in tree.items()}
     if isinstance(tree, list):
-        return [_to_jax_tree(value) for value in tree]
+        return [_to_array_tree(value) for value in tree]
     if isinstance(tree, tuple):
-        return tuple(_to_jax_tree(value) for value in tree)
+        return tuple(_to_array_tree(value) for value in tree)
     if tree is None or isinstance(tree, (str, bytes)):
         return tree
-    return jnp.asarray(tree)
+    return np.asarray(tree)
 
 
 def _resolve_model_file(fl_ctx: FLContext, model_dir: str, model_name: str) -> str:
@@ -64,24 +64,26 @@ class JAXModelPersistor(ModelPersistor):
         model_name: str = "server.msgpack",
         model: Optional[Any] = None,
         source_ckpt_file_full_name: Optional[str] = None,
+        register_jax_transport: bool = False,
     ):
         super().__init__()
         self.model_dir = model_dir
         self.model_name = model_name
         self.model = model
         self.source_ckpt_file_full_name = source_ckpt_file_full_name
+        self.register_jax_transport = register_jax_transport
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
-        if event_type == EventType.START_RUN:
+        if event_type == EventType.START_RUN and self.register_jax_transport:
             fobs.register(JaxArrayDecomposer)
 
     @staticmethod
     def _serialize_tree(tree: Any) -> bytes:
-        return serialization.msgpack_serialize(serialization.to_state_dict(tree))
+        return msgpack_serialize(_to_array_tree(tree))
 
     @staticmethod
     def _deserialize_tree(serialized_tree: bytes):
-        return _to_jax_tree(serialization.msgpack_restore(serialized_tree))
+        return _to_array_tree(msgpack_restore(serialized_tree))
 
     def _load_from_file(self, filepath: str):
         with open(filepath, "rb") as f:
@@ -90,10 +92,11 @@ class JAXModelPersistor(ModelPersistor):
     def _get_initial_model(self):
         if self.model is None:
             raise ValueError("JAXModelPersistor requires either model or source_ckpt_file_full_name.")
-        return _to_jax_tree(serialization.to_state_dict(self.model))
+        return _to_array_tree(self.model)
 
     def load_model(self, fl_ctx: FLContext) -> ModelLearnable:
-        fobs.register(JaxArrayDecomposer)
+        if self.register_jax_transport:
+            fobs.register(JaxArrayDecomposer)
         model_path = _resolve_model_file(fl_ctx, self.model_dir, self.model_name)
 
         weights = None
@@ -115,7 +118,8 @@ class JAXModelPersistor(ModelPersistor):
         return model_learnable
 
     def save_model(self, model_learnable: ModelLearnable, fl_ctx: FLContext):
-        fobs.register(JaxArrayDecomposer)
+        if self.register_jax_transport:
+            fobs.register(JaxArrayDecomposer)
         workspace = fl_ctx.get_workspace()
         job_id = fl_ctx.get_job_id()
         model_root_dir = os.path.join(workspace.get_result_root(job_id), self.model_dir)

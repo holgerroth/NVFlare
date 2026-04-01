@@ -492,7 +492,11 @@ class FedAvgRecipe(Recipe):
             )
 
         ckpt_path = resolve_initial_ckpt(initial_ckpt, getattr(self, "_prepared_initial_ckpt", None), job)
-        persistor = JAXModelPersistor(model=model, source_ckpt_file_full_name=ckpt_path)
+        persistor = JAXModelPersistor(
+            model=model,
+            source_ckpt_file_full_name=ckpt_path,
+            register_jax_transport=self.server_expected_format == ExchangeFormat.JAX,
+        )
         persistor_id = extract_persistor_id(job.to_server(persistor, id="persistor"))
         if persistor_id and hasattr(job, "comp_ids"):
             job.comp_ids["persistor_id"] = persistor_id

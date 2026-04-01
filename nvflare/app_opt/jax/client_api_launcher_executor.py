@@ -17,7 +17,6 @@ from typing import Optional
 from nvflare.apis.fl_context import FLContext
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.executors.client_api_launcher_executor import ClientAPILauncherExecutor
-from nvflare.app_opt.jax.decomposers import JaxArrayDecomposer
 from nvflare.client.config import ExchangeFormat, TransferType
 from nvflare.client.constants import CLIENT_API_CONFIG
 from nvflare.fuel.utils import fobs
@@ -44,7 +43,7 @@ class JAXClientAPILauncherExecutor(ClientAPILauncherExecutor):
         submit_model_task_name: str = AppConstants.TASK_SUBMIT_MODEL,
         from_nvflare_converter_id: Optional[str] = None,
         to_nvflare_converter_id: Optional[str] = None,
-        server_expected_format: str = ExchangeFormat.JAX,
+        server_expected_format: str = ExchangeFormat.NUMPY,
         params_exchange_format: str = ExchangeFormat.JAX,
         params_transfer_type: str = TransferType.FULL,
         config_file_name: str = CLIENT_API_CONFIG,
@@ -89,5 +88,7 @@ class JAXClientAPILauncherExecutor(ClientAPILauncherExecutor):
         return "jax_"
 
     def initialize(self, fl_ctx: FLContext) -> None:
+        from nvflare.app_opt.jax.decomposers import JaxArrayDecomposer
+
         fobs.register(JaxArrayDecomposer)
         super().initialize(fl_ctx)

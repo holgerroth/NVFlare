@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib.util
 from enum import Enum
 from typing import Optional, Type, Union
 
@@ -137,8 +138,7 @@ class BaseScriptRunner:
             else:
                 raise ValueError("Using FrameworkType.PYTORCH, but unable to import torch")
         elif self._framework == FrameworkType.JAX:
-            _, jax_ok = optional_import(module="jax")
-            if jax_ok:
+            if importlib.util.find_spec("jax") is not None:
                 self._params_exchange_format = ExchangeFormat.JAX
             else:
                 raise ValueError("Using FrameworkType.JAX, but unable to import jax")

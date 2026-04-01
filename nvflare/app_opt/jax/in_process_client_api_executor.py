@@ -14,9 +14,10 @@
 
 from typing import Optional
 
+from nvflare.apis.event_type import EventType
+from nvflare.apis.fl_context import FLContext
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_common.executors.in_process_client_api_executor import InProcessClientAPIExecutor
-from nvflare.app_opt.jax.decomposers import JaxArrayDecomposer
 from nvflare.client.config import ExchangeFormat, TransferType
 from nvflare.client.converter_utils import create_default_params_converters
 from nvflare.fuel.utils import fobs
@@ -38,7 +39,7 @@ class JAXInProcessClientAPIExecutor(InProcessClientAPIExecutor):
         evaluate_task_name: str = AppConstants.TASK_VALIDATION,
         submit_model_task_name: str = AppConstants.TASK_SUBMIT_MODEL,
         params_exchange_format=ExchangeFormat.JAX,
-        server_expected_format=ExchangeFormat.JAX,
+        server_expected_format=ExchangeFormat.NUMPY,
         memory_gc_rounds: int = 0,
         cuda_empty_cache: bool = False,
     ):
@@ -60,7 +61,6 @@ class JAXInProcessClientAPIExecutor(InProcessClientAPIExecutor):
             memory_gc_rounds=memory_gc_rounds,
             cuda_empty_cache=cuda_empty_cache,
         )
-        fobs.register(JaxArrayDecomposer)
         from_nvflare_converter, to_nvflare_converter = create_default_params_converters(
             server_expected_format=self._server_expected_format,
             params_exchange_format=self._params_exchange_format,
@@ -73,3 +73,10 @@ class JAXInProcessClientAPIExecutor(InProcessClientAPIExecutor):
 
         if self._to_nvflare_converter is None:
             self._to_nvflare_converter = to_nvflare_converter
+
+    def handle_event(self, event_type: str, fl_ctx: FLContext):
+        if event_type == EventType.START_RUN:
+            from nvflare.app_opt.jax.decomposers import JaxArrayDecomposer
+
+            fobs.register(JaxArrayDecomposer)
+        super().handle_event(event_type, fl_ctx)
