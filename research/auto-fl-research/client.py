@@ -516,28 +516,32 @@ def main(args):
 
                 loss.backward()
                 if args.sam_rho > 0:
-                    grad_norm_sq = 0.0
-                    for p in model.parameters():
-                        if p.grad is not None:
-                            grad_norm_sq += float(p.grad.detach().pow(2).sum().item())
-                    grad_norm = grad_norm_sq ** 0.5
-                    if grad_norm > 0:
-                        scale = args.sam_rho / (grad_norm + 1e-12)
-                        e_w = []
+                    with torch.no_grad():
+                        grad_norm_sq = 0.0
                         for p in model.parameters():
                             if p.grad is not None:
-                                e = p.grad.detach() * scale
-                                p.add_(e)
-                                e_w.append((p, e))
-                            else:
-                                e_w.append((p, None))
+                                grad_norm_sq += float(p.grad.detach().pow(2).sum().item())
+                        grad_norm = grad_norm_sq ** 0.5
+                        e_w = []
+                        if grad_norm > 0:
+                            scale = args.sam_rho / (grad_norm + 1e-12)
+                            for p in model.parameters():
+                                if p.grad is not None:
+                                    e = p.grad.detach() * scale
+                                    p.add_(e)
+                                    e_w.append((p, e))
+                                else:
+                                    e_w.append((p, None))
+                    if grad_norm > 0:
                         optimizer.zero_grad(set_to_none=True)
-                        outputs2 = model(inputs if args.mixup_alpha == 0 and args.cutmix_alpha == 0 else mixed_inputs)
                         if args.mixup_alpha > 0:
+                            outputs2 = model(mixed_inputs)
                             loss2 = lam * criterion(outputs2, labels) + (1.0 - lam) * criterion(outputs2, labels[perm])
                         elif args.cutmix_alpha > 0:
+                            outputs2 = model(mixed_inputs)
                             loss2 = actual_lam * criterion(outputs2, labels) + (1.0 - actual_lam) * criterion(outputs2, labels[perm])
                         else:
+                            outputs2 = model(inputs)
                             loss2 = criterion(outputs2, labels)
                         if args.logit_kd_alpha > 0:
                             T = args.logit_kd_temp
@@ -550,9 +554,10 @@ def main(args):
                         if criterion_prox is not None:
                             loss2 = loss2 + criterion_prox(model, global_model)
                         loss2.backward()
-                        for p, e in e_w:
-                            if e is not None:
-                                p.sub_(e)
+                        with torch.no_grad():
+                            for p, e in e_w:
+                                if e is not None:
+                                    p.sub_(e)
                 if args.grad_clip_norm > 0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                 optimizer.step()
