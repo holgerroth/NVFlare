@@ -1,51 +1,82 @@
-# Mutation report
+# Mutation report — h100-baseline-20260501 campaign
 
 ## Hypothesis
 
-Successful runs are appended to `results.tsv` as `candidate`, but the previous instructions did not force agents to rewrite reviewed rows to `keep` or `discard` after run analysis. This leaves long campaigns with hundreds of stale candidates and progress plots with no kept markers. Run review needs an explicit ledger-finalization step and a helper script.
+Establish a strong fixed-budget FedAvg baseline for non-IID CIFAR-10 (8 clients, alpha=0.5, 10 rounds, 4 local epochs) on a single H100, then iteratively layer compatible mutations: server momentum (FedAvgM), label-smoothing cross-entropy, Nesterov on the client SGD, gradient clipping, mixup, FedExP-style server extrapolation, knowledge distillation, additional architecture variants, schedule warmup, AdamW, and warm restarts.
 
 ## Files changed
 
-- `README.md`
-- `program.md`
-- `scripts/finalize_batch_status.py`
-- `scripts/summarize_results.py`
-- `skills/autofl-nvflare/SKILL.md`
-- `skills/autofl-nvflare/references/provenance.md`
-- `skills/autofl-nvflare/references/runbook.md`
-- `templates/mutation_report.md`
-
-## Commands run
-
-- `make validate`
-- `make smoke`
+- `client.py` — added `--grad_clip_norm`, `--label_smoothing`, `--mixup_alpha`, `--lr_warmup_steps`, `--cosine_lr_restart_period`, `--nesterov`, `--optimizer adamw`, `--logit_kd_alpha`, `--logit_kd_temp`.
+- `job.py` — surfaced new client knobs and aggregator knobs (`--fedexp_eps`, `--fedexp_eta_max`).
+- `custom_aggregators.py` — added optional FedExP-style extrapolation factor inside `FedOptAggregator` with cap.
+- `model.py` — registered `moderate_cnn_high_dropout` variant.
+- `templates/literature_loop.md` — Camyla-style worksheet for plateau exit at 0.8378.
+- `results.tsv` — campaign ledger.
+- `progress.png` — progress plot.
 
 ## Observed outcome
 
-- Current local `results.tsv` has 469 `candidate` rows, 25 `crash` rows, and 0 `keep` rows, confirming the prompt gap.
-- `program.md`, README, the autofl skill, and the runbook now state that `candidate` means unreviewed and that every completed run or batch must update statuses before the next candidate batch.
-- Added `scripts/finalize_batch_status.py` to promote the best reviewed candidate to `keep` and demote reviewed non-survivors to `discard`.
-- `scripts/summarize_results.py` now reminds agents to finalize statuses after reviewing candidate runs.
-- The README and skill provenance now acknowledge the Camyla-inspired literature-loop / QWBE-style proposal workflow.
-- No local `results.tsv` rows were modified by this harness change.
+| Stage | Best score | Delta | Notes |
+| --- | --- | --- | --- |
+| Baseline (`weighted` FedAvg, default budget) | 0.7582 | — | Anchor row in ledger. |
+| Algorithm calibration (FedAvg/FedProx/FedAvgM/FedAdam/SCAFFOLD/median) | 0.8217 | +0.0635 | FedAvgM lr=2.0 m=0.4 wins; FedAdam diverges at server_lr=1.0; SCAFFOLD/median substantially worse. |
+| FedAvgM narrowing (server lr/momentum sweep) | 0.8222 | +0.0640 | Sharp cliff above lr=2.0; ridge from lr=1.7 to 2.0 at m=0.4. |
+| Architecture audit (norm, small-head) | 0.8222 | +0.0640 | Original `moderate_cnn` wins. |
+| Label smoothing layered on FedAvgM | 0.8378 | +0.0796 | Peak at LS=0.175. Mixup, grad clip, FedExP, KD, AdamW, cosine restart, warmup, high-dropout all regress on top. |
+| Nesterov client SGD | 0.8420 | +0.0838 | Single-line client mutation, strict gain. |
+| Final lr refinement (server lr 1.88) | 0.8422 | +0.0840 | Sharp peak; further hyperparameter perturbations fall back to 0.83-0.84. |
+
+## Best stack
+
+```
+--aggregator fedavgm
+--server_lr 1.88 --server_momentum 0.4
+--label_smoothing 0.175
+--nesterov
+--lr 0.05 --momentum 0.9 --weight_decay 0
+--cosine_lr_eta_min_factor 0.01
+--model_arch moderate_cnn --max_model_params 5000000
+--n_clients 8 --num_rounds 10 --aggregation_epochs 4
+--batch_size 64 --eval_batch_size 1024 --alpha 0.5 --seed 0
+--final_eval_clients site-1
+```
 
 ## Literature basis
 
-None. This is ledger hygiene and prompt hardening.
+- Hsu19 FedAvgM (arXiv:1909.06335): server momentum for non-IID drift.
+- Szegedy16 Inception-v3 / Hinton16 (arXiv:1512.00567): label smoothing.
+- Nesterov83 / Sutskever13 (arXiv:1212.0901): Nesterov accelerated SGD.
+- Li20 FedProx (arXiv:1812.06127): client proximal term — null result on top of FedAvgM.
+- Reddi20 FedOpt (arXiv:2003.00295): server-side adaptive optimizers — FedAdam diverges in our budget.
+- Karimireddy20 SCAFFOLD (arXiv:1910.06378): control-variate correction — regresses in 10-round budget.
+- Zhang17 Mixup (arXiv:1710.09412): augmentation — regresses with our short training.
+- Pascanu13 (arXiv:1211.5063): gradient clipping — neutral.
+- Jhunjhunwala23 FedExP (arXiv:2301.09604): server extrapolation — regresses on top of well-tuned FedAvgM.
+- Loshchilov17 SGDR (arXiv:1608.03983): cosine warm restarts — regresses (T_0 too short disrupts; T_0 too long diverges with NaN).
+- Hinton15 KD (arXiv:1503.02531): logit distillation against frozen global — regresses; the global model is too weak as teacher in 10-round budget.
 
 ## Run analysis
 
-Not run. This change does not affect training behavior.
+- The score function is sharp around the peak: small lr changes (1.85 → 1.88, +0.03) flip the score by ±0.015 in the FedAvgM+LS+Nesterov regime.
+- Default cosine annealing (initial 0.05, eta_min 0.0005, T_max=40 epochs) is essential. No-scheduler / warm-restart / lr-warmup variants all regress.
+- Default training optimizer (SGD lr=0.05 momentum=0.9 weight_decay=0) plus Nesterov is the right base. AdamW underperforms by 0.05 abs.
+- Most additional regularizers (mixup, KD, grad clip, FedProx, weight decay, high dropout) compete with the existing label smoothing rather than stacking with it.
+- Architecture: original `moderate_cnn` outperforms the registered `_norm`, `_small_head`, and the new `_high_dropout` variants in this short-budget regime.
 
 ## Contract check
 
-- No FL client loop, aggregation, model, data split, scoring behavior, or run script behavior changed.
-- Validation status recorded in this report after checks complete.
+- `flare.init`/`is_running`/`receive`/`send` and `is_evaluate` paths preserved.
+- Client still uploads `ParamsType.DIFF` with `NUM_STEPS_CURRENT_ROUND` meta in every code path.
+- No new server-coupled meta keys outside the explicit SCAFFOLD mode (FedExP knob touches only the existing FedAvgM update math, not protocol fields).
+- New architecture variant respects the 5,000,000 parameter cap.
+- `make validate` and `make smoke` pass on the `lr=1.88 m=0.4 LS=0.175 Nesterov` recipe.
 
 ## Rollback risk
 
-Low. The change adds a standalone ledger helper and tightens instructions. It does not change candidate execution or score extraction.
+- Low. All new knobs default to the historical behavior (0 / off / sgd), so disabling them returns the harness to the pre-campaign defaults except for a few additional registered architectures.
+- Removing the new `moderate_cnn_high_dropout` row is safe; nothing else depends on it.
 
 ## Next mutation
 
-Use `scripts/finalize_batch_status.py` after every completed run or batch. For stale ledgers, run it once with `--all-candidates --keep-best --discard-others` after confirming the intended cleanup policy.
+- Continue probing combinations near the peak. The ledger top 5 is clustered at 0.841-0.842 with multiple equal-score variants; sub-budget changes (rounds, epochs) would be needed to break above ~0.85.
+- If a future campaign expands the budget (e.g., num_rounds 20 or aggregation_epochs 6), Mixup, FedExP, and KD should be re-tested — they may benefit from longer training horizons.
