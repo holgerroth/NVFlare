@@ -163,6 +163,12 @@ def build_parser():
         help="Temperature for the KD softmax targets.",
     )
     parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="SAM perturbation radius. 0 disables SAM. Implements one-step ascent before optimizer step.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -509,6 +515,44 @@ def main(args):
                     loss = loss + criterion_prox(model, global_model)
 
                 loss.backward()
+                if args.sam_rho > 0:
+                    grad_norm_sq = 0.0
+                    for p in model.parameters():
+                        if p.grad is not None:
+                            grad_norm_sq += float(p.grad.detach().pow(2).sum().item())
+                    grad_norm = grad_norm_sq ** 0.5
+                    if grad_norm > 0:
+                        scale = args.sam_rho / (grad_norm + 1e-12)
+                        e_w = []
+                        for p in model.parameters():
+                            if p.grad is not None:
+                                e = p.grad.detach() * scale
+                                p.add_(e)
+                                e_w.append((p, e))
+                            else:
+                                e_w.append((p, None))
+                        optimizer.zero_grad(set_to_none=True)
+                        outputs2 = model(inputs if args.mixup_alpha == 0 and args.cutmix_alpha == 0 else mixed_inputs)
+                        if args.mixup_alpha > 0:
+                            loss2 = lam * criterion(outputs2, labels) + (1.0 - lam) * criterion(outputs2, labels[perm])
+                        elif args.cutmix_alpha > 0:
+                            loss2 = actual_lam * criterion(outputs2, labels) + (1.0 - actual_lam) * criterion(outputs2, labels[perm])
+                        else:
+                            loss2 = criterion(outputs2, labels)
+                        if args.logit_kd_alpha > 0:
+                            T = args.logit_kd_temp
+                            kd_loss2 = nn.functional.kl_div(
+                                nn.functional.log_softmax(outputs2 / T, dim=1),
+                                nn.functional.softmax(teacher_logits / T, dim=1),
+                                reduction="batchmean",
+                            ) * (T * T)
+                            loss2 = loss2 + args.logit_kd_alpha * kd_loss2
+                        if criterion_prox is not None:
+                            loss2 = loss2 + criterion_prox(model, global_model)
+                        loss2.backward()
+                        for p, e in e_w:
+                            if e is not None:
+                                p.sub_(e)
                 if args.grad_clip_norm > 0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                 optimizer.step()

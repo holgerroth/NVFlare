@@ -173,6 +173,12 @@ def define_parser():
         default=2.0,
         help="Temperature for the KD softmax targets.",
     )
+    parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="SAM perturbation radius. 0 disables SAM.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -407,6 +413,8 @@ def main():
         args.logit_kd_alpha,
         "--logit_kd_temp",
         args.logit_kd_temp,
+        "--sam_rho",
+        args.sam_rho,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
