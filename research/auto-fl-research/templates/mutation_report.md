@@ -25,6 +25,8 @@ Establish a strong fixed-budget FedAvg baseline for non-IID CIFAR-10 (8 clients,
 | Label smoothing layered on FedAvgM | 0.8378 | +0.0796 | Peak at LS=0.175. Mixup, grad clip, FedExP, KD, AdamW, cosine restart, warmup, high-dropout all regress on top. |
 | Nesterov client SGD | 0.8420 | +0.0838 | Single-line client mutation, strict gain. |
 | Final lr refinement (server lr 1.88) | 0.8422 | +0.0840 | Sharp peak; further hyperparameter perturbations fall back to 0.83-0.84. |
+| Add gradient clipping (norm 5.0) on top of Nesterov | 0.8440 | +0.0858 | Single-step clip stabilizes the late-round dynamics. |
+| Bump train_lr 0.05 → 0.06 with clip 5 | 0.8448 | +0.0866 | Peak; clip lets the slightly higher local lr converge cleanly. |
 
 ## Best stack
 
@@ -33,7 +35,8 @@ Establish a strong fixed-budget FedAvg baseline for non-IID CIFAR-10 (8 clients,
 --server_lr 1.88 --server_momentum 0.4
 --label_smoothing 0.175
 --nesterov
---lr 0.05 --momentum 0.9 --weight_decay 0
+--grad_clip_norm 5.0
+--lr 0.06 --momentum 0.9 --weight_decay 0
 --cosine_lr_eta_min_factor 0.01
 --model_arch moderate_cnn --max_model_params 5000000
 --n_clients 8 --num_rounds 10 --aggregation_epochs 4
