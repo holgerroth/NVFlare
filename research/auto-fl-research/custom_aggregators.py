@@ -123,6 +123,8 @@ class FedOptAggregator(ModelAggregator):
         beta1: float = 0.9,
         beta2: float = 0.99,
         tau: float = 1e-3,
+        fedexp_eps: float = 0.0,
+        fedexp_eta_max: float = 0.0,
     ):
         super().__init__()
         if optimizer not in {"sgdm", "adam"}:
@@ -137,6 +139,10 @@ class FedOptAggregator(ModelAggregator):
             raise ValueError("beta2 must be in [0, 1)")
         if tau <= 0.0:
             raise ValueError("tau must be > 0")
+        if fedexp_eps < 0.0:
+            raise ValueError("fedexp_eps must be >= 0")
+        if fedexp_eta_max < 0.0:
+            raise ValueError("fedexp_eta_max must be >= 0")
 
         self.optimizer = optimizer
         self.server_lr = server_lr
@@ -144,6 +150,8 @@ class FedOptAggregator(ModelAggregator):
         self.beta1 = beta1
         self.beta2 = beta2
         self.tau = tau
+        self.fedexp_eps = fedexp_eps
+        self.fedexp_eta_max = fedexp_eta_max
 
         self.first_moment = {}
         self.second_moment = {}
@@ -158,6 +166,7 @@ class FedOptAggregator(ModelAggregator):
         elif self.params_type != model.params_type:
             raise ValueError(f"ParamsType mismatch: expected {self.params_type}, got {model.params_type}.")
 
+        squared_norm = 0.0
         for key, value in model.params.items():
             diff = _as_numpy(value).astype(np.float64, copy=False)
             self.references.setdefault(key, value)
@@ -165,6 +174,8 @@ class FedOptAggregator(ModelAggregator):
                 self.weighted_sum[key] = diff * weight
             else:
                 self.weighted_sum[key] += diff * weight
+            squared_norm += float(np.sum(diff * diff))
+        self.client_diff_squared_norm_weighted += weight * squared_norm
         self.total_weight += weight
 
     def aggregate_model(self) -> FLModel:
@@ -173,6 +184,9 @@ class FedOptAggregator(ModelAggregator):
             return FLModel(params={})
 
         mean_diff = {key: val / self.total_weight for key, val in self.weighted_sum.items()}
+        if self.fedexp_eps > 0.0:
+            eta_g = self._fedexp_eta(mean_diff)
+            mean_diff = {key: val * eta_g for key, val in mean_diff.items()}
         if self.optimizer == "sgdm":
             update = self._sgdm_update(mean_diff)
         else:
@@ -181,12 +195,22 @@ class FedOptAggregator(ModelAggregator):
         aggregated_params = {key: _to_output_type(update[key], self.references[key]) for key in update}
         return FLModel(params=aggregated_params, params_type=self.params_type)
 
+    def _fedexp_eta(self, mean_diff):
+        avg_client_squared = self.client_diff_squared_norm_weighted / self.total_weight
+        mean_diff_squared = sum(float(np.sum(val * val)) for val in mean_diff.values())
+        denom = 2.0 * mean_diff_squared + self.fedexp_eps
+        eta_g = max(1.0, avg_client_squared / denom)
+        if self.fedexp_eta_max > 0.0:
+            eta_g = min(eta_g, self.fedexp_eta_max)
+        return eta_g
+
     def reset_stats(self):
         self.weighted_sum = {}
         self.total_weight = 0.0
         self.client_weights = []
         self.params_type = None
         self.references = {}
+        self.client_diff_squared_norm_weighted = 0.0
 
     def _sgdm_update(self, mean_diff):
         updates = {}
@@ -218,11 +242,19 @@ class FedOptAggregator(ModelAggregator):
 
 
 class FedAvgMAggregator(FedOptAggregator):
-    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6):
+    def __init__(
+        self,
+        server_lr: float = 1.0,
+        server_momentum: float = 0.6,
+        fedexp_eps: float = 0.0,
+        fedexp_eta_max: float = 0.0,
+    ):
         super().__init__(
             optimizer="sgdm",
             server_lr=server_lr,
             server_momentum=server_momentum,
+            fedexp_eps=fedexp_eps,
+            fedexp_eta_max=fedexp_eta_max,
         )
 
 

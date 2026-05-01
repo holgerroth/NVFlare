@@ -187,6 +187,18 @@ def define_parser():
         default=1e-3,
         help="Numerical stabilizer for the fedadam aggregator.",
     )
+    parser.add_argument(
+        "--fedexp_eps",
+        type=float,
+        default=0.0,
+        help="FedExP extrapolation stabilizer; >0 enables FedExP eta_g amplification on top of fedavgm.",
+    )
+    parser.add_argument(
+        "--fedexp_eta_max",
+        type=float,
+        default=0.0,
+        help="Optional cap for FedExP eta_g. 0 disables the cap.",
+    )
     return parser.parse_args()
 
 
@@ -247,10 +259,16 @@ def get_aggregator(args):
         print("Using FedAvgAggregator")
         return FedAvgAggregator()
     if kind in {"fedavgm", "fedopt"}:
-        print("Using FedAvgMAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
+        print(
+            "Using FedAvgMAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
+            f"fedexp_eps={args.fedexp_eps}, fedexp_eta_max={args.fedexp_eta_max})"
+        )
         return FedAvgMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
+            fedexp_eps=args.fedexp_eps,
+            fedexp_eta_max=args.fedexp_eta_max,
         )
     if kind == "fedadam":
         print(
