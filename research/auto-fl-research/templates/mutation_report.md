@@ -60,13 +60,16 @@ The score function has two near-equal peaks under this stack: lr=1.88 and lr=2.2
 - Jhunjhunwala23 FedExP (arXiv:2301.09604): server extrapolation — regresses on top of well-tuned FedAvgM.
 - Loshchilov17 SGDR (arXiv:1608.03983): cosine warm restarts — regresses (T_0 too short disrupts; T_0 too long diverges with NaN).
 - Hinton15 KD (arXiv:1503.02531): logit distillation against frozen global — regresses; the global model is too weak as teacher in 10-round budget.
+- Foret20 SAM (arXiv:2010.01412): one-step ascent — regresses (-0.02 at rho=0.05) on top of the strong baseline.
+- Yun19 CutMix (arXiv:1905.04899): rectangular cut augmentation — regresses (alpha=0.2 → 0.77, alpha=1.0 → 0.71).
+- Tarvainen17 Mean Teacher EMA (arXiv:1703.01780) adapted to local-only client EMA — regresses (decay 0.95 → 0.843, decay 0.99 → 0.837).
 
 ## Run analysis
 
 - The score function is sharp around the peak: small lr changes (1.85 → 1.88, +0.03) flip the score by ±0.015 in the FedAvgM+LS+Nesterov regime.
 - Default cosine annealing (initial 0.05, eta_min 0.0005, T_max=40 epochs) is essential. No-scheduler / warm-restart / lr-warmup variants all regress.
 - Default training optimizer (SGD lr=0.05 momentum=0.9 weight_decay=0) plus Nesterov is the right base. AdamW underperforms by 0.05 abs.
-- Most additional regularizers (mixup, KD, grad clip, FedProx, weight decay, high dropout) compete with the existing label smoothing rather than stacking with it.
+- Most additional regularizers (mixup, cutmix, KD, FedProx, weight decay, high dropout, class-balance weighting, SAM, client-side EMA) compete with the existing label smoothing or destabilize training rather than stacking. The only stacked gain on top of FedAvgM+LS+Nesterov was gradient clipping with a slightly higher local LR.
 - Architecture: original `moderate_cnn` outperforms the registered `_norm`, `_small_head`, and the new `_high_dropout` variants in this short-budget regime.
 
 ## Contract check
