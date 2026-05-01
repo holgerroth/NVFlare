@@ -184,6 +184,12 @@ def define_parser():
         action="store_true",
         help="Use inverse-frequency class weights in the per-site cross-entropy loss.",
     )
+    parser.add_argument(
+        "--client_ema_decay",
+        type=float,
+        default=0.0,
+        help="If >0, maintain a per-step EMA of model weights and upload that.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -420,6 +426,8 @@ def main():
         args.logit_kd_temp,
         "--sam_rho",
         args.sam_rho,
+        "--client_ema_decay",
+        args.client_ema_decay,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

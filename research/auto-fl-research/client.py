@@ -174,6 +174,12 @@ def build_parser():
         help="Use inverse-frequency class weights in the per-site cross-entropy loss.",
     )
     parser.add_argument(
+        "--client_ema_decay",
+        type=float,
+        default=0.0,
+        help="If >0, maintain a per-step EMA of model weights and upload that as the local snapshot.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -456,6 +462,10 @@ def main(args):
             p.requires_grad = False
         global_model.to(DEVICE)
 
+        ema_state = None
+        if args.client_ema_decay > 0:
+            ema_state = {k: v.detach().clone() for k, v in model.state_dict().items() if torch.is_floating_point(v)}
+
         scaffold_global_controls = None
         scaffold_ctrl_diff = None
         scaffold_steps = 0
@@ -575,6 +585,12 @@ def main(args):
                 if args.grad_clip_norm > 0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                 optimizer.step()
+                if ema_state is not None:
+                    decay = args.client_ema_decay
+                    with torch.no_grad():
+                        for k, v in model.state_dict().items():
+                            if k in ema_state:
+                                ema_state[k].mul_(decay).add_(v.detach(), alpha=1.0 - decay)
 
                 curr_lr = get_lr_values(optimizer)[0]
                 if args.scaffold:
@@ -628,7 +644,15 @@ def main(args):
             torch.save(model.cpu().state_dict(), ckpt_path)
             model.to(DEVICE)
 
-        model_diff, diff_norm = compute_model_diff(model, global_model)
+        if ema_state is not None:
+            ema_full = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            for k, v in ema_state.items():
+                ema_full[k] = v
+            ema_model = copy.deepcopy(model)
+            ema_model.load_state_dict(ema_full, strict=True)
+            model_diff, diff_norm = compute_model_diff(ema_model, global_model)
+        else:
+            model_diff, diff_norm = compute_model_diff(model, global_model)
         summary_writer.add_scalar(
             tag="diff_norm",
             scalar=diff_norm.item() if hasattr(diff_norm, "item") else float(diff_norm),
