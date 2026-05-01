@@ -155,6 +155,18 @@ def define_parser():
         default=0.0,
         help="Mixup Beta(alpha, alpha) coefficient. 0 disables mixup.",
     )
+    parser.add_argument(
+        "--logit_kd_alpha",
+        type=float,
+        default=0.0,
+        help="KL distillation weight from frozen global model logits. 0 disables.",
+    )
+    parser.add_argument(
+        "--logit_kd_temp",
+        type=float,
+        default=2.0,
+        help="Temperature for the KD softmax targets.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -383,6 +395,10 @@ def main():
         args.label_smoothing,
         "--mixup_alpha",
         args.mixup_alpha,
+        "--logit_kd_alpha",
+        args.logit_kd_alpha,
+        "--logit_kd_temp",
+        args.logit_kd_temp,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

@@ -145,6 +145,18 @@ def build_parser():
         help="Mixup Beta(alpha, alpha) coefficient. 0 disables mixup.",
     )
     parser.add_argument(
+        "--logit_kd_alpha",
+        type=float,
+        default=0.0,
+        help="KL distillation weight from frozen global model logits. 0 disables.",
+    )
+    parser.add_argument(
+        "--logit_kd_temp",
+        type=float,
+        default=2.0,
+        help="Temperature for the KD softmax targets.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -457,6 +469,17 @@ def main(args):
                 else:
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
+
+                if args.logit_kd_alpha > 0:
+                    with torch.no_grad():
+                        teacher_logits = global_model(inputs)
+                    T = args.logit_kd_temp
+                    kd_loss = nn.functional.kl_div(
+                        nn.functional.log_softmax(outputs / T, dim=1),
+                        nn.functional.softmax(teacher_logits / T, dim=1),
+                        reduction="batchmean",
+                    ) * (T * T)
+                    loss = loss + args.logit_kd_alpha * kd_loss
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
