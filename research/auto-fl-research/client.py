@@ -107,6 +107,18 @@ def build_parser():
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
     parser.add_argument(
+        "--grad_clip_norm",
+        type=float,
+        default=0.0,
+        help="Max-norm for gradient clipping per local optimizer step. 0 disables clipping.",
+    )
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="Cross-entropy label-smoothing factor in [0, 1). 0 disables smoothing.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -264,7 +276,7 @@ def main(args):
         f"{site_name}: model_arch={args.model_arch} "
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     optimizer = optim.SGD(
         model.parameters(),
         lr=args.lr,
@@ -375,6 +387,8 @@ def main(args):
                     loss = loss + criterion_prox(model, global_model)
 
                 loss.backward()
+                if args.grad_clip_norm > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
