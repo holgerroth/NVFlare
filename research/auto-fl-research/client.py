@@ -119,6 +119,12 @@ def build_parser():
         help="Cross-entropy label-smoothing factor in [0, 1). 0 disables smoothing.",
     )
     parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Mixup Beta(alpha, alpha) coefficient. 0 disables mixup.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -380,8 +386,15 @@ def main(args):
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
                 optimizer.zero_grad(set_to_none=True)
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                if args.mixup_alpha > 0:
+                    lam = float(np.random.beta(args.mixup_alpha, args.mixup_alpha))
+                    perm = torch.randperm(inputs.size(0), device=DEVICE)
+                    mixed_inputs = lam * inputs + (1.0 - lam) * inputs[perm]
+                    outputs = model(mixed_inputs)
+                    loss = lam * criterion(outputs, labels) + (1.0 - lam) * criterion(outputs, labels[perm])
+                else:
+                    outputs = model(inputs)
+                    loss = criterion(outputs, labels)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)

@@ -129,6 +129,12 @@ def define_parser():
         default=0.0,
         help="Cross-entropy label-smoothing factor in [0, 1). 0 disables smoothing.",
     )
+    parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Mixup Beta(alpha, alpha) coefficient. 0 disables mixup.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -331,6 +337,8 @@ def main():
         args.grad_clip_norm,
         "--label_smoothing",
         args.label_smoothing,
+        "--mixup_alpha",
+        args.mixup_alpha,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
