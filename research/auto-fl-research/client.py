@@ -93,6 +93,12 @@ def build_parser():
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
+    parser.add_argument(
+        "--lr_warmup_steps",
+        type=int,
+        default=0,
+        help="Linear LR warmup over the first N optimizer steps (across all rounds). 0 disables.",
+    )
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -323,12 +329,34 @@ def main(args):
             total_rounds = input_model.total_rounds
             eta_min = args.lr * args.cosine_lr_eta_min_factor
             t_max = total_rounds * args.aggregation_epochs
-            scheduler = optim.lr_scheduler.CosineAnnealingLR(
-                optimizer,
-                T_max=t_max,
-                eta_min=eta_min,
-            )
-            print(f"{site_name}: CosineAnnealingLR init " f"(initial_lr={args.lr}, eta_min={eta_min}, T_max={t_max})")
+            if args.lr_warmup_steps > 0:
+                warmup = optim.lr_scheduler.LinearLR(
+                    optimizer,
+                    start_factor=1.0 / max(args.lr_warmup_steps, 1),
+                    end_factor=1.0,
+                    total_iters=args.lr_warmup_steps,
+                )
+                cosine = optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer,
+                    T_max=max(t_max - args.lr_warmup_steps, 1),
+                    eta_min=eta_min,
+                )
+                scheduler = optim.lr_scheduler.SequentialLR(
+                    optimizer,
+                    schedulers=[warmup, cosine],
+                    milestones=[args.lr_warmup_steps],
+                )
+                print(
+                    f"{site_name}: LinearWarmup+CosineAnnealingLR init "
+                    f"(initial_lr={args.lr}, eta_min={eta_min}, warmup={args.lr_warmup_steps}, T_max={t_max})"
+                )
+            else:
+                scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer,
+                    T_max=t_max,
+                    eta_min=eta_min,
+                )
+                print(f"{site_name}: CosineAnnealingLR init " f"(initial_lr={args.lr}, eta_min={eta_min}, T_max={t_max})")
 
         model.load_state_dict(input_model.params, strict=True)
 

@@ -99,6 +99,12 @@ def define_parser():
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
+    parser.add_argument(
+        "--lr_warmup_steps",
+        type=int,
+        default=0,
+        help="Linear LR warmup over the first N scheduler steps (epochs). 0 disables.",
+    )
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -349,6 +355,8 @@ def main():
         args.weight_decay,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
+        "--lr_warmup_steps",
+        args.lr_warmup_steps,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
         "--grad_clip_norm",
