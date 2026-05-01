@@ -145,6 +145,12 @@ def build_parser():
         help="Mixup Beta(alpha, alpha) coefficient. 0 disables mixup.",
     )
     parser.add_argument(
+        "--cutmix_alpha",
+        type=float,
+        default=0.0,
+        help="CutMix Beta(alpha, alpha) coefficient. 0 disables cutmix.",
+    )
+    parser.add_argument(
         "--logit_kd_alpha",
         type=float,
         default=0.0,
@@ -466,6 +472,24 @@ def main(args):
                     mixed_inputs = lam * inputs + (1.0 - lam) * inputs[perm]
                     outputs = model(mixed_inputs)
                     loss = lam * criterion(outputs, labels) + (1.0 - lam) * criterion(outputs, labels[perm])
+                elif args.cutmix_alpha > 0:
+                    lam = float(np.random.beta(args.cutmix_alpha, args.cutmix_alpha))
+                    perm = torch.randperm(inputs.size(0), device=DEVICE)
+                    H, W = inputs.size(2), inputs.size(3)
+                    cut_ratio = float(np.sqrt(1.0 - lam))
+                    cut_h = int(H * cut_ratio)
+                    cut_w = int(W * cut_ratio)
+                    cy = int(np.random.randint(H))
+                    cx = int(np.random.randint(W))
+                    y1 = max(cy - cut_h // 2, 0)
+                    y2 = min(cy + cut_h // 2, H)
+                    x1 = max(cx - cut_w // 2, 0)
+                    x2 = min(cx + cut_w // 2, W)
+                    mixed_inputs = inputs.clone()
+                    mixed_inputs[:, :, y1:y2, x1:x2] = inputs[perm, :, y1:y2, x1:x2]
+                    actual_lam = 1.0 - ((y2 - y1) * (x2 - x1)) / float(H * W)
+                    outputs = model(mixed_inputs)
+                    loss = actual_lam * criterion(outputs, labels) + (1.0 - actual_lam) * criterion(outputs, labels[perm])
                 else:
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)

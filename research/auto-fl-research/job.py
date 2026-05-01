@@ -156,6 +156,12 @@ def define_parser():
         help="Mixup Beta(alpha, alpha) coefficient. 0 disables mixup.",
     )
     parser.add_argument(
+        "--cutmix_alpha",
+        type=float,
+        default=0.0,
+        help="CutMix Beta(alpha, alpha) coefficient. 0 disables cutmix.",
+    )
+    parser.add_argument(
         "--logit_kd_alpha",
         type=float,
         default=0.0,
@@ -395,6 +401,8 @@ def main():
         args.label_smoothing,
         "--mixup_alpha",
         args.mixup_alpha,
+        "--cutmix_alpha",
+        args.cutmix_alpha,
         "--logit_kd_alpha",
         args.logit_kd_alpha,
         "--logit_kd_temp",
