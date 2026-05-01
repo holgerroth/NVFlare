@@ -100,6 +100,12 @@ def build_parser():
         default=0,
         help="Linear LR warmup over the first N optimizer steps (across all rounds). 0 disables.",
     )
+    parser.add_argument(
+        "--cosine_lr_restart_period",
+        type=int,
+        default=0,
+        help="If >0, use CosineAnnealingWarmRestarts with this T_0 (in scheduler steps). 0 keeps single-cycle CosineAnnealingLR.",
+    )
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -351,6 +357,17 @@ def main(args):
                 print(
                     f"{site_name}: LinearWarmup+CosineAnnealingLR init "
                     f"(initial_lr={args.lr}, eta_min={eta_min}, warmup={args.lr_warmup_steps}, T_max={t_max})"
+                )
+            elif args.cosine_lr_restart_period > 0:
+                scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                    optimizer,
+                    T_0=args.cosine_lr_restart_period,
+                    T_mult=1,
+                    eta_min=eta_min,
+                )
+                print(
+                    f"{site_name}: CosineAnnealingWarmRestarts init "
+                    f"(initial_lr={args.lr}, eta_min={eta_min}, T_0={args.cosine_lr_restart_period})"
                 )
             else:
                 scheduler = optim.lr_scheduler.CosineAnnealingLR(

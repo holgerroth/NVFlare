@@ -106,6 +106,12 @@ def define_parser():
         default=0,
         help="Linear LR warmup over the first N scheduler steps (epochs). 0 disables.",
     )
+    parser.add_argument(
+        "--cosine_lr_restart_period",
+        type=int,
+        default=0,
+        help="If >0, use CosineAnnealingWarmRestarts with this T_0. 0 keeps single-cycle cosine.",
+    )
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -358,6 +364,8 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--lr_warmup_steps",
         args.lr_warmup_steps,
+        "--cosine_lr_restart_period",
+        args.cosine_lr_restart_period,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
         "--grad_clip_norm",
