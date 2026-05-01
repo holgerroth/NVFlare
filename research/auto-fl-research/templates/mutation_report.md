@@ -28,16 +28,17 @@ Establish a strong fixed-budget FedAvg baseline for non-IID CIFAR-10 (8 clients,
 | Add gradient clipping (norm 5.0) on top of Nesterov | 0.8440 | +0.0858 | Single-step clip stabilizes the late-round dynamics. |
 | Bump train_lr 0.05 → 0.06 with clip 5 | 0.8448 | +0.0866 | Peak; clip lets the slightly higher local lr converge cleanly. |
 | Push server_lr 1.88 → 2.20 with grad clip 5 | 0.8454 | +0.0872 | Clip stabilizes the cliff that previously collapsed lr=2.5 (0.28); two equal peaks at lr 1.88 and 2.20. |
+| Refine to lr 2.15 + train_lr 0.058 | 0.8473 | +0.0891 | Sharp 1-pixel peak; nearby lr 2.13/2.16/2.17 and tlr 0.056/0.060 all regress by 0.003-0.008. |
 
 ## Best stack
 
 ```
 --aggregator fedavgm
---server_lr 2.2 --server_momentum 0.4
+--server_lr 2.15 --server_momentum 0.4
 --label_smoothing 0.175
 --nesterov
 --grad_clip_norm 5.0
---lr 0.06 --momentum 0.9 --weight_decay 0
+--lr 0.058 --momentum 0.9 --weight_decay 0
 --cosine_lr_eta_min_factor 0.01
 --model_arch moderate_cnn --max_model_params 5000000
 --n_clients 8 --num_rounds 10 --aggregation_epochs 4
@@ -45,7 +46,7 @@ Establish a strong fixed-budget FedAvg baseline for non-IID CIFAR-10 (8 clients,
 --final_eval_clients site-1
 ```
 
-The score function has two near-equal peaks under this stack: lr=1.88 and lr=2.20 both reach ~0.8454 with clip 5.0; lr=2.30+ regresses, lr=2.5 still gets 0.84 (vs 0.28 without clip), confirming clip is the stabilizer.
+The score function has multiple near-equal peaks: (lr 2.15, tlr 0.058) tops at 0.8473; (lr 2.20, tlr 0.060) and (lr 2.0, m 0.5, tlr 0.060) cluster at 0.8453-0.8454; lr 2.30+ regresses; lr 2.5 still gets 0.84 with clip (vs 0.28 without clip), confirming clip stabilizes the high-lr regime. The clip+lower-tlr pairing is the late-campaign secret: nominally aggressive server lr with slightly cooler local lr.
 
 ## Literature basis
 
