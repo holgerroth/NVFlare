@@ -27,12 +27,13 @@ Establish a strong fixed-budget FedAvg baseline for non-IID CIFAR-10 (8 clients,
 | Final lr refinement (server lr 1.88) | 0.8422 | +0.0840 | Sharp peak; further hyperparameter perturbations fall back to 0.83-0.84. |
 | Add gradient clipping (norm 5.0) on top of Nesterov | 0.8440 | +0.0858 | Single-step clip stabilizes the late-round dynamics. |
 | Bump train_lr 0.05 → 0.06 with clip 5 | 0.8448 | +0.0866 | Peak; clip lets the slightly higher local lr converge cleanly. |
+| Push server_lr 1.88 → 2.20 with grad clip 5 | 0.8454 | +0.0872 | Clip stabilizes the cliff that previously collapsed lr=2.5 (0.28); two equal peaks at lr 1.88 and 2.20. |
 
 ## Best stack
 
 ```
 --aggregator fedavgm
---server_lr 1.88 --server_momentum 0.4
+--server_lr 2.2 --server_momentum 0.4
 --label_smoothing 0.175
 --nesterov
 --grad_clip_norm 5.0
@@ -43,6 +44,8 @@ Establish a strong fixed-budget FedAvg baseline for non-IID CIFAR-10 (8 clients,
 --batch_size 64 --eval_batch_size 1024 --alpha 0.5 --seed 0
 --final_eval_clients site-1
 ```
+
+The score function has two near-equal peaks under this stack: lr=1.88 and lr=2.20 both reach ~0.8454 with clip 5.0; lr=2.30+ regresses, lr=2.5 still gets 0.84 (vs 0.28 without clip), confirming clip is the stabilizer.
 
 ## Literature basis
 
