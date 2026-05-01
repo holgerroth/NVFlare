@@ -92,6 +92,13 @@ def build_parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--nesterov", action="store_true")
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="sgd",
+        choices=["sgd", "adamw"],
+        help="Client-side optimizer family.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument(
@@ -296,13 +303,21 @@ def main(args):
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    optimizer = optim.SGD(
-        model.parameters(),
-        lr=args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
-        nesterov=args.nesterov and args.momentum > 0,
-    )
+    if args.optimizer == "adamw":
+        optimizer = optim.AdamW(
+            model.parameters(),
+            lr=args.lr,
+            betas=(args.momentum, 0.999),
+            weight_decay=args.weight_decay,
+        )
+    else:
+        optimizer = optim.SGD(
+            model.parameters(),
+            lr=args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay,
+            nesterov=args.nesterov and args.momentum > 0,
+        )
 
     scheduler = None
     criterion_prox = None

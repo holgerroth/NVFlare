@@ -98,6 +98,13 @@ def define_parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--nesterov", action="store_true")
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="sgd",
+        choices=["sgd", "adamw"],
+        help="Client-side optimizer family.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument(
@@ -366,6 +373,8 @@ def main():
         args.lr_warmup_steps,
         "--cosine_lr_restart_period",
         args.cosine_lr_restart_period,
+        "--optimizer",
+        args.optimizer,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
         "--grad_clip_norm",
