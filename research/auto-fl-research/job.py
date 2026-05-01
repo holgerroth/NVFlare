@@ -179,6 +179,11 @@ def define_parser():
         default=0.0,
         help="SAM perturbation radius. 0 disables SAM.",
     )
+    parser.add_argument(
+        "--class_balance_weights",
+        action="store_true",
+        help="Use inverse-frequency class weights in the per-site cross-entropy loss.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -420,6 +425,8 @@ def main():
         train_args.append("--no_lr_scheduler")
     if args.nesterov:
         train_args.append("--nesterov")
+    if args.class_balance_weights:
+        train_args.append("--class_balance_weights")
     if args.evaluate_local:
         train_args.append("--evaluate_local")
     if args.eval_global_every_round:

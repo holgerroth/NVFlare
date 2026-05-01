@@ -169,6 +169,11 @@ def build_parser():
         help="SAM perturbation radius. 0 disables SAM. Implements one-step ascent before optimizer step.",
     )
     parser.add_argument(
+        "--class_balance_weights",
+        action="store_true",
+        help="Use inverse-frequency class weights in the per-site cross-entropy loss.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -326,7 +331,7 @@ def main(args):
         f"{site_name}: model_arch={args.model_arch} "
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
-    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+    class_weight_tensor = None
     if args.optimizer == "adamw":
         optimizer = optim.AdamW(
             model.parameters(),
@@ -355,6 +360,15 @@ def main(args):
         site_name,
         train_idx_root=args.train_idx_root,
     )
+    if args.class_balance_weights:
+        targets = np.asarray(train_dataset.targets)
+        num_classes = 10
+        counts = np.bincount(targets, minlength=num_classes).astype(np.float64)
+        counts = np.maximum(counts, 1.0)
+        weights = float(targets.size) / (counts * num_classes)
+        class_weight_tensor = torch.as_tensor(weights, dtype=torch.float32, device=DEVICE)
+        print(f"{site_name}: class_balance_weights={weights.tolist()}")
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing, weight=class_weight_tensor)
     train_loader, valid_loader = _create_seeded_data_loaders(
         train_dataset,
         valid_dataset,
