@@ -104,6 +104,18 @@ def define_parser():
     )
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="Label-smoothing epsilon for client CrossEntropyLoss. 0 disables smoothing.",
+    )
+    parser.add_argument(
+        "--grad_clip_max_norm",
+        type=float,
+        default=0.0,
+        help="Per-step global gradient clip 2-norm on every client. 0 disables clipping.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -340,6 +352,10 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--label_smoothing",
+        args.label_smoothing,
+        "--grad_clip_max_norm",
+        args.grad_clip_max_norm,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

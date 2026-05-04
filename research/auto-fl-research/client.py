@@ -87,6 +87,18 @@ def build_parser():
     parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="Label-smoothing epsilon for CrossEntropyLoss. 0 disables smoothing.",
+    )
+    parser.add_argument(
+        "--grad_clip_max_norm",
+        type=float,
+        default=0.0,
+        help="Per-step global gradient clipping by 2-norm. 0 disables clipping.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -267,6 +279,10 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.label_smoothing < 0.0 or args.label_smoothing >= 1.0:
+        raise ValueError("label_smoothing must be in [0, 1)")
+    if args.grad_clip_max_norm < 0.0:
+        raise ValueError("grad_clip_max_norm must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -284,7 +300,7 @@ def main(args):
         f"{site_name}: model_arch={args.model_arch} "
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     optimizer = optim.SGD(
         model.parameters(),
         lr=args.lr,
@@ -410,6 +426,8 @@ def main(args):
                     loss = loss + criterion_prox(model, global_model)
 
                 loss.backward()
+                if args.grad_clip_max_norm > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_max_norm)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -463,6 +481,8 @@ def main(args):
                         loss = loss + criterion_prox(model, global_model)
 
                     loss.backward()
+                    if args.grad_clip_max_norm > 0:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_max_norm)
                     optimizer.step()
 
                     curr_lr = get_lr_values(optimizer)[0]
