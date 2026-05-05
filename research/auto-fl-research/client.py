@@ -573,6 +573,13 @@ def main(args):
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
 
+                    if args.moon_mu > 0 and moon_prev_model is not None:
+                        z = _moon_representation(model, inputs)
+                        with torch.no_grad():
+                            z_glob = _moon_representation(global_model, inputs)
+                            z_prev = _moon_representation(moon_prev_model, inputs)
+                        loss = loss + args.moon_mu * _moon_loss(z, z_glob, z_prev, args.moon_temperature)
+
                     loss.backward()
                     if args.grad_clip_max_norm > 0:
                         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_max_norm)
