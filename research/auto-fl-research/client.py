@@ -90,6 +90,11 @@ def build_parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
+        "--nesterov",
+        action="store_true",
+        help="Enable Nesterov momentum on the SGD client optimizer.",
+    )
+    parser.add_argument(
         "--label_smoothing",
         type=float,
         default=0.0,
@@ -374,6 +379,7 @@ def main(args):
             lr=args.lr,
             momentum=args.momentum,
             weight_decay=args.weight_decay,
+            nesterov=args.nesterov and args.momentum > 0,
         )
 
     scheduler = None
