@@ -45,6 +45,8 @@ from model import (  # noqa: E402
 )
 from train_utils import compute_model_diff, evaluate, get_lr_values  # noqa: E402
 
+import torch.nn.functional as F  # noqa: E402
+
 import nvflare.client as flare  # noqa: E402
 from nvflare.app_common.abstract.fl_model import ParamsType  # noqa: E402
 from nvflare.app_common.app_constant import AlgorithmConstants  # noqa: E402
@@ -111,6 +113,18 @@ def build_parser():
         default="sgd",
         choices=["sgd", "adamw"],
         help="Client local optimizer family.",
+    )
+    parser.add_argument(
+        "--moon_mu",
+        type=float,
+        default=0.0,
+        help="MOON contrastive-loss weight. 0 disables MOON.",
+    )
+    parser.add_argument(
+        "--moon_temperature",
+        type=float,
+        default=0.5,
+        help="MOON contrastive temperature.",
     )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
@@ -204,6 +218,23 @@ def _create_seeded_data_loaders(
         generator=_make_generator(seed + 1),
     )
     return train_loader, valid_loader
+
+
+def _moon_representation(model, inputs):
+    h = model.conv_layer(inputs)
+    h = h.view(h.size(0), -1)
+    layers = list(model.fc_layer)
+    for layer in layers[:-2]:
+        h = layer(h)
+    return h
+
+
+def _moon_loss(z, z_glob, z_prev, temperature):
+    sim_pos = F.cosine_similarity(z, z_glob, dim=1) / temperature
+    sim_neg = F.cosine_similarity(z, z_prev, dim=1) / temperature
+    logits = torch.stack([sim_pos, sim_neg], dim=1)
+    targets = torch.zeros(logits.size(0), dtype=torch.long, device=logits.device)
+    return F.cross_entropy(logits, targets)
 
 
 def _mixup_batch(inputs, labels, alpha):
@@ -309,6 +340,10 @@ def main(args):
         raise ValueError("grad_clip_max_norm must be >= 0")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
+    if args.moon_mu < 0.0:
+        raise ValueError("moon_mu must be >= 0")
+    if args.moon_temperature <= 0.0:
+        raise ValueError("moon_temperature must be > 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -362,6 +397,7 @@ def main(args):
 
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
+    moon_prev_state = None
 
     while flare.is_running():
         input_model = flare.receive()
@@ -407,6 +443,15 @@ def main(args):
         for p in global_model.parameters():
             p.requires_grad = False
         global_model.to(DEVICE)
+
+        moon_prev_model = None
+        if args.moon_mu > 0 and moon_prev_state is not None:
+            moon_prev_model = copy.deepcopy(model)
+            moon_prev_model.load_state_dict(moon_prev_state)
+            moon_prev_model.eval()
+            for p in moon_prev_model.parameters():
+                p.requires_grad = False
+            moon_prev_model.to(DEVICE)
 
         scaffold_global_controls = None
         scaffold_ctrl_diff = None
@@ -461,6 +506,13 @@ def main(args):
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
+
+                if args.moon_mu > 0 and moon_prev_model is not None:
+                    z = _moon_representation(model, inputs)
+                    with torch.no_grad():
+                        z_glob = _moon_representation(global_model, inputs)
+                        z_prev = _moon_representation(moon_prev_model, inputs)
+                    loss = loss + args.moon_mu * _moon_loss(z, z_glob, z_prev, args.moon_temperature)
 
                 loss.backward()
                 if args.grad_clip_max_norm > 0:
@@ -571,6 +623,9 @@ def main(args):
                 scaffold_local_controls,
                 scaffold_steps,
             )
+
+        if args.moon_mu > 0:
+            moon_prev_state = {k: v.detach().clone().cpu() for k, v in model.state_dict().items()}
 
         print(f"{site_name}: finished training for round {current_round}")
 

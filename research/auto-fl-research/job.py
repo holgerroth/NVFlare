@@ -129,6 +129,18 @@ def define_parser():
         choices=["sgd", "adamw"],
         help="Client local optimizer family.",
     )
+    parser.add_argument(
+        "--moon_mu",
+        type=float,
+        default=0.0,
+        help="MOON contrastive client-loss weight. 0 disables MOON.",
+    )
+    parser.add_argument(
+        "--moon_temperature",
+        type=float,
+        default=0.5,
+        help="MOON contrastive temperature.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -373,6 +385,10 @@ def main():
         args.mixup_alpha,
         "--client_optimizer",
         args.client_optimizer,
+        "--moon_mu",
+        args.moon_mu,
+        "--moon_temperature",
+        args.moon_temperature,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
