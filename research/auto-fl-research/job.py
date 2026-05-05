@@ -116,6 +116,19 @@ def define_parser():
         default=0.0,
         help="Per-step global gradient clip 2-norm on every client. 0 disables clipping.",
     )
+    parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Mixup Beta(alpha, alpha) coefficient for client training. 0 disables mixup.",
+    )
+    parser.add_argument(
+        "--client_optimizer",
+        type=str,
+        default="sgd",
+        choices=["sgd", "adamw"],
+        help="Client local optimizer family.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -356,6 +369,10 @@ def main():
         args.label_smoothing,
         "--grad_clip_max_norm",
         args.grad_clip_max_norm,
+        "--mixup_alpha",
+        args.mixup_alpha,
+        "--client_optimizer",
+        args.client_optimizer,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

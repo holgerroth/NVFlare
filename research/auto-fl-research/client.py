@@ -99,6 +99,19 @@ def build_parser():
         default=0.0,
         help="Per-step global gradient clipping by 2-norm. 0 disables clipping.",
     )
+    parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Mixup Beta(alpha, alpha) coefficient. 0 disables mixup.",
+    )
+    parser.add_argument(
+        "--client_optimizer",
+        type=str,
+        default="sgd",
+        choices=["sgd", "adamw"],
+        help="Client local optimizer family.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -193,6 +206,17 @@ def _create_seeded_data_loaders(
     return train_loader, valid_loader
 
 
+def _mixup_batch(inputs, labels, alpha):
+    if alpha <= 0.0:
+        return inputs, labels, labels, 1.0
+    lam = float(np.random.beta(alpha, alpha))
+    if lam < 1e-6 or lam > 1 - 1e-6:
+        return inputs, labels, labels, 1.0
+    index = torch.randperm(inputs.size(0), device=inputs.device)
+    mixed = lam * inputs + (1 - lam) * inputs[index]
+    return mixed, labels, labels[index], lam
+
+
 def _zero_scaffold_controls(model):
     return {
         key: torch.zeros_like(param, device=DEVICE)
@@ -283,6 +307,8 @@ def main(args):
         raise ValueError("label_smoothing must be in [0, 1)")
     if args.grad_clip_max_norm < 0.0:
         raise ValueError("grad_clip_max_norm must be >= 0")
+    if args.mixup_alpha < 0.0:
+        raise ValueError("mixup_alpha must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -301,12 +327,19 @@ def main(args):
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    optimizer = optim.SGD(
-        model.parameters(),
-        lr=args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
-    )
+    if args.client_optimizer == "adamw":
+        optimizer = optim.AdamW(
+            model.parameters(),
+            lr=args.lr,
+            weight_decay=args.weight_decay,
+        )
+    else:
+        optimizer = optim.SGD(
+            model.parameters(),
+            lr=args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay,
+        )
 
     scheduler = None
     criterion_prox = None
@@ -417,10 +450,14 @@ def main(args):
                     batch = next(loader_iter)
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
+                inputs, labels_a, labels_b, lam = _mixup_batch(inputs, labels, args.mixup_alpha)
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                if lam < 1.0:
+                    loss = lam * criterion(outputs, labels_a) + (1 - lam) * criterion(outputs, labels_b)
+                else:
+                    loss = criterion(outputs, labels_a)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -472,10 +509,14 @@ def main(args):
 
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
+                    inputs, labels_a, labels_b, lam = _mixup_batch(inputs, labels, args.mixup_alpha)
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
-                    loss = criterion(outputs, labels)
+                    if lam < 1.0:
+                        loss = lam * criterion(outputs, labels_a) + (1 - lam) * criterion(outputs, labels_b)
+                    else:
+                        loss = criterion(outputs, labels_a)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
