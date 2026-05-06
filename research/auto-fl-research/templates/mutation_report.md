@@ -38,6 +38,7 @@ The initial campaign should establish which already-available algorithm family i
 - SAM batch finalization: `scripts/finalize_batch_status.py results.tsv --last 2 --keep-best --discard-others`
 - Post-SAM watchdog: `scripts/plateau_watchdog.py results.tsv`
 - SAM rollback validation: `PYTHON=.venv/bin/python make validate`
+- Sixth-loop reserve weight-decay batch: `weight_decay=3e-4` and `4e-4` under FedAvgM `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, and gradient centralization
 
 ## Observed outcome
 
@@ -99,6 +100,7 @@ The initial campaign should establish which already-available algorithm family i
 - Tight server learning-rate neighbors narrowly missed: `server_lr=1.8125` scored `0.909800`; `1.9375` scored `0.909600`.
 - Sixth literature loop selected a default-off SAM/FedSAM client-local optimizer mutation after server-LR tuning reached a local peak.
 - SAM/FedSAM candidates underperformed and were slower: `sam_rho=0.01` scored `0.907600` in 830 seconds; `sam_rho=0.02` scored `0.907500` in 832 seconds. The optional SAM code path was reverted.
+- Weight-decay reserve under `server_lr=1.875` did not improve: `weight_decay=3e-4` scored `0.907500`; `4e-4` scored `0.903900`.
 
 ## Literature basis
 
@@ -135,4 +137,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Run the sixth-loop reserve weight-decay retune under the current best stack: `weight_decay=3e-4` and `4e-4` with FedAvgM `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, and gradient centralization.
+Run the sixth-loop reserve server-momentum retune under the current best stack: `server_momentum=0.30` and `0.40` with FedAvgM `server_lr=1.875`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, and gradient centralization.
