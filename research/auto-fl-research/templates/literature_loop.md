@@ -141,3 +141,58 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 | --- | --- | --- | --- |
 | 1 | P6 | `fedavgm_lr15_m04_wd3e4_ls005` | Code variant: optional `--label_smoothing`; args `--server_lr 1.5 --server_momentum 0.4 --weight_decay 3e-4 --label_smoothing 0.05` |
 | 2 | P6 | `fedavgm_lr15_m04_wd3e4_ls010` | Code variant: optional `--label_smoothing`; args `--server_lr 1.5 --server_momentum 0.4 --weight_decay 3e-4 --label_smoothing 0.1` |
+
+## Third Literature Loop
+
+### Trigger
+
+- Reason: SCAFFOLD/median and scheduler-toggle batches failed after the second literature loop; current best remains FedAvgM `server_lr=1.5`, `server_momentum=0.4`, `weight_decay=3e-4`, score `0.881400`.
+- Recent symptoms: regularization helped, but label smoothing did not; scheduler and alternative aggregators regressed.
+- Candidate width: `PARALLEL_CANDIDATES=2`.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning gradient clipping non-IID CIFAR-10 arXiv client drift` | Look for client-local stabilization lower risk than SAM. | arXiv, paper indexes | Found FedZMG/zero-mean gradients as a parameter-free client-side method. |
+| `federated learning exponential moving average client models non-IID arXiv` | Consider EMA/teacher mechanisms after weight decay helped. | paper indexes | Most EMA/distill ideas need extra logits, proxy data, or protocol fields. |
+| `FedSAM sharpness aware minimization federated learning non-IID CIFAR-10 arXiv` | Revisit flatness methods as a reserve. | arXiv | FedSAM is relevant but requires extra backward pass and more code. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Zantalis26 | FedZMG: Efficient Client-Side Optimization in Federated Learning / 2026 | https://arxiv.org/abs/2602.18384 | Non-IID client drift and optimizer complexity. | Zero-mean gradients / gradient centralization | keep |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | Sharp global minima from local ERM under non-IID data. | FedSAM | reserve |
+| Foret20 | Sharpness-Aware Minimization for Efficiently Improving Generalization / 2020 | https://arxiv.org/abs/2010.01412 | Sharp minima and label-noise robustness. | SAM | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Client drift from biased local gradients | FedZMG argues zero-mean gradients reduce intensity/bias shifts without extra communication. | FedAvgM plus weight decay helped, but many client/server jitter sweeps plateaued. | A local gradient transform can change client updates without protocol change. | `client.py`. |
+| C2 | Flatness/generalization plateau | SAM/FedSAM target sharp minima and non-IID local ERM. | Current best relies on regularization; label smoothing was close but not better. | SAM is plausible but higher compute and more code. | `client.py`, reserve. |
+| C3 | Protocol complexity | EMA/distillation methods often require logits, proxy data, or server state. | The harness contract must preserve DIFF uploads and existing metadata. | Reject methods needing new datasets or metadata. | n/a. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P9 | Optional gradient centralization before local SGD step. | Zantalis26 FedZMG | Code: `--gradient_centralization`; candidate with current best stack. | Reduce biased local gradients under label skew. | Score below `0.881400`. | Low; client-local, no new state. |
+| P10 | Gradient centralization with lighter weight decay. | Zantalis26 FedZMG | Code flag plus `--weight_decay 1e-4`. | Check whether zero-mean gradients replace some L2 regularization. | Score below current best. | Low-medium; varies regularization too. |
+| P11 | Local SAM/FedSAM. | Foret20; Qu22 | Code: `--sam_rho`, extra backward pass. | Improve flatness/generalization. | Runtime near timeout or no gain. | Medium-high; reserve. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P9 | 3 | 5 | 4 | 4 | 5 | 2 | 27 |
+| P10 | 3 | 4 | 4 | 4 | 4 | 2 | 24 |
+| P11 | 4 | 4 | 2 | 5 | 5 | 4 | 24 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P9 | `fedavgm_lr15_m04_wd3e4_gc` | Code variant: optional `--gradient_centralization`; args `--server_lr 1.5 --server_momentum 0.4 --weight_decay 3e-4 --gradient_centralization` |
+| 2 | P10 | `fedavgm_lr15_m04_wd1e4_gc` | Same code flag with `--weight_decay 1e-4` |

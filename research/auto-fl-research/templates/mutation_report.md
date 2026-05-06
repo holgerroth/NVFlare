@@ -72,6 +72,7 @@ The initial campaign should establish which already-available algorithm family i
 - Label smoothing did not improve: `0.05` scored `0.881200`; `0.1` scored `0.879900`. The optional label-smoothing code path was reverted.
 - SCAFFOLD and median source-backed probes underperformed: SCAFFOLD with `weight_decay=3e-4` scored `0.859000`; median scored `0.747000`.
 - Scheduler toggles underperformed: no scheduler scored `0.831600`; `cosine_lr_eta_min_factor=0.1` scored `0.866000`.
+- Third literature loop selected FedZMG-style gradient centralization as the next low-risk client-local mutation.
 
 ## Literature basis
 
@@ -84,6 +85,8 @@ The initial campaign should establish which already-available algorithm family i
 - Label smoothing in FL: Yeji Cho, Junghyun Kim. "FedENLC: An End-to-End Noisy Label Correction Framework in Federated Learning." Mathematics 2026; doi:10.3390/math14020290.
 - Federated domain generalization with label smoothing: Milad Soltany, Farhad Pourpanah, Mahdiyar Molahasani Majdabadi, Michael Greenspan, Ali Etemad. "Federated Domain Generalization with Label Smoothing and Balanced Decentralized Training." arXiv:2412.11408.
 - Label smoothing implementation: PyTorch `torch.nn.CrossEntropyLoss(label_smoothing=...)` documentation.
+- FedZMG: Fotios Zantalis, Evangelos Zervas, Grigorios Koulouras. "FedZMG: Efficient Client-Side Optimization in Federated Learning." arXiv:2602.18384.
+- FedSAM: Zhe Qu, Xingyu Li, Rui Duan, Yao Liu, Bo Tang, Zhuo Lu. "Generalized Federated Learning via Sharpness Aware Minimization." arXiv:2206.02618.
 
 ## Run analysis
 
@@ -101,4 +104,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Run another literature loop before more local jitter; the current best remains FedAvgM `server_lr=1.5`, `server_momentum=0.4`, `weight_decay=3e-4`, score `0.881400`.
+Add optional client-local gradient centralization, then test it on the current best stack and with lighter `weight_decay=1e-4`.
