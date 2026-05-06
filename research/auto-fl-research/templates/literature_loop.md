@@ -673,3 +673,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Treat these as architecture-subcampaign rows; do not silently mix them with optimizer-only `moderate_cnn` rows.
 - If both registered variants underperform, return to literature before adding a new architecture variant.
+- Outcome: both registered variants underperformed under FedNova. `moderate_cnn_small_head` scored `0.909200`; `moderate_cnn_norm` scored `0.905300`.
+- Action: keep `moderate_cnn` for the active FedNova stack and return to literature before any new architecture code.

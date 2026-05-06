@@ -119,6 +119,7 @@ The initial campaign should establish which already-available algorithm family i
 - Ninth literature loop selected a CLI-only client learning-rate retune under the kept FedNova stack.
 - FedNova client-LR retune regressed: `lr=0.045` scored `0.906600`; `lr=0.055` scored `0.906100`.
 - Tenth literature loop selected a labeled registered-architecture subcampaign under the kept FedNova stack.
+- Registered architecture subcampaign underperformed: `moderate_cnn_small_head` scored `0.909200`; `moderate_cnn_norm` scored `0.905300`.
 
 ## Literature basis
 
@@ -159,4 +160,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run a labeled architecture subcampaign with registered variants `moderate_cnn_norm` and `moderate_cnn_small_head` under the kept FedNova optimizer/client stack.
+Return to literature before more architecture or optimizer code; the active main-stack best remains FedNova `0.910300` with `model_arch=moderate_cnn`.
