@@ -475,3 +475,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If FedNova fails, revert the optional aggregator code unless it is needed for a follow-up source-backed candidate, then move to either FedYogi/FedAdagrad or exact local-step retuning.
 - Outcome: FedNova with current server settings improved the best to `0.910300`; pure normalized FedNova regressed to `0.894300`.
 - Action: keep the FedNova aggregator code and narrow server LR around `1.875` before trying adaptive FedYogi/FedAdagrad reserves.
+- Outcome: FedNova server LR neighbors did not improve. `server_lr=2.0` scored `0.909300`; `server_lr=1.75` scored `0.908700`.
+- Action: keep `server_lr=1.875` and retune FedNova server momentum around `0.35`.

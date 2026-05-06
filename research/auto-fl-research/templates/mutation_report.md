@@ -109,6 +109,7 @@ The initial campaign should establish which already-available algorithm family i
 - Seventh literature loop selected FedNova-style normalized aggregation as the next source-backed code mutation.
 - Added optional `--aggregator fednova`, which normalizes client DIFFs by `NUM_STEPS_CURRENT_ROUND` and supports optional server momentum without changing client uploads.
 - FedNova with current server settings improved the best to `0.910300`; pure normalized FedNova scored `0.894300` and was discarded.
+- FedNova server-LR neighbors did not improve: `server_lr=2.0` scored `0.909300`; `1.75` scored `0.908700`.
 
 ## Literature basis
 
@@ -147,4 +148,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Narrow FedNova server LR around the new best: test `server_lr=1.75` and `2.0` with `--aggregator fednova`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, and gradient centralization.
+Retune FedNova server momentum around the new best: test `server_momentum=0.30` and `0.40` with `--aggregator fednova`, `server_lr=1.875`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, and gradient centralization.
