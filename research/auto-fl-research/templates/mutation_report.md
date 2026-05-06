@@ -7,6 +7,10 @@ The initial campaign should establish which already-available algorithm family i
 ## Files changed
 
 - `results.tsv`
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
 - `templates/mutation_report.md`
 
 ## Commands run
@@ -24,6 +28,8 @@ The initial campaign should establish which already-available algorithm family i
 - FedAvgM momentum probe at fixed `server_lr=1.5`: `server_momentum=0.2`
 - FedAvgM lower-momentum sweep at fixed `server_lr=1.5`: `server_momentum` in `{0.0, 0.1}`
 - FedAvgM close-neighbor momentum sweep at fixed `server_lr=1.5`: `server_momentum` in `{0.15, 0.25}`
+- FedLC mutation validation: `PYTHON=.venv/bin/python make validate`
+- FedLC mutation smoke: `PYTHON=.venv/bin/python make smoke`
 
 ## Observed outcome
 
@@ -43,6 +49,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedAvgM `server_lr=1.5, momentum=0.15` scored `0.863400`; `momentum=0.25` scored `0.862200`. Both were discarded.
 - Literature loop was triggered after two consecutive non-improving same-budget batches. The next selected candidates are FedAvgM+FedProx `mu=1e-3` and a safer FedAdam retry with lower server learning rate and larger `tau`.
 - FedAvgM+FedProx `mu=1e-3` scored `0.860100`; safer FedAdam `server_lr=0.1, tau=1e-2` scored `0.744300`. Both were discarded.
+- Added optional FedLC-style logit calibration with `--fedlc_tau`; default `0.0` preserves existing cross-entropy behavior.
 
 ## Literature basis
 
@@ -59,7 +66,8 @@ The calibration result favors the existing FedAvgM path. The first LR sweep sugg
 
 ## Contract check
 
-- No source code or FL protocol fields were changed.
+- No FL protocol fields were changed.
+- FedLC is client-local loss calibration only; it does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
@@ -69,4 +77,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Move to the next source-backed literature proposal: add an optional client-local FedLC-style logit calibration flag, then test it with the current best FedAvgM settings under the same fixed H100 budget.
+Test FedLC with the current best FedAvgM settings at `--fedlc_tau 0.5` and `1.0`, using `PARALLEL_CANDIDATES=2`, unique `PYTHONPYCACHEPREFIX` values, and the same fixed H100 budget.

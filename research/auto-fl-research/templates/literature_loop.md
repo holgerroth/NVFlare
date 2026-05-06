@@ -74,8 +74,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 | slot | proposal | candidate name | args / code variant |
 | --- | --- | --- | --- |
-| 1 | P1 | `fedavgm_lr15_m02_fedprox1e3` | `--aggregator fedavgm --server_lr 1.5 --server_momentum 0.2 --fedproxloss_mu 1e-3` |
-| 2 | P2 | `fedadam_lr01_tau1e2` | `--aggregator fedadam --server_lr 0.1 --fedopt_beta1 0.9 --fedopt_beta2 0.99 --fedopt_tau 1e-2` |
+| 1 | P3 | `fedavgm_lr15_m02_fedlc05` | Code variant: optional `--fedlc_tau`; args `--aggregator fedavgm --server_lr 1.5 --server_momentum 0.2 --fedlc_tau 0.5` |
+| 2 | P3 | `fedavgm_lr15_m02_fedlc10` | Code variant: optional `--fedlc_tau`; args `--aggregator fedavgm --server_lr 1.5 --server_momentum 0.2 --fedlc_tau 1.0` |
 
 ## Reflective memory
 
