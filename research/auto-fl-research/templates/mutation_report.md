@@ -74,6 +74,7 @@ The initial campaign should establish which already-available algorithm family i
 - Scheduler toggles underperformed: no scheduler scored `0.831600`; `cosine_lr_eta_min_factor=0.1` scored `0.866000`.
 - Third literature loop selected FedZMG-style gradient centralization as the next low-risk client-local mutation.
 - Added optional `--gradient_centralization` to project eligible weight gradients to zero mean before local SGD steps; default off preserves prior behavior.
+- Gradient centralization materially improved the campaign: with `weight_decay=3e-4` it scored `0.900700`; with `weight_decay=1e-4` it scored `0.890900`.
 
 ## Literature basis
 
@@ -91,7 +92,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.4`, default client LR, epoch-based local training, and `weight_decay=3e-4`. FedLC came close but did not justify a new client loss path. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.4`, default client LR, epoch-based local training, `weight_decay=3e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -106,4 +107,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Test `--gradient_centralization` on the current best stack and with lighter `weight_decay=1e-4`.
+Narrow around the gradient-centralization best: test `--weight_decay 2e-4` and `4e-4` with `--gradient_centralization`.
