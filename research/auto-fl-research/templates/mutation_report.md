@@ -108,6 +108,7 @@ The initial campaign should establish which already-available algorithm family i
 - Server-momentum reserve under `server_lr=1.875` did not improve: `server_momentum=0.40` scored `0.908800`; `0.30` scored `0.906600`.
 - Seventh literature loop selected FedNova-style normalized aggregation as the next source-backed code mutation.
 - Added optional `--aggregator fednova`, which normalizes client DIFFs by `NUM_STEPS_CURRENT_ROUND` and supports optional server momentum without changing client uploads.
+- FedNova with current server settings improved the best to `0.910300`; pure normalized FedNova scored `0.894300` and was discarded.
 
 ## Literature basis
 
@@ -130,7 +131,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC, label smoothing, and SAM/FedSAM did not justify keeping new client code paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC, label smoothing, and SAM/FedSAM did not justify keeping new client code paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -142,8 +143,8 @@ The calibration result favors the existing FedAvgM path with the original `moder
 
 ## Rollback risk
 
-Low. The only kept code mutation is optional gradient centralization behind `--gradient_centralization`; default behavior remains unchanged and validation/smoke have passed with the flag present. The unsuccessful optional SAM code path has been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization` and optional FedNova aggregation behind `--aggregator fednova`; default behavior remains unchanged and validation/smoke have passed. The unsuccessful optional SAM code path has been reverted.
 
 ## Next mutation
 
-Implement optional FedNova-style normalized DIFF aggregation behind `--aggregator fednova`, then test current FedAvgM server settings and a pure normalized-averaging control under the current epoch-5 GC client stack.
+Narrow FedNova server LR around the new best: test `server_lr=1.75` and `2.0` with `--aggregator fednova`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, and gradient centralization.
