@@ -73,6 +73,7 @@ The initial campaign should establish which already-available algorithm family i
 - SCAFFOLD and median source-backed probes underperformed: SCAFFOLD with `weight_decay=3e-4` scored `0.859000`; median scored `0.747000`.
 - Scheduler toggles underperformed: no scheduler scored `0.831600`; `cosine_lr_eta_min_factor=0.1` scored `0.866000`.
 - Third literature loop selected FedZMG-style gradient centralization as the next low-risk client-local mutation.
+- Added optional `--gradient_centralization` to project eligible weight gradients to zero mean before local SGD steps; default off preserves prior behavior.
 
 ## Literature basis
 
@@ -95,6 +96,7 @@ The calibration result favors the existing FedAvgM path with the original `moder
 ## Contract check
 
 - No FL protocol fields were changed.
+- Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
@@ -104,4 +106,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Add optional client-local gradient centralization, then test it on the current best stack and with lighter `weight_decay=1e-4`.
+Test `--gradient_centralization` on the current best stack and with lighter `weight_decay=1e-4`.

@@ -104,6 +104,11 @@ def define_parser():
     )
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--gradient_centralization",
+        action="store_true",
+        help="Project eligible weight gradients to zero mean before each optimizer step.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -341,6 +346,8 @@ def main():
         "--fedproxloss_mu",
         args.fedproxloss_mu,
     ]
+    if args.gradient_centralization:
+        train_args.append("--gradient_centralization")
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
     if args.evaluate_local:

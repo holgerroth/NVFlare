@@ -87,6 +87,11 @@ def build_parser():
     parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--gradient_centralization",
+        action="store_true",
+        help="Project eligible weight gradients to zero mean before each optimizer step.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -179,6 +184,15 @@ def _create_seeded_data_loaders(
         generator=_make_generator(seed + 1),
     )
     return train_loader, valid_loader
+
+
+def _apply_gradient_centralization(model):
+    for param in model.parameters():
+        grad = param.grad
+        if grad is None or grad.ndim <= 1:
+            continue
+        dims = tuple(range(1, grad.ndim))
+        grad.sub_(grad.mean(dim=dims, keepdim=True))
 
 
 def _zero_scaffold_controls(model):
@@ -410,6 +424,8 @@ def main(args):
                     loss = loss + criterion_prox(model, global_model)
 
                 loss.backward()
+                if args.gradient_centralization:
+                    _apply_gradient_centralization(model)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -463,6 +479,8 @@ def main(args):
                         loss = loss + criterion_prox(model, global_model)
 
                     loss.backward()
+                    if args.gradient_centralization:
+                        _apply_gradient_centralization(model)
                     optimizer.step()
 
                     curr_lr = get_lr_values(optimizer)[0]
