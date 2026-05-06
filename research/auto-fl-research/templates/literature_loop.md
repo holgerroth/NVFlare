@@ -479,3 +479,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep `server_lr=1.875` and retune FedNova server momentum around `0.35`.
 - Outcome: FedNova server-momentum neighbors did not improve. `server_momentum=0.40` scored `0.910000`; `server_momentum=0.30` scored `0.909100`.
 - Action: keep `server_momentum=0.35` and test whether FedNova shifts the weight-decay optimum.
+- Outcome: FedNova weight-decay retune did not improve. `weight_decay=4e-4` scored `0.905800`; `weight_decay=3e-4` scored `0.905700`.
+- Action: move to P24 exact local-step retuning under the kept FedNova stack.

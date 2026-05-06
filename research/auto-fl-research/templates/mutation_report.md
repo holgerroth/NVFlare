@@ -111,6 +111,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova with current server settings improved the best to `0.910300`; pure normalized FedNova scored `0.894300` and was discarded.
 - FedNova server-LR neighbors did not improve: `server_lr=2.0` scored `0.909300`; `1.75` scored `0.908700`.
 - FedNova server-momentum neighbors did not improve: `server_momentum=0.40` scored `0.910000`; `0.30` scored `0.909100`.
+- FedNova weight-decay retune did not improve: `weight_decay=4e-4` scored `0.905800`; `3e-4` scored `0.905700`.
 
 ## Literature basis
 
@@ -149,4 +150,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Retune FedNova weight decay around the new best: test `weight_decay=3e-4` and `4e-4` with `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, and gradient centralization.
+Run exact local-step retuning under the kept FedNova stack: test `local_train_steps=500` and `600` with `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, `weight_decay=3.5e-4`, and gradient centralization.
