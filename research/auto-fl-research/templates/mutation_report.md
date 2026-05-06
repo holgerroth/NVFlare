@@ -61,6 +61,7 @@ The initial campaign should establish which already-available algorithm family i
 - Server learning-rate revisit with weight decay did not improve: `server_lr=1.75` scored `0.876200`; `1.25` scored `0.864600`.
 - Server momentum retune kept a tiny score edge: `server_momentum=0.3` scored `0.879000`; `0.1` scored `0.869900`.
 - Server momentum neighbor sweep kept another tiny edge: `server_momentum=0.35` scored `0.879200`; `0.25` scored `0.878900`.
+- Higher server momentum found a material improvement: `server_momentum=0.4` scored `0.881400`; `0.45` scored `0.877900`.
 
 ## Literature basis
 
@@ -73,7 +74,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.2`, default client LR, epoch-based local training, and `weight_decay=3e-4`. FedLC came close but did not justify a new client loss path. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.4`, default client LR, epoch-based local training, and `weight_decay=3e-4`. FedLC came close but did not justify a new client loss path. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -87,4 +88,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Probe higher server momentum around the current best stack with `weight_decay=3e-4`: test `--server_momentum 0.4` and `0.45` while keeping `--server_lr 1.5`.
+Narrow around the new server momentum best with `weight_decay=3e-4`: test `--server_momentum 0.375` and `0.425` while keeping `--server_lr 1.5`.
