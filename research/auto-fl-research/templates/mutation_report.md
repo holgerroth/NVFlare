@@ -70,6 +70,7 @@ The initial campaign should establish which already-available algorithm family i
 - Second literature loop selected client-local label smoothing as the next low-risk source-backed mutation before heavier SAM-style optimizer changes.
 - Added optional `--label_smoothing` forwarding to PyTorch `CrossEntropyLoss`; default `0.0` preserves the previous loss.
 - Label smoothing did not improve: `0.05` scored `0.881200`; `0.1` scored `0.879900`. The optional label-smoothing code path was reverted.
+- SCAFFOLD and median source-backed probes underperformed: SCAFFOLD with `weight_decay=3e-4` scored `0.859000`; median scored `0.747000`.
 
 ## Literature basis
 
@@ -99,4 +100,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Next source-backed low-risk probes: audit `--aggregator scaffold` and `--aggregator median` with `--weight_decay 3e-4` under the fixed budget.
+Test the remaining scheduler toggles on the current best stack: `--no_lr_scheduler` and `--cosine_lr_eta_min_factor 0.1`.
