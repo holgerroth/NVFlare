@@ -343,3 +343,65 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Outcome: server LR `1.875` improved further to `0.909900`; `1.625` scored `0.907100`. Continue upward carefully while keeping FedAdam crash history in mind.
 - Follow-up: server LR `2.0` scored `0.908800`; `2.125` scored `0.908200`. Treat `1.875` as a local peak and tighten on both sides.
 - Follow-up: server LR `1.8125` scored `0.909800`; `1.9375` scored `0.909600`. Keep `1.875` and move to a new source-backed mechanism.
+
+## Sixth Literature Loop
+
+### Trigger
+
+- Reason: two server-LR batches failed after best `server_lr=1.875`, score `0.909900`.
+- Current best: FedAvgM `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`.
+- Recent symptoms: server-LR neighbors around the peak are close but do not improve; client LR and local epoch narrowing already failed.
+- Candidate width: `PARALLEL_CANDIDATES=2`; SAM candidates may run longer because each local step uses two backward passes.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedSAM sharpness aware minimization federated learning non-IID CIFAR-10 arXiv 2206.02618` | Check whether a client-local optimizer change is justified after optimizer-scalar tuning stalls. | arXiv, paper indexes | FedSAM directly targets non-IID local ERM sharpness. |
+| `Sharpness Aware Minimization efficient improving generalization arXiv 2010.01412` | Confirm base SAM implementation mechanism and cost. | arXiv, Hugging Face Papers | SAM is a min-max optimizer with an extra backward pass. |
+| `federated learning SAM local optimizer non-IID CIFAR10 FedSAM arXiv` | Look for FL-specific framing and falsifiers. | arXiv, ResearchTrend | FedSAM reports reduced client deviation but increases local compute. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Foret20 | Sharpness-Aware Minimization for Efficiently Improving Generalization / 2020 | https://arxiv.org/abs/2010.01412 | ERM can find sharp minima with poor generalization; SAM minimizes loss and sharpness. | SAM | keep |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | Non-IID FL local ERM can create sharp valleys and client deviation. | FedSAM / MoFedSAM | keep |
+| Zantalis26 | FedZMG / 2026 | https://arxiv.org/abs/2602.18384 | Client-side gradient geometry matters under non-IID data. | Gradient centralization | already kept |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Server optimizer tuning helped but now has a local peak. | FedOpt | already exploited |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Sharp local minima after stronger local training | SAM and FedSAM target sharpness from local ERM. | `aggregation_epochs=5` and FedAvgM tuning improved, but scalar retunes are now near-flat. | A client-local sharpness step may improve generalization without changing DIFF uploads. | `client.py`, `job.py`. |
+| C2 | Runtime cost from extra backward pass | SAM requires a perturb-and-second-gradient step. | Normal epoch-5 runs take about 7.5 minutes with width 2. | SAM must stay under `RUN_TIMEOUT_SECONDS=1200`; small `rho` values first. | `client.py`. |
+| C3 | Protocol preservation | FedSAM can be expressed as a local optimizer and does not require new server tensors for plain SAM. | SCAFFOLD/FedAdam protocol variants underperformed or were risky. | Use default-off `--sam_rho`; no new metadata or dependencies. | `client.py`, `job.py`, `mutation_schema.yaml`. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P19 | Optional local SAM with small radius. | Foret20; Qu22 | Code: `--sam_rho`; candidates `0.01` and `0.02` with current best stack. | Improve flatness/generalization after local ERM tuning stalls. | Runtime exceeds cap, crash, or both scores below `0.909900`. | Medium; client-local extra backward. |
+| P20 | Retune weight decay under `server_lr=1.875`. | FedZMG; Reddi21 | CLI-only: current best stack with `weight_decay=3e-4` and `4e-4`. | New server LR may shift regularization optimum. | Both below best. | Low, but more jitter. |
+| P21 | Retune server momentum under `server_lr=1.875`. | Cheng23; Reddi21 | CLI-only: current best stack with `server_momentum=0.30` and `0.40`. | New server LR may shift momentum optimum. | Both below best. | Low, but repeated axis. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P19 | 4 | 4 | 2 | 5 | 5 | 4 | 24 |
+| P20 | 2 | 5 | 5 | 3 | 2 | 2 | 22 |
+| P21 | 2 | 5 | 5 | 3 | 2 | 2 | 22 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P19 | `fedavgm_lr1875_m035_wd35e5_gc_ep5_sam001` | Code variant: optional `--sam_rho`; args `--sam_rho 0.01` with current best stack |
+| 2 | P19 | `fedavgm_lr1875_m035_wd35e5_gc_ep5_sam002` | Same code flag with `--sam_rho 0.02` |
+
+### Reflective Memory
+
+- Keep current best unchanged until a SAM candidate beats `0.909900`.
+- If SAM fails or times out, revert the optional SAM code and return to lower-risk regularization retunes under `server_lr=1.875`.

@@ -91,6 +91,7 @@ The initial campaign should establish which already-available algorithm family i
 - Server learning-rate narrowing improved further: `server_lr=1.875` scored `0.909900`; `1.625` scored `0.907100`.
 - Higher server learning rates regressed: `server_lr=2.0` scored `0.908800`; `2.125` scored `0.908200`.
 - Tight server learning-rate neighbors narrowly missed: `server_lr=1.8125` scored `0.909800`; `1.9375` scored `0.909600`.
+- Sixth literature loop selected a default-off SAM/FedSAM client-local optimizer mutation after server-LR tuning reached a local peak.
 
 ## Literature basis
 
@@ -105,6 +106,7 @@ The initial campaign should establish which already-available algorithm family i
 - Federated domain generalization with label smoothing: Milad Soltany, Farhad Pourpanah, Mahdiyar Molahasani Majdabadi, Michael Greenspan, Ali Etemad. "Federated Domain Generalization with Label Smoothing and Balanced Decentralized Training." arXiv:2412.11408.
 - Label smoothing implementation: PyTorch `torch.nn.CrossEntropyLoss(label_smoothing=...)` documentation.
 - FedZMG: Fotios Zantalis, Evangelos Zervas, Grigorios Koulouras. "FedZMG: Efficient Client-Side Optimization in Federated Learning." arXiv:2602.18384.
+- SAM: Pierre Foret, Ariel Kleiner, Hossein Mobahi, Behnam Neyshabur. "Sharpness-Aware Minimization for Efficiently Improving Generalization." arXiv:2010.01412.
 - FedSAM: Zhe Qu, Xingyu Li, Rui Duan, Yao Liu, Bo Tang, Zhuo Lu. "Generalized Federated Learning via Sharpness Aware Minimization." arXiv:2206.02618.
 - Auto-tuned clients: Junhyung Lyle Kim, Mohammad Taha Toghani, Cesar A. Uribe, Anastasios Kyrillidis. "Adaptive Federated Learning with Auto-Tuned Clients." arXiv:2306.11201.
 - FedCM: Jing Xu, Sen Wang, Liwei Wang, Andrew Chi-Chih Yao. "FedCM: Federated Learning with Client-level Momentum." arXiv:2106.10874.
@@ -126,4 +128,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Two consecutive server-LR batches failed to improve after the `server_lr=1.875` best. Run the literature loop before launching the next source-backed candidates.
+Implement optional local SAM behind `--sam_rho`, then test `--sam_rho 0.01` and `0.02` under the current `server_lr=1.875`, `aggregation_epochs=5` best stack.
