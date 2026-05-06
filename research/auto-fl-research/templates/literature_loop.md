@@ -84,3 +84,60 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: local FedAvgM momentum jitter around `0.2` unless a new mechanism changes the context; FedAvgM+FedProx `mu=1e-3`; safer FedAdam `server_lr=0.1`, `tau=1e-2`; FedLC `tau=0.5` and `1.0`; exact local steps `300` and `400`.
 - Do not retry: FedAdam `server_lr=1.0`, `tau=1e-3`; FedAdam low-LR/tau retry without a new stabilizer; FedProx `1e-5`/`1e-4` with weighted FedAvg; FedProx `1e-3` with current best FedAvgM.
 - Sources to carry forward: source-backed CLI probes did not beat FedAvgM; next exploration should move to the registered architecture calibration path before considering more invasive FedNova-style aggregation.
+
+## Second Literature Loop
+
+### Trigger
+
+- Reason: two batches failed after the new best FedAvgM stack `server_lr=1.5`, `server_momentum=0.4`, `weight_decay=3e-4`, score `0.881400`.
+- Recent symptoms: weight-decay retune and server-LR revisit both regressed; prior FedLC was close but not worth keeping.
+- Candidate width: `PARALLEL_CANDIDATES=2`.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedSAM sharpness aware minimization federated learning non-IID CIFAR-10 arXiv` | Explore flat-minima methods after weight decay helped. | arXiv, Hugging Face Papers | FedSAM-style methods are relevant but more invasive and costly. |
+| `label smoothing federated learning non-IID arXiv` | Find simpler overconfidence regularization compatible with current client loop. | arXiv, MDPI, PyTorch docs | Label smoothing is client-local and supported by `CrossEntropyLoss`. |
+| `federated learning robust aggregation median non-IID CIFAR-10 arXiv` | Consider robust aggregation if client updates are outlier-prone. | arXiv, paper indexes | Existing `median` aggregator is available but evidence is weaker for benign non-IID CIFAR. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Cho26 | FedENLC: An End-to-End Noisy Label Correction Framework in Federated Learning / 2026 | https://www.mdpi.com/2227-7390/14/2/290 | Non-IID plus noisy/biased local labels can overfit and become overconfident. | SCE plus label smoothing | keep |
+| Soltany24 | Federated Domain Generalization with Label Smoothing and Balanced Decentralized Training / 2024 | https://arxiv.org/abs/2412.11408 | Heterogeneous client domains hurt generalization. | Label smoothing plus balanced training | keep |
+| Foret20 | Sharpness-Aware Minimization for Efficiently Improving Generalization / 2020 | https://arxiv.org/abs/2010.01412 | Sharp minima can generalize poorly. | SAM | reserve |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | Non-IID FL benefits from flatness-aware local optimization. | FedSAM | reserve |
+| PyTorch | `torch.nn.CrossEntropyLoss(label_smoothing=...)` | https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html | Implementation support for soft targets without custom loss code. | Client-local loss flag | keep |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Overconfident local classifiers | FedENLC and FedSB use label smoothing to stabilize heterogeneous FL training. | Weight decay helped, suggesting regularization matters; FedLC came close. | Label smoothing is a simpler client-local regularizer than FedLC. | `client.py`, `job.py`. |
+| C2 | Sharp-minima generalization | SAM/FedSAM papers target flatter minima for non-IID FL. | Current best emerged from regularization plus momentum. | Potential next code path if label smoothing fails. | `client.py`, but higher compute. |
+| C3 | Outlier updates | Robust aggregation papers target harmful client updates. | Median has not been audited under the current best client regularization. | CLI-only existing `median` aggregator can be tested later. | `custom_aggregators.py` via `--aggregator median`. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P6 | Add optional label smoothing to local CE loss. | Cho26; Soltany24; PyTorch CE docs | Code: `--label_smoothing`; candidates `0.05`, `0.1` with current best FedAvgM stack. | Reduce local overconfidence and improve generalization. | Both scores below `0.881400`. | Low; client-local, default off. |
+| P7 | FedSAM-style client optimizer. | Foret20; Qu22 | Code: SAM perturbation around local SGD. | Flatter minima under heterogeneity. | Runtime too high or no gain. | Medium-high; extra backward pass. |
+| P8 | Median aggregation audit with best client regularization. | Robust aggregation literature | CLI-only: `--aggregator median --weight_decay 3e-4`. | Reduce effect of outlier client updates. | Score below current best. | Low but weaker evidence. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P6 | 3 | 5 | 5 | 4 | 4 | 2 | 27 |
+| P7 | 4 | 3 | 2 | 4 | 5 | 4 | 23 |
+| P8 | 2 | 5 | 5 | 2 | 3 | 2 | 22 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P6 | `fedavgm_lr15_m04_wd3e4_ls005` | Code variant: optional `--label_smoothing`; args `--server_lr 1.5 --server_momentum 0.4 --weight_decay 3e-4 --label_smoothing 0.05` |
+| 2 | P6 | `fedavgm_lr15_m04_wd3e4_ls010` | Code variant: optional `--label_smoothing`; args `--server_lr 1.5 --server_momentum 0.4 --weight_decay 3e-4 --label_smoothing 0.1` |
