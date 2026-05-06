@@ -63,6 +63,7 @@ The initial campaign should establish which already-available algorithm family i
 - Server momentum neighbor sweep kept another tiny edge: `server_momentum=0.35` scored `0.879200`; `0.25` scored `0.878900`.
 - Higher server momentum found a material improvement: `server_momentum=0.4` scored `0.881400`; `0.45` scored `0.877900`.
 - Momentum neighbors regressed: `server_momentum=0.425` scored `0.874200`; `0.375` scored `0.873300`.
+- Weight decay retune under `server_momentum=0.4` regressed: `4e-4` scored `0.876300`; `2e-4` scored `0.869200`.
 
 ## Literature basis
 
@@ -89,4 +90,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Retune weight decay under the new server momentum best: test `--weight_decay 2e-4` and `4e-4` with `--server_momentum 0.4`.
+Revisit server learning rate under the new server momentum best: test `--server_lr 1.25` and `1.75` with `--server_momentum 0.4` and `--weight_decay 3e-4`.
