@@ -92,6 +92,7 @@ The initial campaign should establish which already-available algorithm family i
 - Higher server learning rates regressed: `server_lr=2.0` scored `0.908800`; `2.125` scored `0.908200`.
 - Tight server learning-rate neighbors narrowly missed: `server_lr=1.8125` scored `0.909800`; `1.9375` scored `0.909600`.
 - Sixth literature loop selected a default-off SAM/FedSAM client-local optimizer mutation after server-LR tuning reached a local peak.
+- Added optional `--sam_rho` for client-local SAM perturb-and-second-gradient steps; default `0.0` preserves prior behavior.
 
 ## Literature basis
 
@@ -124,7 +125,7 @@ The calibration result favors the existing FedAvgM path with the original `moder
 
 ## Rollback risk
 
-Low. The only kept code mutation is optional gradient centralization behind `--gradient_centralization`; default behavior remains unchanged and validation/smoke have passed with the flag present.
+Low to medium. Gradient centralization is kept behind `--gradient_centralization`. The new SAM path is also default-off behind `--sam_rho`, but it adds an extra backward pass when enabled; revert it if the SAM candidates fail or time out.
 
 ## Next mutation
 

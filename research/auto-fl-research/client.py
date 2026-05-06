@@ -92,6 +92,12 @@ def build_parser():
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
     )
+    parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="Sharpness-Aware Minimization perturbation radius. 0 disables SAM.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -195,6 +201,86 @@ def _apply_gradient_centralization(model):
         grad.sub_(grad.mean(dim=dims, keepdim=True))
 
 
+def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
+    outputs = model(inputs)
+    loss = criterion(outputs, labels)
+    if criterion_prox is not None:
+        loss = loss + criterion_prox(model, global_model)
+    return loss
+
+
+def _grad_norm(parameters):
+    grad_norms = [
+        param.grad.norm(p=2)
+        for param in parameters
+        if param.grad is not None
+    ]
+    if not grad_norms:
+        return torch.zeros((), device=DEVICE)
+    return torch.norm(torch.stack(grad_norms), p=2)
+
+
+def _apply_sam_perturbation(model, rho):
+    grad_norm = _grad_norm(model.parameters())
+    if not torch.isfinite(grad_norm):
+        raise ValueError(f"SAM grad norm is NaN or Inf: {grad_norm.item()}")
+    if grad_norm <= 0:
+        return []
+
+    scale = rho / (grad_norm + 1e-12)
+    perturbations = []
+    with torch.no_grad():
+        for param in model.parameters():
+            if param.grad is None:
+                continue
+            perturb = param.grad * scale.to(device=param.device, dtype=param.dtype)
+            param.add_(perturb)
+            perturbations.append((param, perturb))
+    return perturbations
+
+
+def _restore_sam_perturbation(perturbations):
+    with torch.no_grad():
+        for param, perturb in perturbations:
+            param.sub_(perturb)
+
+
+def _optimizer_train_step(
+    model,
+    optimizer,
+    inputs,
+    labels,
+    criterion,
+    criterion_prox,
+    global_model,
+    gradient_centralization,
+    sam_rho,
+):
+    optimizer.zero_grad(set_to_none=True)
+    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    loss.backward()
+    if gradient_centralization:
+        _apply_gradient_centralization(model)
+
+    if sam_rho <= 0:
+        optimizer.step()
+        return loss.item()
+
+    perturbations = _apply_sam_perturbation(model, sam_rho)
+    if not perturbations:
+        optimizer.step()
+        return loss.item()
+
+    optimizer.zero_grad(set_to_none=True)
+    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    sam_loss.backward()
+    if gradient_centralization:
+        _apply_gradient_centralization(model)
+    _restore_sam_perturbation(perturbations)
+    optimizer.step()
+    return loss.item()
+
+
 def _zero_scaffold_controls(model):
     return {
         key: torch.zeros_like(param, device=DEVICE)
@@ -281,6 +367,8 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.sam_rho < 0:
+        raise ValueError("sam_rho must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -416,17 +504,17 @@ def main(args):
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
-                optimizer.zero_grad(set_to_none=True)
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
-
-                if criterion_prox is not None:
-                    loss = loss + criterion_prox(model, global_model)
-
-                loss.backward()
-                if args.gradient_centralization:
-                    _apply_gradient_centralization(model)
-                optimizer.step()
+                loss_value = _optimizer_train_step(
+                    model,
+                    optimizer,
+                    inputs,
+                    labels,
+                    criterion,
+                    criterion_prox,
+                    global_model,
+                    args.gradient_centralization,
+                    args.sam_rho,
+                )
 
                 curr_lr = get_lr_values(optimizer)[0]
                 if args.scaffold:
@@ -437,7 +525,7 @@ def main(args):
                         scaffold_local_controls,
                     )
                     scaffold_steps += 1
-                running_loss += loss.item()
+                running_loss += loss_value
 
                 if scheduler is not None:
                     scheduler.step()
@@ -471,17 +559,17 @@ def main(args):
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
-                    optimizer.zero_grad(set_to_none=True)
-                    outputs = model(inputs)
-                    loss = criterion(outputs, labels)
-
-                    if criterion_prox is not None:
-                        loss = loss + criterion_prox(model, global_model)
-
-                    loss.backward()
-                    if args.gradient_centralization:
-                        _apply_gradient_centralization(model)
-                    optimizer.step()
+                    loss_value = _optimizer_train_step(
+                        model,
+                        optimizer,
+                        inputs,
+                        labels,
+                        criterion,
+                        criterion_prox,
+                        global_model,
+                        args.gradient_centralization,
+                        args.sam_rho,
+                    )
 
                     curr_lr = get_lr_values(optimizer)[0]
                     if args.scaffold:
@@ -492,7 +580,7 @@ def main(args):
                             scaffold_local_controls,
                         )
                         scaffold_steps += 1
-                    running_loss += loss.item()
+                    running_loss += loss_value
 
                 avg_loss = running_loss / train_batches
                 global_epoch = current_round * args.aggregation_epochs + epoch

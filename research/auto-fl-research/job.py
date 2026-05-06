@@ -109,6 +109,12 @@ def define_parser():
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
     )
+    parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="Sharpness-Aware Minimization perturbation radius. 0 disables SAM.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -341,6 +347,8 @@ def main():
         args.momentum,
         "--weight_decay",
         args.weight_decay,
+        "--sam_rho",
+        args.sam_rho,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
