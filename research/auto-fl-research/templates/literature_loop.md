@@ -405,3 +405,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep current best unchanged until a SAM candidate beats `0.909900`.
 - If SAM fails or times out, revert the optional SAM code and return to lower-risk regularization retunes under `server_lr=1.875`.
+- Outcome: SAM/FedSAM underperformed and added runtime cost. `sam_rho=0.01` scored `0.907600` in 830 seconds; `sam_rho=0.02` scored `0.907500` in 832 seconds.
+- Action: reverted the optional SAM code and returned to P20, the lower-risk weight-decay retune under `server_lr=1.875`.

@@ -32,6 +32,12 @@ The initial campaign should establish which already-available algorithm family i
 - FedLC mutation smoke: `PYTHON=.venv/bin/python make smoke`
 - Label-smoothing mutation validation: `PYTHON=.venv/bin/python make validate`
 - Label-smoothing mutation smoke: `PYTHON=.venv/bin/python make smoke`
+- SAM mutation validation: `PYTHON=.venv/bin/python make validate`
+- SAM mutation smoke: `PYTHON=.venv/bin/python make smoke`
+- SAM candidate batch: `--sam_rho 0.01` and `0.02` under the current epoch-5 FedAvgM/GC best stack
+- SAM batch finalization: `scripts/finalize_batch_status.py results.tsv --last 2 --keep-best --discard-others`
+- Post-SAM watchdog: `scripts/plateau_watchdog.py results.tsv`
+- SAM rollback validation: `PYTHON=.venv/bin/python make validate`
 
 ## Observed outcome
 
@@ -92,7 +98,7 @@ The initial campaign should establish which already-available algorithm family i
 - Higher server learning rates regressed: `server_lr=2.0` scored `0.908800`; `2.125` scored `0.908200`.
 - Tight server learning-rate neighbors narrowly missed: `server_lr=1.8125` scored `0.909800`; `1.9375` scored `0.909600`.
 - Sixth literature loop selected a default-off SAM/FedSAM client-local optimizer mutation after server-LR tuning reached a local peak.
-- Added optional `--sam_rho` for client-local SAM perturb-and-second-gradient steps; default `0.0` preserves prior behavior.
+- SAM/FedSAM candidates underperformed and were slower: `sam_rho=0.01` scored `0.907600` in 830 seconds; `sam_rho=0.02` scored `0.907500` in 832 seconds. The optional SAM code path was reverted.
 
 ## Literature basis
 
@@ -114,7 +120,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC, label smoothing, and SAM/FedSAM did not justify keeping new client code paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -125,8 +131,8 @@ The calibration result favors the existing FedAvgM path with the original `moder
 
 ## Rollback risk
 
-Low to medium. Gradient centralization is kept behind `--gradient_centralization`. The new SAM path is also default-off behind `--sam_rho`, but it adds an extra backward pass when enabled; revert it if the SAM candidates fail or time out.
+Low. The only kept code mutation is optional gradient centralization behind `--gradient_centralization`; default behavior remains unchanged and validation/smoke have passed with the flag present. The unsuccessful optional SAM code path has been reverted.
 
 ## Next mutation
 
-Implement optional local SAM behind `--sam_rho`, then test `--sam_rho 0.01` and `0.02` under the current `server_lr=1.875`, `aggregation_epochs=5` best stack.
+Run the sixth-loop reserve weight-decay retune under the current best stack: `weight_decay=3e-4` and `4e-4` with FedAvgM `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, and gradient centralization.
