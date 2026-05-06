@@ -43,8 +43,6 @@ The initial campaign should establish which already-available algorithm family i
 - Sixth-loop reserve server-momentum batch: `server_momentum=0.30` and `0.40` under FedAvgM `server_lr=1.875`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, and gradient centralization
 - FedNova mutation validation: `PYTHON=.venv/bin/python make validate`
 - FedNova mutation smoke: `PYTHON=.venv/bin/python make smoke`
-- FedYogi/FedAdagrad mutation validation: `PYTHON=.venv/bin/python make validate`
-- FedYogi/FedAdagrad mutation smoke: `PYTHON=.venv/bin/python make smoke`
 
 ## Observed outcome
 
@@ -115,7 +113,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova server-momentum neighbors did not improve: `server_momentum=0.40` scored `0.910000`; `0.30` scored `0.909100`.
 - FedNova weight-decay retune did not improve: `weight_decay=4e-4` scored `0.905800`; `3e-4` scored `0.905700`.
 - Exact local-step retuning under FedNova did not improve: `local_train_steps=600` scored `0.910000`; `500` scored `0.906100`.
-- Added optional `--aggregator fedyogi` and `--aggregator fedadagrad` server optimizers for the seventh-loop FedOpt reserve.
+- FedYogi and FedAdagrad conservative adaptive-server probes both crashed in round 1 with NaN client diffs; the optional adaptive-server code was reverted.
 
 ## Literature basis
 
@@ -154,4 +152,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Test conservative FedYogi and FedAdagrad candidates under the current epoch-5 gradient-centralized client stack.
+Start a new literature loop before adding more optimizer code; the seventh-loop reserves are exhausted and the active best remains FedNova `0.910300`.

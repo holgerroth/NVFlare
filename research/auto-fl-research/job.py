@@ -28,12 +28,10 @@ import shlex
 from pathlib import Path
 
 from custom_aggregators import (
-    FedAdagradAggregator,
     FedAdamAggregator,
     FedAvgAggregator,
     FedAvgMAggregator,
     FedNovaAggregator,
-    FedYogiAggregator,
     MedianAggregator,
     ScaffoldAggregator,
     WeightedAggregator,
@@ -141,18 +139,16 @@ def define_parser():
             "weighted",
             "fedavg",
             "fedavgm",
-            "fedadagrad",
             "fedadam",
             "fedopt",
             "fednova",
-            "fedyogi",
             "scaffold",
             "median",
             "default",
         ],
         help=(
             "weighted/fedavg=data-size weighted FedAvg, fedavgm/fedopt=server momentum "
-            "over aggregated DIFFs, fedadam/fedyogi/fedadagrad=adaptive server DIFF optimizers, "
+            "over aggregated DIFFs, fedadam=server Adam over aggregated DIFFs, "
             "fednova=normalized DIFF averaging using NUM_STEPS_CURRENT_ROUND, "
             "scaffold=SCAFFOLD with control-variate meta, median=robust median, "
             "default=built-in FedAvg"
@@ -263,28 +259,6 @@ def get_aggregator(args):
             server_lr=args.server_lr,
             beta1=args.fedopt_beta1,
             beta2=args.fedopt_beta2,
-            tau=args.fedopt_tau,
-        )
-    if kind == "fedyogi":
-        print(
-            "Using FedYogiAggregator "
-            f"(server_lr={args.server_lr}, beta1={args.fedopt_beta1}, "
-            f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau})"
-        )
-        return FedYogiAggregator(
-            server_lr=args.server_lr,
-            beta1=args.fedopt_beta1,
-            beta2=args.fedopt_beta2,
-            tau=args.fedopt_tau,
-        )
-    if kind == "fedadagrad":
-        print(
-            "Using FedAdagradAggregator "
-            f"(server_lr={args.server_lr}, beta1={args.fedopt_beta1}, tau={args.fedopt_tau})"
-        )
-        return FedAdagradAggregator(
-            server_lr=args.server_lr,
-            beta1=args.fedopt_beta1,
             tau=args.fedopt_tau,
         )
     if kind == "fednova":

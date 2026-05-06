@@ -483,3 +483,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: move to P24 exact local-step retuning under the kept FedNova stack.
 - Outcome: exact local-step retuning did not improve. `local_train_steps=600` scored `0.910000`; `local_train_steps=500` scored `0.906100`.
 - Action: move to P23, the FedYogi/FedAdagrad adaptive-server reserve.
+- Outcome: P23 crashed. FedYogi and FedAdagrad both produced NaN client diffs in round 1 at conservative `server_lr=0.1`, `beta1=0.0`, `tau=1e-2`.
+- Action: reverted the optional adaptive-server code and keep the FedNova `0.910300` stack as the active best before a new literature loop.
