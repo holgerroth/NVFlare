@@ -80,6 +80,7 @@ The initial campaign should establish which already-available algorithm family i
 - Extra weight-decay neighbors regressed: `3.25e-4` scored `0.899600`; `3.75e-4` scored `0.899800`.
 - Server-momentum retune improved the best stack: `server_momentum=0.35` scored `0.904600`; `0.45` scored `0.902600`.
 - Server-momentum neighbors under the new best regressed: `0.30` and `0.375` both scored `0.899700`.
+- Weight-decay retune under `server_momentum=0.35` also regressed: `3e-4` scored `0.900800`; `4e-4` scored `0.900900`.
 
 ## Literature basis
 
@@ -112,4 +113,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Retune weight decay under the new `server_momentum=0.35` best stack: test `--weight_decay 3e-4` and `4e-4` with gradient centralization.
+Two consecutive same-budget batches failed to improve after the `server_momentum=0.35` best. Run the literature loop before launching the next source-backed candidates.
