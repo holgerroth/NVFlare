@@ -549,3 +549,64 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If clipping fails, revert the optional clipping code unless a follow-up clipped FedNova candidate is explicitly justified by the observed scores.
 - Outcome: clipping tied but did not improve. Factors `1.5` and `2.0` both scored `0.910300`, equal to the unclipped FedNova best.
 - Action: reverted the optional clipping code because it added server logic without a score gain.
+
+## Ninth Literature Loop
+
+### Trigger
+
+- Reason: clipped FedNova tied but did not improve, and adding more server code has repeatedly failed or tied.
+- Current best: unclipped FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, client `lr=0.05`, `--gradient_centralization`.
+- Recent symptoms: server-side mechanisms around FedNova are flat; adaptive server optimizers are unstable.
+- Candidate width: `PARALLEL_CANDIDATES=2`; prefer CLI-only probes before new code.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `Adaptive Federated Learning with Auto-Tuned Clients arXiv 2306.11201 client learning rate federated learning` | Revisit client step-size sensitivity under the new FedNova aggregator. | ICLR proceedings, arXiv mirrors | Client-side step size is a central tuning challenge in FL. |
+| `federated learning client learning rate tuning non-IID CIFAR FedAvgM arXiv` | Check whether local LR remains an accepted low-risk axis. | paper indexes | Prior client LR probes were before FedNova and may not transfer. |
+| `federated learning cosine learning rate local optimizer tuning non-IID CIFAR arXiv` | Compare scheduler/client step-size mechanisms. | paper indexes | Scheduler toggles underperformed earlier, so use direct LR retune first. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Kim24 | Adaptive Federated Learning with Auto-Tuned Clients / ICLR 2024 | https://proceedings.iclr.cc/paper_files/paper/2024/hash/d850b7e0cdc7f1c0820c6ad85405ae94-Abstract-Conference.html | Client-side hyperparameter tuning is difficult in heterogeneous FL. | Client LR adaptation / Delta-SGD | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Local SGD step size and local work control FedAvg behavior. | FedAvg local SGD | context |
+| FedZMG26 | FedZMG / 2026 | https://arxiv.org/abs/2602.18384 | Client-side gradient geometry matters under non-IID data. | Gradient centralization | already kept |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | FedNova may shift the client LR optimum | Kim24 emphasizes client-side step-size tuning under FL heterogeneity. | Prior client LR probes were under FedAvgM `server_lr=1.5`, not FedNova. | CLI-only `--lr`; no code or protocol change. | `client.py` args. |
+| C2 | Scheduler changes were too coarse | Earlier scheduler toggles regressed. | Current best uses default cosine schedule with `lr=0.05`. | Narrow LR probes preserve scheduler shape. | `client.py`. |
+| C3 | Avoid more brittle server code | Adaptive server optimizers crashed; clipping tied. | Best server mechanism is now FedNova. | Use client LR before new mechanisms. | CLI-only. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P28 | Narrow client LR retune under FedNova. | Kim24; McMahan17 | CLI-only: `--lr 0.045` and `0.055` with current FedNova best. | New aggregator may prefer slightly different local SGD step size. | Both below `0.910300`. | Low. |
+| P29 | Broader client LR retune. | Kim24 | CLI-only: `--lr 0.04` and `0.06`. | Catch a larger shift. | Prior similar values regressed under FedAvgM. | Low, but repeated. |
+| P30 | Implement adaptive client LR. | Kim24 | Code: Delta-SGD-like per-client rule. | Reduce manual tuning. | More code and per-client instability. | Medium-high; reserve. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P28 | 3 | 5 | 5 | 4 | 3 | 2 | 23 |
+| P29 | 2 | 5 | 5 | 3 | 2 | 2 | 20 |
+| P30 | 4 | 4 | 2 | 4 | 4 | 3 | 21 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P28 | `fednova_lr1875_m035_wd35e5_gc_ep5_lr0045` | CLI-only: `--lr 0.045` with current FedNova best stack |
+| 2 | P28 | `fednova_lr1875_m035_wd35e5_gc_ep5_lr0055` | CLI-only: `--lr 0.055` with current FedNova best stack |
+
+### Reflective Memory
+
+- Keep FedNova `lr=0.05` unless a client-LR probe beats `0.910300`.
+- If both narrow LR probes fail, either broaden once (`0.04/0.06`) or start a new literature loop before implementing adaptive client LR.

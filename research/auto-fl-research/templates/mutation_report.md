@@ -116,6 +116,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedYogi and FedAdagrad conservative adaptive-server probes both crashed in round 1 with NaN client diffs; the optional adaptive-server code was reverted.
 - Eighth literature loop selected default-off FedNova median-norm update clipping as the next source-backed server-side mutation.
 - FedNova median-norm clipping tied but did not improve: factors `1.5` and `2.0` both scored `0.910300`; the optional clipping code was reverted.
+- Ninth literature loop selected a CLI-only client learning-rate retune under the kept FedNova stack.
 
 ## Literature basis
 
@@ -155,4 +156,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start another literature loop before more code; the active best remains unclipped FedNova `0.910300`.
+Run a narrow FedNova client learning-rate retune: `--lr 0.045` and `0.055` under the current best stack.
