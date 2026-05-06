@@ -675,3 +675,62 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both registered variants underperform, return to literature before adding a new architecture variant.
 - Outcome: both registered variants underperformed under FedNova. `moderate_cnn_small_head` scored `0.909200`; `moderate_cnn_norm` scored `0.905300`.
 - Action: keep `moderate_cnn` for the active FedNova stack and return to literature before any new architecture code.
+
+## Eleventh Literature Loop
+
+### Trigger
+
+- Reason: registered architecture variants underperformed and the active FedNova stack is still on the inherited client momentum `0.9`.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, client `lr=0.05`, client momentum `0.9`, `--gradient_centralization`.
+- Recent symptoms: client LR retune regressed, but client momentum has not been narrowly retuned under FedNova.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use CLI-only retune.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `Momentum Benefits Non-IID Federated Learning Simply and Provably arXiv 2306.16504` | Check theoretical support for local momentum under non-IID FL. | arXiv mirrors, paper indexes | Momentum can help FedAvg/SCAFFOLD convergence under heterogeneity. |
+| `FedCM Federated Learning with Client-level Momentum arXiv 2106.10874` | Check FL-specific client momentum mechanisms. | arXiv/paper indexes | FedCM modifies clients with momentum-like correction; reserve code path. |
+| `federated learning client momentum local SGD non-IID CIFAR arXiv` | Validate client momentum as an accepted optimizer axis. | paper indexes | Supports narrow CLI retune before new client-momentum code. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Cheng23 | Momentum Benefits Non-IID Federated Learning Simply and Provably / 2023 | https://arxiv.org/abs/2306.16504 | Non-IID FL convergence can benefit from momentum. | Momentum | keep |
+| Xu21 | FedCM: Federated Learning with Client-level Momentum / 2021 | https://arxiv.org/abs/2106.10874 | Client heterogeneity and drift can be addressed with client-level momentum. | Client momentum correction | reserve |
+| FedZMG26 | FedZMG / 2026 | https://arxiv.org/abs/2602.18384 | Client-side optimization geometry matters. | Gradient centralization | already kept |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Momentum under new server dynamics | Cheng23 supports momentum in non-IID FL. | FedNova changed server aggregation, but client momentum remains inherited. | CLI-only `--momentum`; no protocol change. | `client.py` args. |
+| C2 | Avoid broad unstable momentum values | Prior `0.8` and `0.95` under old stack regressed. | Need narrow probes around `0.9`. | Test `0.875` and `0.925`. | Low risk. |
+| C3 | FedCM is more invasive | Xu21 uses momentum-like correction involving prior global information. | Adaptive server code just crashed. | Keep FedCM as reserve, not first move. | Higher code risk. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P34 | Narrow client momentum retune under FedNova. | Cheng23; Xu21 | CLI-only: `--momentum 0.875` and `0.925`. | Tune local SGD inertia for FedNova normalized aggregation. | Both below `0.910300`. | Low. |
+| P35 | FedCM-style client momentum correction. | Xu21 | Code: add client correction term. | Correct drift with historical global direction. | Complexity or instability. | Medium-high. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P34 | 2 | 5 | 5 | 4 | 2 | 2 | 21 |
+| P35 | 3 | 3 | 2 | 4 | 4 | 3 | 18 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P34 | `fednova_lr1875_m035_wd35e5_gc_ep5_m0875` | CLI-only: `--momentum 0.875` with current FedNova best stack |
+| 2 | P34 | `fednova_lr1875_m035_wd35e5_gc_ep5_m0925` | CLI-only: `--momentum 0.925` with current FedNova best stack |
+
+### Reflective Memory
+
+- Keep client momentum `0.9` unless a narrow retune beats `0.910300`.
+- If both fail, start a new literature loop before FedCM-style code.
