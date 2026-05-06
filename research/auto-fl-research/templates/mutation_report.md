@@ -90,6 +90,7 @@ The initial campaign should establish which already-available algorithm family i
 - Server learning-rate reserve improved the best: `server_lr=1.75` scored `0.907300`; `1.25` scored `0.898900`.
 - Server learning-rate narrowing improved further: `server_lr=1.875` scored `0.909900`; `1.625` scored `0.907100`.
 - Higher server learning rates regressed: `server_lr=2.0` scored `0.908800`; `2.125` scored `0.908200`.
+- Tight server learning-rate neighbors narrowly missed: `server_lr=1.8125` scored `0.909800`; `1.9375` scored `0.909600`.
 
 ## Literature basis
 
@@ -125,4 +126,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Tighten around the `server_lr=1.875` peak: test `--server_lr 1.8125` and `1.9375` with `server_momentum=0.35`, `weight_decay=3.5e-4`, `aggregation_epochs=5`, and gradient centralization.
+Two consecutive server-LR batches failed to improve after the `server_lr=1.875` best. Run the literature loop before launching the next source-backed candidates.

@@ -342,3 +342,4 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Outcome: server LR `1.75` improved to `0.907300`; `1.25` regressed to `0.898900`. Continue with a narrow server-LR sweep before trying SAM code.
 - Outcome: server LR `1.875` improved further to `0.909900`; `1.625` scored `0.907100`. Continue upward carefully while keeping FedAdam crash history in mind.
 - Follow-up: server LR `2.0` scored `0.908800`; `2.125` scored `0.908200`. Treat `1.875` as a local peak and tighten on both sides.
+- Follow-up: server LR `1.8125` scored `0.909800`; `1.9375` scored `0.909600`. Keep `1.875` and move to a new source-backed mechanism.
