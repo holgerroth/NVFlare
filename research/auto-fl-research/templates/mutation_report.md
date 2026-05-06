@@ -69,6 +69,7 @@ The initial campaign should establish which already-available algorithm family i
 - Server learning-rate revisit under `server_momentum=0.4` also regressed: `server_lr=1.75` scored `0.879400`; `1.25` scored `0.873600`.
 - Second literature loop selected client-local label smoothing as the next low-risk source-backed mutation before heavier SAM-style optimizer changes.
 - Added optional `--label_smoothing` forwarding to PyTorch `CrossEntropyLoss`; default `0.0` preserves the previous loss.
+- Label smoothing did not improve: `0.05` scored `0.881200`; `0.1` scored `0.879900`. The optional label-smoothing code path was reverted.
 
 ## Literature basis
 
@@ -89,7 +90,6 @@ The calibration result favors the existing FedAvgM path with the original `moder
 ## Contract check
 
 - No FL protocol fields were changed.
-- Label smoothing is client-local loss regularization only; it does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
@@ -99,4 +99,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Test `--label_smoothing 0.05` and `0.1` on the current best FedAvgM stack.
+Next source-backed low-risk probes: audit `--aggregator scaffold` and `--aggregator median` with `--weight_decay 3e-4` under the fixed budget.
