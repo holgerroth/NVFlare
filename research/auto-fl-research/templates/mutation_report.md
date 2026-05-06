@@ -64,6 +64,7 @@ The initial campaign should establish which already-available algorithm family i
 - Higher server momentum found a material improvement: `server_momentum=0.4` scored `0.881400`; `0.45` scored `0.877900`.
 - Momentum neighbors regressed: `server_momentum=0.425` scored `0.874200`; `0.375` scored `0.873300`.
 - Weight decay retune under `server_momentum=0.4` regressed: `4e-4` scored `0.876300`; `2e-4` scored `0.869200`.
+- Server learning-rate revisit under `server_momentum=0.4` also regressed: `server_lr=1.75` scored `0.879400`; `1.25` scored `0.873600`.
 
 ## Literature basis
 
@@ -90,4 +91,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Revisit server learning rate under the new server momentum best: test `--server_lr 1.25` and `1.75` with `--server_momentum 0.4` and `--weight_decay 3e-4`.
+Run a second literature loop before more local jitter; the current best is FedAvgM `server_lr=1.5`, `server_momentum=0.4`, `weight_decay=3e-4`, score `0.881400`.
