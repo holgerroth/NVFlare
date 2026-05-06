@@ -83,6 +83,7 @@ The initial campaign should establish which already-available algorithm family i
 - Weight-decay retune under `server_momentum=0.35` also regressed: `3e-4` scored `0.900800`; `4e-4` scored `0.900900`.
 - Fourth literature loop selected an epoch-based local-compute sweep before more optimizer jitter or SAM-style code.
 - Literature-selected local compute improved the best: `aggregation_epochs=5` scored `0.906500`; `3` scored `0.895500`.
+- Upward local-compute narrowing did not improve: `aggregation_epochs=6` scored `0.904600`; `7` scored `0.906300`.
 
 ## Literature basis
 
@@ -118,4 +119,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Narrow the local-compute sweep upward: test `--aggregation_epochs 6` and `7` under the gradient-centralized FedAvgM `server_momentum=0.35`, `weight_decay=3.5e-4` best stack.
+Retune server momentum under the `aggregation_epochs=5` best stack: test `--server_momentum 0.30` and `0.40` with `weight_decay=3.5e-4` and gradient centralization.
