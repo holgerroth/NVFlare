@@ -84,6 +84,7 @@ The initial campaign should establish which already-available algorithm family i
 - Fourth literature loop selected an epoch-based local-compute sweep before more optimizer jitter or SAM-style code.
 - Literature-selected local compute improved the best: `aggregation_epochs=5` scored `0.906500`; `3` scored `0.895500`.
 - Upward local-compute narrowing did not improve: `aggregation_epochs=6` scored `0.904600`; `7` scored `0.906300`.
+- Epoch-5 server-momentum retune did not improve: `server_momentum=0.40` scored `0.905600`; `0.30` scored `0.904700`.
 
 ## Literature basis
 
@@ -119,4 +120,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Retune server momentum under the `aggregation_epochs=5` best stack: test `--server_momentum 0.30` and `0.40` with `weight_decay=3.5e-4` and gradient centralization.
+Two consecutive post-epoch-5 batches failed to improve. Run the literature loop before launching the next source-backed candidates.

@@ -274,3 +274,4 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Reserve next: if epoch sweep fails, try source-backed `server_lr` retune under the GC best, then narrower client LR; keep SAM as the higher-cost code mutation.
 - Outcome: `aggregation_epochs=5` beat the previous best with `0.906500`; `aggregation_epochs=3` regressed to `0.895500`. Continue local-compute narrowing upward while staying within `RUN_TIMEOUT_SECONDS=1200`.
 - Follow-up: `aggregation_epochs=6` scored `0.904600`; `7` scored `0.906300`. Treat `5` as the current local-compute peak and retune optimizer knobs in that context.
+- Follow-up: epoch-5 server momentum `0.40` scored `0.905600`; `0.30` scored `0.904700`. Keep `server_momentum=0.35` unless a new source-backed mechanism changes context.
