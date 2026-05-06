@@ -89,6 +89,7 @@ The initial campaign should establish which already-available algorithm family i
 - Client learning-rate probes under the epoch-5 best regressed: `lr=0.06` scored `0.901400`; `0.04` scored `0.900600`.
 - Server learning-rate reserve improved the best: `server_lr=1.75` scored `0.907300`; `1.25` scored `0.898900`.
 - Server learning-rate narrowing improved further: `server_lr=1.875` scored `0.909900`; `1.625` scored `0.907100`.
+- Higher server learning rates regressed: `server_lr=2.0` scored `0.908800`; `2.125` scored `0.908200`.
 
 ## Literature basis
 
@@ -124,4 +125,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Continue narrowing server learning rate upward: test `--server_lr 2.0` and `2.125` with `server_momentum=0.35`, `weight_decay=3.5e-4`, `aggregation_epochs=5`, and gradient centralization.
+Tighten around the `server_lr=1.875` peak: test `--server_lr 1.8125` and `1.9375` with `server_momentum=0.35`, `weight_decay=3.5e-4`, `aggregation_epochs=5`, and gradient centralization.
