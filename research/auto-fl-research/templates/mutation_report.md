@@ -52,6 +52,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedLC `tau=1.0` scored `0.864000`; FedLC `tau=0.5` scored `0.863600`. Both were below the current best, so the optional FedLC code path was reverted rather than kept.
 - Exact `local_train_steps=400` scored `0.857600`; `local_train_steps=300` scored `0.847500`. Both were discarded.
 - Architecture subcampaign rows also underperformed: `moderate_cnn_small_head` scored `0.860900`; `moderate_cnn_norm` scored `0.835400`.
+- Client learning-rate sweep underperformed: `--lr 0.03` scored `0.862700`; `--lr 0.07` scored `0.850200`.
 
 ## Literature basis
 
@@ -78,4 +79,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Return to the original architecture and run a client learning-rate sweep around the current best FedAvgM stack: `--lr 0.03` and `0.07` with all fixed budget fields unchanged.
+Run a small client weight-decay sweep around the current best FedAvgM stack: `--weight_decay 1e-4` and `5e-4` with all fixed budget fields unchanged.
