@@ -167,6 +167,12 @@ def define_parser():
         help="Server momentum for fedavgm/fedopt aggregators.",
     )
     parser.add_argument(
+        "--server_clip_norm_factor",
+        type=float,
+        default=0.0,
+        help="For FedNova only, clip each client DIFF to factor * median round update norm. 0 disables.",
+    )
+    parser.add_argument(
         "--fedopt_beta1",
         type=float,
         default=0.9,
@@ -262,10 +268,15 @@ def get_aggregator(args):
             tau=args.fedopt_tau,
         )
     if kind == "fednova":
-        print("Using FedNovaAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
+        print(
+            "Using FedNovaAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
+            f"clip_norm_factor={args.server_clip_norm_factor})"
+        )
         return FedNovaAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
+            clip_norm_factor=args.server_clip_norm_factor,
         )
     if kind == "scaffold":
         print("Using ScaffoldAggregator")
