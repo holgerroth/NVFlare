@@ -30,6 +30,8 @@ The initial campaign should establish which already-available algorithm family i
 - FedAvgM close-neighbor momentum sweep at fixed `server_lr=1.5`: `server_momentum` in `{0.15, 0.25}`
 - FedLC mutation validation: `PYTHON=.venv/bin/python make validate`
 - FedLC mutation smoke: `PYTHON=.venv/bin/python make smoke`
+- Label-smoothing mutation validation: `PYTHON=.venv/bin/python make validate`
+- Label-smoothing mutation smoke: `PYTHON=.venv/bin/python make smoke`
 
 ## Observed outcome
 
@@ -66,6 +68,7 @@ The initial campaign should establish which already-available algorithm family i
 - Weight decay retune under `server_momentum=0.4` regressed: `4e-4` scored `0.876300`; `2e-4` scored `0.869200`.
 - Server learning-rate revisit under `server_momentum=0.4` also regressed: `server_lr=1.75` scored `0.879400`; `1.25` scored `0.873600`.
 - Second literature loop selected client-local label smoothing as the next low-risk source-backed mutation before heavier SAM-style optimizer changes.
+- Added optional `--label_smoothing` forwarding to PyTorch `CrossEntropyLoss`; default `0.0` preserves the previous loss.
 
 ## Literature basis
 
@@ -86,6 +89,7 @@ The calibration result favors the existing FedAvgM path with the original `moder
 ## Contract check
 
 - No FL protocol fields were changed.
+- Label smoothing is client-local loss regularization only; it does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
@@ -95,4 +99,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Add an optional `--label_smoothing` client loss flag, then test `0.05` and `0.1` on the current best FedAvgM stack.
+Test `--label_smoothing 0.05` and `0.1` on the current best FedAvgM stack.

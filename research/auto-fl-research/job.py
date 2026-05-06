@@ -124,6 +124,12 @@ def define_parser():
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="Cross-entropy label smoothing in [0, 1). 0 disables smoothing.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -340,6 +346,8 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--label_smoothing",
+        args.label_smoothing,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
