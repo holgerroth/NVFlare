@@ -485,3 +485,65 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: move to P23, the FedYogi/FedAdagrad adaptive-server reserve.
 - Outcome: P23 crashed. FedYogi and FedAdagrad both produced NaN client diffs in round 1 at conservative `server_lr=0.1`, `beta1=0.0`, `tau=1e-2`.
 - Action: reverted the optional adaptive-server code and keep the FedNova `0.910300` stack as the active best before a new literature loop.
+
+## Eighth Literature Loop
+
+### Trigger
+
+- Reason: seventh-loop reserves are exhausted; FedNova remains best at `0.910300`, while FedYogi/FedAdagrad crashed with NaN client diffs.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`.
+- Recent symptoms: FedNova tuning is near-flat and adaptive optimizers are unstable, suggesting a softer server-side stabilization mechanism.
+- Candidate width: `PARALLEL_CANDIDATES=2`; prefer default-off server-only changes.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning adaptive clipping client updates server aggregation non-IID CIFAR arXiv` | Look for update-scale stabilization that does not change client training. | OpenReview, NeurIPS, arXiv indexes | Adaptive clipping tracks update norm quantiles and avoids fixed-threshold guessing. |
+| `robust federated aggregation norm clipping client updates non-IID image classification arXiv` | Check whether clipping is used outside privacy-only settings for robust aggregation. | arXiv/paper indexes | Robust FL papers often clip entire update vectors by L2 norm before aggregation. |
+| `federated learning clipped averaging client updates robust aggregation non-IID` | Find lower-risk alternatives to median aggregation after median failed. | paper indexes | Clipping is less destructive than coordinate-wise median and keeps weighted averaging. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Andrew21 | Differentially Private Learning with Adaptive Clipping / 2021 | https://openreview.net/forum?id=RUQ1zwZR8_ | Update norm scale depends on architecture, data, LR, and training stage; fixed clipping can be hard to tune. | Adaptive median/quantile clipping | keep |
+| McMahan18 | Learning Differentially Private Recurrent Language Models / 2018 | https://arxiv.org/abs/1710.06963 | User-level updates can be large; clipping bounds contribution before averaging/noising. | Update clipping | context |
+| Wang20 | FedNova / 2020 | https://arxiv.org/abs/2007.07481 | Local update normalization helps objective mismatch. | FedNova | already kept |
+| robust-clipping papers | Robust FL norm clipping variants / 2020-2026 | mixed | Norm clipping can limit amplified or outlier updates. | robust aggregation | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Client update scale heterogeneity | Andrew21 notes update norm distributions depend on model, data, LR, and other settings. | FedNova improved normalization but neighboring hyperparameters are near-flat. | Server can observe full DIFFs and compute per-client norms without new metadata. | `custom_aggregators.py`, `job.py`. |
+| C2 | Robustness without replacing FedNova | Robust clipping scales entire update vectors rather than using coordinate-wise median. | Median aggregation scored `0.747000`; FedNova averaging is strong. | Clip before FedNova normalized averaging to keep the successful mechanism. | `custom_aggregators.py`. |
+| C3 | Threshold selection risk | Andrew21 motivates adaptive quantile clipping because fixed norms are hard to choose. | No current norm telemetry in logs. | Use per-round median update norm times a factor; candidates `1.5` and `2.0`. | Server-only default-off flag. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P25 | FedNova with median-norm update clipping. | Andrew21; Wang20 | Code: `--server_clip_norm_factor`; clip each raw client DIFF to `factor * median(norms)` before FedNova normalization. Candidates `1.5` and `2.0`. | Damp outlier client updates while preserving FedNova. | Both below `0.910300`, crash, or runtime penalty. | Medium-low; server-only and default off. |
+| P26 | Fixed norm clipping. | McMahan18; robust FL clipping papers | Code: explicit norm threshold. | Similar outlier damping. | Threshold tuning blind without norm telemetry. | Medium; more brittle. |
+| P27 | Drift-correction objective. | Jiang24/FedRed | Code: new local objective. | Reduce client drift directly. | Protocol/local objective complexity. | Higher; defer. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P25 | 3 | 5 | 4 | 4 | 4 | 2 | 22 |
+| P26 | 2 | 5 | 3 | 3 | 3 | 2 | 18 |
+| P27 | 3 | 3 | 2 | 3 | 4 | 3 | 17 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P25 | `fednova_lr1875_m035_wd35e5_gc_clip15_ep5` | Code variant: `--server_clip_norm_factor 1.5` with the current FedNova best stack |
+| 2 | P25 | `fednova_lr1875_m035_wd35e5_gc_clip20_ep5` | Same code variant with `--server_clip_norm_factor 2.0` |
+
+### Reflective Memory
+
+- Keep the current FedNova best unchanged until clipped FedNova beats `0.910300`.
+- If clipping fails, revert the optional clipping code unless a follow-up clipped FedNova candidate is explicitly justified by the observed scores.

@@ -114,6 +114,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova weight-decay retune did not improve: `weight_decay=4e-4` scored `0.905800`; `3e-4` scored `0.905700`.
 - Exact local-step retuning under FedNova did not improve: `local_train_steps=600` scored `0.910000`; `500` scored `0.906100`.
 - FedYogi and FedAdagrad conservative adaptive-server probes both crashed in round 1 with NaN client diffs; the optional adaptive-server code was reverted.
+- Eighth literature loop selected default-off FedNova median-norm update clipping as the next source-backed server-side mutation.
 
 ## Literature basis
 
@@ -124,6 +125,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedLC: Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. "Federated Learning with Label Distribution Skew via Logits Calibration." ICML 2022; arXiv:2209.00189.
 - FedNova: Jianyu Wang, Qinghua Liu, Hao Liang, Gauri Joshi, H. Vincent Poor. "Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization." NeurIPS 2020; arXiv:2007.07481.
 - FedRed / DANE drift correction: Xiaowen Jiang, Anton Rodomanov, Sebastian U. Stich. "Federated Optimization with Doubly Regularized Drift Correction." arXiv:2404.08447.
+- Adaptive clipping: Galen Andrew, Om Thakkar, Brendan McMahan, Swaroop Ramaswamy. "Differentially Private Learning with Adaptive Clipping." NeurIPS 2021.
 - Momentum analysis: Ziheng Cheng, Xinmeng Huang, Pengfei Wu, Kun Yuan. "Momentum Benefits Non-IID Federated Learning Simply and Provably." arXiv:2306.16504.
 - Label smoothing in FL: Yeji Cho, Junghyun Kim. "FedENLC: An End-to-End Noisy Label Correction Framework in Federated Learning." Mathematics 2026; doi:10.3390/math14020290.
 - Federated domain generalization with label smoothing: Milad Soltany, Farhad Pourpanah, Mahdiyar Molahasani Majdabadi, Michael Greenspan, Ali Etemad. "Federated Domain Generalization with Label Smoothing and Balanced Decentralized Training." arXiv:2412.11408.
@@ -152,4 +154,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a new literature loop before adding more optimizer code; the seventh-loop reserves are exhausted and the active best remains FedNova `0.910300`.
+Implement default-off FedNova median-norm update clipping behind `--server_clip_norm_factor`, then test clip factors `1.5` and `2.0` under the current FedNova best stack.
