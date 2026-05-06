@@ -56,6 +56,7 @@ The initial campaign should establish which already-available algorithm family i
 - Weight decay improved the current best: `--weight_decay 5e-4` scored `0.873900`; `1e-4` scored `0.867300`.
 - Narrowed weight decay improved again: `--weight_decay 3e-4` scored `0.878900`; `7e-4` scored `0.874100`.
 - Weight-decay neighbors did not improve: `4e-4` scored `0.875400`; `2e-4` scored `0.867200`.
+- Scheduler floor sweep did not help: `cosine_lr_eta_min_factor=0.03` scored `0.866200`; `0.001` crashed after an NVFlare simulator child-process timeout.
 
 ## Literature basis
 
@@ -82,4 +83,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Sweep the cosine scheduler floor around the current best stack: `--cosine_lr_eta_min_factor 0.001` and `0.03`, keeping `weight_decay=3e-4`.
+Sweep client SGD momentum around the current best stack: `--momentum 0.8` and `0.95`, keeping `weight_decay=3e-4`.
