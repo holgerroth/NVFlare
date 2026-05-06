@@ -103,12 +103,6 @@ def build_parser():
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
     parser.add_argument(
-        "--fedlc_tau",
-        type=float,
-        default=0.0,
-        help="FedLC logit-calibration strength. 0 disables calibrated cross-entropy.",
-    )
-    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -185,30 +179,6 @@ def _create_seeded_data_loaders(
         generator=_make_generator(seed + 1),
     )
     return train_loader, valid_loader
-
-
-def _dataset_targets(dataset):
-    targets = getattr(dataset, "targets", None)
-    if targets is not None:
-        return torch.as_tensor(targets, dtype=torch.long)
-
-    labels = []
-    for _, label in dataset:
-        labels.append(int(label))
-    return torch.as_tensor(labels, dtype=torch.long)
-
-
-def _build_fedlc_margin(dataset, num_classes, tau):
-    targets = _dataset_targets(dataset)
-    counts = torch.bincount(targets, minlength=num_classes).float()
-    margin = tau * counts.clamp_min(1.0).pow(-0.25)
-    return margin, counts
-
-
-def _classification_loss(criterion, outputs, labels, fedlc_margin):
-    if fedlc_margin is not None:
-        outputs = outputs - fedlc_margin.to(device=outputs.device, dtype=outputs.dtype)
-    return criterion(outputs, labels)
 
 
 def _zero_scaffold_controls(model):
@@ -297,8 +267,6 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
-    if args.fedlc_tau < 0.0:
-        raise ValueError("fedlc_tau must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -342,18 +310,6 @@ def main(args):
         num_workers=args.num_workers,
         seed=site_seed,
     )
-    fedlc_margin = None
-    if args.fedlc_tau > 0.0:
-        fedlc_margin, fedlc_counts = _build_fedlc_margin(
-            train_dataset,
-            num_classes=10,
-            tau=args.fedlc_tau,
-        )
-        fedlc_margin = fedlc_margin.to(DEVICE)
-        print(
-            f"{site_name}: FedLC enabled tau={args.fedlc_tau} "
-            f"class_counts={fedlc_counts.to(dtype=torch.long).tolist()}"
-        )
 
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
@@ -448,7 +404,7 @@ def main(args):
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
-                loss = _classification_loss(criterion, outputs, labels, fedlc_margin)
+                loss = criterion(outputs, labels)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -501,7 +457,7 @@ def main(args):
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
-                    loss = _classification_loss(criterion, outputs, labels, fedlc_margin)
+                    loss = criterion(outputs, labels)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)

@@ -49,7 +49,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedAvgM `server_lr=1.5, momentum=0.15` scored `0.863400`; `momentum=0.25` scored `0.862200`. Both were discarded.
 - Literature loop was triggered after two consecutive non-improving same-budget batches. The next selected candidates are FedAvgM+FedProx `mu=1e-3` and a safer FedAdam retry with lower server learning rate and larger `tau`.
 - FedAvgM+FedProx `mu=1e-3` scored `0.860100`; safer FedAdam `server_lr=0.1, tau=1e-2` scored `0.744300`. Both were discarded.
-- Added optional FedLC-style logit calibration with `--fedlc_tau`; default `0.0` preserves existing cross-entropy behavior.
+- FedLC `tau=1.0` scored `0.864000`; FedLC `tau=0.5` scored `0.863600`. Both were below the current best, so the optional FedLC code path was reverted rather than kept.
 
 ## Literature basis
 
@@ -62,12 +62,11 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path. The first LR sweep suggests the best region is below `server_lr=2.0` at fixed `server_momentum=0.4`, and the first momentum probe improved further by lowering momentum to `0.2`. Two consecutive same-budget momentum batches failed to improve after that point, so local jitter should pause for the literature loop. FedAdam is currently unsafe at the tested server learning rate because it produced NaN model diffs. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path. The first LR sweep suggests the best region is below `server_lr=2.0` at fixed `server_momentum=0.4`, and the first momentum probe improved further by lowering momentum to `0.2`. Two consecutive same-budget momentum batches failed to improve after that point, and the first literature candidates did not improve. FedLC came close but did not justify a new client loss path. FedAdam is currently unsafe or ineffective at tested settings. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
 - No FL protocol fields were changed.
-- FedLC is client-local loss calibration only; it does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
@@ -77,4 +76,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Test FedLC with the current best FedAvgM settings at `--fedlc_tau 0.5` and `1.0`, using `PARALLEL_CANDIDATES=2`, unique `PYTHONPYCACHEPREFIX` values, and the same fixed H100 budget.
+Use Wang20/FedNova's objective-inconsistency motivation for a low-risk exact-local-step sweep: test current-best FedAvgM with `--local_train_steps 300` and `400`, keeping `--num_rounds 20` fixed and using `PARALLEL_CANDIDATES=2`.

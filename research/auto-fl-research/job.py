@@ -124,12 +124,6 @@ def define_parser():
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
-    parser.add_argument(
-        "--fedlc_tau",
-        type=float,
-        default=0.0,
-        help="FedLC logit-calibration strength. 0 disables calibrated cross-entropy.",
-    )
 
     parser.add_argument(
         "--aggregator",
@@ -346,8 +340,6 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
-        "--fedlc_tau",
-        args.fedlc_tau,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

@@ -74,13 +74,13 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 | slot | proposal | candidate name | args / code variant |
 | --- | --- | --- | --- |
-| 1 | P3 | `fedavgm_lr15_m02_fedlc05` | Code variant: optional `--fedlc_tau`; args `--aggregator fedavgm --server_lr 1.5 --server_momentum 0.2 --fedlc_tau 0.5` |
-| 2 | P3 | `fedavgm_lr15_m02_fedlc10` | Code variant: optional `--fedlc_tau`; args `--aggregator fedavgm --server_lr 1.5 --server_momentum 0.2 --fedlc_tau 1.0` |
+| 1 | P4 | `fedavgm_lr15_m02_steps300` | Exact local-step variant: `--aggregator fedavgm --server_lr 1.5 --server_momentum 0.2 --local_train_steps 300` |
+| 2 | P4 | `fedavgm_lr15_m02_steps400` | Exact local-step variant: `--aggregator fedavgm --server_lr 1.5 --server_momentum 0.2 --local_train_steps 400` |
 
 ## Reflective memory
 
 - Keep:
 - Keep: FedAvgM `server_lr=1.5`, `server_momentum=0.2` remains current best.
-- Discard: local FedAvgM momentum jitter around `0.2` unless a new mechanism changes the context; FedAvgM+FedProx `mu=1e-3`; safer FedAdam `server_lr=0.1`, `tau=1e-2`.
+- Discard: local FedAvgM momentum jitter around `0.2` unless a new mechanism changes the context; FedAvgM+FedProx `mu=1e-3`; safer FedAdam `server_lr=0.1`, `tau=1e-2`; FedLC `tau=0.5` and `1.0`.
 - Do not retry: FedAdam `server_lr=1.0`, `tau=1e-3`; FedAdam low-LR/tau retry without a new stabilizer; FedProx `1e-5`/`1e-4` with weighted FedAvg; FedProx `1e-3` with current best FedAvgM.
-- Sources to carry forward: Zhang22 FedLC is the next source-backed direction because it targets label skew directly; Wang20 FedNova only if willing to change aggregator math.
+- Sources to carry forward: Wang20 FedNova motivates exact local-step runs as a low-risk proxy for reducing update-count inconsistency before implementing aggregator normalization.
