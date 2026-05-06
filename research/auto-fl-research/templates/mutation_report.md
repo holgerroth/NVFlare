@@ -88,6 +88,7 @@ The initial campaign should establish which already-available algorithm family i
 - Fifth literature loop selected a narrow client learning-rate sweep under the epoch-5 best before server-LR retuning or SAM code.
 - Client learning-rate probes under the epoch-5 best regressed: `lr=0.06` scored `0.901400`; `0.04` scored `0.900600`.
 - Server learning-rate reserve improved the best: `server_lr=1.75` scored `0.907300`; `1.25` scored `0.898900`.
+- Server learning-rate narrowing improved further: `server_lr=1.875` scored `0.909900`; `1.625` scored `0.907100`.
 
 ## Literature basis
 
@@ -108,7 +109,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.75`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -123,4 +124,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Narrow server learning rate around the new epoch-5 best: test `--server_lr 1.625` and `1.875` with `server_momentum=0.35`, `weight_decay=3.5e-4`, and gradient centralization.
+Continue narrowing server learning rate upward: test `--server_lr 2.0` and `2.125` with `server_momentum=0.35`, `weight_decay=3.5e-4`, `aggregation_epochs=5`, and gradient centralization.
