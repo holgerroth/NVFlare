@@ -20,6 +20,7 @@ The initial campaign should establish which already-available algorithm family i
 - Baseline: weighted FedAvg, 8 clients, 20 rounds, 4 aggregation epochs, cross-site eval on `site-1`
 - Calibration batch 1: built-in FedAvg, explicit FedAvg, FedProx `mu=1e-5`, FedProx `mu=1e-4`
 - Calibration batch 2: FedAvgM `server_lr=1.0, momentum=0.6`, FedAvgM `server_lr=2.0, momentum=0.4`, FedAdam, SCAFFOLD
+- FedAvgM LR sweep at fixed `server_momentum=0.4`: `server_lr` in `{1.5, 1.75, 2.25, 2.5}`
 
 ## Observed outcome
 
@@ -30,6 +31,9 @@ The initial campaign should establish which already-available algorithm family i
 - SCAFFOLD scored `0.854800`, below the best FedAvgM row but above baseline.
 - FedAvgM `server_lr=1.0, momentum=0.6` scored `0.848500`.
 - FedAdam crashed early with `ValueError: Diff norm is NaN or Inf: nan`.
+- FedAvgM `server_lr=1.5, momentum=0.4` scored `0.858900`, the current best result.
+- FedAvgM `server_lr=2.25, momentum=0.4` scored `0.855300`; `server_lr=2.5, momentum=0.4` scored `0.852000`.
+- FedAvgM `server_lr=1.75, momentum=0.4` crashed during validation with a host shared-memory allocation failure, so later batches should reduce candidate width from 4 to 2.
 
 ## Literature basis
 
@@ -39,7 +43,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path, especially higher server learning rate with lower momentum. FedAdam is currently unsafe at the tested server learning rate because it produced NaN model diffs. The next same-budget sweep should stay in the FedAvgM family and vary one narrow server-optimizer axis at a time.
+The calibration result favors the existing FedAvgM path. The first LR sweep suggests the best region is below `server_lr=2.0` at fixed `server_momentum=0.4`, with `server_lr=1.5` outperforming the calibration best by `0.002700`. FedAdam is currently unsafe at the tested server learning rate because it produced NaN model diffs. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`.
 
 ## Contract check
 
@@ -53,4 +57,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Finalize the second calibration batch, run the plateau watchdog, then launch a narrow FedAvgM sweep around `server_lr=2.0` and `server_momentum=0.4` under the same fixed budget.
+Launch a narrow FedAvgM momentum sweep around `server_lr=1.5`, using `PARALLEL_CANDIDATES=2` and the same fixed H100 budget.
