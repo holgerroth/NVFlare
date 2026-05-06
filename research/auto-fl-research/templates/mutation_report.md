@@ -82,6 +82,7 @@ The initial campaign should establish which already-available algorithm family i
 - Server-momentum neighbors under the new best regressed: `0.30` and `0.375` both scored `0.899700`.
 - Weight-decay retune under `server_momentum=0.35` also regressed: `3e-4` scored `0.900800`; `4e-4` scored `0.900900`.
 - Fourth literature loop selected an epoch-based local-compute sweep before more optimizer jitter or SAM-style code.
+- Literature-selected local compute improved the best: `aggregation_epochs=5` scored `0.906500`; `3` scored `0.895500`.
 
 ## Literature basis
 
@@ -102,7 +103,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.35`, default client LR, epoch-based local training, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -117,4 +118,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Launch the literature-selected local-compute sweep: test `--aggregation_epochs 3` and `5` under the gradient-centralized FedAvgM `server_momentum=0.35`, `weight_decay=3.5e-4` best stack.
+Narrow the local-compute sweep upward: test `--aggregation_epochs 6` and `7` under the gradient-centralized FedAvgM `server_momentum=0.35`, `weight_decay=3.5e-4` best stack.
