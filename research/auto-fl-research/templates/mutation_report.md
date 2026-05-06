@@ -78,6 +78,7 @@ The initial campaign should establish which already-available algorithm family i
 - Gradient centralization weight-decay narrowing improved further: `weight_decay=4e-4` scored `0.902600`; `2e-4` scored `0.896300`.
 - Further narrowing found a new best: gradient centralization with `weight_decay=3.5e-4` scored `0.903400`; `5e-4` scored `0.901800`.
 - Extra weight-decay neighbors regressed: `3.25e-4` scored `0.899600`; `3.75e-4` scored `0.899800`.
+- Server-momentum retune improved the best stack: `server_momentum=0.35` scored `0.904600`; `0.45` scored `0.902600`.
 
 ## Literature basis
 
@@ -95,7 +96,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.4`, default client LR, epoch-based local training, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.35`, default client LR, epoch-based local training, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC and label smoothing came close but did not justify new client loss paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -110,4 +111,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Retune server momentum under the gradient-centralization best stack: test `--server_momentum 0.35` and `0.45` with `--weight_decay 3.5e-4`.
+Narrow server momentum under the gradient-centralization best stack: test `--server_momentum 0.30` and `0.375` with `--weight_decay 3.5e-4`.
