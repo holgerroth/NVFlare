@@ -59,6 +59,7 @@ The initial campaign should establish which already-available algorithm family i
 - Scheduler floor sweep did not help: `cosine_lr_eta_min_factor=0.03` scored `0.866200`; `0.001` crashed after an NVFlare simulator child-process timeout.
 - Client momentum sweep underperformed: `--momentum 0.8` scored `0.863700`; `0.95` scored `0.799000`.
 - Server learning-rate revisit with weight decay did not improve: `server_lr=1.75` scored `0.876200`; `1.25` scored `0.864600`.
+- Server momentum retune kept a tiny score edge: `server_momentum=0.3` scored `0.879000`; `0.1` scored `0.869900`.
 
 ## Literature basis
 
@@ -85,4 +86,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Retune server momentum around the current best stack with `weight_decay=3e-4`: test `--server_momentum 0.1` and `0.3` while keeping `--server_lr 1.5`.
+Narrow server momentum around the current best stack with `weight_decay=3e-4`: test `--server_momentum 0.25` and `0.35` while keeping `--server_lr 1.5`.
