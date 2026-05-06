@@ -77,6 +77,7 @@ The initial campaign should establish which already-available algorithm family i
 - Gradient centralization materially improved the campaign: with `weight_decay=3e-4` it scored `0.900700`; with `weight_decay=1e-4` it scored `0.890900`.
 - Gradient centralization weight-decay narrowing improved further: `weight_decay=4e-4` scored `0.902600`; `2e-4` scored `0.896300`.
 - Further narrowing found a new best: gradient centralization with `weight_decay=3.5e-4` scored `0.903400`; `5e-4` scored `0.901800`.
+- Extra weight-decay neighbors regressed: `3.25e-4` scored `0.899600`; `3.75e-4` scored `0.899800`.
 
 ## Literature basis
 
@@ -109,4 +110,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Narrow once more around the gradient-centralization weight-decay best: test `--weight_decay 3.25e-4` and `3.75e-4` with `--gradient_centralization`.
+Retune server momentum under the gradient-centralization best stack: test `--server_momentum 0.35` and `0.45` with `--weight_decay 3.5e-4`.
