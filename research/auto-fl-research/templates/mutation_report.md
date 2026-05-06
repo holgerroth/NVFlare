@@ -54,6 +54,7 @@ The initial campaign should establish which already-available algorithm family i
 - Architecture subcampaign rows also underperformed: `moderate_cnn_small_head` scored `0.860900`; `moderate_cnn_norm` scored `0.835400`.
 - Client learning-rate sweep underperformed: `--lr 0.03` scored `0.862700`; `--lr 0.07` scored `0.850200`.
 - Weight decay improved the current best: `--weight_decay 5e-4` scored `0.873900`; `1e-4` scored `0.867300`.
+- Narrowed weight decay improved again: `--weight_decay 3e-4` scored `0.878900`; `7e-4` scored `0.874100`.
 
 ## Literature basis
 
@@ -66,7 +67,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.2`, default client LR, epoch-based local training, and `weight_decay=5e-4`. FedLC came close but did not justify a new client loss path. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path with the original `moderate_cnn` architecture. The best stack is now FedAvgM `server_lr=1.5`, `server_momentum=0.2`, default client LR, epoch-based local training, and `weight_decay=3e-4`. FedLC came close but did not justify a new client loss path. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -80,4 +81,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Narrow the weight-decay sweep around the new best: `--weight_decay 3e-4` and `7e-4` with all fixed budget fields unchanged.
+Narrow the weight-decay sweep around the new best: `--weight_decay 2e-4` and `4e-4` with all fixed budget fields unchanged.
