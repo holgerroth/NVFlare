@@ -275,3 +275,66 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Outcome: `aggregation_epochs=5` beat the previous best with `0.906500`; `aggregation_epochs=3` regressed to `0.895500`. Continue local-compute narrowing upward while staying within `RUN_TIMEOUT_SECONDS=1200`.
 - Follow-up: `aggregation_epochs=6` scored `0.904600`; `7` scored `0.906300`. Treat `5` as the current local-compute peak and retune optimizer knobs in that context.
 - Follow-up: epoch-5 server momentum `0.40` scored `0.905600`; `0.30` scored `0.904700`. Keep `server_momentum=0.35` unless a new source-backed mechanism changes context.
+
+## Fifth Literature Loop
+
+### Trigger
+
+- Reason: two post-epoch-5 batches failed after best score `0.906500`: upward local epochs and epoch-5 server momentum.
+- Current best: FedAvgM `server_lr=1.5`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`.
+- Recent symptoms: local epochs `7` came close but did not improve; server momentum around `0.35` did not help at epoch 5.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use unique `RUN_LOG`, `--name`, and `PYTHONPYCACHEPREFIX`.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `Adaptive Federated Optimization server learning rate FedAvgM local epochs non-IID arXiv` | Server step scale may need retuning after the local epoch increase. | arXiv | Reddi21 supports FedOpt/FedAvgM tuning under heterogeneity. |
+| `Adaptive Federated Learning with Auto-Tuned Clients learning rate heterogeneous federated arXiv` | More local epochs make the client step size more important. | ICLR proceedings, arXiv mirrors | Kim24 motivates client-side step-size adaptation for heterogeneous local objectives. |
+| `federated learning SAM local optimizer non-IID CIFAR10 FedSAM arXiv` | Keep a higher-cost code reserve if simple step-size probes fail. | arXiv | FedSAM remains relevant but costs extra backward passes. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | FedAvg can be difficult to tune; server optimizers interact with heterogeneity and communication efficiency. | FedOpt / FedAvgM | keep |
+| Kim24 | Adaptive Federated Learning with Auto-Tuned Clients / 2024 | https://proceedings.iclr.cc/paper_files/paper/2024/hash/d850b7e0cdc7f1c0820c6ad85405ae94-Abstract-Conference.html | Client-side hyperparameter tuning is hard when local data and smoothness differ. | Client step-size adaptation | keep |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | Non-IID local ERM can push global models toward sharp valleys. | FedSAM | reserve |
+| Zantalis26 | FedZMG / 2026 | https://arxiv.org/abs/2602.18384 | Client drift can be reduced by zero-mean gradient projection. | Gradient centralization | already kept |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Client step size may be off after more local work | Kim24 targets client-side step-size adaptation under heterogeneous local objectives. | `aggregation_epochs=5` improved, but more epochs and momentum changes did not. | A narrower LR around default `0.05` may improve the stronger local training budget. | CLI `--lr`; `client.py`. |
+| C2 | Server step scale may be stale | Reddi21 shows server optimization scale matters under heterogeneity. | Momentum retune at epoch 5 failed, but server LR has not been retuned in this context. | Existing FedAvgM `--server_lr` can be swept without protocol changes. | CLI `--server_lr`; `custom_aggregators.py`. |
+| C3 | Flatness remains a reserve mechanism | Qu22 argues SAM improves local learning generality under non-IID. | Regularization and gradient centralization helped, but simple knobs are still available. | Implement only if CLI step-size probes stall. | `client.py`, reserve. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P16 | Narrow client LR around default under epoch 5. | Kim24 | CLI-only: current best stack with `--lr 0.04` and `0.06`. | Adjust local update scale after stronger local compute and gradient centralization. | Both scores below `0.906500`. | Low. |
+| P17 | Retune server LR under epoch 5. | Reddi21 | CLI-only: current best stack with `--server_lr 1.25` and `1.75`. | Check whether server step scale should follow the local epoch increase. | Both scores below best. | Low. |
+| P18 | Local SAM/FedSAM. | Qu22 | Code: optional SAM perturbation with small `rho`. | Improve flatness/generalization. | Runtime too high or score below best. | Medium-high. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P16 | 3 | 5 | 5 | 4 | 4 | 2 | 27 |
+| P17 | 2 | 5 | 5 | 4 | 3 | 2 | 24 |
+| P18 | 4 | 4 | 2 | 5 | 5 | 4 | 24 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P16 | `fedavgm_lr15_m035_wd35e5_gc_ep5_lr004` | CLI-only: current best stack with `--lr 0.04` |
+| 2 | P16 | `fedavgm_lr15_m035_wd35e5_gc_ep5_lr006` | CLI-only: current best stack with `--lr 0.06` |
+
+### Reflective Memory
+
+- Keep current best unchanged until an epoch-5 client LR candidate beats `0.906500`.
+- Do not retry broad client LR values `0.03` or `0.07`; use narrow probes around default `0.05`.
+- If client LR fails, run source-backed server LR retune before considering SAM code.
