@@ -339,3 +339,4 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Do not retry broad client LR values `0.03` or `0.07`; use narrow probes around default `0.05`.
 - If client LR fails, run source-backed server LR retune before considering SAM code.
 - Outcome: client LR `0.06` scored `0.901400`; `0.04` scored `0.900600`. Keep default `lr=0.05` and proceed to the server-LR reserve.
+- Outcome: server LR `1.75` improved to `0.907300`; `1.25` regressed to `0.898900`. Continue with a narrow server-LR sweep before trying SAM code.
