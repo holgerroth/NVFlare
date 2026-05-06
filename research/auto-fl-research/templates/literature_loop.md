@@ -610,3 +610,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep FedNova `lr=0.05` unless a client-LR probe beats `0.910300`.
 - If both narrow LR probes fail, either broaden once (`0.04/0.06`) or start a new literature loop before implementing adaptive client LR.
+- Outcome: narrow LR probes regressed. `lr=0.045` scored `0.906600`; `lr=0.055` scored `0.906100`.
+- Action: skip broader LR jitter and start a new literature loop.

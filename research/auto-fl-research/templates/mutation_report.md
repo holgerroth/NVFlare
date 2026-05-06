@@ -117,6 +117,7 @@ The initial campaign should establish which already-available algorithm family i
 - Eighth literature loop selected default-off FedNova median-norm update clipping as the next source-backed server-side mutation.
 - FedNova median-norm clipping tied but did not improve: factors `1.5` and `2.0` both scored `0.910300`; the optional clipping code was reverted.
 - Ninth literature loop selected a CLI-only client learning-rate retune under the kept FedNova stack.
+- FedNova client-LR retune regressed: `lr=0.045` scored `0.906600`; `lr=0.055` scored `0.906100`.
 
 ## Literature basis
 
@@ -156,4 +157,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run a narrow FedNova client learning-rate retune: `--lr 0.045` and `0.055` under the current best stack.
+Start a new literature loop before more local jitter; the active best remains FedNova `0.910300`.
