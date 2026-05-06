@@ -734,3 +734,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep client momentum `0.9` unless a narrow retune beats `0.910300`.
 - If both fail, start a new literature loop before FedCM-style code.
+- Outcome: narrow client momentum probes underperformed. `momentum=0.925` scored `0.909200`; `momentum=0.875` scored `0.906000`.
+- Action: keep client momentum `0.9` and return to literature before any FedCM-style code.

@@ -121,6 +121,7 @@ The initial campaign should establish which already-available algorithm family i
 - Tenth literature loop selected a labeled registered-architecture subcampaign under the kept FedNova stack.
 - Registered architecture subcampaign underperformed: `moderate_cnn_small_head` scored `0.909200`; `moderate_cnn_norm` scored `0.905300`.
 - Eleventh literature loop selected a CLI-only client momentum retune under the kept FedNova stack.
+- FedNova client-momentum retune underperformed: `momentum=0.925` scored `0.909200`; `0.875` scored `0.906000`.
 
 ## Literature basis
 
@@ -161,4 +162,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run a narrow FedNova client momentum retune: `--momentum 0.875` and `0.925` under the current best stack.
+Start a new literature loop before FedCM-style client-momentum code; the active best remains FedNova `0.910300`.
