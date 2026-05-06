@@ -253,22 +253,14 @@ class FedNovaAggregator(ModelAggregator):
     aggregation weight proxy. No new client metadata or parameter keys are added.
     """
 
-    def __init__(
-        self,
-        server_lr: float = 1.0,
-        server_momentum: float = 0.0,
-        clip_norm_factor: float = 0.0,
-    ):
+    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.0):
         super().__init__()
         if server_lr <= 0.0:
             raise ValueError("server_lr must be > 0")
         if not 0.0 <= server_momentum < 1.0:
             raise ValueError("server_momentum must be in [0, 1)")
-        if clip_norm_factor < 0.0:
-            raise ValueError("clip_norm_factor must be >= 0")
         self.server_lr = server_lr
         self.server_momentum = server_momentum
-        self.clip_norm_factor = clip_norm_factor
         self.first_moment = {}
         self.reset_stats()
 
@@ -283,33 +275,19 @@ class FedNovaAggregator(ModelAggregator):
         elif self.params_type != model.params_type:
             raise ValueError(f"ParamsType mismatch: expected {self.params_type}, got {model.params_type}.")
 
-        client_update = {}
-        norm_sq = 0.0
         for key, value in model.params.items():
             diff = _as_numpy(value).astype(np.float64, copy=False)
             self.references.setdefault(key, value)
-            client_update[key] = diff
-            norm_sq += float(np.sum(np.square(diff)))
-
-        if self.clip_norm_factor > 0.0:
-            self.client_updates.append((local_steps, client_update, norm_sq**0.5))
-        else:
-            self._accumulate_update(local_steps, client_update)
-
-    def _accumulate_update(self, local_steps, client_update):
-        self.total_weight += local_steps
-        self.weighted_tau_sum += local_steps * local_steps
-        for key, diff in client_update.items():
             normalized_diff = diff / local_steps
             if key not in self.normalized_weighted_sum:
                 self.normalized_weighted_sum[key] = normalized_diff * local_steps
             else:
                 self.normalized_weighted_sum[key] += normalized_diff * local_steps
 
-    def aggregate_model(self) -> FLModel:
-        if self.clip_norm_factor > 0.0:
-            self._apply_adaptive_clipping()
+        self.total_weight += local_steps
+        self.weighted_tau_sum += local_steps * local_steps
 
+    def aggregate_model(self) -> FLModel:
         if self.total_weight == 0:
             self.error("Total weight is zero, cannot aggregate")
             return FLModel(params={})
@@ -329,19 +307,6 @@ class FedNovaAggregator(ModelAggregator):
         self.client_weights = []
         self.params_type = None
         self.references = {}
-        self.client_updates = []
-
-    def _apply_adaptive_clipping(self):
-        if not self.client_updates:
-            return
-        norms = np.asarray([norm for _, _, norm in self.client_updates], dtype=np.float64)
-        clip_norm = self.clip_norm_factor * float(np.median(norms))
-        for local_steps, client_update, update_norm in self.client_updates:
-            if clip_norm > 0.0 and update_norm > clip_norm:
-                scale = clip_norm / (update_norm + 1e-12)
-                client_update = {key: diff * scale for key, diff in client_update.items()}
-            self._accumulate_update(local_steps, client_update)
-        self.client_updates = []
 
     def _momentum_update(self, normalized_update):
         updates = {}

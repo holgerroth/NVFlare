@@ -547,3 +547,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep the current FedNova best unchanged until clipped FedNova beats `0.910300`.
 - If clipping fails, revert the optional clipping code unless a follow-up clipped FedNova candidate is explicitly justified by the observed scores.
+- Outcome: clipping tied but did not improve. Factors `1.5` and `2.0` both scored `0.910300`, equal to the unclipped FedNova best.
+- Action: reverted the optional clipping code because it added server logic without a score gain.
