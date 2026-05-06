@@ -1,0 +1,2 @@
+commit	score	runtime_seconds	budget	status	target	description	artifacts
+a2fd35af4	0.849800	225	--cross_site_eval --n_clients 8 --num_rounds 20 --aggregation_epochs 4 --local_train_steps 0 --batch_size 64 --eval_batch_size 1024 --alpha 0.5 --seed 0 --model_arch moderate_cnn --max_model_params 5000000 --aggregator weighted --final_eval_clients site-1 --name baseline_weighted	keep	client.py	baseline weighted FedAvg; default H100 budget	/tmp/nvflare/simulation/baseline_weighted
