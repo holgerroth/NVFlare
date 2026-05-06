@@ -71,6 +71,7 @@ The initial campaign should establish which already-available algorithm family i
 - Added optional `--label_smoothing` forwarding to PyTorch `CrossEntropyLoss`; default `0.0` preserves the previous loss.
 - Label smoothing did not improve: `0.05` scored `0.881200`; `0.1` scored `0.879900`. The optional label-smoothing code path was reverted.
 - SCAFFOLD and median source-backed probes underperformed: SCAFFOLD with `weight_decay=3e-4` scored `0.859000`; median scored `0.747000`.
+- Scheduler toggles underperformed: no scheduler scored `0.831600`; `cosine_lr_eta_min_factor=0.1` scored `0.866000`.
 
 ## Literature basis
 
@@ -100,4 +101,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Test the remaining scheduler toggles on the current best stack: `--no_lr_scheduler` and `--cosine_lr_eta_min_factor 0.1`.
+Run another literature loop before more local jitter; the current best remains FedAvgM `server_lr=1.5`, `server_momentum=0.4`, `weight_decay=3e-4`, score `0.881400`.
