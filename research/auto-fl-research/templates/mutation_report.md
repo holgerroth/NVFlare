@@ -81,10 +81,12 @@ The initial campaign should establish which already-available algorithm family i
 - Server-momentum retune improved the best stack: `server_momentum=0.35` scored `0.904600`; `0.45` scored `0.902600`.
 - Server-momentum neighbors under the new best regressed: `0.30` and `0.375` both scored `0.899700`.
 - Weight-decay retune under `server_momentum=0.35` also regressed: `3e-4` scored `0.900800`; `4e-4` scored `0.900900`.
+- Fourth literature loop selected an epoch-based local-compute sweep before more optimizer jitter or SAM-style code.
 
 ## Literature basis
 
 - FedProx: Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, Virginia Smith. "Federated Optimization in Heterogeneous Networks." MLSys 2020; arXiv:1812.06127.
+- FedAvg local epochs: H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y Arcas. "Communication-Efficient Learning of Deep Networks from Decentralized Data." AISTATS 2017; arXiv:1602.05629.
 - FedOpt / FedAvgM / FedAdam: Sashank J. Reddi, Zachary Charles, Manzil Zaheer, Zachary Garrett, Keith Rush, Jakub Koneczny, Sanjiv Kumar, H. Brendan McMahan. "Adaptive Federated Optimization." ICLR 2021; arXiv:2003.00295.
 - SCAFFOLD: Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank Reddi, Sebastian Stich, Ananda Theertha Suresh. "SCAFFOLD: Stochastic Controlled Averaging for Federated Learning." ICML 2020; arXiv:1910.06378.
 - FedLC: Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. "Federated Learning with Label Distribution Skew via Logits Calibration." ICML 2022; arXiv:2209.00189.
@@ -95,6 +97,8 @@ The initial campaign should establish which already-available algorithm family i
 - Label smoothing implementation: PyTorch `torch.nn.CrossEntropyLoss(label_smoothing=...)` documentation.
 - FedZMG: Fotios Zantalis, Evangelos Zervas, Grigorios Koulouras. "FedZMG: Efficient Client-Side Optimization in Federated Learning." arXiv:2602.18384.
 - FedSAM: Zhe Qu, Xingyu Li, Rui Duan, Yao Liu, Bo Tang, Zhuo Lu. "Generalized Federated Learning via Sharpness Aware Minimization." arXiv:2206.02618.
+- Auto-tuned clients: Junhyung Lyle Kim, Mohammad Taha Toghani, Cesar A. Uribe, Anastasios Kyrillidis. "Adaptive Federated Learning with Auto-Tuned Clients." arXiv:2306.11201.
+- FedCM: Jing Xu, Sen Wang, Liwei Wang, Andrew Chi-Chih Yao. "FedCM: Federated Learning with Client-level Momentum." arXiv:2106.10874.
 
 ## Run analysis
 
@@ -113,4 +117,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Two consecutive same-budget batches failed to improve after the `server_momentum=0.35` best. Run the literature loop before launching the next source-backed candidates.
+Launch the literature-selected local-compute sweep: test `--aggregation_epochs 3` and `5` under the gradient-centralized FedAvgM `server_momentum=0.35`, `weight_decay=3.5e-4` best stack.

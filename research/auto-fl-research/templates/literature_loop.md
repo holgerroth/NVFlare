@@ -196,3 +196,79 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 | --- | --- | --- | --- |
 | 1 | P9 | `fedavgm_lr15_m04_wd3e4_gc` | Code variant: optional `--gradient_centralization`; args `--server_lr 1.5 --server_momentum 0.4 --weight_decay 3e-4 --gradient_centralization` |
 | 2 | P10 | `fedavgm_lr15_m04_wd1e4_gc` | Same code flag with `--weight_decay 1e-4` |
+
+## Fourth Literature Loop
+
+### Trigger
+
+- Reason: two consecutive same-budget batches failed after the gradient-centralized FedAvgM best: `server_lr=1.5`, `server_momentum=0.35`, `weight_decay=3.5e-4`, score `0.904600`.
+- Recent symptoms: extra server-momentum neighbors (`0.30`, `0.375`) and weight-decay retune (`3e-4`, `4e-4`) regressed. The score surface is narrow around the current optimizer stack.
+- Confirmed null/worse ideas to avoid unless context changes: FedProx, FedAdam safe retry, FedLC, label smoothing, median aggregation, SCAFFOLD, scheduler toggles, exact local steps `300/400`, registered architecture variants, and tighter jitter around the same weight-decay/momentum values.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use `CUDA_VISIBLE_DEVICES=0` and unique `PYTHONPYCACHEPREFIX`.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning local epochs client drift non-IID CIFAR-10 FedAvg local steps arXiv` | Check whether local compute, not another optimizer scalar, should be swept after the optimizer stack plateaued. | arXiv, Hugging Face Papers | FedAvg and FedNova both frame local update count as central to the communication/drift tradeoff. |
+| `FedSAM sharpness aware minimization federated learning non-IID CIFAR-10 arXiv` | Revisit the higher-cost flatness reserve after gradient regularization helped. | arXiv, paper indexes | FedSAM is relevant but needs client-side code and extra backward passes. |
+| `client-side momentum federated learning non-IID local momentum arXiv` | Look for safe client optimizer variants after server momentum improved but local momentum failed earlier. | arXiv, paper indexes | Client-level momentum/adaptive step-size papers are relevant, but several require algorithmic state not represented by plain SGD momentum. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Communication rounds are costly; FedAvg trades more local work against fewer rounds under non-IID/unbalanced data. | FedAvg local epochs | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Variable local update counts and data sizes can bias naive averaging. | FedNova / local-step normalization | keep |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | Local ERM under non-IID can find sharp valleys and produce local-client deviation. | FedSAM | reserve |
+| Kim24 | Adaptive Federated Learning with Auto-Tuned Clients / 2024 | https://arxiv.org/abs/2306.11201 | Client-side hyperparameter tuning is hard under heterogeneous local objectives. | Adaptive client step size | keep in reserve |
+| Xu21 | FedCM: Federated Learning with Client-level Momentum / 2021 | https://arxiv.org/abs/2106.10874 | Client heterogeneity and partial participation can bias local SGD; client-level momentum can stabilize it. | Client-level momentum | reserve |
+| Cheng23 | Momentum Benefits Non-IID Federated Learning Simply and Provably / 2023 | https://arxiv.org/abs/2306.16504 | Momentum can improve FedAvg/SCAFFOLD under heterogeneity. | Momentum analysis | keep as interpretation |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local update budget may be mis-sized | FedAvg explicitly trades local work for communication; FedNova shows local update counts can change objective bias under heterogeneity. | Current runs finish in about 6.3 minutes, exact steps failed, but epoch count has not been swept under the gradient-centralized best. | `aggregation_epochs` is an allowed local-compute knob while `num_rounds=20` stays fixed. | CLI-only via `--aggregation_epochs`; no protocol change. |
+| C2 | Sharpness/generalization plateau | FedSAM argues local ERM in non-IID FL can drive the global model into sharp valleys. | Gradient centralization and weight decay helped, suggesting optimizer geometry matters. | SAM is plausible if cheaper CLI sweeps fail. | `client.py`, optional flag, reserve due runtime/code cost. |
+| C3 | Client optimizer mismatch | Auto-tuned clients and FedCM target local objective heterogeneity with client-side adaptation or momentum-like correction. | Server momentum helped, but old client momentum settings failed before gradient centralization. | Current gradient-centralized stack may shift the viable client LR/momentum range. | CLI `--lr`/`--momentum` for simple probes; richer FedCM state would be rejected. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P12 | Sweep epoch-based local compute around 4. | McMahan17; Wang20 | CLI-only: current best stack with `--aggregation_epochs 3` and `5`, keep `--local_train_steps 0`. | Test whether less drift or more local fitting improves the fixed 20-round score. | Both scores below `0.904600` or timeout. | Low; existing budget knob. |
+| P13 | Retune server learning rate under gradient centralization. | Reddi21; Cheng23 | CLI-only: current best stack with `--server_lr 1.25` and `1.75`. | Check whether the new momentum/GC stack changes the best server step scale. | Both below `0.904600`. | Low. |
+| P14 | Narrow client learning rate under the new client-gradient geometry. | Kim24 | CLI-only: current best stack with `--lr 0.04` and `0.06`. | Adjust client update scale after gradient centralization changed gradients. | Both below `0.904600`. | Low. |
+| P15 | Local SAM/FedSAM. | Qu22 | Code: optional SAM perturbation, e.g. `--sam_rho 0.02/0.05`. | Improve flatness/generalization. | Runtime near cap, instability, or no gain. | Medium-high; extra backward pass. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P12 | Exact local-step rows `300/400` only partially overlap. | Epoch count under gradient centralization has not been tested; keep only one local-compute mode in the sweep. | keep |
+| P13 | Older server-LR revisit. | Prior `1.25/1.75` used `server_momentum=0.4`, `weight_decay=3e-4`, no gradient centralization; context differs. | keep in reserve |
+| P14 | Older client-LR sweep. | Prior `0.03/0.07` used a weaker pre-GC stack; choose narrower values if used. | keep in reserve |
+| P15 | Prior SAM reserve. | Still untested but more invasive than CLI local-compute sweep. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P12 | 3 | 5 | 5 | 4 | 4 | 3 | 26 |
+| P13 | 2 | 5 | 5 | 4 | 3 | 2 | 24 |
+| P14 | 2 | 5 | 5 | 3 | 3 | 2 | 23 |
+| P15 | 4 | 4 | 2 | 5 | 5 | 4 | 24 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P12 | `fedavgm_lr15_m035_wd35e5_gc_ep3` | CLI-only: current best stack, `--aggregation_epochs 3 --local_train_steps 0` |
+| 2 | P12 | `fedavgm_lr15_m035_wd35e5_gc_ep5` | CLI-only: current best stack, `--aggregation_epochs 5 --local_train_steps 0` |
+
+### Reflective Memory
+
+- Keep: FedAvgM `server_lr=1.5`, `server_momentum=0.35`, `weight_decay=3.5e-4`, `--gradient_centralization`, epoch-based `aggregation_epochs=4` remains the current best until a local-compute run beats `0.904600`.
+- Discard: further tight jitter around `server_momentum=0.35` or `weight_decay=3.5e-4` without a new mechanism.
+- Reserve next: if epoch sweep fails, try source-backed `server_lr` retune under the GC best, then narrower client LR; keep SAM as the higher-cost code mutation.
