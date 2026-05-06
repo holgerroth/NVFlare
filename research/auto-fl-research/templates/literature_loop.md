@@ -338,3 +338,4 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Keep current best unchanged until an epoch-5 client LR candidate beats `0.906500`.
 - Do not retry broad client LR values `0.03` or `0.07`; use narrow probes around default `0.05`.
 - If client LR fails, run source-backed server LR retune before considering SAM code.
+- Outcome: client LR `0.06` scored `0.901400`; `0.04` scored `0.900600`. Keep default `lr=0.05` and proceed to the server-LR reserve.

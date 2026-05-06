@@ -86,6 +86,7 @@ The initial campaign should establish which already-available algorithm family i
 - Upward local-compute narrowing did not improve: `aggregation_epochs=6` scored `0.904600`; `7` scored `0.906300`.
 - Epoch-5 server-momentum retune did not improve: `server_momentum=0.40` scored `0.905600`; `0.30` scored `0.904700`.
 - Fifth literature loop selected a narrow client learning-rate sweep under the epoch-5 best before server-LR retuning or SAM code.
+- Client learning-rate probes under the epoch-5 best regressed: `lr=0.06` scored `0.901400`; `0.04` scored `0.900600`.
 
 ## Literature basis
 
@@ -121,4 +122,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Launch the literature-selected client learning-rate sweep: test `--lr 0.04` and `0.06` under the epoch-5 gradient-centralized FedAvgM best stack.
+Launch the fifth-loop reserve server learning-rate sweep: test `--server_lr 1.25` and `1.75` under the epoch-5 gradient-centralized FedAvgM best stack.
