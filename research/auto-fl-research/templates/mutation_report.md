@@ -23,6 +23,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedAvgM LR sweep at fixed `server_momentum=0.4`: `server_lr` in `{1.5, 1.75, 2.25, 2.5}`
 - FedAvgM momentum probe at fixed `server_lr=1.5`: `server_momentum=0.2`
 - FedAvgM lower-momentum sweep at fixed `server_lr=1.5`: `server_momentum` in `{0.0, 0.1}`
+- FedAvgM close-neighbor momentum sweep at fixed `server_lr=1.5`: `server_momentum` in `{0.15, 0.25}`
 
 ## Observed outcome
 
@@ -39,6 +40,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedAvgM `server_lr=1.5, momentum=0.2` scored `0.864700`, the current best result.
 - The paired `server_momentum=0.6` run failed before training due a parallel bytecode-cache race in validation, so future concurrent launches should isolate `PYTHONPYCACHEPREFIX` per candidate.
 - FedAvgM `server_lr=1.5, momentum=0.0` scored `0.862700`; `momentum=0.1` scored `0.860900`. Both were discarded because they did not improve over `momentum=0.2`.
+- FedAvgM `server_lr=1.5, momentum=0.15` scored `0.863400`; `momentum=0.25` scored `0.862200`. Both were discarded.
 
 ## Literature basis
 
@@ -48,7 +50,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result favors the existing FedAvgM path. The first LR sweep suggests the best region is below `server_lr=2.0` at fixed `server_momentum=0.4`, and the first momentum probe improved further by lowering momentum to `0.2`. Lower values did not help, so the next sweep should probe close neighbors around `0.2` rather than continue downward. FedAdam is currently unsafe at the tested server learning rate because it produced NaN model diffs. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result favors the existing FedAvgM path. The first LR sweep suggests the best region is below `server_lr=2.0` at fixed `server_momentum=0.4`, and the first momentum probe improved further by lowering momentum to `0.2`. Two consecutive same-budget momentum batches failed to improve after that point, so local jitter should pause for the literature loop. FedAdam is currently unsafe at the tested server learning rate because it produced NaN model diffs. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -62,4 +64,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Continue the FedAvgM momentum sweep around `server_lr=1.5` with `server_momentum=0.15` and `0.25`, using `PARALLEL_CANDIDATES=2`, unique `PYTHONPYCACHEPREFIX` values, and the same fixed H100 budget.
+Run the literature loop before launching more local hyperparameter jitter. Select source-backed candidates that stay within the current FL contract and fixed H100 budget.
