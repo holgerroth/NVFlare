@@ -42,6 +42,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedAvgM `server_lr=1.5, momentum=0.0` scored `0.862700`; `momentum=0.1` scored `0.860900`. Both were discarded because they did not improve over `momentum=0.2`.
 - FedAvgM `server_lr=1.5, momentum=0.15` scored `0.863400`; `momentum=0.25` scored `0.862200`. Both were discarded.
 - Literature loop was triggered after two consecutive non-improving same-budget batches. The next selected candidates are FedAvgM+FedProx `mu=1e-3` and a safer FedAdam retry with lower server learning rate and larger `tau`.
+- FedAvgM+FedProx `mu=1e-3` scored `0.860100`; safer FedAdam `server_lr=0.1, tau=1e-2` scored `0.744300`. Both were discarded.
 
 ## Literature basis
 
@@ -68,4 +69,4 @@ Low. The campaign has only added ledger/report data and tested existing CLI-sele
 
 ## Next mutation
 
-Launch the source-backed literature batch: `fedavgm_lr15_m02_fedprox1e3` and `fedadam_lr01_tau1e2`, using `PARALLEL_CANDIDATES=2`, unique `PYTHONPYCACHEPREFIX` values, and the same fixed H100 budget.
+Move to the next source-backed literature proposal: add an optional client-local FedLC-style logit calibration flag, then test it with the current best FedAvgM settings under the same fixed H100 budget.

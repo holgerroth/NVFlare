@@ -81,6 +81,6 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep:
 - Keep: FedAvgM `server_lr=1.5`, `server_momentum=0.2` remains current best.
-- Discard: local FedAvgM momentum jitter around `0.2` unless a new mechanism changes the context.
-- Do not retry: FedAdam `server_lr=1.0`, `tau=1e-3`; FedProx `1e-5`/`1e-4` with weighted FedAvg.
-- Sources to carry forward: Reddi21 FedOpt; Li20 FedProx; Zhang22 FedLC if CLI proposals plateau; Wang20 FedNova only if willing to change aggregator math.
+- Discard: local FedAvgM momentum jitter around `0.2` unless a new mechanism changes the context; FedAvgM+FedProx `mu=1e-3`; safer FedAdam `server_lr=0.1`, `tau=1e-2`.
+- Do not retry: FedAdam `server_lr=1.0`, `tau=1e-3`; FedAdam low-LR/tau retry without a new stabilizer; FedProx `1e-5`/`1e-4` with weighted FedAvg; FedProx `1e-3` with current best FedAvgM.
+- Sources to carry forward: Zhang22 FedLC is the next source-backed direction because it targets label skew directly; Wang20 FedNova only if willing to change aggregator math.
