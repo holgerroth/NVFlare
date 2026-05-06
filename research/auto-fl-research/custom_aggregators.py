@@ -245,6 +245,81 @@ class FedAdamAggregator(FedOptAggregator):
         )
 
 
+class FedNovaAggregator(ModelAggregator):
+    """FedNova-style normalized averaging over existing client DIFFs.
+
+    The harness does not send separate sample counts, so this implementation uses
+    NUM_STEPS_CURRENT_ROUND as both the local-update count and the existing
+    aggregation weight proxy. No new client metadata or parameter keys are added.
+    """
+
+    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.0):
+        super().__init__()
+        if server_lr <= 0.0:
+            raise ValueError("server_lr must be > 0")
+        if not 0.0 <= server_momentum < 1.0:
+            raise ValueError("server_momentum must be in [0, 1)")
+        self.server_lr = server_lr
+        self.server_momentum = server_momentum
+        self.first_moment = {}
+        self.reset_stats()
+
+    def accept_model(self, model: FLModel):
+        local_steps = float(model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0))
+        if local_steps <= 0.0:
+            raise ValueError("FedNova requires NUM_STEPS_CURRENT_ROUND > 0 for every client update")
+        self.client_weights.append(local_steps)
+
+        if self.params_type is None:
+            self.params_type = model.params_type
+        elif self.params_type != model.params_type:
+            raise ValueError(f"ParamsType mismatch: expected {self.params_type}, got {model.params_type}.")
+
+        for key, value in model.params.items():
+            diff = _as_numpy(value).astype(np.float64, copy=False)
+            self.references.setdefault(key, value)
+            normalized_diff = diff / local_steps
+            if key not in self.normalized_weighted_sum:
+                self.normalized_weighted_sum[key] = normalized_diff * local_steps
+            else:
+                self.normalized_weighted_sum[key] += normalized_diff * local_steps
+
+        self.total_weight += local_steps
+        self.weighted_tau_sum += local_steps * local_steps
+
+    def aggregate_model(self) -> FLModel:
+        if self.total_weight == 0:
+            self.error("Total weight is zero, cannot aggregate")
+            return FLModel(params={})
+
+        average_tau = self.weighted_tau_sum / self.total_weight
+        normalized_update = {
+            key: average_tau * (val / self.total_weight) for key, val in self.normalized_weighted_sum.items()
+        }
+        update = self._momentum_update(normalized_update)
+        aggregated_params = {key: _to_output_type(update[key], self.references[key]) for key in update}
+        return FLModel(params=aggregated_params, params_type=self.params_type)
+
+    def reset_stats(self):
+        self.normalized_weighted_sum = {}
+        self.total_weight = 0.0
+        self.weighted_tau_sum = 0.0
+        self.client_weights = []
+        self.params_type = None
+        self.references = {}
+
+    def _momentum_update(self, normalized_update):
+        updates = {}
+        for key, diff in normalized_update.items():
+            previous = self.first_moment.get(key)
+            if previous is None:
+                previous = np.zeros_like(diff)
+            velocity = self.server_momentum * previous + diff
+            self.first_moment[key] = velocity
+            updates[key] = self.server_lr * velocity
+        return updates
+
+
 class ScaffoldAggregator(ModelAggregator):
     """SCAFFOLD aggregation over DIFF params plus control-variate metadata.
 

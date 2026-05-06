@@ -8,6 +8,7 @@ The initial campaign should establish which already-available algorithm family i
 
 - `results.tsv`
 - `client.py`
+- `custom_aggregators.py`
 - `job.py`
 - `mutation_schema.yaml`
 - `templates/literature_loop.md`
@@ -40,6 +41,8 @@ The initial campaign should establish which already-available algorithm family i
 - SAM rollback validation: `PYTHON=.venv/bin/python make validate`
 - Sixth-loop reserve weight-decay batch: `weight_decay=3e-4` and `4e-4` under FedAvgM `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, and gradient centralization
 - Sixth-loop reserve server-momentum batch: `server_momentum=0.30` and `0.40` under FedAvgM `server_lr=1.875`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, and gradient centralization
+- FedNova mutation validation: `PYTHON=.venv/bin/python make validate`
+- FedNova mutation smoke: `PYTHON=.venv/bin/python make smoke`
 
 ## Observed outcome
 
@@ -104,6 +107,7 @@ The initial campaign should establish which already-available algorithm family i
 - Weight-decay reserve under `server_lr=1.875` did not improve: `weight_decay=3e-4` scored `0.907500`; `4e-4` scored `0.903900`.
 - Server-momentum reserve under `server_lr=1.875` did not improve: `server_momentum=0.40` scored `0.908800`; `0.30` scored `0.906600`.
 - Seventh literature loop selected FedNova-style normalized aggregation as the next source-backed code mutation.
+- Added optional `--aggregator fednova`, which normalizes client DIFFs by `NUM_STEPS_CURRENT_ROUND` and supports optional server momentum without changing client uploads.
 
 ## Literature basis
 
@@ -132,6 +136,7 @@ The calibration result favors the existing FedAvgM path with the original `moder
 
 - No FL protocol fields were changed.
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
+- FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
