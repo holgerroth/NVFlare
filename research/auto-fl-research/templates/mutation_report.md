@@ -103,6 +103,7 @@ The initial campaign should establish which already-available algorithm family i
 - SAM/FedSAM candidates underperformed and were slower: `sam_rho=0.01` scored `0.907600` in 830 seconds; `sam_rho=0.02` scored `0.907500` in 832 seconds. The optional SAM code path was reverted.
 - Weight-decay reserve under `server_lr=1.875` did not improve: `weight_decay=3e-4` scored `0.907500`; `4e-4` scored `0.903900`.
 - Server-momentum reserve under `server_lr=1.875` did not improve: `server_momentum=0.40` scored `0.908800`; `0.30` scored `0.906600`.
+- Seventh literature loop selected FedNova-style normalized aggregation as the next source-backed code mutation.
 
 ## Literature basis
 
@@ -112,6 +113,7 @@ The initial campaign should establish which already-available algorithm family i
 - SCAFFOLD: Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank Reddi, Sebastian Stich, Ananda Theertha Suresh. "SCAFFOLD: Stochastic Controlled Averaging for Federated Learning." ICML 2020; arXiv:1910.06378.
 - FedLC: Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. "Federated Learning with Label Distribution Skew via Logits Calibration." ICML 2022; arXiv:2209.00189.
 - FedNova: Jianyu Wang, Qinghua Liu, Hao Liang, Gauri Joshi, H. Vincent Poor. "Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization." NeurIPS 2020; arXiv:2007.07481.
+- FedRed / DANE drift correction: Xiaowen Jiang, Anton Rodomanov, Sebastian U. Stich. "Federated Optimization with Doubly Regularized Drift Correction." arXiv:2404.08447.
 - Momentum analysis: Ziheng Cheng, Xinmeng Huang, Pengfei Wu, Kun Yuan. "Momentum Benefits Non-IID Federated Learning Simply and Provably." arXiv:2306.16504.
 - Label smoothing in FL: Yeji Cho, Junghyun Kim. "FedENLC: An End-to-End Noisy Label Correction Framework in Federated Learning." Mathematics 2026; doi:10.3390/math14020290.
 - Federated domain generalization with label smoothing: Milad Soltany, Farhad Pourpanah, Mahdiyar Molahasani Majdabadi, Michael Greenspan, Ali Etemad. "Federated Domain Generalization with Label Smoothing and Balanced Decentralized Training." arXiv:2412.11408.
@@ -139,4 +141,4 @@ Low. The only kept code mutation is optional gradient centralization behind `--g
 
 ## Next mutation
 
-Run a seventh literature loop before more local jitter. The sixth-loop proposals are now exhausted without improving over `0.909900`.
+Implement optional FedNova-style normalized DIFF aggregation behind `--aggregator fednova`, then test current FedAvgM server settings and a pure normalized-averaging control under the current epoch-5 GC client stack.

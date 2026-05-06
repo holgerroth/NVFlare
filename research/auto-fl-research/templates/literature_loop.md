@@ -411,3 +411,65 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: proceed to P21, the server-momentum retune under `server_lr=1.875`, before starting another literature loop.
 - Outcome: P21 did not improve. `server_momentum=0.40` scored `0.908800`; `server_momentum=0.30` scored `0.906600`.
 - Action: sixth-loop proposals are exhausted; start a new literature loop before further local jitter.
+
+## Seventh Literature Loop
+
+### Trigger
+
+- Reason: sixth-loop proposals were exhausted after SAM, weight-decay, and server-momentum probes all missed the `0.909900` best.
+- Current best: FedAvgM `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`.
+- Recent symptoms: stronger local training helped, but scalar retunes around the FedAvgM/GC optimum are now below best.
+- Candidate width: `PARALLEL_CANDIDATES=2`; prefer contract-safe aggregation changes that reuse existing DIFF params and metadata.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedNova Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization arXiv 2007.07481 NUM_STEPS aggregation` | Revisit local-step normalization after epoch-5 local training became the best regime. | arXiv, Flower baseline docs | FedNova targets objective inconsistency from unequal local update counts and uses normalized averaging. |
+| `Adaptive Federated Optimization FedYogi FedAdam FedAdagrad arXiv 2003.00295 server optimizer federated learning` | Check safer adaptive-server reserves after FedAdam crashed at high LR and underperformed at low LR. | arXiv, paper indexes | Reddi21 includes FedAdagrad and FedYogi in addition to FedAdam/FedAvgM. |
+| `Federated Optimization with Doubly Regularized Drift Correction arXiv 2404.08447 client drift` | Look for newer client-drift corrections. | arXiv | FedRed/DANE-style correction is relevant but needs a more invasive local objective/protocol path. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Naive averaging can converge to a mismatched objective when local update counts differ. | FedNova normalized averaging | keep |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | FedAvg-style methods can be difficult to tune under heterogeneous data; adaptive server optimizers may help. | FedOpt / FedYogi / FedAdagrad | reserve |
+| Jiang24 | Federated Optimization with Doubly Regularized Drift Correction / 2024 | https://arxiv.org/abs/2404.08447 | Client drift increases communication cost and can hurt performance. | FedRed / DANE-style drift correction | reject for now |
+| Flower26 | FedNova baseline documentation / 2026 | https://flower.ai/docs/baselines/fednova.html | Non-IID CIFAR-10 baselines report FedNova improvements over FedAvg across local solvers. | Implementation reference | context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Objective inconsistency from local-step heterogeneity | Wang20 frames mismatched objectives from differing local update counts and proposes normalized averaging. | `aggregation_epochs=5` improved best, so local training is useful but may amplify step-weight bias. | Existing `NUM_STEPS_CURRENT_ROUND` is already sent in `FLModel.meta`; no new client metadata needed. | `custom_aggregators.py`, `job.py`. |
+| C2 | Adaptive-server alternatives remain partially unexplored | Reddi21 includes Yogi/Adagrad in addition to Adam and FedAvgM. | FedAdam crashed at high LR and scored poorly at low LR, but FedAvgM is strong. | Possible reserve if normalized FedNova fails. | `custom_aggregators.py`, `job.py`. |
+| C3 | Drift-correction methods can be too invasive | Jiang24/FedRed addresses drift but changes local objectives and solver assumptions. | SCAFFOLD and SAM code paths did not beat the current simpler stack. | Reject until simpler DIFF-only mechanisms are exhausted. | Higher protocol/code risk. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P22 | FedNova-style normalized DIFF aggregation with optional server momentum. | Wang20; Flower26 | Code: add `--aggregator fednova` that normalizes each client DIFF by `NUM_STEPS_CURRENT_ROUND`, re-scales by weighted average local steps, then applies optional server momentum. Candidates: current FedAvgM LR/momentum and a pure normalized `server_lr=1.0, momentum=0.0` control. | Reduce local-step weighting bias under non-IID epoch-5 training while preserving the DIFF contract. | Both below `0.909900`, NaN, or timeout. | Medium-low; server-only code using existing meta. |
+| P23 | Add FedYogi/FedAdagrad server optimizers. | Reddi21 | Code: extend FedOpt second-moment update beyond FedAdam; test conservative server LR. | Adaptive server normalization may stabilize heterogeneous updates. | Repeats FedAdam instability or underperforms FedAvgM. | Medium; server-only but more optimizer state. |
+| P24 | Exact local-step retune under current best. | Wang20; McMahan17 | CLI-only: `local_train_steps=500` and `600` with epoch mode disabled by positive steps. | Reduce per-client update-count variation directly. | Both below best or runtime grows too much. | Low, but previous exact-step probes under older stack failed. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P22 | 4 | 5 | 4 | 5 | 4 | 2 | 24 |
+| P23 | 3 | 5 | 3 | 4 | 3 | 2 | 20 |
+| P24 | 2 | 5 | 5 | 3 | 2 | 2 | 19 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P22 | `fednova_lr1875_m035_wd35e5_gc_ep5` | Code variant: `--aggregator fednova --server_lr 1.875 --server_momentum 0.35` with current best client/local stack |
+| 2 | P22 | `fednova_lr10_m00_wd35e5_gc_ep5` | Same code variant with pure normalized averaging, `--server_lr 1.0 --server_momentum 0.0` |
+
+### Reflective Memory
+
+- Keep the current FedAvgM best unchanged unless a FedNova candidate beats `0.909900`.
+- If FedNova fails, revert the optional aggregator code unless it is needed for a follow-up source-backed candidate, then move to either FedYogi/FedAdagrad or exact local-step retuning.
