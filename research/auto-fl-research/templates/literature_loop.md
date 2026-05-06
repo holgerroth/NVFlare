@@ -409,3 +409,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: reverted the optional SAM code and returned to P20, the lower-risk weight-decay retune under `server_lr=1.875`.
 - Outcome: P20 did not improve. `weight_decay=3e-4` scored `0.907500`; `weight_decay=4e-4` scored `0.903900`.
 - Action: proceed to P21, the server-momentum retune under `server_lr=1.875`, before starting another literature loop.
+- Outcome: P21 did not improve. `server_momentum=0.40` scored `0.908800`; `server_momentum=0.30` scored `0.906600`.
+- Action: sixth-loop proposals are exhausted; start a new literature loop before further local jitter.
