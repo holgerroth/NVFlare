@@ -612,3 +612,64 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both narrow LR probes fail, either broaden once (`0.04/0.06`) or start a new literature loop before implementing adaptive client LR.
 - Outcome: narrow LR probes regressed. `lr=0.045` scored `0.906600`; `lr=0.055` scored `0.906100`.
 - Action: skip broader LR jitter and start a new literature loop.
+
+## Tenth Literature Loop
+
+### Trigger
+
+- Reason: FedNova scalar retunes, clipping, adaptive server optimizers, and client LR probes have not improved beyond `0.910300`.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, client `lr=0.05`, `--gradient_centralization`, `model_arch=moderate_cnn`.
+- Recent symptoms: optimizer-local space is flat or unstable; registered architecture variants have not been tested under FedNova.
+- Candidate width: `PARALLEL_CANDIDATES=2`; label this as an architecture subcampaign because `model_arch` changes.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning normalization layers non-IID convolutional networks FedBN arXiv` | Check whether normalization architecture changes are source-backed under non-IID FL. | OpenReview, arXiv/paper indexes | FedBN motivates normalization handling under feature/non-IID shifts. |
+| `federated learning model architecture classifier head parameter efficiency non-IID CIFAR arXiv` | Check whether smaller heads are a plausible regularization architecture axis. | paper indexes | Smaller heads reduce parameters and may regularize, but evidence is weaker. |
+| `federated learning architecture search non-IID CIFAR convolutional neural network arXiv` | Confirm architecture calibration is a reasonable next axis after optimizer plateau. | paper indexes | Architecture is higher-level than scalar optimizer jitter but registered locally. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Li21 | FedBN: Federated Learning on Non-IID Features via Local Batch Normalization / ICLR 2021 | https://openreview.net/forum?id=6YEQUn0QICG | Normalization behavior matters under non-IID FL, especially feature shift. | Normalization-aware architecture | keep |
+| FedZMG26 | FedZMG / 2026 | https://arxiv.org/abs/2602.18384 | Client-side gradient geometry matters. | Gradient centralization | already kept |
+| Wang20 | FedNova / 2020 | https://arxiv.org/abs/2007.07481 | Objective inconsistency from local updates. | FedNova | already kept |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Normalization under non-IID data | FedBN shows normalization choices can affect FL convergence/performance. | FedNova+GC best may interact differently with GroupNorm than older FedAvgM runs. | `moderate_cnn_norm` is registered and under cap. | `model.py` registered variant only. |
+| C2 | Over-parameterized classifier head | Smaller heads can regularize and reduce parameter count. | Prior small-head run under older stack scored `0.860900`, but FedNova stack is different. | `moderate_cnn_small_head` is registered and under cap. | `model.py` registered variant only. |
+| C3 | Comparability risk | Program requires architecture scores be labeled separately. | Existing best is optimizer-only `moderate_cnn`. | Run as labeled architecture subcampaign and do not silently mix budgets. | Description/ledger labeling. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P31 | Registered GroupNorm architecture audit. | Li21; FedZMG26 | CLI-only: `--model_arch moderate_cnn_norm` with current FedNova best stack. | Normalization may improve non-IID robustness under FedNova. | Score below current best or runtime/cap failure. | Medium; architecture subcampaign. |
+| P32 | Registered small-head architecture audit. | model regularization context | CLI-only: `--model_arch moderate_cnn_small_head` with current FedNova best stack. | Less classifier overfitting and fewer parameters. | Score below current best. | Medium; architecture subcampaign. |
+| P33 | New architecture variant. | architecture search literature | Code: add a new registered model. | Find better capacity/normalization. | Too broad without audits. | Higher; defer. |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P31 | 3 | 4 | 5 | 4 | 3 | 2 | 21 |
+| P32 | 2 | 4 | 5 | 2 | 3 | 2 | 18 |
+| P33 | 4 | 3 | 2 | 3 | 4 | 3 | 19 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P31 | `arch_fednova_norm_lr1875_m035_wd35e5_gc_ep5` | Architecture subcampaign: `--model_arch moderate_cnn_norm` with current FedNova best optimizer/client stack |
+| 2 | P32 | `arch_fednova_smallhead_lr1875_m035_wd35e5_gc_ep5` | Architecture subcampaign: `--model_arch moderate_cnn_small_head` with current FedNova best optimizer/client stack |
+
+### Reflective Memory
+
+- Treat these as architecture-subcampaign rows; do not silently mix them with optimizer-only `moderate_cnn` rows.
+- If both registered variants underperform, return to literature before adding a new architecture variant.

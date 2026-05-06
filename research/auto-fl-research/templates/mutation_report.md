@@ -118,6 +118,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova median-norm clipping tied but did not improve: factors `1.5` and `2.0` both scored `0.910300`; the optional clipping code was reverted.
 - Ninth literature loop selected a CLI-only client learning-rate retune under the kept FedNova stack.
 - FedNova client-LR retune regressed: `lr=0.045` scored `0.906600`; `lr=0.055` scored `0.906100`.
+- Tenth literature loop selected a labeled registered-architecture subcampaign under the kept FedNova stack.
 
 ## Literature basis
 
@@ -127,6 +128,7 @@ The initial campaign should establish which already-available algorithm family i
 - SCAFFOLD: Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank Reddi, Sebastian Stich, Ananda Theertha Suresh. "SCAFFOLD: Stochastic Controlled Averaging for Federated Learning." ICML 2020; arXiv:1910.06378.
 - FedLC: Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. "Federated Learning with Label Distribution Skew via Logits Calibration." ICML 2022; arXiv:2209.00189.
 - FedNova: Jianyu Wang, Qinghua Liu, Hao Liang, Gauri Joshi, H. Vincent Poor. "Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization." NeurIPS 2020; arXiv:2007.07481.
+- FedBN / normalization in FL: Xiaoxiao Li, Meirui Jiang, Xiaofei Zhang, Michael Kamp, Qi Dou. "FedBN: Federated Learning on Non-IID Features via Local Batch Normalization." ICLR 2021.
 - FedRed / DANE drift correction: Xiaowen Jiang, Anton Rodomanov, Sebastian U. Stich. "Federated Optimization with Doubly Regularized Drift Correction." arXiv:2404.08447.
 - Adaptive clipping: Galen Andrew, Om Thakkar, Brendan McMahan, Swaroop Ramaswamy. "Differentially Private Learning with Adaptive Clipping." NeurIPS 2021.
 - Momentum analysis: Ziheng Cheng, Xinmeng Huang, Pengfei Wu, Kun Yuan. "Momentum Benefits Non-IID Federated Learning Simply and Provably." arXiv:2306.16504.
@@ -157,4 +159,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a new literature loop before more local jitter; the active best remains FedNova `0.910300`.
+Run a labeled architecture subcampaign with registered variants `moderate_cnn_norm` and `moderate_cnn_small_head` under the kept FedNova optimizer/client stack.
