@@ -216,7 +216,7 @@ class FedOptAggregator(ModelAggregator):
                 second_hat = second / second_bias_correction
             elif self.optimizer == "yogi":
                 second = second - (1.0 - self.beta2) * diff_sq * np.sign(second - diff_sq)
-                second_hat = second
+                second_hat = second / second_bias_correction
             else:
                 second = second + diff_sq
                 second_hat = second
