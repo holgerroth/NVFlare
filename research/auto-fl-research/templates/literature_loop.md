@@ -481,3 +481,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep `server_momentum=0.35` and test whether FedNova shifts the weight-decay optimum.
 - Outcome: FedNova weight-decay retune did not improve. `weight_decay=4e-4` scored `0.905800`; `weight_decay=3e-4` scored `0.905700`.
 - Action: move to P24 exact local-step retuning under the kept FedNova stack.
+- Outcome: exact local-step retuning did not improve. `local_train_steps=600` scored `0.910000`; `local_train_steps=500` scored `0.906100`.
+- Action: move to P23, the FedYogi/FedAdagrad adaptive-server reserve.
