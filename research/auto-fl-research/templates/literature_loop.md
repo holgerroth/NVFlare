@@ -1277,3 +1277,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both weight-decay neighbors fail, use the reserved FedDyn-alpha interaction before trying client LR.
 - Outcome: weight-decay neighbors failed. `3.75e-4` scored `0.909700`; `3.25e-4` scored `0.906800`.
 - Action: keep `weight_decay=3.5e-4` and launch the reserved FedDyn-alpha interaction under the FedDrift best stack.
+- FedDyn-alpha outcome: `feddyn_alpha=2e-4` scored `0.911900`; `5e-5` scored `0.909800`, both below the `0.913200` best.
+- FedDyn-alpha action: keep `feddyn_alpha=1e-4`. Two post-loop local-regularization batches failed, so start a new literature loop.
