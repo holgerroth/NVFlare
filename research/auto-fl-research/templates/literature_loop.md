@@ -2234,3 +2234,9 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If effective-number class weighting fails, revert the optional code path and stop local loss-code mutations until the next literature reset.
 - Outcome: effective-number class-balanced loss failed. `class_balance_beta=0.99` scored `0.906000`; `0.999` crashed with NVFlare abort/score-extraction failure.
 - Action: revert the optional class-balanced code path and stop local loss-code mutations until the next literature reset.
+
+## Post Thirty-first Continuation Note
+
+- Plateau watchdog after the class-balanced batch recommended `continue`, not `literature`.
+- CLI-only local-compute audit under the kept mixup stack did not improve: `aggregation_epochs=4` scored `0.905400`; `6` scored `0.911300`.
+- Keep the current best `aggregation_epochs=5` and avoid more client-loss code until a later literature reset.
