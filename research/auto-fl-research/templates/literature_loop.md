@@ -1045,3 +1045,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep `aggregation_epochs=5` unless a FedDyn-enabled neighbor beats `0.910900`.
 - If both fail, consider FedDyn-enabled exact local steps before adding FedDC/FedRed-style code.
+- Outcome: FedDyn-enabled epoch neighbors underperformed. `aggregation_epochs=4` scored `0.908800`; `6` scored `0.909500`.
+- Action: keep epoch-based `aggregation_epochs=5` and run the reserved exact local-step audit as a separate local-compute sweep.

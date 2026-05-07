@@ -136,6 +136,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedDyn-enabled server momentum neighbors did not improve: `server_momentum=0.30` scored `0.910800`; `server_momentum=0.40` scored `0.910400`.
 - FedDyn-enabled weight-decay retune did not improve: `weight_decay=4e-4` scored `0.910400`; `weight_decay=3e-4` scored `0.907700`.
 - Fifteenth literature loop selected a FedDyn-enabled epoch-count audit because pre-FedDyn local-compute rows may not transfer after the local objective changed.
+- FedDyn-enabled epoch-count audit did not improve: `aggregation_epochs=4` scored `0.908800`; `aggregation_epochs=6` scored `0.909500`.
 
 ## Literature basis
 
@@ -180,4 +181,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run FedDyn-enabled epoch-count neighbors: `--aggregation_epochs 4` and `6` with `--feddyn_alpha 1e-4`, keeping `--local_train_steps 0` and all fixed budget fields unchanged.
+Run the reserved FedDyn-enabled exact local-step audit: `--local_train_steps 500` and `600` with `--feddyn_alpha 1e-4`. Do not vary `aggregation_epochs` in this exact-step sweep.
