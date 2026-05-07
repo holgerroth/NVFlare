@@ -1721,3 +1721,72 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both fixed client clipping candidates fail, revert the optional code path and return to literature before adaptive clipping.
 - Outcome: client gradient clipping failed. `clip_norm=5.0` scored `0.908700`; `1.0` scored `0.898400`.
 - Action: revert the optional client gradient clipping code path and return to literature before adaptive clipping.
+
+## Twenty-fifth Literature Loop
+
+### Trigger
+
+- Reason: client gradient clipping missed and was reverted. The closest recent non-kept signal is the architecture subcampaign `moderate_cnn_small_head` at `0.912100`, only `0.001100` below the current best.
+- Current best: `moderate_cnn` with FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, default client LR/scheduler, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: broad new code paths have regressed. The registered small-head architecture is already under cap and close enough to justify a small subcampaign retune.
+- Candidate width: `PARALLEL_CANDIDATES=2`; label rows as architecture subcampaign and keep `max_model_params=5000000`.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning architecture capacity regularization non-IID classifier head weight decay` | Check whether architecture capacity and regularization interaction is plausible. | local prior rows, paper indexes | Evidence is weaker than optimizer papers, but the local signal is close. |
+| `FedBN normalization architecture federated learning non-IID model capacity` | Keep architecture-context source trail from the prior loop. | OpenReview, paper indexes | Normalization variant failed; small-head was the stronger architecture signal. |
+| `decoupled weight decay regularization neural network capacity smaller model` | Confirm weight decay is a capacity-sensitive regularizer. | optimizer/regularization papers | Weight decay may need retuning after reducing classifier-head capacity. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Local model training and regularization affect federated generalization. | FedAvg baseline | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Model/local update geometry interacts with normalized aggregation. | FedNova | keep |
+| Li21 | FedBN / 2021 | https://openreview.net/forum?id=6YEQUn0QICG | Architecture/normalization choices matter under non-IID FL. | architecture context | context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Small-head capacity changed regularization needs | Smaller classifier head reduces parameter count and may need less or more L2. | `moderate_cnn_small_head` scored `0.912100`, close to best at current `weight_decay=3.5e-4`. | Weight decay is an existing CLI knob and architecture rows are labeled. | CLI `--weight_decay` inside architecture subcampaign. |
+| C2 | Avoid new architecture code | Program prefers registered variants before new model code. | Registered norm failed; small-head is the only close architecture signal. | Retune the registered variant before adding architecture code. | No code changes. |
+| C3 | Comparability risk | Architecture scores must be labeled separately. | Best remains `moderate_cnn`. | Keep explicit architecture-subcampaign descriptions. | Ledger/report labeling. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P77 | Small-head lower weight decay. | McMahan17; Wang20 | Architecture subcampaign: `--model_arch moderate_cnn_small_head --weight_decay 2.5e-4`. | Reduce over-regularization in the smaller classifier head. | Score below `0.913200`. | Medium; registered model schema. |
+| P78 | Small-head higher weight decay. | McMahan17; Wang20 | Architecture subcampaign: `--model_arch moderate_cnn_small_head --weight_decay 4.5e-4`. | Test whether the close small-head row benefits from stronger regularization. | Score below best. | Medium. |
+| P79 | New architecture variant. | architecture search literature | Code: add another registered model. | Broader capacity search. | Too broad before retuning the close variant. | High; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P77 | Moderate-CNN FedDrift weight-decay retunes. | Model capacity changed; not duplicate. | keep |
+| P78 | Moderate-CNN FedDrift weight-decay retunes. | Model capacity changed; not duplicate. | keep |
+| P79 | New architecture code. | Existing close variant has not been retuned. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P77 | 2 | 4 | 5 | 2 | 3 | 3 | 19 |
+| P78 | 2 | 4 | 5 | 2 | 3 | 3 | 19 |
+| P79 | 3 | 2 | 1 | 2 | 4 | 3 | 14 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P77 | `arch_smallhead_lr1875_m035_wd25e5_gc_feddyn1e4_feddrift2p5e5_ep5` | Architecture subcampaign: `--model_arch moderate_cnn_small_head --weight_decay 2.5e-4` |
+| 2 | P78 | `arch_smallhead_lr1875_m035_wd45e5_gc_feddyn1e4_feddrift2p5e5_ep5` | Architecture subcampaign: `--model_arch moderate_cnn_small_head --weight_decay 4.5e-4` |
+
+### Reflective Memory
+
+- Keep `moderate_cnn` and `weight_decay=3.5e-4` unless a labeled small-head retune beats `0.913200`.
+- If both small-head weight-decay retunes fail, return to literature before adding a new architecture variant.

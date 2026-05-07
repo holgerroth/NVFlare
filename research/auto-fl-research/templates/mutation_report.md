@@ -202,4 +202,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twenty-fourth client gradient clipping candidates missed and the optional code path was reverted. Start a Twenty-fifth literature loop before adaptive clipping or more adaptive optimizer code.
+Twenty-fifth literature loop selected a labeled small-head architecture weight-decay retune after the small-head variant came close: test `moderate_cnn_small_head` with `weight_decay=2.5e-4` and `4.5e-4`.
