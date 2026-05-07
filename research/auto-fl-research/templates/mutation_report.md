@@ -170,6 +170,7 @@ The initial campaign should establish which already-available algorithm family i
 - CutMix failed and was reverted: `cutmix_alpha=0.5` scored `0.904800`; `1.0` scored `0.897800`.
 - Thirtieth literature loop selected default-off focal loss with the kept mixup setting.
 - Focal loss failed and was reverted: `focal_gamma=1.0` scored `0.906000`; `2.0` scored `0.896800`.
+- Thirty-first literature loop selected default-off effective-number class-balanced loss with the kept mixup setting.
 
 ## Literature basis
 
@@ -224,4 +225,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Focal loss failed and was reverted. Run another literature loop before more client-loss code; keep plain cross-entropy with `--mixup_alpha 0.2`.
+Implement default-off `--class_balance_beta` in `client.py`/`job.py`, validate, then launch effective-number class-balanced loss with betas `0.99` and `0.999` on the kept `--mixup_alpha 0.2` stack.

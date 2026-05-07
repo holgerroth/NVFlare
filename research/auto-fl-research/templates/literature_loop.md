@@ -2164,3 +2164,71 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If focal loss fails, revert the optional code path and revisit class-balanced/effective-number loss only with a separate literature loop.
 - Outcome: focal loss failed. `focal_gamma=1.0` scored `0.906000`; `2.0` scored `0.896800`.
 - Action: revert the optional focal code path; keep plain cross-entropy with local-only mixup.
+
+## Thirty-first Literature Loop
+
+### Trigger
+
+- Reason: focal loss failed, but class imbalance under label skew remains plausible. Use a separate loop for effective-number class-balanced loss as planned in the focal-loop reflective memory.
+- Current best: `0.914100` with FedNova/FedDyn/FedDrift, `--gradient_centralization`, `--mixup_alpha 0.2`, plain cross-entropy, `weight_decay=3.5e-4`, and `server_lr=1.875`.
+- Feasibility check: `CIFAR10_Idx` exposes each client's local `targets`, so class weights can be computed client-side after dataset creation without modifying `data/*`, sending metadata, or changing evaluation.
+- Candidate width: `PARALLEL_CANDIDATES=2`; add default-off effective-number class weighting and test two betas with the kept mixup setting.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `class-balanced loss effective number of samples CIFAR arXiv 1901.05555` | Primary method for local class-count weighting. | arXiv | Effective-number weights were designed for long-tailed CIFAR/ImageNet-like classification. |
+| `federated learning non-IID label skew class balanced loss local client class counts` | Check FL compatibility. | arXiv, paper indexes | Local class weighting is protocol-safe but may overfit client priors. |
+| `mixup class balanced loss label skew CIFAR` | Check interaction risk with mixup. | paper indexes | Mixup uses two labels; weighted CE can still apply per mixed component. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Cui19 | Class-Balanced Loss Based on Effective Number of Samples / 2019 | https://arxiv.org/abs/1901.05555 | Long-tailed class counts can be corrected by effective-number reweighting. | class-balanced loss | keep |
+| Lin17 | Focal Loss / 2017 | https://arxiv.org/abs/1708.02002 | Hard-example focusing failed here but motivates imbalance-sensitive losses. | focal loss | context |
+| Zhang17 | mixup / 2017 | https://arxiv.org/abs/1710.09412 | Current surviving augmentation uses weighted CE over two labels. | local augmentation | context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local label skew | Cui19 supports class-count based weighting for imbalanced classification. | FedLC/focal failed, but mixup improved and label skew remains in the data split. | Class weights can be computed from local `train_dataset.targets`. | `client.py`, `job.py`. |
+| C2 | Local prior overfit risk | Client-local class weighting may bias updates toward locally rare labels. | Many client-loss changes have regressed. | Test only two conservative betas and default off. | CLI `--class_balance_beta`. |
+| C3 | Mixup compatibility | Weighted CE can apply to each mixed label component. | Best row uses `mixup_alpha=0.2`. | Reuse existing mixup loss path with weighted criterion. | Client-local loss only. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P98 | Mild effective-number weighting. | Cui19; Zhang17 | Add default-off `--class_balance_beta`; candidate `--mixup_alpha 0.2 --class_balance_beta 0.99`. | Reweight local CE without extreme rare-class amplification. | Score below `0.914100`. | Medium-low. |
+| P99 | Stronger effective-number weighting. | Cui19; Zhang17 | Same code; candidate `--class_balance_beta 0.999`. | Test common stronger weighting. | Score below best or unstable local loss. | Medium-low. |
+| P100 | Per-round dynamic class weights. | Cui19 | Recompute weights every round. | No need; local data fixed. | unnecessary complexity. | reject |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P98 | FedLC/focal. | Different count-weighted CE mechanism; default off. | keep |
+| P99 | FedLC/focal. | Stronger count-weighted CE mechanism. | keep |
+| P100 | P98/P99. | Same data and no benefit. | reject |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P98 | 2 | 4 | 3 | 4 | 3 | 3 | 19 |
+| P99 | 2 | 4 | 3 | 4 | 3 | 3 | 19 |
+| P100 | 1 | 4 | 1 | 3 | 1 | 3 | 12 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P98 | `fednova_lr1875_m035_wd35e5_gc_mixup02_cb99_feddyn1e4_feddrift2p5e5_ep5` | Current best plus `--class_balance_beta 0.99` |
+| 2 | P99 | `fednova_lr1875_m035_wd35e5_gc_mixup02_cb999_feddyn1e4_feddrift2p5e5_ep5` | Current best plus `--class_balance_beta 0.999` |
+
+### Reflective Memory
+
+- If effective-number class weighting fails, revert the optional code path and stop local loss-code mutations until the next literature reset.

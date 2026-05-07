@@ -55,6 +55,7 @@ SCAFFOLD_CTRL_DIFF = AlgorithmConstants.SCAFFOLD_CTRL_DIFF
 SCAFFOLD_CTRL_GLOBAL = AlgorithmConstants.SCAFFOLD_CTRL_GLOBAL
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+NUM_CLASSES = 10
 
 
 def build_parser():
@@ -92,6 +93,12 @@ def build_parser():
         type=float,
         default=0.0,
         help="Mixup beta-distribution alpha for local training batches. 0 disables mixup.",
+    )
+    parser.add_argument(
+        "--class_balance_beta",
+        type=float,
+        default=0.0,
+        help="Effective-number class-balance beta in [0, 1). 0 disables class-balanced loss.",
     )
     parser.add_argument(
         "--gradient_centralization",
@@ -232,6 +239,21 @@ def _mixup_loss(criterion, outputs, labels_a, labels_b, lam):
     if lam >= 1.0:
         return criterion(outputs, labels_a)
     return lam * criterion(outputs, labels_a) + (1.0 - lam) * criterion(outputs, labels_b)
+
+
+def _class_balanced_weights(targets, beta, num_classes):
+    if beta <= 0.0:
+        return None
+    counts = np.bincount(np.asarray(targets, dtype=np.int64), minlength=num_classes).astype(np.float64)
+    present = counts > 0
+    if not np.any(present):
+        return None
+    effective_num = np.zeros_like(counts)
+    effective_num[present] = (1.0 - np.power(beta, counts[present])) / (1.0 - beta)
+    weights = np.zeros_like(counts)
+    weights[present] = 1.0 / effective_num[present]
+    weights[present] *= float(np.sum(present)) / float(np.sum(weights[present]))
+    return torch.tensor(weights, dtype=torch.float32, device=DEVICE)
 
 
 def _zero_parameter_state(model):
@@ -376,6 +398,8 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
+    if not 0.0 <= args.class_balance_beta < 1.0:
+        raise ValueError("class_balance_beta must be in [0, 1)")
     if args.feddrift_mu < 0.0:
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
@@ -397,7 +421,6 @@ def main(args):
         f"{site_name}: model_arch={args.model_arch} "
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
-    criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         model.parameters(),
         lr=args.lr,
@@ -415,6 +438,10 @@ def main(args):
         site_name,
         train_idx_root=args.train_idx_root,
     )
+    criterion_weight = _class_balanced_weights(train_dataset.targets, args.class_balance_beta, NUM_CLASSES)
+    criterion = nn.CrossEntropyLoss(weight=criterion_weight)
+    if criterion_weight is not None:
+        print(f"{site_name}: using effective-number class-balanced loss beta={args.class_balance_beta}")
     train_loader, valid_loader = _create_seeded_data_loaders(
         train_dataset,
         valid_dataset,
