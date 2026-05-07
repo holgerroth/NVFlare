@@ -165,6 +165,7 @@ The initial campaign should establish which already-available algorithm family i
 - Local-only mixup improved the best: `mixup_alpha=0.2` scored `0.914100`; `0.1` scored `0.913700`.
 - Mixup alpha narrowing did not improve: `mixup_alpha=0.15` scored `0.911800`; `0.3` scored `0.906100`.
 - Mixup-enabled weight-decay interaction did not improve: `weight_decay=3.0e-4` scored `0.912100`; `4.0e-4` scored `0.906600`.
+- Mixup-enabled server-LR interaction did not improve: `server_lr=1.9375` scored `0.913200`; `1.8125` scored `0.910000`.
 
 ## Literature basis
 
@@ -214,4 +215,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Test one server-step interaction under the kept mixup stack: `--mixup_alpha 0.2` with `server_lr=1.8125` and `1.9375`. Keep `weight_decay=3.5e-4` and do not continue alpha-only jitter.
+Post-mixup alpha, weight-decay, and server-LR retunes failed after the `0.914100` improvement. Run the next literature loop before more local jitter; keep `mixup_alpha=0.2`, `weight_decay=3.5e-4`, and `server_lr=1.875`.

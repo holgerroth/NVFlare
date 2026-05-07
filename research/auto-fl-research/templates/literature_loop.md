@@ -2017,3 +2017,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep `mixup_alpha=0.2`; stop alpha-only jitter and test one interaction axis under the new local objective.
 - Follow-up: mixup-enabled weight-decay interaction missed. `weight_decay=3.0e-4` scored `0.912100`; `4.0e-4` scored `0.906600`.
 - Action: keep `weight_decay=3.5e-4` with `mixup_alpha=0.2`.
+- Follow-up: mixup-enabled server-LR interaction missed. `server_lr=1.9375` scored `0.913200`; `1.8125` scored `0.910000`.
+- Action: keep `server_lr=1.875` with `mixup_alpha=0.2` and return to literature before more post-mixup local jitter.
