@@ -2242,4 +2242,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - CLI-only server-momentum retune under the kept mixup stack also did not improve: `server_momentum=0.40` scored `0.911000`; `0.30` scored `0.910300`.
 - CLI-only client-LR sweep found a near miss: `lr=0.055` scored `0.914500`, below the `0.000500` material-improvement threshold over the kept `0.914100`; `0.045` scored `0.910700`.
 - Narrow client-LR sweep did not confirm the near miss: `lr=0.0525` scored `0.912400`; `0.0575` scored `0.910600`.
-- Keep the current best `aggregation_epochs=5`, `server_momentum=0.35`, and default client LR; avoid more client-loss code until a later literature reset.
+- FedDyn-alpha retune under mixup did not improve: `feddyn_alpha=5e-5` scored `0.910200`; `2e-4` scored `0.909800`.
+- Keep the current best `aggregation_epochs=5`, `server_momentum=0.35`, default client LR, and `feddyn_alpha=1e-4`; avoid more client-loss code until a later literature reset.
