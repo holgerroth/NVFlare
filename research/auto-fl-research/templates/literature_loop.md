@@ -890,3 +890,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep the weight-power code only if one of these candidates beats or ties the current best with a defensible simplicity/runtime trade-off.
 - If both fail, revert the optional weight-power code before moving to FedDyn/FedDC-style stateful drift correction.
+- Outcome: both weight-power candidates underperformed. Uniform weighting scored `0.904000`; square-root weighting scored `0.904800`.
+- Action: revert the optional weight-power code and do not repeat FedNova client-weight flattening under this stack without a new signal.

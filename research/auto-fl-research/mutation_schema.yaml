@@ -44,7 +44,6 @@ mutable_args:
   fedopt_beta1: {type: float, min: 0.0, max: 0.99}
   fedopt_beta2: {type: float, min: 0.5, max: 0.999}
   fedopt_tau: {type: float, min: 0.000001, max: 0.1, log_scale: true}
-  fednova_weight_power: {type: float, min: 0.0, max: 1.0}
 
 comparison_budget_args:
   h100_default_candidate_budget:

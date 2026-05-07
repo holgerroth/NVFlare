@@ -127,6 +127,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova local-compute epoch audit did not improve: `aggregation_epochs=4` scored `0.905500`; `aggregation_epochs=6` scored `0.908200`. Both were discarded.
 - Thirteenth literature loop selected a default-preserving FedNova aggregation-weight exponent before attempting FedDyn/FedDC/FedCM-style stateful drift correction.
 - Added optional `--fednova_weight_power`; `1.0` preserves the current step-weighted FedNova behavior, `0.5` partially flattens client weighting, and `0.0` gives uniform client weighting after local-step normalization.
+- FedNova weight-power candidates underperformed: uniform weighting scored `0.904000`; square-root weighting scored `0.904800`. The optional weight-power code path was reverted.
 
 ## Literature basis
 
@@ -169,4 +170,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run the Thirteenth-loop FedNova weight-power candidates: `--fednova_weight_power 0.5` and `0.0` under the current best FedNova/gradient-centralization stack. Keep the code only if a candidate beats or cleanly ties the `0.910300` best; otherwise revert before moving to stateful drift correction.
+FedNova weight-power flattening failed and has been reverted. Continue with the next source-backed proposal; prefer a bounded client-side drift-correction code path over more FedNova scalar jitter.
