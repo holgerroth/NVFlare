@@ -39,7 +39,6 @@ mutable_args:
   feddyn_alpha: {type: float, min: 0.0, max: 0.01, log_scale: true}
   feddrift_mu: {type: float, min: 0.0, max: 0.01, log_scale: true}
   feddrift_beta: {type: float, min: 0.0, max: 0.99}
-  feddrift_clip_norm: {type: float, min: 0.0, max: 10.0}
   aggregator:
     type: str
     choices: [weighted, fedavg, fedavgm, fedadam, fedopt, fednova, scaffold, median, default]

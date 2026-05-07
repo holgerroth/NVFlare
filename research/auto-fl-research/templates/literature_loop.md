@@ -1354,3 +1354,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep default client LR and launch the reserved FedDrift-enabled epoch audit with `aggregation_epochs=4` and `6`.
 - Outcome: the reserved epoch audit failed. `aggregation_epochs=6` scored `0.911500`; `aggregation_epochs=4` scored `0.905000`.
 - Action: use reserve P61 and test default-off FedDrift EMA-state clipping before another literature reset.
+- Outcome: FedDrift EMA-state clipping failed. `clip_norm=2.0` scored `0.910900`; `clip_norm=1.0` scored `0.906500`.
+- Action: revert the optional clipping code path and start a Twentieth literature loop before the next candidate batch.
