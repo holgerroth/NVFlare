@@ -897,3 +897,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Follow-up action: keep the default-off FedDyn-style code and narrow alpha around `1e-4`.
 - Alpha-neighbor outcome: `alpha=5e-5` scored `0.906600`; `alpha=2e-4` scored `0.909600`.
 - Alpha-neighbor action: keep `alpha=1e-4` and retune server LR under the new FedDyn-enabled stack.
+- Server-LR outcome: `server_lr=1.9375` scored `0.910500`; `1.8125` scored `0.908300`.
+- Server-LR action: keep `server_lr=1.875`. Two batches have failed after the FedDyn improvement, so start a new literature loop before more local jitter.
