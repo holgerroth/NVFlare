@@ -146,6 +146,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedDrift lower-side mu neighbors did not improve: `1.25e-5` and `3.75e-5` both scored `0.909700`.
 - FedDrift beta neighbors did not improve: `beta=0.8` scored `0.908900`; `0.95` scored `0.908100`.
 - Seventeenth literature loop selected a FedDrift-enabled server-LR retune; it did not improve. `server_lr=1.9375` scored `0.909300`; `1.8125` scored `0.908800`.
+- The reserved FedDrift-enabled server-momentum retune also did not improve: `server_momentum=0.40` scored `0.910200`; `0.30` scored `0.909500`.
 
 ## Literature basis
 
@@ -191,4 +192,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run the reserved FedDrift-enabled server-momentum retune from the Seventeenth literature loop: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, `server_lr=1.875`, and test `server_momentum=0.30` and `0.40` under the fixed 20-round budget.
+Start a fresh literature loop before selecting another axis. The current best remains `0.913200` with FedNova/FedDyn/FedDrift (`feddrift_mu=2.5e-5`, `feddrift_beta=0.9`); both server LR and server momentum retunes missed under this stack.

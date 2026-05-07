@@ -1202,3 +1202,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If server LR neighbors fail, use the reserved server momentum retune before returning to client-local jitter.
 - Outcome: server LR neighbors failed under the FedDrift best stack. `server_lr=1.9375` scored `0.909300`; `1.8125` scored `0.908800`.
 - Action: keep `server_lr=1.875` and launch the reserved FedDrift-enabled server momentum retune.
+- Momentum outcome: server momentum neighbors also failed. `server_momentum=0.40` scored `0.910200`; `0.30` scored `0.909500`.
+- Momentum action: keep `server_momentum=0.35`. Two post-loop server optimizer batches failed, so start a new literature loop before selecting another axis.
