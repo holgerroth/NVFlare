@@ -1792,3 +1792,72 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both small-head weight-decay retunes fail, return to literature before adding a new architecture variant.
 - Outcome: small-head weight-decay retunes failed. `weight_decay=4.5e-4` scored `0.910300`; `2.5e-4` scored `0.907600`.
 - Action: keep `moderate_cnn` and return to literature before adding a new architecture variant.
+
+## Twenty-sixth Literature Loop
+
+### Trigger
+
+- Reason: small-head weight-decay retunes failed, but the original small-head architecture score `0.912100` remains the closest recent non-kept result.
+- Current best: `moderate_cnn` with FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: small-head capacity is close, while small-head weight decay worsened. Server update scale may need retuning under the altered model geometry.
+- Candidate width: `PARALLEL_CANDIDATES=2`; architecture subcampaign rows, no code changes.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `Adaptive Federated Optimization server learning rate model architecture federated learning` | Check whether server step scale should be retuned after context changes. | arXiv/paper indexes | FedOpt literature treats server LR as a sensitive heterogeneity knob. |
+| `FedNova objective inconsistency server learning rate local update normalization architecture` | Tie FedNova server step scale to changed model/update geometry. | arXiv/paper indexes | FedNova normalized updates can still require server scale tuning. |
+| `federated learning architecture subcampaign optimizer retune model capacity` | Check whether architecture changes warrant local optimizer retunes. | local prior rows, paper indexes | Program architecture guidance supports optimizer retunes around promising registered variants. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Server optimizer scale is important under heterogeneity. | FedOpt/FedAvgM | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Normalized local updates interact with server aggregation scale. | FedNova | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Local model training and aggregation trade off communication and convergence. | FedAvg baseline | context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Small-head update scale may differ | Reddi21/Wang20 support tuning server step scale under changed local update geometry. | Small-head base was close; weight decay did not help. | Server LR is an existing CLI knob and architecture row is labeled. | CLI `--server_lr`. |
+| C2 | Avoid broader architecture code | Registered small-head is already close. | New architecture code has lower evidence than retuning the close registered variant. | No code change. | Existing `model_arch`. |
+| C3 | Tight bounds only | Server LR neighbors under main architecture failed. | Context differs because model architecture changed, but avoid broad retunes. | Use immediate neighbors around `1.875`. | CLI only. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P80 | Small-head lower server LR. | Reddi21; Wang20 | Architecture subcampaign: `--model_arch moderate_cnn_small_head --server_lr 1.8125`. | Reduce server step scale for changed model geometry. | Score below `0.913200`. | Medium; registered model schema. |
+| P81 | Small-head higher server LR. | Reddi21; Wang20 | Architecture subcampaign: `--model_arch moderate_cnn_small_head --server_lr 1.9375`. | Test whether the smaller head can take a slightly larger normalized server step. | Score below best. | Medium. |
+| P82 | New architecture variant. | architecture search literature | Code: add another registered model. | Broader architecture search. | Too broad before server-step retune. | High; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P80 | Moderate-CNN FedDrift server-LR retune. | Model architecture changed; not a strict duplicate. | keep |
+| P81 | Moderate-CNN FedDrift server-LR retune. | Model architecture changed; not a strict duplicate. | keep |
+| P82 | New architecture code. | Existing close architecture still has one optimizer scale axis left. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P80 | 2 | 4 | 5 | 3 | 3 | 3 | 20 |
+| P81 | 2 | 4 | 5 | 3 | 3 | 3 | 20 |
+| P82 | 3 | 2 | 1 | 2 | 4 | 3 | 14 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P80 | `arch_smallhead_lr18125_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_ep5` | Architecture subcampaign: `--model_arch moderate_cnn_small_head --server_lr 1.8125` |
+| 2 | P81 | `arch_smallhead_lr19375_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_ep5` | Architecture subcampaign: `--model_arch moderate_cnn_small_head --server_lr 1.9375` |
+
+### Reflective Memory
+
+- Keep `moderate_cnn` and `server_lr=1.875` unless a labeled small-head server-LR neighbor beats `0.913200`.
+- If both small-head server-LR retunes fail, stop the small-head branch and return to literature before new architecture code.

@@ -203,4 +203,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twenty-fifth small-head weight-decay retune missed. Start a Twenty-sixth literature loop before adding a new architecture variant.
+Twenty-sixth literature loop selected a labeled small-head architecture server-LR retune after the small-head variant remained the closest recent near-miss: test `server_lr=1.8125` and `1.9375`.
