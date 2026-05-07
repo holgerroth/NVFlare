@@ -155,6 +155,7 @@ The initial campaign should establish which already-available algorithm family i
 - Twentieth literature loop selected a FedDrift-enabled cosine scheduler-floor sweep; it did not improve. `eta_min_factor=0.003` scored `0.910900`; `0.03` scored `0.906100`.
 - Twenty-first literature loop selected a labeled registered-architecture subcampaign; it did not improve. `moderate_cnn_small_head` scored `0.912100`; `moderate_cnn_norm` scored `0.904600`.
 - Twenty-second literature loop selected a very-light FedProx interaction; it did not improve. `mu=1e-6` scored `0.908500`; `5e-6` scored `0.906000`.
+- Twenty-third literature loop selected a default-off local AdamW optimizer mutation; it failed badly. `lr=0.0005` scored `0.252000`; `0.001` scored `0.100000`. The optional AdamW code path was reverted.
 
 ## Literature basis
 
@@ -190,15 +191,14 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - FedDyn-style dynamic regularization is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedDrift EMA correction is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
-- The optional local optimizer selector is client-local and keeps SGD as the default; AdamW adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, optional FedDrift EMA correction behind `--feddrift_mu`, and optional local AdamW behind `--optimizer adamw`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, and FedDrift state-clipping code paths have been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, and optional FedDrift EMA correction behind `--feddrift_mu`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, and local AdamW code paths have been reverted.
 
 ## Next mutation
 
-Twenty-third literature loop selected a default-off local AdamW optimizer-family mutation before Delta-SGD-style adaptive code: add `--optimizer {sgd,adamw}` and test AdamW at `lr=0.001` and `0.0005` under the current best stack.
+Twenty-third local AdamW candidates failed badly and the optional code path was reverted. Start a Twenty-fourth literature loop before implementing any more local adaptive optimizer code.

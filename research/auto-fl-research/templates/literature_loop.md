@@ -1648,3 +1648,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep `--optimizer sgd` as default and current best unless an AdamW candidate beats `0.913200`.
 - If both AdamW candidates fail, revert the optional optimizer code path and return to literature before implementing Delta-SGD.
+- Outcome: local AdamW failed badly. `lr=0.0005` scored `0.252000`; `lr=0.001` scored `0.100000`.
+- Action: revert the optional AdamW optimizer code path and keep SGD as the only local optimizer.

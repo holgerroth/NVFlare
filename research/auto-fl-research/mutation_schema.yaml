@@ -29,7 +29,6 @@ mutable_args:
   batch_size: {type: int, choices: [32, 64, 128]}
   eval_batch_size: {type: int, choices: [64, 128, 256, 512, 1024, 2048]}
   num_workers: {type: int, min: 0, max: 8}
-  optimizer: {type: str, choices: [sgd, adamw]}
   momentum: {type: float, min: 0.0, max: 0.99}
   weight_decay: {type: float, min: 0.0, max: 0.001, log_scale: true}
   gradient_centralization: {type: bool}

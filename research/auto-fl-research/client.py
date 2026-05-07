@@ -85,7 +85,6 @@ def build_parser():
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--eval_batch_size", type=int, default=1024)
     parser.add_argument("--num_workers", type=int, default=2)
-    parser.add_argument("--optimizer", choices=("sgd", "adamw"), default="sgd")
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
@@ -376,22 +375,12 @@ def main(args):
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
     criterion = nn.CrossEntropyLoss()
-    if args.optimizer == "sgd":
-        optimizer = optim.SGD(
-            model.parameters(),
-            lr=args.lr,
-            momentum=args.momentum,
-            weight_decay=args.weight_decay,
-        )
-    elif args.optimizer == "adamw":
-        optimizer = optim.AdamW(
-            model.parameters(),
-            lr=args.lr,
-            weight_decay=args.weight_decay,
-        )
-    else:
-        raise ValueError(f"unsupported optimizer={args.optimizer!r}")
-    print(f"{site_name}: optimizer={args.optimizer} lr={args.lr} weight_decay={args.weight_decay}")
+    optimizer = optim.SGD(
+        model.parameters(),
+        lr=args.lr,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
+    )
 
     scheduler = None
     criterion_prox = None
