@@ -88,6 +88,12 @@ def build_parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Mixup beta-distribution alpha for local training batches. 0 disables mixup.",
+    )
+    parser.add_argument(
         "--gradient_centralization",
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
@@ -211,6 +217,21 @@ def _apply_gradient_centralization(model):
             continue
         dims = tuple(range(1, grad.ndim))
         grad.sub_(grad.mean(dim=dims, keepdim=True))
+
+
+def _mixup_batch(inputs, labels, alpha):
+    if alpha <= 0.0:
+        return inputs, labels, labels, 1.0
+    lam = float(np.random.beta(alpha, alpha))
+    indices = torch.randperm(inputs.size(0), device=inputs.device)
+    mixed_inputs = lam * inputs + (1.0 - lam) * inputs[indices]
+    return mixed_inputs, labels, labels[indices], lam
+
+
+def _mixup_loss(criterion, outputs, labels_a, labels_b, lam):
+    if lam >= 1.0:
+        return criterion(outputs, labels_a)
+    return lam * criterion(outputs, labels_a) + (1.0 - lam) * criterion(outputs, labels_b)
 
 
 def _zero_parameter_state(model):
@@ -353,6 +374,8 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.mixup_alpha < 0.0:
+        raise ValueError("mixup_alpha must be >= 0")
     if args.feddrift_mu < 0.0:
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
@@ -507,8 +530,9 @@ def main(args):
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
                 optimizer.zero_grad(set_to_none=True)
+                inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
                 outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -576,8 +600,9 @@ def main(args):
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
                     optimizer.zero_grad(set_to_none=True)
+                    inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
                     outputs = model(inputs)
-                    loss = criterion(outputs, labels)
+                    loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)

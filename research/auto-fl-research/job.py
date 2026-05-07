@@ -106,6 +106,12 @@ def define_parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Mixup beta-distribution alpha for local training batches. 0 disables mixup.",
+    )
+    parser.add_argument(
         "--gradient_centralization",
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
@@ -318,6 +324,8 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.mixup_alpha < 0.0:
+        raise ValueError("mixup_alpha must be >= 0")
     if args.feddrift_mu < 0.0:
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
@@ -372,6 +380,8 @@ def main():
         args.momentum,
         "--weight_decay",
         args.weight_decay,
+        "--mixup_alpha",
+        args.mixup_alpha,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",

@@ -1938,3 +1938,76 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both momentum neighbors fail, do not continue momentum jitter; promote the reserved local-only mixup idea only after another literature check confirms it can be implemented without protocol or evaluation changes.
 - Outcome: current-stack client momentum neighbors failed. `momentum=0.85` scored `0.906100`; `0.95` scored `0.905800`.
 - Action: keep client momentum at default `0.9`; do not continue momentum jitter under the current stack.
+
+## Twenty-eighth Literature Loop
+
+### Trigger
+
+- Reason: current-stack client momentum missed, and the reserved local-only mixup idea needs a protocol-safety check before code changes.
+- Current best: `0.913200` with `moderate_cnn`, FedNova `server_lr=1.875`, `server_momentum=0.35`, default client LR/momentum/scheduler, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: optimizer-scale and architecture retunes failed. The current CIFAR training path already uses crop/flip augmentation, but not label-space interpolation.
+- Candidate width: `PARALLEL_CANDIDATES=2`; add default-off client-local mixup only, no shared data, no new metadata, no evaluation changes.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedMix Approximation of Mixup under Mean Augmented Federated Learning local mixup non-IID federated learning` | Separate FedMix's protocol-coupled MAFL idea from local-only mixup. | arXiv, OpenReview, KAIST page | FedMix supports mixup in FL but full MAFL sends averaged local data, so only local mixup is compatible here. |
+| `mixup Beyond Empirical Risk Minimization arXiv CIFAR regularization` | Check the base method and CIFAR evidence for local implementation. | arXiv, Meta AI page | Mixup is a local convex-combination training principle with CIFAR evidence and no dependency needs. |
+| `federated learning local mixup non-IID label skew CIFAR client-side augmentation arXiv` | Look for non-IID FL motivation for local augmentation. | OpenReview, paper indexes | Local-only mixup is weaker than FedMix but remains protocol-safe. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Zhang17 | mixup: Beyond Empirical Risk Minimization / 2017 | https://arxiv.org/abs/1710.09412 | Neural nets can overfit and benefit from convex input/label interpolation. | local augmentation | keep |
+| Yoon21 | FedMix: Approximation of Mixup under Mean Augmented Federated Learning / 2021 | https://arxiv.org/abs/2107.00233 | Non-IID FL can benefit from mixup-style augmentation, but MAFL exchanges averaged data. | FL mixup | keep for motivation; reject MAFL protocol |
+| OpenReview21 | FedMix ICLR 2021 page | https://openreview.net/forum?id=Ogga20D2HO- | Confirms FedMix is peer-reviewed and targets difficult non-IID settings. | FL mixup provenance | context |
+| Luo21 | CCVR / 2021 | https://arxiv.org/abs/2106.05001 | Classifier bias remains plausible but heavier than local augmentation. | classifier calibration | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local overfitting under heterogeneity | Zhang17 shows mixup improves CIFAR generalization by interpolating examples and labels. | Current best has plateaued after many optimizer retunes. | Local batch mixup changes only client training loss. | `client.py`, `job.py` CLI forwarding. |
+| C2 | FedMix protocol boundary | Yoon21 uses averaged local data exchange in MAFL. | Protocol-changing ideas are forbidden in this campaign. | Implement local-only mixup, not MAFL/FedMix metadata or shared data. | `client.py` only; no FLModel fields. |
+| C3 | Loss interaction risk | FedDyn/FedDrift already add local regularization. | Heavy code mutations such as AdamW and clipping regressed. | Keep mixup default-off and sweep two conservative alphas. | CLI `--mixup_alpha`. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P87 | Conservative local mixup. | Zhang17; Yoon21 | Add default-off `--mixup_alpha`; candidate `--mixup_alpha 0.1`. | Mild label-space interpolation may improve non-IID generalization without destabilizing drift terms. | Score below `0.913200`. | Medium-low; client-local code. |
+| P88 | Standard local mixup. | Zhang17; Yoon21 | Same code; candidate `--mixup_alpha 0.2`. | Stronger regularization closer to common CIFAR mixup settings. | Score below best or unstable loss. | Medium-low. |
+| P89 | FedMix/MAFL averaged-data exchange. | Yoon21 | Add exchanged averaged local data. | Closer to FedMix paper. | Requires new protocol data exchange. | Reject. |
+| P90 | CCVR classifier calibration. | Luo21 | Add post-training classifier calibration. | Address classifier bias directly. | Requires calibration/evaluation procedure changes. | Reserve high risk. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P87 | Label smoothing. | Different mechanism; local interpolation of inputs and labels. | keep |
+| P88 | Label smoothing. | Stronger interpolation may conflict with existing regularizers but is source-backed. | keep |
+| P89 | None. | Violates no new protocol/shared data rule. | reject |
+| P90 | Small-head architecture branch. | Too heavy after architecture branch closed. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P87 | 3 | 4 | 3 | 4 | 4 | 3 | 22 |
+| P88 | 3 | 4 | 3 | 4 | 4 | 3 | 22 |
+| P90 | 3 | 2 | 1 | 3 | 3 | 4 | 12 |
+| P89 | 4 | 1 | 1 | 4 | 4 | 3 | 12 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P87 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_mixup01_ep5` | Current best stack plus `--mixup_alpha 0.1` |
+| 2 | P88 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_mixup02_ep5` | Current best stack plus `--mixup_alpha 0.2` |
+
+### Reflective Memory
+
+- Only local mixup is compatible; do not implement FedMix/MAFL averaged-data exchange without human approval for a protocol upgrade.
+- If both conservative local mixup alphas fail, revert the optional code path and return to literature instead of broadening augmentation immediately.
