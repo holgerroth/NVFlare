@@ -157,6 +157,7 @@ The initial campaign should establish which already-available algorithm family i
 - Twenty-second literature loop selected a very-light FedProx interaction; it did not improve. `mu=1e-6` scored `0.908500`; `5e-6` scored `0.906000`.
 - Twenty-third literature loop selected a default-off local AdamW optimizer mutation; it failed badly. `lr=0.0005` scored `0.252000`; `0.001` scored `0.100000`. The optional AdamW code path was reverted.
 - Twenty-fourth literature loop selected default-off client gradient clipping; it did not improve. `clip_norm=5.0` scored `0.908700`; `1.0` scored `0.898400`. The optional clipping code path was reverted.
+- Twenty-fifth literature loop selected a small-head architecture weight-decay retune; it did not improve. `weight_decay=4.5e-4` scored `0.910300`; `2.5e-4` scored `0.907600`.
 
 ## Literature basis
 
@@ -202,4 +203,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twenty-fifth literature loop selected a labeled small-head architecture weight-decay retune after the small-head variant came close: test `moderate_cnn_small_head` with `weight_decay=2.5e-4` and `4.5e-4`.
+Twenty-fifth small-head weight-decay retune missed. Start a Twenty-sixth literature loop before adding a new architecture variant.

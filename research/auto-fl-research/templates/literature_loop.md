@@ -1790,3 +1790,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep `moderate_cnn` and `weight_decay=3.5e-4` unless a labeled small-head retune beats `0.913200`.
 - If both small-head weight-decay retunes fail, return to literature before adding a new architecture variant.
+- Outcome: small-head weight-decay retunes failed. `weight_decay=4.5e-4` scored `0.910300`; `2.5e-4` scored `0.907600`.
+- Action: keep `moderate_cnn` and return to literature before adding a new architecture variant.
