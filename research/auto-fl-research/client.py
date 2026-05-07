@@ -34,7 +34,6 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
-import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -93,12 +92,6 @@ def build_parser():
         type=float,
         default=0.0,
         help="Mixup beta-distribution alpha for local training batches. 0 disables mixup.",
-    )
-    parser.add_argument(
-        "--focal_gamma",
-        type=float,
-        default=0.0,
-        help="Focal-loss gamma for local classification loss. 0 disables focal loss.",
     )
     parser.add_argument(
         "--gradient_centralization",
@@ -235,23 +228,10 @@ def _mixup_batch(inputs, labels, alpha):
     return mixed_inputs, labels, labels[indices], lam
 
 
-def _target_loss(criterion, outputs, labels, focal_gamma):
-    if focal_gamma <= 0.0:
-        return criterion(outputs, labels)
-    ce_loss = F.cross_entropy(outputs, labels, reduction="none")
-    pt = torch.exp(-ce_loss)
-    return torch.mean(torch.pow(1.0 - pt, focal_gamma) * ce_loss)
-
-
-def _mixup_loss(criterion, outputs, labels_a, labels_b, lam, focal_gamma):
+def _mixup_loss(criterion, outputs, labels_a, labels_b, lam):
     if lam >= 1.0:
-        return _target_loss(criterion, outputs, labels_a, focal_gamma)
-    return lam * _target_loss(criterion, outputs, labels_a, focal_gamma) + (1.0 - lam) * _target_loss(
-        criterion,
-        outputs,
-        labels_b,
-        focal_gamma,
-    )
+        return criterion(outputs, labels_a)
+    return lam * criterion(outputs, labels_a) + (1.0 - lam) * criterion(outputs, labels_b)
 
 
 def _zero_parameter_state(model):
@@ -396,8 +376,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
-    if args.focal_gamma < 0.0:
-        raise ValueError("focal_gamma must be >= 0")
     if args.feddrift_mu < 0.0:
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
@@ -554,7 +532,7 @@ def main(args):
                 optimizer.zero_grad(set_to_none=True)
                 inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
                 outputs = model(inputs)
-                loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam, args.focal_gamma)
+                loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -624,7 +602,7 @@ def main(args):
                     optimizer.zero_grad(set_to_none=True)
                     inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
                     outputs = model(inputs)
-                    loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam, args.focal_gamma)
+                    loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)

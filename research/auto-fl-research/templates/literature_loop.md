@@ -2162,3 +2162,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 ### Reflective Memory
 
 - If focal loss fails, revert the optional code path and revisit class-balanced/effective-number loss only with a separate literature loop.
+- Outcome: focal loss failed. `focal_gamma=1.0` scored `0.906000`; `2.0` scored `0.896800`.
+- Action: revert the optional focal code path; keep plain cross-entropy with local-only mixup.
