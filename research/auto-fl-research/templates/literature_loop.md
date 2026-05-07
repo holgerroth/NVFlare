@@ -2092,3 +2092,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - CutMix must remain local-only; do not combine it with mixup in the first batch.
 - If both CutMix alphas fail, revert the optional code path and do not continue augmentation code without another literature reset.
+- Outcome: CutMix failed. `cutmix_alpha=0.5` scored `0.904800`; `1.0` scored `0.897800`.
+- Action: revert the default-off CutMix code path; keep local-only mixup as the surviving augmentation.

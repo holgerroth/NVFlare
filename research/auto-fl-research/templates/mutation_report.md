@@ -167,6 +167,7 @@ The initial campaign should establish which already-available algorithm family i
 - Mixup-enabled weight-decay interaction did not improve: `weight_decay=3.0e-4` scored `0.912100`; `4.0e-4` scored `0.906600`.
 - Mixup-enabled server-LR interaction did not improve: `server_lr=1.9375` scored `0.913200`; `1.8125` scored `0.910000`.
 - Twenty-ninth literature loop selected default-off local-only CutMix after mixup improved but post-mixup retunes failed.
+- CutMix failed and was reverted: `cutmix_alpha=0.5` scored `0.904800`; `1.0` scored `0.897800`.
 
 ## Literature basis
 
@@ -215,8 +216,8 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, optional FedDrift EMA correction behind `--feddrift_mu`, and optional local-only mixup behind `--mixup_alpha`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, local AdamW, and client gradient-clipping code paths have been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, optional FedDrift EMA correction behind `--feddrift_mu`, and optional local-only mixup behind `--mixup_alpha`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, local AdamW, client gradient-clipping, and CutMix code paths have been reverted.
 
 ## Next mutation
 
-Implement default-off local-only `--cutmix_alpha` in `client.py`/`job.py`, validate, then launch `cutmix_alpha=0.5` and `1.0` with `mixup_alpha=0`. Do not combine CutMix with mixup in the first batch.
+CutMix failed and was reverted. Run another literature loop before more augmentation or optimizer-code mutations; keep the best stack at `--mixup_alpha 0.2`.

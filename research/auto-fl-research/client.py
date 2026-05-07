@@ -94,12 +94,6 @@ def build_parser():
         help="Mixup beta-distribution alpha for local training batches. 0 disables mixup.",
     )
     parser.add_argument(
-        "--cutmix_alpha",
-        type=float,
-        default=0.0,
-        help="CutMix beta-distribution alpha for local training batches. 0 disables CutMix.",
-    )
-    parser.add_argument(
         "--gradient_centralization",
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
@@ -231,36 +225,6 @@ def _mixup_batch(inputs, labels, alpha):
     lam = float(np.random.beta(alpha, alpha))
     indices = torch.randperm(inputs.size(0), device=inputs.device)
     mixed_inputs = lam * inputs + (1.0 - lam) * inputs[indices]
-    return mixed_inputs, labels, labels[indices], lam
-
-
-def _rand_bbox(width, height, lam):
-    cut_ratio = np.sqrt(1.0 - lam)
-    cut_w = int(width * cut_ratio)
-    cut_h = int(height * cut_ratio)
-
-    cx = np.random.randint(width)
-    cy = np.random.randint(height)
-
-    x1 = int(np.clip(cx - cut_w // 2, 0, width))
-    y1 = int(np.clip(cy - cut_h // 2, 0, height))
-    x2 = int(np.clip(cx + cut_w // 2, 0, width))
-    y2 = int(np.clip(cy + cut_h // 2, 0, height))
-    return x1, y1, x2, y2
-
-
-def _cutmix_batch(inputs, labels, alpha):
-    if alpha <= 0.0:
-        return inputs, labels, labels, 1.0
-    lam = float(np.random.beta(alpha, alpha))
-    indices = torch.randperm(inputs.size(0), device=inputs.device)
-    _, _, height, width = inputs.shape
-    x1, y1, x2, y2 = _rand_bbox(width, height, lam)
-
-    mixed_inputs = inputs.clone()
-    mixed_inputs[:, :, y1:y2, x1:x2] = inputs[indices, :, y1:y2, x1:x2]
-    patch_area = (x2 - x1) * (y2 - y1)
-    lam = 1.0 - float(patch_area) / float(width * height)
     return mixed_inputs, labels, labels[indices], lam
 
 
@@ -412,10 +376,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
-    if args.cutmix_alpha < 0.0:
-        raise ValueError("cutmix_alpha must be >= 0")
-    if args.mixup_alpha > 0.0 and args.cutmix_alpha > 0.0:
-        raise ValueError("mixup_alpha and cutmix_alpha are mutually exclusive")
     if args.feddrift_mu < 0.0:
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
@@ -570,10 +530,7 @@ def main(args):
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
                 optimizer.zero_grad(set_to_none=True)
-                if args.cutmix_alpha > 0.0:
-                    inputs, labels_a, labels_b, mixup_lam = _cutmix_batch(inputs, labels, args.cutmix_alpha)
-                else:
-                    inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
+                inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
                 outputs = model(inputs)
                 loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam)
 
@@ -643,10 +600,7 @@ def main(args):
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
                     optimizer.zero_grad(set_to_none=True)
-                    if args.cutmix_alpha > 0.0:
-                        inputs, labels_a, labels_b, mixup_lam = _cutmix_batch(inputs, labels, args.cutmix_alpha)
-                    else:
-                        inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
+                    inputs, labels_a, labels_b, mixup_lam = _mixup_batch(inputs, labels, args.mixup_alpha)
                     outputs = model(inputs)
                     loss = _mixup_loss(criterion, outputs, labels_a, labels_b, mixup_lam)
 
