@@ -1123,3 +1123,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: abandon exact local steps under this FedNova/FedDyn stack. The reliability mitigation worked, but the algorithmic result did not improve; move to the FedDC/FedRed drift-correction reserve next.
 - Follow-up outcome: the FedDC/FedRed-inspired client EMA drift correction improved the best. `feddrift_mu=5e-5, beta=0.9` scored `0.911400`; `mu=1e-4` scored `0.910300`.
 - Follow-up action: keep the default-off FedDrift code and narrow `feddrift_mu` around `5e-5` before changing `feddrift_beta`.
+- Narrowing outcome: `feddrift_mu=2.5e-5, beta=0.9` improved the best to `0.913200`; `mu=7.5e-5` regressed to `0.905300`.
+- Narrowing action: keep `feddrift_mu=2.5e-5` and test lower-side neighbors before changing `feddrift_beta`.

@@ -142,6 +142,7 @@ The initial campaign should establish which already-available algorithm family i
 - The width-1 exact-step audit completed successfully but did not improve: `local_train_steps=600` scored `0.909300`, so exact local steps are now a discarded axis under the current FedNova/FedDyn stack.
 - Added optional `--feddrift_mu` / `--feddrift_beta` client-local EMA drift correction inspired by FedDC/FedRed residual drift correction. The default `feddrift_mu=0.0` preserves existing behavior and adds no FLModel params, metadata, or aggregation keys.
 - FedDrift improved the best score: `feddrift_mu=5e-5, beta=0.9` scored `0.911400`; `mu=1e-4, beta=0.9` scored `0.910300` and was discarded.
+- FedDrift narrowing improved again: `feddrift_mu=2.5e-5, beta=0.9` scored `0.913200`; `7.5e-5` regressed to `0.905300`.
 
 ## Literature basis
 
@@ -169,7 +170,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -187,4 +188,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Narrow FedDrift under the current best stack by sweeping only `feddrift_mu` with `feddrift_beta=0.9` fixed: try `2.5e-5` and `7.5e-5`, keeping `aggregation_epochs=5`, `--num_rounds 20`, cross-site evaluation, and `RUN_TIMEOUT_SECONDS=1200` fixed.
+Continue narrowing FedDrift under the current best stack by sweeping only `feddrift_mu` with `feddrift_beta=0.9` fixed: try `1.25e-5` and `3.75e-5`, keeping `aggregation_epochs=5`, `--num_rounds 20`, cross-site evaluation, and `RUN_TIMEOUT_SECONDS=1200` fixed.
