@@ -184,6 +184,12 @@ def define_parser():
         default=1e-3,
         help="Numerical stabilizer for the fedadam aggregator.",
     )
+    parser.add_argument(
+        "--fednova_weight_power",
+        type=float,
+        default=1.0,
+        help="FedNova client aggregation weight exponent. 1.0 preserves step-weighted behavior; 0.0 is uniform.",
+    )
     return parser.parse_args()
 
 
@@ -262,10 +268,15 @@ def get_aggregator(args):
             tau=args.fedopt_tau,
         )
     if kind == "fednova":
-        print("Using FedNovaAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
+        print(
+            "Using FedNovaAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
+            f"weight_power={args.fednova_weight_power})"
+        )
         return FedNovaAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
+            weight_power=args.fednova_weight_power,
         )
     if kind == "scaffold":
         print("Using ScaffoldAggregator")

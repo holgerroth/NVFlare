@@ -125,6 +125,8 @@ The initial campaign should establish which already-available algorithm family i
 - Twelfth literature loop selected a CLI-only FedProx retune under the kept FedNova stack before attempting FedDyn/FedDC/FedCM-style drift-correction code.
 - FedProx under the kept FedNova stack did not improve: `mu=1e-5` scored `0.907300`; `mu=1e-4` scored `0.909900`. Both were discarded.
 - FedNova local-compute epoch audit did not improve: `aggregation_epochs=4` scored `0.905500`; `aggregation_epochs=6` scored `0.908200`. Both were discarded.
+- Thirteenth literature loop selected a default-preserving FedNova aggregation-weight exponent before attempting FedDyn/FedDC/FedCM-style stateful drift correction.
+- Added optional `--fednova_weight_power`; `1.0` preserves the current step-weighted FedNova behavior, `0.5` partially flattens client weighting, and `0.0` gives uniform client weighting after local-step normalization.
 
 ## Literature basis
 
@@ -137,6 +139,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedBN / normalization in FL: Xiaoxiao Li, Meirui Jiang, Xiaofei Zhang, Michael Kamp, Qi Dou. "FedBN: Federated Learning on Non-IID Features via Local Batch Normalization." ICLR 2021.
 - FedRed / DANE drift correction: Xiaowen Jiang, Anton Rodomanov, Sebastian U. Stich. "Federated Optimization with Doubly Regularized Drift Correction." arXiv:2404.08447.
 - FedDC drift correction: Liang Gao, Huazhu Fu, Li Li, Yingwen Chen, Ming Xu, Cheng-Zhong Xu. "FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction." CVPR 2022; arXiv:2203.11751.
+- FedLAW / weighted aggregation: Zexi Li, Tao Lin, Xinyi Shang, Chao Wu. "Revisiting Weighted Aggregation in Federated Learning with Neural Networks." ICML 2023; arXiv:2302.10911.
 - Adaptive clipping: Galen Andrew, Om Thakkar, Brendan McMahan, Swaroop Ramaswamy. "Differentially Private Learning with Adaptive Clipping." NeurIPS 2021.
 - Momentum analysis: Ziheng Cheng, Xinmeng Huang, Pengfei Wu, Kun Yuan. "Momentum Benefits Non-IID Federated Learning Simply and Provably." arXiv:2306.16504.
 - Label smoothing in FL: Yeji Cho, Junghyun Kim. "FedENLC: An End-to-End Noisy Label Correction Framework in Federated Learning." Mathematics 2026; doi:10.3390/math14020290.
@@ -166,4 +169,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a new literature loop before implementing stateful drift-correction code. The active best remains FedNova `0.910300`; recent FedProx and FedNova epoch-neighbor follow-ups both underperformed.
+Run the Thirteenth-loop FedNova weight-power candidates: `--fednova_weight_power 0.5` and `0.0` under the current best FedNova/gradient-centralization stack. Keep the code only if a candidate beats or cleanly ties the `0.910300` best; otherwise revert before moving to stateful drift correction.

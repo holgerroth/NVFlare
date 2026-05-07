@@ -815,3 +815,78 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: do not repeat FedProx under this stack. Before adding FedDyn/FedDC/FedCM-style state, run a distinct FedNova local-compute audit at `aggregation_epochs=4` and `6` because FedNova itself changed the epoch-count context.
 - Follow-up outcome: FedNova epoch neighbors also underperformed. `aggregation_epochs=4` scored `0.905500`; `6` scored `0.908200`.
 - Follow-up action: with two non-improving batches after this literature reset, start a new literature loop before implementing stateful drift correction.
+
+## Thirteenth Literature Loop
+
+### Trigger
+
+- Reason: two consecutive batches after the Twelfth loop failed: FedProx and FedNova epoch-neighbor audits both underperformed the `0.910300` best.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, client `lr=0.05`, client momentum `0.9`, `--gradient_centralization`.
+- Recent symptoms: FedNova is still the strongest mechanism, but step-count, LR, momentum, architecture, clipping, and FedProx probes did not improve. Stateful FedDyn/FedDC/FedCM ideas are plausible but higher risk.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use default-preserving code and two same-budget candidates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedDyn Federated Learning Based on Dynamic Regularization OpenReview client drift non-IID` | Revisit dynamic regularization after FedProx failed. | OpenReview, arXiv/paper indexes | Relevant but requires per-client correction state and a changed local objective. |
+| `FedDC Federated Learning with Non-IID Data via Local Drift Decoupling and Correction arXiv 2203.11751` | Compare stateful drift decoupling against lighter aggregation changes. | arXiv, CVF Open Access | Strong drift-correction motivation, but requires auxiliary local drift variables. |
+| `federated learning client weighting non-IID unbalanced data aggregation FedNova FedLAW arXiv` | Look for lower-risk aggregation-weight refinements before stateful drift correction. | arXiv, paper indexes | FedNova and FedLAW both highlight aggregation weighting as a meaningful axis under heterogeneity. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Heterogeneous local update counts and naive weighted aggregation can bias the objective. | FedNova normalized aggregation | keep |
+| Li23 | Revisiting Weighted Aggregation in Federated Learning with Neural Networks / 2023 | https://arxiv.org/abs/2302.10911 | Aggregation weights and shrinkage affect FL generalization under heterogeneity and local epochs. | Learnable/modified aggregation weights | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | FedAvg must handle unbalanced and non-IID client data. | Federated averaging | keep |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Device-level empirical minima can be inconsistent with global minima. | FedDyn dynamic regularization | reserve |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://arxiv.org/abs/2203.11751 | Local drift and residual parameter deviation accumulate under non-IID data. | Local drift correction | reserve |
+| Jiang24 | Federated Optimization with Doubly Regularized Drift Correction / 2024 | https://arxiv.org/abs/2404.08447 | FedAvg client drift worsens communication-computation trade-offs. | FedRed/DANE-style drift correction | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | FedNova weighting may still overemphasize step-heavy clients | FedNova fixes local-update normalization; FedLAW argues relative aggregation weights affect generalization. | Current FedNova uses `NUM_STEPS_CURRENT_ROUND` as both tau and aggregation weight; neighboring local compute and FedProx failed. | The server already sees step counts, so a bounded weight exponent can alter weighting without new metadata. | `custom_aggregators.py`, `job.py`. |
+| C2 | Dynamic drift correction needs more state | FedDyn/FedDC/FedRed use client/server correction terms or auxiliary local variables. | Recent new server code either crashed or tied; keep code risk low first. | A default-off aggregation-weight knob is safer than new correction tensors. | Reserve `client.py`/`custom_aggregators.py`. |
+| C3 | Uniform weighting is not a new data budget | McMahan17 treats unbalanced/non-IID data as core FL; changing aggregation weights leaves data, rounds, model, and evaluation fixed. | Weighted and normalized variants differ only server-side. | This preserves comparability with the current FedNova rows. | `custom_aggregators.py`. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P40 | FedNova square-root step weighting. | Wang20; Li23 | Code: `--fednova_weight_power 0.5`; current best stack. | Reduce dominance of step-heavy clients while retaining partial size weighting. | Score below `0.910300` or no difference. | Low-medium; server-only, default preserves old behavior. |
+| P41 | FedNova uniform client weighting. | Wang20; Li23; McMahan17 | Code: `--fednova_weight_power 0.0`; current best stack. | Test whether equal client influence improves label-skew generalization. | Score below `0.910300`. | Low-medium; server-only. |
+| P42 | FedDyn-lite client dynamic regularization. | Acar21 | Code: maintain a per-client correction vector in the client process. | Align client and global stationary points. | Complexity, instability, or no gain. | Medium-high; reserve. |
+| P43 | FedDC/FedRed drift correction. | Gao22; Jiang24 | Code: auxiliary drift variables or doubly regularized local objective. | Reduce residual parameter drift. | Requires stateful correction design. | Higher; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P40 | Current FedNova with weight power `1.0` only. | No previous partial-weight FedNova row. | keep |
+| P41 | Current FedNova with weight power `1.0` only. | No previous uniform-weight FedNova row; median aggregation failure is not the same. | keep |
+| P42 | FedProx and SCAFFOLD only partially overlap. | More invasive than P40/P41. | reserve |
+| P43 | No exact prior row. | Higher code risk; defer until weight-power audit. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P40 | 3 | 5 | 4 | 4 | 4 | 2 | 26 |
+| P41 | 3 | 5 | 4 | 4 | 4 | 2 | 26 |
+| P42 | 3 | 3 | 2 | 4 | 4 | 3 | 19 |
+| P43 | 3 | 2 | 2 | 4 | 4 | 3 | 17 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P40 | `fednova_lr1875_m035_wd35e5_gc_wpow05_ep5` | Code variant: `--fednova_weight_power 0.5` with current FedNova best stack |
+| 2 | P41 | `fednova_lr1875_m035_wd35e5_gc_wpow00_ep5` | Code variant: `--fednova_weight_power 0.0` with current FedNova best stack |
+
+### Reflective Memory
+
+- Keep the weight-power code only if one of these candidates beats or ties the current best with a defensible simplicity/runtime trade-off.
+- If both fail, revert the optional weight-power code before moving to FedDyn/FedDC-style stateful drift correction.

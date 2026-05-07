@@ -253,14 +253,17 @@ class FedNovaAggregator(ModelAggregator):
     aggregation weight proxy. No new client metadata or parameter keys are added.
     """
 
-    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.0):
+    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.0, weight_power: float = 1.0):
         super().__init__()
         if server_lr <= 0.0:
             raise ValueError("server_lr must be > 0")
         if not 0.0 <= server_momentum < 1.0:
             raise ValueError("server_momentum must be in [0, 1)")
+        if not 0.0 <= weight_power <= 1.0:
+            raise ValueError("weight_power must be in [0, 1]")
         self.server_lr = server_lr
         self.server_momentum = server_momentum
+        self.weight_power = weight_power
         self.first_moment = {}
         self.reset_stats()
 
@@ -268,7 +271,8 @@ class FedNovaAggregator(ModelAggregator):
         local_steps = float(model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0))
         if local_steps <= 0.0:
             raise ValueError("FedNova requires NUM_STEPS_CURRENT_ROUND > 0 for every client update")
-        self.client_weights.append(local_steps)
+        aggregation_weight = local_steps**self.weight_power
+        self.client_weights.append(aggregation_weight)
 
         if self.params_type is None:
             self.params_type = model.params_type
@@ -280,12 +284,12 @@ class FedNovaAggregator(ModelAggregator):
             self.references.setdefault(key, value)
             normalized_diff = diff / local_steps
             if key not in self.normalized_weighted_sum:
-                self.normalized_weighted_sum[key] = normalized_diff * local_steps
+                self.normalized_weighted_sum[key] = normalized_diff * aggregation_weight
             else:
-                self.normalized_weighted_sum[key] += normalized_diff * local_steps
+                self.normalized_weighted_sum[key] += normalized_diff * aggregation_weight
 
-        self.total_weight += local_steps
-        self.weighted_tau_sum += local_steps * local_steps
+        self.total_weight += aggregation_weight
+        self.weighted_tau_sum += aggregation_weight * local_steps
 
     def aggregate_model(self) -> FLModel:
         if self.total_weight == 0:
