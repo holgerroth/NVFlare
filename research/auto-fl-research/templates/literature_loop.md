@@ -1356,3 +1356,76 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: use reserve P61 and test default-off FedDrift EMA-state clipping before another literature reset.
 - Outcome: FedDrift EMA-state clipping failed. `clip_norm=2.0` scored `0.910900`; `clip_norm=1.0` scored `0.906500`.
 - Action: revert the optional clipping code path and start a Twentieth literature loop before the next candidate batch.
+
+## Twentieth Literature Loop
+
+### Trigger
+
+- Reason: Nineteenth-loop reserves are exhausted. FedDrift-enabled client LR, epoch count, and EMA-state clipping all missed the `0.913200` best.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, default client LR, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: static scalar retunes around the best local objective are mostly null. Client LR neighbors failed, but scheduler shape has not been retested after FedDyn/FedDrift changed the local loss.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use CLI-only candidates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `Adaptive Federated Learning with Auto-Tuned Clients arXiv 2306.11201 learning rate federated` | Check whether client step-size adaptation remains a central FL issue. | arXiv, paper indexes | Kim24 supports client-side step-size sensitivity but full Delta-SGD is more code than needed next. |
+| `FedNova objective inconsistency local steps learning rate arXiv 2007.07481` | Tie local step scale to the current FedNova/FedDrift stack. | arXiv | FedNova addresses local update-count inconsistency; schedule shape is a low-risk local update-scale axis. |
+| `Local Adaptivity in Federated Learning convergence consistency arXiv 2106.02305` | Check risk of local adaptive optimizers before adding more optimizer code. | arXiv | Local adaptive methods can introduce solution bias; prefer scheduler-floor CLI probes. |
+| `Adaptive Federated Optimization client heterogeneity communication efficiency arXiv 2003.00295` | Compare scheduler retune against server adaptive methods. | arXiv | FedOpt is source-backed but prior adaptive server variants crashed or underperformed here. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Kim24 | Adaptive Federated Learning with Auto-Tuned Clients / 2024 revision | https://arxiv.org/abs/2306.11201 | Client-side hyperparameter tuning is difficult under heterogeneous FL. | client step size | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Local SGD step size and local training trade communication for drift. | FedAvg | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Local update counts and heterogeneity can bias the effective objective. | FedNova | keep |
+| Wang21 | Local Adaptivity in Federated Learning: Convergence and Consistency / 2021 | https://arxiv.org/abs/2106.02305 | Local adaptive optimizers can accelerate but also create non-vanishing solution bias. | local adaptivity | reserve/reject code next |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Adaptive FL optimizers help heterogeneity but require careful tuning. | FedOpt | reject for next batch due local crashes/nulls |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Step-size schedule may be stale after FedDrift | Kim24 emphasizes client step-size tuning; FedDyn/FedDrift changed the local objective. | Direct client LR neighbors failed, but schedule floor was last tested before FedDyn/FedDrift. | Cosine eta floor changes late-round local step size without changing communication or local epoch budget. | CLI `--cosine_lr_eta_min_factor`. |
+| C2 | Avoid new adaptive optimizer code | Wang21 warns local adaptivity can be inconsistent without correction; FedOpt variants were unstable here. | FedAdam/FedYogi/FedAdagrad variants crashed or underperformed. | Prefer existing scheduler knob before new optimizer state. | CLI only. |
+| C3 | Local compute axes are exhausted | McMahan17/Wang20 support local update-scale importance, but exact steps and epoch neighbors failed. | Exact steps were unreliable; epoch `4/6` failed under FedDrift. | Scheduler floor is a distinct local update-scale axis while keeping `aggregation_epochs=5`. | CLI only. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P62 | FedDrift-enabled cosine scheduler floor sweep. | Kim24; McMahan17; Wang20 | CLI-only: current best stack with `--cosine_lr_eta_min_factor 0.003` and `0.03`. | Rebalance late-round local update size after drift-corrected objective. | Both below `0.913200`. | Low. |
+| P63 | Disable client LR scheduler. | Kim24; McMahan17 | CLI-only: `--no_lr_scheduler`. | Test if decay is over-damping late rounds. | Prior scheduler-off rows and a new score below best. | Low but duplicate/null-prone. |
+| P64 | Local adaptive optimizer rule. | Kim24; Wang21 | Code: Delta-SGD-like client step-size adaptation. | Per-client smoothness adaptation. | Bias/complexity or no score gain. | Medium-high; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P62 | Earlier scheduler floor sweeps before FedNova/FedDyn/FedDrift. | Context changed materially; avoid old crashed `0.001`. | keep |
+| P63 | Earlier scheduler-off run. | Prior no-scheduler score was poor and context change is weaker than for floor. | reject for next batch |
+| P64 | New optimizer code. | Local adaptive theory is mixed and current code mutations are high-risk after clipping failed. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P62 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P63 | 1 | 5 | 5 | 2 | 1 | 3 | 18 |
+| P64 | 3 | 3 | 2 | 4 | 3 | 4 | 17 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P62 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_eta003_ep5` | CLI-only: `--cosine_lr_eta_min_factor 0.003` |
+| 2 | P62 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_eta03_ep5` | CLI-only: `--cosine_lr_eta_min_factor 0.03` |
+
+### Reflective Memory
+
+- Keep the default cosine floor `0.01` unless a FedDrift-enabled scheduler-floor neighbor beats `0.913200`.
+- Do not test `0.001` again because an earlier low-floor run timed out; use bounded floor neighbors first.
+- If both scheduler-floor candidates fail, return to literature before adding local adaptive optimizer code.

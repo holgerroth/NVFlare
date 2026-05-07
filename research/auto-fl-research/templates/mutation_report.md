@@ -197,4 +197,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Nineteenth literature loop reserves are exhausted after client-LR, epoch-count, and FedDrift state-clipping candidates all missed. Start a Twentieth literature loop before the next candidate batch.
+Twentieth literature loop selected a FedDrift-enabled cosine scheduler-floor sweep before adding local adaptive optimizer code: keep the best stack and test `--cosine_lr_eta_min_factor 0.003` and `0.03` under the fixed 20-round budget.
