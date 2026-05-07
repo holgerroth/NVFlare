@@ -130,6 +130,12 @@ def define_parser():
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
+    parser.add_argument(
+        "--feddyn_alpha",
+        type=float,
+        default=0.0,
+        help="FedDyn-style dynamic regularization coefficient. 0 disables the correction.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -354,6 +360,8 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--feddyn_alpha",
+        args.feddyn_alpha,
     ]
     if args.gradient_centralization:
         train_args.append("--gradient_centralization")

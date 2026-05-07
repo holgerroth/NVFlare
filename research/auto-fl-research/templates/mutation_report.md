@@ -128,6 +128,7 @@ The initial campaign should establish which already-available algorithm family i
 - Thirteenth literature loop selected a default-preserving FedNova aggregation-weight exponent before attempting FedDyn/FedDC/FedCM-style stateful drift correction.
 - Added optional `--fednova_weight_power`; `1.0` preserves the current step-weighted FedNova behavior, `0.5` partially flattens client weighting, and `0.0` gives uniform client weighting after local-step normalization.
 - FedNova weight-power candidates underperformed: uniform weighting scored `0.904000`; square-root weighting scored `0.904800`. The optional weight-power code path was reverted.
+- Added optional `--feddyn_alpha` client-side dynamic regularization, default off, with persistent per-client correction state held inside the existing client process and no new FLModel fields.
 
 ## Literature basis
 
@@ -140,6 +141,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedBN / normalization in FL: Xiaoxiao Li, Meirui Jiang, Xiaofei Zhang, Michael Kamp, Qi Dou. "FedBN: Federated Learning on Non-IID Features via Local Batch Normalization." ICLR 2021.
 - FedRed / DANE drift correction: Xiaowen Jiang, Anton Rodomanov, Sebastian U. Stich. "Federated Optimization with Doubly Regularized Drift Correction." arXiv:2404.08447.
 - FedDC drift correction: Liang Gao, Huazhu Fu, Li Li, Yingwen Chen, Ming Xu, Cheng-Zhong Xu. "FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction." CVPR 2022; arXiv:2203.11751.
+- FedDyn dynamic regularization: Durmus Alp Emre Acar, Yue Zhao, Ramon Matas, Matthew Mattina, Paul Whatmough, Venkatesh Saligrama. "Federated Learning Based on Dynamic Regularization." ICLR 2021.
 - FedLAW / weighted aggregation: Zexi Li, Tao Lin, Xinyi Shang, Chao Wu. "Revisiting Weighted Aggregation in Federated Learning with Neural Networks." ICML 2023; arXiv:2302.10911.
 - Adaptive clipping: Galen Andrew, Om Thakkar, Brendan McMahan, Swaroop Ramaswamy. "Differentially Private Learning with Adaptive Clipping." NeurIPS 2021.
 - Momentum analysis: Ziheng Cheng, Xinmeng Huang, Pengfei Wu, Kun Yuan. "Momentum Benefits Non-IID Federated Learning Simply and Provably." arXiv:2306.16504.
@@ -170,4 +172,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-FedNova weight-power flattening failed and has been reverted. Continue with the next source-backed proposal; prefer a bounded client-side drift-correction code path over more FedNova scalar jitter.
+Run FedDyn-style dynamic regularization candidates under the current best FedNova stack: `--feddyn_alpha 1e-4` and `5e-4`. Revert the code if both candidates fail or destabilize training.

@@ -108,6 +108,12 @@ def build_parser():
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
     parser.add_argument(
+        "--feddyn_alpha",
+        type=float,
+        default=0.0,
+        help="FedDyn-style dynamic regularization coefficient. 0 disables the correction.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -193,6 +199,40 @@ def _apply_gradient_centralization(model):
             continue
         dims = tuple(range(1, grad.ndim))
         grad.sub_(grad.mean(dim=dims, keepdim=True))
+
+
+def _zero_parameter_state(model):
+    return {
+        key: torch.zeros_like(param, device=DEVICE)
+        for key, param in model.named_parameters()
+        if torch.is_floating_point(param)
+    }
+
+
+def _parameter_state_matches(state, model):
+    expected = _zero_parameter_state(model)
+    return set(state) == set(expected) and all(state[key].shape == expected[key].shape for key in expected)
+
+
+def _feddyn_regularizer(model, global_params, dynamic_state, alpha):
+    regularizer = None
+    for key, param in model.named_parameters():
+        if key not in dynamic_state:
+            continue
+        prox_term = 0.5 * alpha * torch.sum(torch.square(param - global_params[key]))
+        linear_term = torch.sum(param * dynamic_state[key])
+        term = prox_term - linear_term
+        regularizer = term if regularizer is None else regularizer + term
+    if regularizer is None:
+        return torch.zeros((), device=DEVICE)
+    return regularizer
+
+
+def _update_feddyn_state(model, global_params, dynamic_state, alpha):
+    with torch.no_grad():
+        for key, param in model.named_parameters():
+            if key in dynamic_state:
+                dynamic_state[key].sub_(alpha * (param.detach() - global_params[key].detach()))
 
 
 def _zero_scaffold_controls(model):
@@ -327,6 +367,7 @@ def main(args):
 
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
+    feddyn_state = None
 
     while flare.is_running():
         input_model = flare.receive()
@@ -381,6 +422,12 @@ def main(args):
                 scaffold_local_controls = _zero_scaffold_controls(model)
             scaffold_global_controls = _load_scaffold_global_controls(model, input_model.meta)
 
+        feddyn_global_params = None
+        if args.feddyn_alpha > 0:
+            if feddyn_state is None or not _parameter_state_matches(feddyn_state, model):
+                feddyn_state = _zero_parameter_state(model)
+            feddyn_global_params = dict(global_model.named_parameters())
+
         metrics = {}
         if args.eval_global_every_round:
             val_acc_global_model = evaluate(global_model, valid_loader, DEVICE)
@@ -422,6 +469,13 @@ def main(args):
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
+                if feddyn_state is not None:
+                    loss = loss + _feddyn_regularizer(
+                        model,
+                        feddyn_global_params,
+                        feddyn_state,
+                        args.feddyn_alpha,
+                    )
 
                 loss.backward()
                 if args.gradient_centralization:
@@ -477,6 +531,13 @@ def main(args):
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
+                    if feddyn_state is not None:
+                        loss = loss + _feddyn_regularizer(
+                            model,
+                            feddyn_global_params,
+                            feddyn_state,
+                            args.feddyn_alpha,
+                        )
 
                     loss.backward()
                     if args.gradient_centralization:
@@ -528,6 +589,8 @@ def main(args):
                 scaffold_local_controls,
                 scaffold_steps,
             )
+        if feddyn_state is not None:
+            _update_feddyn_state(model, feddyn_global_params, feddyn_state, args.feddyn_alpha)
 
         print(f"{site_name}: finished training for round {current_round}")
 
