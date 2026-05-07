@@ -974,3 +974,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep `server_momentum=0.35` and run the reserved FedDyn-enabled weight-decay retune.
 - Weight-decay outcome: `weight_decay=4e-4` scored `0.910400`; `3e-4` scored `0.907700`.
 - Weight-decay action: keep `weight_decay=3.5e-4`. Two post-loop batches have failed, so start a new literature loop before selecting another mechanism.
+
+## Fifteenth Literature Loop
+
+### Trigger
+
+- Reason: two batches after the Fourteenth loop failed: FedDyn-enabled server momentum and weight decay both missed the `0.910900` best.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`.
+- Recent symptoms: scalar optimizer retunes around the new FedDyn stack are close but not improving. Local-compute neighbors were tested before FedDyn, not after the local objective changed.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use CLI-only candidates and keep `local_train_steps=0`.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedDyn dynamic regularization local epochs communication efficiency federated learning` | Check whether FedDyn motivates retesting local compute. | OpenReview, paper indexes | FedDyn is communication-oriented and allows more local device computation. |
+| `federated learning local epochs dynamic regularization client drift FedDyn FedNova` | Connect local epochs to drift correction and FedNova normalization. | arXiv, paper indexes | Local epochs remain central to the drift/communication trade-off. |
+| `FedDyn CIFAR local epochs hyperparameter federated learning` | Look for practical FedDyn local epoch sensitivity. | paper indexes, implementation docs | Implementations expose epochs as a core FedDyn training knob. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Dynamic regularization aligns device/global optima and is communication-oriented. | FedDyn | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Local epochs trade communication for client drift/local fitting. | FedAvg local epochs | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Local update counts affect objective consistency under heterogeneity. | FedNova | keep |
+| Cheng23 | Momentum Benefits Non-IID Federated Learning Simply and Provably / 2023 | https://arxiv.org/abs/2306.16504 | Momentum helps non-IID convergence but recent momentum retune failed. | Momentum | reserve |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://arxiv.org/abs/2203.11751 | Stronger local drift correction is possible but stateful. | FedDC | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | FedDyn may shift the local-compute optimum | Acar21 targets communication efficiency by allowing more local computation with dynamic regularization. | Epoch `4/6` failed before FedDyn; `alpha=1e-4` then changed the local objective. | `aggregation_epochs` is mutable with `local_train_steps=0`. | CLI-only `--aggregation_epochs`. |
+| C2 | Too much local work can still drift | McMahan17 and Wang20 frame local update counts as a core trade-off. | Epoch `6` without FedDyn and exact-step variants regressed. | Test only immediate epoch neighbors around the current `5`. | CLI-only. |
+| C3 | More stateful correction is not yet needed | FedDC/FedRed add additional drift state. | FedDyn produced one small gain; optimizer retunes were close misses. | Exhaust the local-compute interaction before adding more code. | Reserve code paths. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P47 | FedDyn-enabled epoch-count audit. | Acar21; McMahan17; Wang20 | CLI-only: `--aggregation_epochs 4` and `6`, `--feddyn_alpha 1e-4`, `--local_train_steps 0`. | Check whether dynamic regularization wants less/more local work than the pre-FedDyn optimum. | Both below `0.910900` or timeout. | Low. |
+| P48 | FedDyn-enabled exact-step audit. | Acar21; Wang20 | CLI-only: `--local_train_steps 500/600`, no epoch sweep in same batch. | Revisit exact steps under FedDyn. | Prior exact steps were weak; reserve after epoch audit. | Low-medium. |
+| P49 | Stronger FedDC/FedRed drift correction. | Gao22; Jiang24 | Code: add additional correction state. | Improve beyond FedDyn-lite. | Complexity or no gain. | Medium-high; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P47 | Pre-FedDyn epoch audit only partially overlaps. | FedDyn changed the local objective; not duplicate. | keep |
+| P48 | Pre-FedDyn exact-step rows only partially overlap. | Do not vary exact steps in the same narrow sweep as epochs. | reserve |
+| P49 | FedDyn-lite only partially overlaps. | More code risk. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P47 | 3 | 5 | 5 | 4 | 3 | 3 | 25 |
+| P48 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P49 | 3 | 3 | 2 | 4 | 4 | 4 | 18 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P47 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_ep4` | CLI-only: `--aggregation_epochs 4 --feddyn_alpha 1e-4` |
+| 2 | P47 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_ep6` | CLI-only: `--aggregation_epochs 6 --feddyn_alpha 1e-4` |
+
+### Reflective Memory
+
+- Keep `aggregation_epochs=5` unless a FedDyn-enabled neighbor beats `0.910900`.
+- If both fail, consider FedDyn-enabled exact local steps before adding FedDC/FedRed-style code.
