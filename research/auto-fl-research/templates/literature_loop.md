@@ -2245,4 +2245,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - FedDyn-alpha retune under mixup did not improve: `feddyn_alpha=5e-5` scored `0.910200`; `2e-4` scored `0.909800`.
 - FedDrift-mu retune under mixup did not improve: `feddrift_mu=3.75e-5` scored `0.912800`; `1.25e-5` scored `0.909800`.
 - FedDrift-beta retune under mixup did not improve: `feddrift_beta=0.8` scored `0.912200`; `0.95` scored `0.911400`.
+- Drift regularizer ablations under mixup did not improve: removing FedDrift scored `0.912500`; removing FedDyn scored `0.911000`.
 - Keep the current best `aggregation_epochs=5`, `server_momentum=0.35`, default client LR, `feddyn_alpha=1e-4`, `feddrift_mu=2.5e-5`, and `feddrift_beta=0.9`; avoid more client-loss code until a later literature reset.
