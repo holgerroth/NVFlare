@@ -1650,3 +1650,72 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both AdamW candidates fail, revert the optional optimizer code path and return to literature before implementing Delta-SGD.
 - Outcome: local AdamW failed badly. `lr=0.0005` scored `0.252000`; `lr=0.001` scored `0.100000`.
 - Action: revert the optional AdamW optimizer code path and keep SGD as the only local optimizer.
+
+## Twenty-fourth Literature Loop
+
+### Trigger
+
+- Reason: local AdamW failed badly, so do not add more adaptive optimizer code yet. Try a simpler client-local stabilization mechanism that preserves SGD and the current protocol.
+- Current best: SGD with FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, default client LR/scheduler, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: adaptive optimizer code was unstable/low-scoring, server-side update clipping did not help, but client-side gradient clipping has not been tested under the current SGD/FedDrift stack.
+- Candidate width: `PARALLEL_CANDIDATES=2`; add a default-off client gradient clip norm.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning client gradient clipping non-IID local training arXiv` | Look for client-local clipping as a drift/stability mechanism. | arXiv/paper indexes | Clipping is common in FL, usually on client updates; client-gradient clipping is a lower-level bounded variant. |
+| `Differentially Private Learning with Adaptive Clipping Andrew Thakkar McMahan Ramaswamy NeurIPS 2021 OpenReview` | Confirm FL clipping sensitivity and tuning caveats. | NeurIPS/OpenReview | Andrew21 shows clipping norms depend on model/loss/data/client LR, so fixed values should be tested cautiously. |
+| `FedZMG Efficient Client-Side Optimization gradient centralization non-IID federated learning` | Compare gradient clipping with current gradient centralization. | arXiv/paper indexes | FedZMG supports client-side gradient geometry changes without protocol changes. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Andrew21 | Differentially Private Learning with Adaptive Clipping / 2021 | https://openreview.net/forum?id=RUQ1zwZR8_ | Clipping norm choice depends on model, loss, data, LR, and other settings. | clipping | keep with caution |
+| Zantalis26 | FedZMG: Efficient Client-Side Optimization in Federated Learning / 2026 | https://arxiv.org/abs/2602.18384 | Client-side gradient geometry can reduce non-IID drift without communication changes. | gradient geometry | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Local updates and aggregation normalization interact. | FedNova | context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local gradient spikes may still hurt SGD | Andrew21 highlights clipping sensitivity; FedZMG supports client-local gradient transforms. | AdamW failed; SGD best may still benefit from bounded local gradients. | Clip gradients before optimizer step without changing DIFF metadata. | `client.py` default-off `--gradient_clip_norm`. |
+| C2 | Fixed clipping is hard to tune | Andrew21 warns norms depend on task settings. | Server median clipping failed, so fixed clipping can hurt. | Use two conservative norms and revert if no gain. | CLI after code. |
+| C3 | Distinct from failed server update clipping | Prior clipping acted on complete client DIFFs server-side. | FedNova median clipping tied/missed. | Client gradient clipping changes local optimization path instead of aggregation. | Client-local only. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P74 | Default-off client gradient clipping, norm 1.0. | Andrew21; Zantalis26 | Code: `--gradient_clip_norm`; candidate `1.0`. | Stabilize local SGD after gradient centralization and drift regularization. | Score below `0.913200` or slow/unstable. | Low-medium; client-local. |
+| P75 | Default-off client gradient clipping, norm 5.0. | Andrew21; Zantalis26 | Same code; candidate `5.0`. | Less aggressive clipping if norm 1.0 over-constrains. | Score below best. | Low-medium. |
+| P76 | Adaptive clip norm. | Andrew21 | Code: estimate/update clip norm online. | Avoid fixed-norm tuning. | Complexity/extra state. | Medium; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P74 | Server-side FedNova median clipping. | Different mechanism and location; not duplicate. | keep |
+| P75 | Server-side FedNova median clipping. | Different mechanism and less aggressive option. | keep |
+| P76 | Adaptive clipping. | More code than needed before fixed client clip audit. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P74 | 2 | 5 | 4 | 3 | 3 | 3 | 21 |
+| P75 | 2 | 5 | 4 | 3 | 3 | 3 | 21 |
+| P76 | 3 | 3 | 2 | 4 | 3 | 4 | 18 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P74 | `fednova_lr1875_m035_wd35e5_gc_clip1_feddyn1e4_feddrift2p5e5_ep5` | Code variant: `--gradient_clip_norm 1.0` |
+| 2 | P75 | `fednova_lr1875_m035_wd35e5_gc_clip5_feddyn1e4_feddrift2p5e5_ep5` | Code variant: `--gradient_clip_norm 5.0` |
+
+### Reflective Memory
+
+- Keep no gradient clipping unless a client clipping candidate beats `0.913200`.
+- If both fixed client clipping candidates fail, revert the optional code path and return to literature before adaptive clipping.

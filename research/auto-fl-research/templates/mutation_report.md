@@ -201,4 +201,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twenty-third local AdamW candidates failed badly and the optional code path was reverted. Start a Twenty-fourth literature loop before implementing any more local adaptive optimizer code.
+Twenty-fourth literature loop selected default-off client gradient clipping before adaptive clipping or more adaptive optimizer code: add `--gradient_clip_norm` and test norms `1.0` and `5.0` under the current best stack.
