@@ -736,3 +736,78 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both fail, start a new literature loop before FedCM-style code.
 - Outcome: narrow client momentum probes underperformed. `momentum=0.925` scored `0.909200`; `momentum=0.875` scored `0.906000`.
 - Action: keep client momentum `0.9` and return to literature before any FedCM-style code.
+
+## Twelfth Literature Loop
+
+### Trigger
+
+- Reason: registered architecture variants, client LR, client momentum, FedNova clipping, and adaptive server optimizers have not improved beyond `0.910300`.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, client `lr=0.05`, client momentum `0.9`, `--gradient_centralization`, `model_arch=moderate_cnn`.
+- Recent symptoms: the optimizer-local surface is narrow; invasive adaptive-server variants crashed, and FedCM-style code would add more state before retesting simpler drift regularization under the current FedNova context.
+- Candidate width: `PARALLEL_CANDIDATES=2`; prefer CLI-only candidates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedProx Federated Optimization in Heterogeneous Networks proximal term non-IID arXiv 1812.06127` | Re-check proximal local regularization after FedNova changed the server aggregation context. | arXiv, paper indexes | FedProx is low-risk and already available through `--fedproxloss_mu`. |
+| `FedNova objective inconsistency heterogeneous federated optimization FedProx local steps arXiv 2007.07481` | Check compatibility between normalized aggregation and local solvers such as FedProx. | arXiv, paper indexes | FedNova explicitly frames a general heterogeneous optimization setting that includes FedAvg/FedProx-style local solvers. |
+| `federated learning drift correction proximal dynamic regularization FedDyn FedDC arXiv non-IID CIFAR` | Compare lightweight FedProx against more invasive drift-correction objectives. | arXiv, OpenReview | FedDyn, FedDC, FedCM, and FedRed are relevant but require extra client/server state or larger code changes. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Li20 | Federated Optimization in Heterogeneous Networks / 2020 | https://arxiv.org/abs/1812.06127 | Statistical and systems heterogeneity destabilize local updates. | FedProx proximal local loss | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Local update counts and data heterogeneity can create objective inconsistency. | FedNova normalized aggregation | keep |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Local-device empirical optima can be inconsistent with global optima. | FedDyn dynamic regularization | reserve |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://arxiv.org/abs/2203.11751 | Local drift makes optimized client models inconsistent. | Local drift correction | reserve |
+| Xu21 | FedCM: Federated Learning with Client-level Momentum / 2021 | https://arxiv.org/abs/2106.10874 | Client heterogeneity and partial participation bias local SGD. | Client-level momentum correction | reserve |
+| Jiang24 | Federated Optimization with Doubly Regularized Drift Correction / 2024 | https://arxiv.org/abs/2404.08447 | FedAvg client drift can worsen communication-computation trade-offs. | FedRed / DANE-style drift correction | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Client drift remains after FedNova | FedProx targets heterogeneity with a proximal local term; FedNova handles objective inconsistency in aggregation, not necessarily local overfitting. | FedNova improved to `0.910300`, but LR, momentum, clipping, and architecture probes underperformed. | A small proximal term may damp client movement without new server metadata. | CLI-only `--fedproxloss_mu` in `client.py`. |
+| C2 | Dynamic drift correction is promising but stateful | FedDyn/FedDC/FedCM/FedRed all add correction state or modified local objectives. | Recent adaptive-server code crashed, and clipping tied best without enough gain to keep code. | Reserve higher-risk code paths until the existing FedProx hook is retested in the current context. | `client.py`/`custom_aggregators.py`, but not first. |
+| C3 | Avoid duplicate old nulls | Early FedProx `1e-5`/`1e-4` failed with weighted FedAvg, not with FedNova plus gradient centralization and epoch 5. | The active stack differs substantially from the initial calibration rows. | Retesting tiny FedProx is not duplicate jitter because the aggregation/local geometry changed. | CLI-only; same fixed budget. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P36 | FedNova plus light FedProx regularization. | Li20; Wang20 | CLI-only: current FedNova best stack with `--fedproxloss_mu 1e-5`. | Reduce client drift while preserving normalized DIFF aggregation. | Score below `0.910300` or runtime penalty without gain. | Low. |
+| P37 | FedNova plus medium FedProx regularization. | Li20; Wang20 | CLI-only: current FedNova best stack with `--fedproxloss_mu 1e-4`. | Test whether the stronger current local training context needs more proximal pull. | Score below `0.910300`. | Low. |
+| P38 | FedDyn-style dynamic regularizer. | Acar21 | Code: maintain/update per-client dynamic regularization state. | Align local and global stationary points under heterogeneity. | Complexity, protocol/state risk, or no gain. | Medium-high; reserve. |
+| P39 | FedDC/FedRed drift correction. | Gao22; Jiang24 | Code: local drift variable or doubly regularized correction. | Correct drift more directly than FedProx. | Requires stateful client/server changes and careful validation. | Higher; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P36 | Early FedProx calibration only partially overlaps. | Prior `1e-5` was weighted FedAvg at epoch 4 without FedNova/GC. | keep |
+| P37 | Early FedProx calibration only partially overlaps. | Prior `1e-4` was weighted FedAvg at epoch 4 without FedNova/GC. | keep |
+| P38 | No exact prior row. | More invasive than available CLI hook. | reserve |
+| P39 | No exact prior row. | Requires new drift state; defer until CLI FedProx fails. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P36 | 2 | 5 | 5 | 4 | 3 | 2 | 22 |
+| P37 | 2 | 5 | 5 | 4 | 3 | 2 | 22 |
+| P38 | 3 | 3 | 2 | 4 | 4 | 3 | 19 |
+| P39 | 3 | 2 | 2 | 4 | 4 | 3 | 17 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P36 | `fednova_lr1875_m035_wd35e5_gc_fedprox1e5_ep5` | CLI-only: `--fedproxloss_mu 1e-5` with current FedNova best stack |
+| 2 | P37 | `fednova_lr1875_m035_wd35e5_gc_fedprox1e4_ep5` | CLI-only: `--fedproxloss_mu 1e-4` with current FedNova best stack |
+
+### Reflective Memory
+
+- Keep FedProx only if it beats or clearly simplifies the current `0.910300` FedNova stack.
+- If both FedProx probes fail, do not repeat FedProx under this stack without a new mechanism; move to a carefully bounded drift-correction code proposal or another distinct literature-backed axis.

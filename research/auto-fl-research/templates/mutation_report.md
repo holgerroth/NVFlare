@@ -122,6 +122,7 @@ The initial campaign should establish which already-available algorithm family i
 - Registered architecture subcampaign underperformed: `moderate_cnn_small_head` scored `0.909200`; `moderate_cnn_norm` scored `0.905300`.
 - Eleventh literature loop selected a CLI-only client momentum retune under the kept FedNova stack.
 - FedNova client-momentum retune underperformed: `momentum=0.925` scored `0.909200`; `0.875` scored `0.906000`.
+- Twelfth literature loop selected a CLI-only FedProx retune under the kept FedNova stack before attempting FedDyn/FedDC/FedCM-style drift-correction code.
 
 ## Literature basis
 
@@ -133,6 +134,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova: Jianyu Wang, Qinghua Liu, Hao Liang, Gauri Joshi, H. Vincent Poor. "Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization." NeurIPS 2020; arXiv:2007.07481.
 - FedBN / normalization in FL: Xiaoxiao Li, Meirui Jiang, Xiaofei Zhang, Michael Kamp, Qi Dou. "FedBN: Federated Learning on Non-IID Features via Local Batch Normalization." ICLR 2021.
 - FedRed / DANE drift correction: Xiaowen Jiang, Anton Rodomanov, Sebastian U. Stich. "Federated Optimization with Doubly Regularized Drift Correction." arXiv:2404.08447.
+- FedDC drift correction: Liang Gao, Huazhu Fu, Li Li, Yingwen Chen, Ming Xu, Cheng-Zhong Xu. "FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction." CVPR 2022; arXiv:2203.11751.
 - Adaptive clipping: Galen Andrew, Om Thakkar, Brendan McMahan, Swaroop Ramaswamy. "Differentially Private Learning with Adaptive Clipping." NeurIPS 2021.
 - Momentum analysis: Ziheng Cheng, Xinmeng Huang, Pengfei Wu, Kun Yuan. "Momentum Benefits Non-IID Federated Learning Simply and Provably." arXiv:2306.16504.
 - Label smoothing in FL: Yeji Cho, Junghyun Kim. "FedENLC: An End-to-End Noisy Label Correction Framework in Federated Learning." Mathematics 2026; doi:10.3390/math14020290.
@@ -162,4 +164,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a new literature loop before FedCM-style client-momentum code; the active best remains FedNova `0.910300`.
+Launch the Twelfth literature-loop FedProx candidates under the current FedNova best stack: `--fedproxloss_mu 1e-5` and `1e-4`. Keep `--num_rounds 20`, `aggregation_epochs=5`, `local_train_steps=0`, cross-site evaluation, `CUDA_VISIBLE_DEVICES=0`, and candidate width 2.
