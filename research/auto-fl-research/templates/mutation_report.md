@@ -129,6 +129,7 @@ The initial campaign should establish which already-available algorithm family i
 - Added optional `--fednova_weight_power`; `1.0` preserves the current step-weighted FedNova behavior, `0.5` partially flattens client weighting, and `0.0` gives uniform client weighting after local-step normalization.
 - FedNova weight-power candidates underperformed: uniform weighting scored `0.904000`; square-root weighting scored `0.904800`. The optional weight-power code path was reverted.
 - Added optional `--feddyn_alpha` client-side dynamic regularization, default off, with persistent per-client correction state held inside the existing client process and no new FLModel fields.
+- FedDyn-style dynamic regularization improved the best: `alpha=1e-4` scored `0.910900`; `alpha=5e-4` scored `0.907300`. The default-off code path is kept.
 
 ## Literature basis
 
@@ -156,20 +157,21 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result now favors FedNova-style normalized DIFF aggregation with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, and enabled gradient centralization. FedLC, label smoothing, and SAM/FedSAM did not justify keeping new client code paths. FedAdam is currently unsafe or ineffective at tested settings. Exact local-step training and registered architecture variants regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation plus a small FedDyn-style client dynamic regularizer with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, and `--feddyn_alpha 1e-4`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training regressed. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2`. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
 - No FL protocol fields were changed.
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
+- FedDyn-style dynamic regularization is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization` and optional FedNova aggregation behind `--aggregator fednova`; default behavior remains unchanged and validation/smoke have passed. The unsuccessful optional SAM code path has been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, and optional FedDyn-style client regularization behind `--feddyn_alpha`; default behavior remains unchanged and validation/smoke have passed. The unsuccessful optional SAM and FedNova weight-power code paths have been reverted.
 
 ## Next mutation
 
-Run FedDyn-style dynamic regularization candidates under the current best FedNova stack: `--feddyn_alpha 1e-4` and `5e-4`. Revert the code if both candidates fail or destabilize training.
+Narrow FedDyn-style alpha around the new best: run `--feddyn_alpha 5e-5` and `2e-4` under the current FedNova/gradient-centralization stack. Keep `--num_rounds 20`, `aggregation_epochs=5`, `local_train_steps=0`, cross-site evaluation, `CUDA_VISIBLE_DEVICES=0`, and candidate width 2.

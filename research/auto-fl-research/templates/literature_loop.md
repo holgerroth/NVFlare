@@ -893,3 +893,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Outcome: both weight-power candidates underperformed. Uniform weighting scored `0.904000`; square-root weighting scored `0.904800`.
 - Action: revert the optional weight-power code and do not repeat FedNova client-weight flattening under this stack without a new signal.
 - Follow-up action: launch the reserved FedDyn-style dynamic regularizer with conservative `--feddyn_alpha` values before broader FedDC/FedRed code.
+- Follow-up outcome: FedDyn-style `alpha=1e-4` improved the best to `0.910900`; `alpha=5e-4` regressed to `0.907300`.
+- Follow-up action: keep the default-off FedDyn-style code and narrow alpha around `1e-4`.
