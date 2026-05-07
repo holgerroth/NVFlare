@@ -1127,3 +1127,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Narrowing action: keep `feddrift_mu=2.5e-5` and test lower-side neighbors before changing `feddrift_beta`.
 - Lower-side outcome: `feddrift_mu=1.25e-5` and `3.75e-5` both scored `0.909700`.
 - Lower-side action: keep `feddrift_mu=2.5e-5`; switch the next narrow sweep to `feddrift_beta`.
+- Beta-sweep outcome: `feddrift_beta=0.8` scored `0.908900`; `0.95` scored `0.908100`.
+- Beta-sweep action: keep `feddrift_beta=0.9`. Two batches after the `0.913200` improvement failed, so start a fresh literature loop before more local jitter.
