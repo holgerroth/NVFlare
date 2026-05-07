@@ -154,6 +154,7 @@ The initial campaign should establish which already-available algorithm family i
 - The reserved FedDrift EMA-state clipping variant did not improve: `clip_norm=2.0` scored `0.910900`; `1.0` scored `0.906500`. The optional clipping code path was reverted.
 - Twentieth literature loop selected a FedDrift-enabled cosine scheduler-floor sweep; it did not improve. `eta_min_factor=0.003` scored `0.910900`; `0.03` scored `0.906100`.
 - Twenty-first literature loop selected a labeled registered-architecture subcampaign; it did not improve. `moderate_cnn_small_head` scored `0.912100`; `moderate_cnn_norm` scored `0.904600`.
+- Twenty-second literature loop selected a very-light FedProx interaction; it did not improve. `mu=1e-6` scored `0.908500`; `5e-6` scored `0.906000`.
 
 ## Literature basis
 
@@ -181,7 +182,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, scheduler-floor retunes, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR, scheduler-floor, and epoch-count neighbors around the FedDrift best stack did not improve, so keep default client LR, default cosine floor, and `aggregation_epochs=5`. The small-head architecture came close but did not beat the current best, so keep `moderate_cnn`. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, scheduler-floor retunes, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR, scheduler-floor, epoch-count, and FedProx neighbors around the FedDrift best stack did not improve, so keep default client LR, default cosine floor, `aggregation_epochs=5`, and `fedproxloss_mu=0`. The small-head architecture came close but did not beat the current best, so keep `moderate_cnn`. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -199,4 +200,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twenty-second literature loop selected a very-light FedProx interaction under the current FedDyn/FedDrift stack before adding local adaptive optimizer code: test `--fedproxloss_mu 1e-6` and `5e-6`.
+Twenty-second FedProx interaction candidates missed. Start a Twenty-third literature loop before adding local adaptive optimizer code.

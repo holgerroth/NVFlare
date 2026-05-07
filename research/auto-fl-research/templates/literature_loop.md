@@ -1575,3 +1575,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Keep `fedproxloss_mu=0` unless a very-light FedProx interaction beats `0.913200`.
 - Do not repeat `1e-5` or `1e-4` unless one of the lower values improves; both missed before FedDyn/FedDrift.
 - If both FedProx interactions fail, return to literature before adding local adaptive optimizer code.
+- Outcome: very-light FedProx interactions failed. `mu=1e-6` scored `0.908500`; `mu=5e-6` scored `0.906000`.
+- Action: keep `fedproxloss_mu=0` and return to literature before adding local adaptive optimizer code.
