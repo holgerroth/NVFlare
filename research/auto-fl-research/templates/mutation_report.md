@@ -124,6 +124,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova client-momentum retune underperformed: `momentum=0.925` scored `0.909200`; `0.875` scored `0.906000`.
 - Twelfth literature loop selected a CLI-only FedProx retune under the kept FedNova stack before attempting FedDyn/FedDC/FedCM-style drift-correction code.
 - FedProx under the kept FedNova stack did not improve: `mu=1e-5` scored `0.907300`; `mu=1e-4` scored `0.909900`. Both were discarded.
+- FedNova local-compute epoch audit did not improve: `aggregation_epochs=4` scored `0.905500`; `aggregation_epochs=6` scored `0.908200`. Both were discarded.
 
 ## Literature basis
 
@@ -165,4 +166,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run a FedNova local-compute audit at `aggregation_epochs=4` and `6` under the current best FedNova/gradient-centralization stack, keeping `--local_train_steps 0` and all fixed budget fields unchanged. If both fail, move to a carefully bounded drift-correction code proposal rather than repeating FedProx under this stack.
+Start a new literature loop before implementing stateful drift-correction code. The active best remains FedNova `0.910300`; recent FedProx and FedNova epoch-neighbor follow-ups both underperformed.

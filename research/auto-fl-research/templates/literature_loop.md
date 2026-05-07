@@ -813,3 +813,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both FedProx probes fail, do not repeat FedProx under this stack without a new mechanism; move to a carefully bounded drift-correction code proposal or another distinct literature-backed axis.
 - Outcome: FedProx under the kept FedNova stack did not improve. `mu=1e-5` scored `0.907300`; `mu=1e-4` scored `0.909900`.
 - Action: do not repeat FedProx under this stack. Before adding FedDyn/FedDC/FedCM-style state, run a distinct FedNova local-compute audit at `aggregation_epochs=4` and `6` because FedNova itself changed the epoch-count context.
+- Follow-up outcome: FedNova epoch neighbors also underperformed. `aggregation_epochs=4` scored `0.905500`; `6` scored `0.908200`.
+- Follow-up action: with two non-improving batches after this literature reset, start a new literature loop before implementing stateful drift correction.
