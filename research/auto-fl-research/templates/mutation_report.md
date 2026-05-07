@@ -132,6 +132,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedDyn-style dynamic regularization improved the best: `alpha=1e-4` scored `0.910900`; `alpha=5e-4` scored `0.907300`. The default-off code path is kept.
 - FedDyn alpha neighbors did not improve: `alpha=5e-5` scored `0.906600`; `alpha=2e-4` scored `0.909600`.
 - FedDyn-enabled server-LR neighbors did not improve: `server_lr=1.9375` scored `0.910500`; `server_lr=1.8125` scored `0.908300`.
+- Fourteenth literature loop selected a FedDyn-enabled server-momentum retune before more local regularization or FedDC/FedRed-style code.
 
 ## Literature basis
 
@@ -176,4 +177,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a new literature loop before more FedDyn-enabled local jitter. The active best remains `--feddyn_alpha 1e-4`, `--server_lr 1.875`, score `0.910900`.
+Run FedDyn-enabled server-momentum neighbors: `--server_momentum 0.30` and `0.40` with `--feddyn_alpha 1e-4`, keeping all fixed budget fields unchanged.

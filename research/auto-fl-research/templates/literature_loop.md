@@ -899,3 +899,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Alpha-neighbor action: keep `alpha=1e-4` and retune server LR under the new FedDyn-enabled stack.
 - Server-LR outcome: `server_lr=1.9375` scored `0.910500`; `1.8125` scored `0.908300`.
 - Server-LR action: keep `server_lr=1.875`. Two batches have failed after the FedDyn improvement, so start a new literature loop before more local jitter.
+
+## Fourteenth Literature Loop
+
+### Trigger
+
+- Reason: two FedDyn-enabled follow-up batches failed after the new best `0.910900`: alpha neighbors and server-LR neighbors both underperformed.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`.
+- Recent symptoms: FedDyn helps at a narrow alpha, but nearby alpha and server-LR changes do not. The next axis should test an interaction supported by the drift/momentum literature rather than more blind scalar jitter.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use CLI-only candidates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedDyn dynamic regularization federated learning hyperparameter weight decay non-IID CIFAR` | Understand how dynamic local regularization interacts with other stabilizers. | OpenReview, arXiv/paper indexes | FedDyn frames dynamic regularization as aligning client/global optima, but hyperparameters remain sensitive. |
+| `FedDyn federated learning server momentum local regularization non-IID` | Check whether momentum remains a justified interaction axis after dynamic regularization. | arXiv, paper indexes | Momentum analysis supports FL convergence under heterogeneity. |
+| `federated learning dynamic regularization local regularization weight decay client drift non-IID` | Compare weight decay/proximal retunes against momentum retunes. | arXiv, paper indexes | Weight decay remains plausible but is lower priority because recent FedProx and alpha neighbors already probed local regularization strength. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Device-level minima are inconsistent with global minima under heterogeneity. | FedDyn dynamic regularization | keep |
+| Cheng23 | Momentum Benefits Non-IID Federated Learning Simply and Provably / 2023 | https://arxiv.org/abs/2306.16504 | Momentum can improve FedAvg/SCAFFOLD convergence under non-IID data. | Momentum analysis | keep |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Server optimizer hyperparameters interact with heterogeneity and communication efficiency. | FedOpt/FedAvgM | keep |
+| Jiang24 | Federated Optimization with Doubly Regularized Drift Correction / 2024 | https://arxiv.org/abs/2404.08447 | Drift correction can improve communication-computation trade-offs. | FedRed/DANE-style drift correction | reserve |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://arxiv.org/abs/2203.11751 | Residual drift variables can correct local drift. | FedDC | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | FedDyn shifted the optimizer context | Acar21 dynamic regularization changes the local objective to align client/global optima. | `alpha=1e-4` improved, but alpha neighbors failed. | Server optimizer settings should be rechecked under this changed local objective. | CLI `--server_momentum`, `--server_lr`. |
+| C2 | Momentum can help non-IID convergence but is narrow | Cheng23 supports momentum under heterogeneity; Reddi21 highlights server optimizer tuning sensitivity. | Old FedNova momentum neighbors were close but below best before FedDyn. | Test only near current `server_momentum=0.35`. | CLI-only. |
+| C3 | More drift-correction code is premature | FedRed/FedDC add more state/objective machinery. | A small FedDyn variant just worked; immediate code expansion would add risk. | Prefer momentum retune before another stateful code path. | Reserve `client.py`/`custom_aggregators.py`. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P44 | FedDyn-enabled server momentum retune. | Acar21; Cheng23; Reddi21 | CLI-only: `--server_momentum 0.30` and `0.40` with `--feddyn_alpha 1e-4`. | Check whether dynamic local correction changes the best server inertia. | Both below `0.910900`. | Low. |
+| P45 | FedDyn-enabled weight decay retune. | Acar21; FedProx/FedDyn regularization context | CLI-only: `--weight_decay 3e-4` and `4e-4` with `--feddyn_alpha 1e-4`. | Balance static L2 with dynamic local regularization. | Both below best. | Low. |
+| P46 | FedRed/FedDC-style drift correction. | Jiang24; Gao22 | Code: add stronger drift-correction state/objective. | Further reduce client drift. | Complexity or no gain. | Medium-high; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P44 | Pre-FedDyn server momentum rows only partially overlap. | Context changed after FedDyn improvement. | keep |
+| P45 | Pre-FedDyn weight decay rows only partially overlap. | Regularization context changed but less directly than momentum. | reserve |
+| P46 | FedDyn-style code only partially overlaps. | More invasive; defer. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P44 | 3 | 5 | 5 | 4 | 3 | 3 | 25 |
+| P45 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P46 | 3 | 3 | 2 | 4 | 4 | 4 | 18 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P44 | `fednova_lr1875_m030_wd35e5_gc_feddyn1e4_ep5` | CLI-only: `--server_momentum 0.30 --feddyn_alpha 1e-4` |
+| 2 | P44 | `fednova_lr1875_m040_wd35e5_gc_feddyn1e4_ep5` | CLI-only: `--server_momentum 0.40 --feddyn_alpha 1e-4` |
+
+### Reflective Memory
+
+- Keep `server_momentum=0.35` unless a neighbor beats `0.910900`.
+- If both momentum neighbors fail, try the reserved FedDyn-enabled weight-decay retune before adding more drift-correction code.
