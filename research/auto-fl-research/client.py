@@ -126,6 +126,12 @@ def build_parser():
         help="EMA decay for --feddrift_mu correction state.",
     )
     parser.add_argument(
+        "--feddrift_clip_norm",
+        type=float,
+        default=0.0,
+        help="Global norm cap for the FedDrift correction state. 0 disables clipping.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -259,12 +265,26 @@ def _feddrift_regularizer(model, global_params, drift_state, mu):
     return regularizer
 
 
-def _update_feddrift_state(model, global_params, drift_state, beta):
+def _clip_parameter_state_(state, max_norm):
+    if max_norm <= 0:
+        return
+    total_sq_norm = torch.zeros((), device=DEVICE)
+    for tensor in state.values():
+        total_sq_norm = total_sq_norm + torch.sum(tensor.detach() * tensor.detach())
+    total_norm = torch.sqrt(total_sq_norm)
+    if torch.isfinite(total_norm) and total_norm > max_norm:
+        scale = max_norm / (total_norm + 1e-12)
+        for tensor in state.values():
+            tensor.mul_(scale)
+
+
+def _update_feddrift_state(model, global_params, drift_state, beta, clip_norm):
     with torch.no_grad():
         for key, param in model.named_parameters():
             if key in drift_state:
                 local_delta = param.detach() - global_params[key].detach()
                 drift_state[key].mul_(beta).add_(local_delta, alpha=1.0 - beta)
+        _clip_parameter_state_(drift_state, clip_norm)
 
 
 def _zero_scaffold_controls(model):
@@ -357,6 +377,8 @@ def main(args):
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
         raise ValueError("feddrift_beta must be in [0, 1)")
+    if args.feddrift_clip_norm < 0.0:
+        raise ValueError("feddrift_clip_norm must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -649,7 +671,13 @@ def main(args):
         if feddyn_state is not None:
             _update_feddyn_state(model, feddyn_global_params, feddyn_state, args.feddyn_alpha)
         if feddrift_state is not None:
-            _update_feddrift_state(model, feddrift_global_params, feddrift_state, args.feddrift_beta)
+            _update_feddrift_state(
+                model,
+                feddrift_global_params,
+                feddrift_state,
+                args.feddrift_beta,
+                args.feddrift_clip_norm,
+            )
 
         print(f"{site_name}: finished training for round {current_round}")
 

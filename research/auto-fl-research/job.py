@@ -148,6 +148,12 @@ def define_parser():
         default=0.9,
         help="EMA decay for --feddrift_mu correction state.",
     )
+    parser.add_argument(
+        "--feddrift_clip_norm",
+        type=float,
+        default=0.0,
+        help="Global norm cap for the FedDrift correction state. 0 disables clipping.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -322,6 +328,8 @@ def main():
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
         raise ValueError("feddrift_beta must be in [0, 1)")
+    if args.feddrift_clip_norm < 0.0:
+        raise ValueError("feddrift_clip_norm must be >= 0")
 
     if args.name:
         job_name = args.name
@@ -382,6 +390,8 @@ def main():
         args.feddrift_mu,
         "--feddrift_beta",
         args.feddrift_beta,
+        "--feddrift_clip_norm",
+        args.feddrift_clip_norm,
     ]
     if args.gradient_centralization:
         train_args.append("--gradient_centralization")

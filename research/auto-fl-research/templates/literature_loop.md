@@ -1352,3 +1352,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both client-LR neighbors fail, use the reserved epoch audit before adding more FedDrift code.
 - Outcome: client-LR neighbors failed. `lr=0.055` scored `0.911500`; `lr=0.045` scored `0.906900`.
 - Action: keep default client LR and launch the reserved FedDrift-enabled epoch audit with `aggregation_epochs=4` and `6`.
+- Outcome: the reserved epoch audit failed. `aggregation_epochs=6` scored `0.911500`; `aggregation_epochs=4` scored `0.905000`.
+- Action: use reserve P61 and test default-off FedDrift EMA-state clipping before another literature reset.
