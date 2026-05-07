@@ -1279,3 +1279,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep `weight_decay=3.5e-4` and launch the reserved FedDyn-alpha interaction under the FedDrift best stack.
 - FedDyn-alpha outcome: `feddyn_alpha=2e-4` scored `0.911900`; `5e-5` scored `0.909800`, both below the `0.913200` best.
 - FedDyn-alpha action: keep `feddyn_alpha=1e-4`. Two post-loop local-regularization batches failed, so start a new literature loop.
+
+## Nineteenth Literature Loop
+
+### Trigger
+
+- Reason: two post-loop local regularization batches failed: FedDrift-enabled weight decay and FedDyn-alpha interactions both missed the `0.913200` best.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: server optimizer, static weight decay, and FedDyn-alpha retunes failed after the FedDrift improvement. The next no-code axis should be local optimizer step size before additional code.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use CLI-only candidates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning client learning rate local optimizer drift correction non-IID FedDC` | Check whether local optimizer scale is relevant after drift correction. | arXiv/CVF/paper indexes | FedDC-style methods alter local objective geometry, making client LR plausible. |
+| `FedDyn local optimizer learning rate CIFAR non-IID federated learning` | Connect dynamic regularization with local learning-rate sensitivity. | OpenReview, paper indexes | FedDyn changes local loss curvature and may shift LR. |
+| `local learning rate federated learning client drift FedAvg non-IID` | Compare LR retune against local-compute changes. | paper indexes | Local LR remains a direct client-drift/optimization knob. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://openaccess.thecvf.com/content/CVPR2022/papers/Gao_FedDC_Federated_Learning_With_Non-IID_Data_via_Local_Drift_Decoupling_CVPR_2022_paper.pdf | Local correction changes the client objective and local optimizer behavior. | FedDC | keep |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Dynamic regularization can shift local optimization sensitivity. | FedDyn | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Client local optimization controls the communication/local-drift trade-off. | FedAvg | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Local update scale and count affect objective consistency. | FedNova | keep |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Server optimizer retunes failed empirically under current stack. | FedOpt | reject for next batch |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local objective curvature changed | FedDyn/FedDC add local correction terms, changing the effective local objective. | FedDrift improved strongly, but mu/beta/weight decay/alpha neighbors are narrow. | Client LR may need recentering under the changed objective. | CLI `--lr`. |
+| C2 | Server and regularization axes are current nulls | FedOpt/regularization ideas were source-backed but recently underperformed. | Server LR, momentum, weight decay, and FedDyn-alpha retunes all missed. | Avoid repeating those axes immediately. | Choose client LR next. |
+| C3 | Local compute is riskier than local LR | McMahan17/Wang20 support local compute as important, but exact steps were unreliable and epoch neighbors failed. | Exact steps crashed/underperformed; epoch `4/6` under FedDyn missed. | Try LR before more local-compute audits. | CLI `--lr`; reserve epochs. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P59 | FedDrift-enabled client LR retune. | Gao22; Acar21; McMahan17; Wang20 | CLI-only: current best stack with `--lr 0.045` and `0.055`. | Recenter local optimizer step size after FedDrift/FedDyn corrections. | Both below `0.913200`. | Low. |
+| P60 | FedDrift-enabled epoch audit. | McMahan17; Wang20; Acar21 | CLI-only: current best stack with `--aggregation_epochs 4` and `6`. | Test whether FedDrift shifted local compute optimum. | Both below best or slow. | Low; reserve. |
+| P61 | FedDrift EMA-state code variant. | Gao22; Jiang24 | Code: add a second drift-state update form or clipping. | Better residual-drift control. | Complexity or no gain. | Medium; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P59 | Earlier client-LR sweeps before FedDyn/FedDrift. | Context changed materially after FedDrift; not duplicate. | keep |
+| P60 | FedDyn epoch audit. | Context changed after FedDrift, but local compute has several misses. | reserve |
+| P61 | Current FedDrift code. | More code risk; not before CLI LR. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P59 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P60 | 2 | 5 | 5 | 3 | 2 | 3 | 21 |
+| P61 | 3 | 3 | 2 | 4 | 3 | 4 | 17 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P59 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_clr045_ep5` | CLI-only: `--lr 0.045 --feddrift_mu 2.5e-5 --feddrift_beta 0.9` |
+| 2 | P59 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_clr055_ep5` | CLI-only: `--lr 0.055 --feddrift_mu 2.5e-5 --feddrift_beta 0.9` |
+
+### Reflective Memory
+
+- Keep client LR at the default `0.05` unless a FedDrift-enabled LR neighbor beats `0.913200`.
+- If both client-LR neighbors fail, use the reserved epoch audit before adding more FedDrift code.

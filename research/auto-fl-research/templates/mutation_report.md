@@ -194,4 +194,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a fresh literature loop before selecting another axis. The current best remains `0.913200` with FedNova/FedDyn/FedDrift (`feddrift_mu=2.5e-5`, `feddrift_beta=0.9`); both weight-decay and FedDyn-alpha interaction retunes missed.
+Nineteenth literature loop selected a FedDrift-enabled client learning-rate retune before more local-compute or code changes: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, and test `lr=0.045` and `0.055` under the fixed 20-round budget.
