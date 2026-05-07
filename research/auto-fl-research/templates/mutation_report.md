@@ -156,6 +156,7 @@ The initial campaign should establish which already-available algorithm family i
 - Twenty-first literature loop selected a labeled registered-architecture subcampaign; it did not improve. `moderate_cnn_small_head` scored `0.912100`; `moderate_cnn_norm` scored `0.904600`.
 - Twenty-second literature loop selected a very-light FedProx interaction; it did not improve. `mu=1e-6` scored `0.908500`; `5e-6` scored `0.906000`.
 - Twenty-third literature loop selected a default-off local AdamW optimizer mutation; it failed badly. `lr=0.0005` scored `0.252000`; `0.001` scored `0.100000`. The optional AdamW code path was reverted.
+- Twenty-fourth literature loop selected default-off client gradient clipping; it did not improve. `clip_norm=5.0` scored `0.908700`; `1.0` scored `0.898400`. The optional clipping code path was reverted.
 
 ## Literature basis
 
@@ -189,7 +190,6 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 
 - No FL protocol fields were changed.
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
-- Optional client gradient clipping is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - FedDyn-style dynamic regularization is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedDrift EMA correction is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
@@ -198,8 +198,8 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional client gradient clipping behind `--gradient_clip_norm`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, and optional FedDrift EMA correction behind `--feddrift_mu`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, and local AdamW code paths have been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, and optional FedDrift EMA correction behind `--feddrift_mu`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, local AdamW, and client gradient-clipping code paths have been reverted.
 
 ## Next mutation
 
-Twenty-fourth literature loop selected default-off client gradient clipping before adaptive clipping or more adaptive optimizer code: add `--gradient_clip_norm` and test norms `1.0` and `5.0` under the current best stack.
+Twenty-fourth client gradient clipping candidates missed and the optional code path was reverted. Start a Twenty-fifth literature loop before adaptive clipping or more adaptive optimizer code.

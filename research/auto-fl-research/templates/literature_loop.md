@@ -1719,3 +1719,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep no gradient clipping unless a client clipping candidate beats `0.913200`.
 - If both fixed client clipping candidates fail, revert the optional code path and return to literature before adaptive clipping.
+- Outcome: client gradient clipping failed. `clip_norm=5.0` scored `0.908700`; `1.0` scored `0.898400`.
+- Action: revert the optional client gradient clipping code path and return to literature before adaptive clipping.
