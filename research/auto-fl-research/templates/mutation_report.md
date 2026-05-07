@@ -133,6 +133,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedDyn alpha neighbors did not improve: `alpha=5e-5` scored `0.906600`; `alpha=2e-4` scored `0.909600`.
 - FedDyn-enabled server-LR neighbors did not improve: `server_lr=1.9375` scored `0.910500`; `server_lr=1.8125` scored `0.908300`.
 - Fourteenth literature loop selected a FedDyn-enabled server-momentum retune before more local regularization or FedDC/FedRed-style code.
+- FedDyn-enabled server momentum neighbors did not improve: `server_momentum=0.30` scored `0.910800`; `server_momentum=0.40` scored `0.910400`.
 
 ## Literature basis
 
@@ -177,4 +178,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run FedDyn-enabled server-momentum neighbors: `--server_momentum 0.30` and `0.40` with `--feddyn_alpha 1e-4`, keeping all fixed budget fields unchanged.
+Run the reserved FedDyn-enabled weight-decay retune: `--weight_decay 3e-4` and `4e-4` with `--feddyn_alpha 1e-4`, keeping all fixed budget fields unchanged.

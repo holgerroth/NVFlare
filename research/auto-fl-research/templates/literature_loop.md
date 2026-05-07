@@ -970,3 +970,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep `server_momentum=0.35` unless a neighbor beats `0.910900`.
 - If both momentum neighbors fail, try the reserved FedDyn-enabled weight-decay retune before adding more drift-correction code.
+- Outcome: momentum neighbors missed the best. `server_momentum=0.30` scored `0.910800`; `0.40` scored `0.910400`.
+- Action: keep `server_momentum=0.35` and run the reserved FedDyn-enabled weight-decay retune.
