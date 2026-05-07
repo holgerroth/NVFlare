@@ -1047,3 +1047,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both fail, consider FedDyn-enabled exact local steps before adding FedDC/FedRed-style code.
 - Outcome: FedDyn-enabled epoch neighbors underperformed. `aggregation_epochs=4` scored `0.908800`; `6` scored `0.909500`.
 - Action: keep epoch-based `aggregation_epochs=5` and run the reserved exact local-step audit as a separate local-compute sweep.
+- Exact-step outcome: `local_train_steps=500` and `600` both hit the 1200-second timeout with NVFlare target-unreachable/get-task failures.
+- Exact-step action: do not retry exact local steps at width 2 without a new reliability mitigation; return to literature before FedDC/FedRed-style code.
