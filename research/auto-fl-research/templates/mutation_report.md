@@ -81,3 +81,9 @@ The optimizer-only plateau near 0.899 is likely driven by non-IID client drift a
 - No code changes are required for the selected batch.
 - Both candidates preserve DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, the existing receive/send loop, fixed evaluation, and the same `moderate_cnn` architecture/cap.
 - SCAFFOLD and clipping remain reserve proposals; neither is launched in this first literature batch.
+
+## Literature Batch Outcome
+
+- FedProx current-stack `mu=1e-5` scored 0.897600, below the 0.898900 best despite the source-backed drift hypothesis.
+- Conservative FedAdam `server_lr=0.2,tau=0.1` avoided the prior crash but scored 0.807800, so the FedAdam branch should not be retried without a stronger implementation-level reason.
+- Next source-backed reserve is tuned SCAFFOLD, clearly labeled as the implemented opt-in control-variate protocol mode.

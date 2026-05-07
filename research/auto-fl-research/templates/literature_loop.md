@@ -150,3 +150,9 @@ Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty -
 - Discard: shared-data non-IID remedies are out of budget because `data/*` and evaluation/data substrate must remain fixed.
 - Do not retry: aggressive FedAdam `server_lr=1.0,tau=1e-3` without stabilizer.
 - Sources to carry forward: Li20 FedProx, Reddi21 FedOpt, Karimireddy20 SCAFFOLD, Zhang21 clipping.
+
+### Batch outcome
+
+- FedProx `mu=1e-5` on the current best stack scored 0.897600, below the 0.898900 best; do not rerun that exact setting.
+- Conservative FedAdam `server_lr=0.2,tau=0.1` completed without NaNs but scored 0.807800; adaptive Adam is a poor fit for the current custom aggregator/settings.
+- Carry forward SCAFFOLD as the remaining source-backed drift correction, but treat it as a labeled protocol-mode comparison because the default SCAFFOLD audit was weak.
