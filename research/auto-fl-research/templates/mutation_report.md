@@ -166,6 +166,7 @@ The initial campaign should establish which already-available algorithm family i
 - Mixup alpha narrowing did not improve: `mixup_alpha=0.15` scored `0.911800`; `0.3` scored `0.906100`.
 - Mixup-enabled weight-decay interaction did not improve: `weight_decay=3.0e-4` scored `0.912100`; `4.0e-4` scored `0.906600`.
 - Mixup-enabled server-LR interaction did not improve: `server_lr=1.9375` scored `0.913200`; `1.8125` scored `0.910000`.
+- Twenty-ninth literature loop selected default-off local-only CutMix after mixup improved but post-mixup retunes failed.
 
 ## Literature basis
 
@@ -193,6 +194,9 @@ The initial campaign should establish which already-available algorithm family i
 - FedMix: Tehrim Yoon, Sumin Shin, Sung Ju Hwang, Eunho Yang. "FedMix: Approximation of Mixup under Mean Augmented Federated Learning." ICLR 2021; arXiv:2107.00233.
 - CCVR: Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. "No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data." arXiv:2106.05001.
 - Mixup: Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz. "mixup: Beyond Empirical Risk Minimization." ICLR 2018; arXiv:1710.09412.
+- CutMix: Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo. "CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features." ICCV 2019; arXiv:1905.04899.
+- Cutout: Terrance DeVries, Graham W. Taylor. "Improved Regularization of Convolutional Neural Networks with Cutout." arXiv:1708.04552.
+- RandAugment: Ekin D. Cubuk, Barret Zoph, Jonathon Shlens, Quoc V. Le. "RandAugment: Practical automated data augmentation with a reduced search space." arXiv:1909.13719.
 
 ## Run analysis
 
@@ -215,4 +219,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Post-mixup alpha, weight-decay, and server-LR retunes failed after the `0.914100` improvement. Run the next literature loop before more local jitter; keep `mixup_alpha=0.2`, `weight_decay=3.5e-4`, and `server_lr=1.875`.
+Implement default-off local-only `--cutmix_alpha` in `client.py`/`job.py`, validate, then launch `cutmix_alpha=0.5` and `1.0` with `mixup_alpha=0`. Do not combine CutMix with mixup in the first batch.

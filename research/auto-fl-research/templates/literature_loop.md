@@ -2019,3 +2019,76 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep `weight_decay=3.5e-4` with `mixup_alpha=0.2`.
 - Follow-up: mixup-enabled server-LR interaction missed. `server_lr=1.9375` scored `0.913200`; `1.8125` scored `0.910000`.
 - Action: keep `server_lr=1.875` with `mixup_alpha=0.2` and return to literature before more post-mixup local jitter.
+
+## Twenty-ninth Literature Loop
+
+### Trigger
+
+- Reason: local-only mixup improved the best, but alpha narrowing plus weight-decay and server-LR interactions failed. The next idea should build on the augmentation signal without changing the FL protocol.
+- Current best: `0.914100` with `moderate_cnn`, FedNova `server_lr=1.875`, `server_momentum=0.35`, default client LR/momentum/scheduler, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`, and local-only `--mixup_alpha 0.2`.
+- Recent symptoms: mixup is useful, but more alpha/regularization/server-step jitter is not. The next augmentation should be default-off and client-local.
+- Candidate width: `PARALLEL_CANDIDATES=2`; add default-off CutMix only, no shared data, no new FLModel metadata, no evaluation changes.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `CutMix federated learning non-IID CIFAR client augmentation arXiv` | Find an augmentation adjacent to mixup that remains local. | arXiv, paper indexes | CutMix is not FL-specific but is local and CIFAR-backed. |
+| `CutMix Regularization Strategy to Train Strong Classifiers with Localizable Features arXiv` | Confirm the primary method details and CIFAR evidence. | arXiv | CutMix mixes patches and labels by patch area. |
+| `RandAugment practical automated data augmentation CIFAR arXiv` | Compare another augmentation family. | arXiv/paper indexes | RandAugment would require transform-policy edits and broader search; reserve. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Yun19 | CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features / 2019 | https://arxiv.org/abs/1905.04899 | Improve image classifier generalization by replacing local patches and mixing labels by area. | local augmentation | keep |
+| Zhang17 | mixup / 2017 | https://arxiv.org/abs/1710.09412 | Prior local interpolation improved this harness. | local augmentation | context |
+| DeVries17 | Improved Regularization of Convolutional Neural Networks with Cutout / 2017 | https://arxiv.org/abs/1708.04552 | Regional dropout is simple and CIFAR-backed, but removes pixels rather than reusing them. | local augmentation | reserve |
+| Cubuk19 | RandAugment / 2019 | https://arxiv.org/abs/1909.13719 | Strong augmentation can improve CIFAR, but policy magnitude search is broader. | augmentation policy | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Augmentation signal is real | Mixup improved to `0.914100`. | Post-mixup retunes failed, but augmentation itself helped. | Try a neighboring local augmentation mechanism rather than optimizer jitter. | `client.py`, `job.py`. |
+| C2 | Preserve protocol | CutMix can be applied entirely inside each local batch. | FedMix/MAFL shared-data exchange was rejected. | Add no FLModel fields and share no data. | Client-local code. |
+| C3 | Avoid broad transform policy search | RandAugment is stronger but opens a wider transform/magnitude surface. | Candidate width is 2 and repeated broad code paths have regressed. | Test CutMix before policy-search augmentation. | Default-off `--cutmix_alpha`. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P91 | Conservative CutMix. | Yun19; Zhang17 | Add default-off `--cutmix_alpha`; candidate `--cutmix_alpha 0.5` with `mixup_alpha=0`. | Patch-level interpolation may regularize differently from mixup. | Score below `0.914100`. | Medium-low; client-local code. |
+| P92 | Standard CutMix. | Yun19; Zhang17 | Same code; candidate `--cutmix_alpha 1.0` with `mixup_alpha=0`. | Test common CutMix strength. | Score below best or unstable loss. | Medium-low. |
+| P93 | Cutout. | DeVries17; Yun19 | Add random erasing/cutout. | Simpler regional dropout. | CutMix is better evidenced after mixup because it preserves pixels. | reserve |
+| P94 | RandAugment. | Cubuk19 | Add transform-policy knobs. | Stronger augmentation family. | Too broad for the next branch. | reserve |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P91 | Mixup alpha sweep. | Different spatial mixing mechanism, still local. | keep |
+| P92 | Mixup alpha sweep. | Different spatial mixing mechanism, tests standard strength. | keep |
+| P93 | CutMix. | Weaker pixel-removal variant; reserve. | reserve |
+| P94 | Existing crop/flip augmentation. | Broader search surface. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P91 | 3 | 4 | 3 | 4 | 4 | 3 | 22 |
+| P92 | 3 | 4 | 3 | 4 | 4 | 3 | 22 |
+| P93 | 2 | 4 | 3 | 3 | 3 | 3 | 18 |
+| P94 | 3 | 3 | 1 | 4 | 4 | 4 | 17 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P91 | `fednova_lr1875_m035_wd35e5_gc_cutmix05_feddyn1e4_feddrift2p5e5_ep5` | Current best stack but `--mixup_alpha 0`, `--cutmix_alpha 0.5` |
+| 2 | P92 | `fednova_lr1875_m035_wd35e5_gc_cutmix10_feddyn1e4_feddrift2p5e5_ep5` | Current best stack but `--mixup_alpha 0`, `--cutmix_alpha 1.0` |
+
+### Reflective Memory
+
+- CutMix must remain local-only; do not combine it with mixup in the first batch.
+- If both CutMix alphas fail, revert the optional code path and do not continue augmentation code without another literature reset.
