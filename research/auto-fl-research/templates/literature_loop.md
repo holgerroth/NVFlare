@@ -2240,4 +2240,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Plateau watchdog after the class-balanced batch recommended `continue`, not `literature`.
 - CLI-only local-compute audit under the kept mixup stack did not improve: `aggregation_epochs=4` scored `0.905400`; `6` scored `0.911300`.
 - CLI-only server-momentum retune under the kept mixup stack also did not improve: `server_momentum=0.40` scored `0.911000`; `0.30` scored `0.910300`.
-- Keep the current best `aggregation_epochs=5` and `server_momentum=0.35`; avoid more client-loss code until a later literature reset.
+- CLI-only client-LR sweep found a near miss: `lr=0.055` scored `0.914500`, below the `0.000500` material-improvement threshold over the kept `0.914100`; `0.045` scored `0.910700`.
+- Keep the current best `aggregation_epochs=5` and `server_momentum=0.35`; narrow once around `lr=0.055`; avoid more client-loss code until a later literature reset.
