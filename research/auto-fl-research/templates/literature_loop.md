@@ -2094,3 +2094,71 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both CutMix alphas fail, revert the optional code path and do not continue augmentation code without another literature reset.
 - Outcome: CutMix failed. `cutmix_alpha=0.5` scored `0.904800`; `1.0` scored `0.897800`.
 - Action: revert the default-off CutMix code path; keep local-only mixup as the surviving augmentation.
+
+## Thirtieth Literature Loop
+
+### Trigger
+
+- Reason: CutMix failed and mixup remains the only surviving augmentation. The next branch should target label-skew/class-imbalance loss behavior locally, without changing data splits, evaluation, or FL metadata.
+- Current best: `0.914100` with FedNova/FedDyn/FedDrift, `--gradient_centralization`, `--mixup_alpha 0.2`, `weight_decay=3.5e-4`, and `server_lr=1.875`.
+- Recent symptoms: local interpolation helped; patch mixing did not. Class/label skew may still benefit from focusing hard local examples.
+- Candidate width: `PARALLEL_CANDIDATES=2`; add default-off focal loss and test it with the kept mixup setting.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning non-IID label skew focal loss client local loss CIFAR arXiv` | Find local loss functions for label skew. | arXiv, paper indexes | FL-specific focal variants exist, but base focal loss is enough for a safe client-local audit. |
+| `focal loss dense object detection class imbalance arXiv 1708.02002` | Confirm primary focal-loss mechanism. | arXiv | Focal loss down-weights easy examples and focuses hard examples. |
+| `class-balanced loss effective number of samples CIFAR arXiv 1901.05555` | Compare a class-count weighted alternative. | arXiv | Effective-number loss needs local class-count weighting; reserve behind focal. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Lin17 | Focal Loss for Dense Object Detection / 2017 | https://arxiv.org/abs/1708.02002 | Class imbalance can be handled by down-weighting easy examples. | focal loss | keep |
+| Cui19 | Class-Balanced Loss Based on Effective Number of Samples / 2019 | https://arxiv.org/abs/1901.05555 | Class-count imbalance can be corrected by effective-number reweighting. | class-balanced loss | reserve |
+| Zhang17 | mixup / 2017 | https://arxiv.org/abs/1710.09412 | Soft interpolation is the current surviving augmentation. | local augmentation | context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Hard-example focus under label skew | Lin17 proposes reshaping CE to focus hard examples. | Mixup improved, but optimizer and CutMix retunes failed. | Focal loss is local and does not need client metadata. | `client.py`, `job.py`. |
+| C2 | Class-count weighting is heavier | Cui19 uses class counts/effective samples. | Site class distributions are skewed, but count weighting may overfit local priors. | Reserve until focal is tested. | Future client-local class weights. |
+| C3 | Mixup compatibility | Mixup uses two hard labels with a convex loss. | Best row uses `mixup_alpha=0.2`. | Apply focal loss per mixed label component. | Existing mixup loss path. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P95 | Mild focal loss with mixup. | Lin17; Zhang17 | Add default-off `--focal_gamma`; candidate `--mixup_alpha 0.2 --focal_gamma 1.0`. | Focus hard examples while preserving the current mixup gain. | Score below `0.914100`. | Medium-low. |
+| P96 | Standard focal loss with mixup. | Lin17; Zhang17 | Same code; candidate `--mixup_alpha 0.2 --focal_gamma 2.0`. | Test common focal strength. | Score below best or unstable training. | Medium-low. |
+| P97 | Effective-number class-balanced loss. | Cui19 | Add local class-count weighting. | Directly handle local class imbalance. | More local-prior bias and code surface. | reserve |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P95 | Label smoothing / mixup. | Different loss focusing mechanism; compatible with mixup. | keep |
+| P96 | Label smoothing / mixup. | Stronger focal setting, same local code. | keep |
+| P97 | FedLC/classifier calibration. | Similar class-prior family; reserve. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P95 | 2 | 4 | 3 | 3 | 4 | 3 | 19 |
+| P96 | 2 | 4 | 3 | 3 | 4 | 3 | 19 |
+| P97 | 3 | 3 | 2 | 4 | 3 | 3 | 18 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P95 | `fednova_lr1875_m035_wd35e5_gc_mixup02_focal1_feddyn1e4_feddrift2p5e5_ep5` | Current best plus `--focal_gamma 1.0` |
+| 2 | P96 | `fednova_lr1875_m035_wd35e5_gc_mixup02_focal2_feddyn1e4_feddrift2p5e5_ep5` | Current best plus `--focal_gamma 2.0` |
+
+### Reflective Memory
+
+- If focal loss fails, revert the optional code path and revisit class-balanced/effective-number loss only with a separate literature loop.

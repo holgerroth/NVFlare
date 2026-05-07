@@ -168,6 +168,7 @@ The initial campaign should establish which already-available algorithm family i
 - Mixup-enabled server-LR interaction did not improve: `server_lr=1.9375` scored `0.913200`; `1.8125` scored `0.910000`.
 - Twenty-ninth literature loop selected default-off local-only CutMix after mixup improved but post-mixup retunes failed.
 - CutMix failed and was reverted: `cutmix_alpha=0.5` scored `0.904800`; `1.0` scored `0.897800`.
+- Thirtieth literature loop selected default-off focal loss with the kept mixup setting.
 
 ## Literature basis
 
@@ -198,6 +199,8 @@ The initial campaign should establish which already-available algorithm family i
 - CutMix: Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo. "CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features." ICCV 2019; arXiv:1905.04899.
 - Cutout: Terrance DeVries, Graham W. Taylor. "Improved Regularization of Convolutional Neural Networks with Cutout." arXiv:1708.04552.
 - RandAugment: Ekin D. Cubuk, Barret Zoph, Jonathon Shlens, Quoc V. Le. "RandAugment: Practical automated data augmentation with a reduced search space." arXiv:1909.13719.
+- Focal loss: Tsung-Yi Lin, Priya Goyal, Ross Girshick, Kaiming He, Piotr Dollar. "Focal Loss for Dense Object Detection." ICCV 2017; arXiv:1708.02002.
+- Class-balanced loss: Yin Cui, Menglin Jia, Tsung-Yi Lin, Yang Song, Serge Belongie. "Class-Balanced Loss Based on Effective Number of Samples." CVPR 2019; arXiv:1901.05555.
 
 ## Run analysis
 
@@ -220,4 +223,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-CutMix failed and was reverted. Run another literature loop before more augmentation or optimizer-code mutations; keep the best stack at `--mixup_alpha 0.2`.
+Implement default-off `--focal_gamma` in `client.py`/`job.py`, validate, then launch focal `gamma=1.0` and `2.0` with the kept `--mixup_alpha 0.2` stack.
