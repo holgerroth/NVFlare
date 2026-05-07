@@ -190,13 +190,14 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - FedDyn-style dynamic regularization is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedDrift EMA correction is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
+- The optional local optimizer selector is client-local and keeps SGD as the default; AdamW adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, and optional FedDrift EMA correction behind `--feddrift_mu`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, and FedDrift state-clipping code paths have been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, optional FedDrift EMA correction behind `--feddrift_mu`, and optional local AdamW behind `--optimizer adamw`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, and FedDrift state-clipping code paths have been reverted.
 
 ## Next mutation
 

@@ -103,6 +103,7 @@ def define_parser():
         action="store_true",
         help="Disable deterministic PyTorch and DataLoader seeding in client training.",
     )
+    parser.add_argument("--optimizer", choices=("sgd", "adamw"), default="sgd")
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
@@ -368,6 +369,8 @@ def main():
         args.aggregation_epochs,
         "--local_train_steps",
         args.local_train_steps,
+        "--optimizer",
+        args.optimizer,
         "--momentum",
         args.momentum,
         "--weight_decay",
