@@ -1431,3 +1431,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both scheduler-floor candidates fail, return to literature before adding local adaptive optimizer code.
 - Outcome: scheduler-floor neighbors failed. `eta_min_factor=0.003` scored `0.910900`; `0.03` scored `0.906100`.
 - Action: keep the default `cosine_lr_eta_min_factor=0.01` and return to literature before adding local adaptive optimizer code.
+
+## Twenty-first Literature Loop
+
+### Trigger
+
+- Reason: the Twentieth scheduler-floor batch missed, and adding local adaptive optimizer code is higher-risk than re-auditing already registered architectures under the changed FedDyn/FedDrift objective.
+- Current best: `moderate_cnn` with FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, default client LR/scheduler, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: client LR, scheduler floor, epoch count, drift-state clipping, weight decay, and FedDyn-alpha interactions all missed. The earlier registered-architecture audit was before FedDyn/FedDrift, so the objective context has changed materially.
+- Candidate width: `PARALLEL_CANDIDATES=2`; label this as an architecture subcampaign because `model_arch` changes while `max_model_params=5000000` remains fixed.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedBN Federated Learning on Non-IID Features via Local Batch Normalization OpenReview ICLR 2021` | Check source backing for normalization-aware architecture changes in FL. | OpenReview, ICLR pages | FedBN motivates normalization choices under non-IID FL. |
+| `federated learning normalization non-IID convolutional networks GroupNorm CIFAR` | Connect registered GroupNorm architecture to FL robustness. | paper indexes | GroupNorm avoids batch-stat buffers and keeps server/client state schema explicit. |
+| `federated learning model architecture capacity regularization non-IID CIFAR` | Check whether smaller classifier heads are a plausible low-code capacity axis. | paper indexes/local prior rows | Evidence weaker than normalization, but registered small head is under cap and no new code. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Li21 | FedBN: Federated Learning on Non-IID Features via Local Batch Normalization / 2021 | https://openreview.net/forum?id=6YEQUn0QICG | Non-IID feature distributions can make normalization behavior important. | normalization-aware FL | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | FedAvg-style local training is sensitive to model and local update behavior. | FedAvg baseline | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Objective consistency depends on local update geometry; architecture can interact with update scale. | FedNova | keep |
+| Wang21 | Local Adaptivity in Federated Learning / 2021 | https://arxiv.org/abs/2106.02305 | Local adaptive optimizer code can introduce consistency risk. | local adaptivity | reject next |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Normalization context changed | FedBN shows normalization choices can affect non-IID FL. | `moderate_cnn_norm` failed before FedDyn/FedDrift, but the current local objective is materially different. | `moderate_cnn_norm` is registered, buffer-free GroupNorm and under the parameter cap. | CLI `--model_arch moderate_cnn_norm`; architecture subcampaign. |
+| C2 | Capacity/regularization may interact with drift correction | Smaller heads can reduce overfitting capacity; evidence is weaker but code already exists. | `moderate_cnn_small_head` was close at `0.909200` before FedDyn/FedDrift. | Registered architecture avoids new code and stays under cap. | CLI `--model_arch moderate_cnn_small_head`; architecture subcampaign. |
+| C3 | Comparability risk | `program.md` requires architecture scores be labeled separately. | Best score uses `moderate_cnn`. | Use explicit architecture-subcampaign descriptions and do not silently treat it as the same optimizer-only budget. | Ledger/report labeling. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P65 | Re-audit registered GroupNorm architecture under FedDrift. | Li21; Wang20 | CLI-only architecture subcampaign: current best stack with `--model_arch moderate_cnn_norm`. | Normalization may interact better with FedDyn/FedDrift local corrections. | Score below `0.913200` or cap/runtime issue. | Medium; model schema changes by registered variant. |
+| P66 | Re-audit registered small-head architecture under FedDrift. | McMahan17; local prior | CLI-only architecture subcampaign: current best stack with `--model_arch moderate_cnn_small_head`. | Reduce classifier overfitting/capacity under drift-corrected local objective. | Score below best. | Medium; model schema changes by registered variant. |
+| P67 | Add new architecture variant. | architecture search literature | Code: new registered model under cap. | Search beyond current variants. | Too broad before re-audits. | High; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P65 | Tenth-loop architecture audit. | Context changed after FedDyn/FedDrift improvement; not a strict duplicate. | keep |
+| P66 | Tenth-loop architecture audit. | Context changed; small-head was the closer previous architecture row. | keep |
+| P67 | New architecture code. | Existing registered variants need current-stack audit first. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P65 | 2 | 4 | 5 | 3 | 3 | 3 | 20 |
+| P66 | 2 | 4 | 5 | 2 | 3 | 3 | 19 |
+| P67 | 3 | 2 | 1 | 2 | 4 | 3 | 14 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P65 | `arch_feddrift_norm_lr1875_m035_wd35e5_gc_feddyn1e4_ep5` | Architecture subcampaign: current best stack with `--model_arch moderate_cnn_norm` |
+| 2 | P66 | `arch_feddrift_smallhead_lr1875_m035_wd35e5_gc_feddyn1e4_ep5` | Architecture subcampaign: current best stack with `--model_arch moderate_cnn_small_head` |
+
+### Reflective Memory
+
+- Treat these as architecture-subcampaign rows; keep `max_model_params=5000000`.
+- Keep `moderate_cnn` unless a registered variant beats `0.913200` clearly enough to justify the schema change.
+- If both registered variants fail again, return to literature before adding a new architecture or local adaptive optimizer code.

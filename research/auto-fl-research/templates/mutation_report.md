@@ -198,4 +198,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twentieth literature loop scheduler-floor candidates both missed. Start a Twenty-first literature loop before adding local adaptive optimizer code or selecting another candidate batch.
+Twenty-first literature loop selected a labeled registered-architecture subcampaign before adding local adaptive optimizer code: test `moderate_cnn_norm` and `moderate_cnn_small_head` under the current FedDrift best stack with `max_model_params=5000000`.
