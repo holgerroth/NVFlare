@@ -138,6 +138,8 @@ The initial campaign should establish which already-available algorithm family i
 - Fifteenth literature loop selected a FedDyn-enabled epoch-count audit because pre-FedDyn local-compute rows may not transfer after the local objective changed.
 - FedDyn-enabled epoch-count audit did not improve: `aggregation_epochs=4` scored `0.908800`; `aggregation_epochs=6` scored `0.909500`.
 - FedDyn-enabled exact local-step audit crashed: `local_train_steps=500` and `600` both hit `RUN_TIMEOUT_SECONDS=1200` with NVFlare target-unreachable/get-task failures.
+- Sixteenth literature loop selected a width-1 exact-step reliability audit before adding FedDC/FedRed-style drift-correction code.
+- The width-1 exact-step audit completed successfully but did not improve: `local_train_steps=600` scored `0.909300`, so exact local steps are now a discarded axis under the current FedNova/FedDyn stack.
 
 ## Literature basis
 
@@ -165,7 +167,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result now favors FedNova-style normalized DIFF aggregation plus a small FedDyn-style client dynamic regularizer with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, and `--feddyn_alpha 1e-4`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is unreliable at width 2 with FedDyn and hit the timeout guard. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs and consider width 1 for exact-step reliability audits. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation plus a small FedDyn-style client dynamic regularizer with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, and `--feddyn_alpha 1e-4`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -182,4 +184,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Run the Sixteenth literature-selected reliability audit before adding FedDC/FedRed-style drift-correction code: a single-lane exact-step run with `PARALLEL_CANDIDATES=1`, `RUN_TIMEOUT_SECONDS=1200`, `CUDA_VISIBLE_DEVICES=0`, and `--local_train_steps 600` on the current best FedNova/FedDyn stack. If it times out again or scores below `0.910900`, abandon exact local steps under this stack and move to the FedDC/FedRed reserve.
+Move to the FedDC/FedRed reserve: add a default-off, contract-safe client-local drift-correction option in `client.py`, keep DIFF uploads and existing metadata unchanged, validate/smoke it, then launch a narrow source-backed candidate batch under the current best FedNova/FedDyn stack.

@@ -1119,3 +1119,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Treat the width-2 exact-step failures as an operational contention signal, not a scored algorithm result.
 - If the width-1 `steps600` audit also times out or underperforms, abandon exact local steps under the current FedDyn/FedNova stack and move to a source-backed FedDC/FedRed-style code proposal.
+- Outcome: the width-1 `steps600` audit completed successfully with score `0.909300`, below the `0.910900` best.
+- Action: abandon exact local steps under this FedNova/FedDyn stack. The reliability mitigation worked, but the algorithmic result did not improve; move to the FedDC/FedRed drift-correction reserve next.
