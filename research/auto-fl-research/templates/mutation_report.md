@@ -182,4 +182,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a new literature loop before adding FedDC/FedRed-style drift-correction code. The active best remains score `0.910900`; exact-step FedDyn runs are currently unreliable at width 2.
+Run the Sixteenth literature-selected reliability audit before adding FedDC/FedRed-style drift-correction code: a single-lane exact-step run with `PARALLEL_CANDIDATES=1`, `RUN_TIMEOUT_SECONDS=1200`, `CUDA_VISIBLE_DEVICES=0`, and `--local_train_steps 600` on the current best FedNova/FedDyn stack. If it times out again or scores below `0.910900`, abandon exact local steps under this stack and move to the FedDC/FedRed reserve.

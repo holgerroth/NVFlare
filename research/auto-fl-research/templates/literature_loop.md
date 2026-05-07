@@ -1049,3 +1049,73 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep epoch-based `aggregation_epochs=5` and run the reserved exact local-step audit as a separate local-compute sweep.
 - Exact-step outcome: `local_train_steps=500` and `600` both hit the 1200-second timeout with NVFlare target-unreachable/get-task failures.
 - Exact-step action: do not retry exact local steps at width 2 without a new reliability mitigation; return to literature before FedDC/FedRed-style code.
+
+## Sixteenth Literature Loop
+
+### Trigger
+
+- Reason: the reserved FedDyn-enabled exact-step audit failed operationally rather than producing comparable scores. Both `local_train_steps=500` and `600` timed out at 1200 seconds with NVFlare target-unreachable/get-task failures while running at width 2.
+- Current best: score `0.910900` from FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, and `--feddyn_alpha 1e-4`.
+- Recent symptoms: epoch neighbors under FedDyn were valid but below best; exact-step runs may have suffered from local simulation contention rather than pure algorithm failure.
+- Candidate width: lower to `PARALLEL_CANDIDATES=1` for the next exact-step reliability audit; keep `CUDA_VISIBLE_DEVICES=0` and `RUN_TIMEOUT_SECONDS=1200`.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedDyn dynamic regularization local epochs communication efficiency federated learning` | Recheck whether FedDyn justifies more local device computation despite the timeout. | OpenReview, paper indexes | FedDyn is explicitly communication-oriented and allows more device-level computation. |
+| `FedNova heterogeneous federated optimization local update counts exact steps objective inconsistency` | Confirm exact update counts remain algorithmically relevant with FedNova normalization. | arXiv indexes, paper pages | FedNova targets inconsistency from different local update counts, so exact-step audits are still plausible. |
+| `FedDC FedRed drift correction non-IID federated learning local drift correction` | Compare a reliability-mitigated exact-step audit against adding stronger drift-correction code. | CVF/arXiv/dblp pages | FedDC/FedRed are relevant reserves but add more state and implementation risk. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Local device optima can be inconsistent with global optima; dynamic regularization supports more local computation. | FedDyn | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Local update counts can bias the global objective unless normalized. | FedNova | keep |
+| McMahan17 | Communication-Efficient Learning of Deep Networks from Decentralized Data / 2017 | https://arxiv.org/abs/1602.05629 | Local computation trades communication for client drift and runtime. | FedAvg local epochs | keep |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://openaccess.thecvf.com/content/CVPR2022/papers/Gao_FedDC_Federated_Learning_With_Non-IID_Data_via_Local_Drift_Decoupling_CVPR_2022_paper.pdf | Residual parameter drift can accumulate under non-IID data. | FedDC | reserve |
+| Jiang24 | Federated Optimization with Doubly Regularized Drift Correction / 2024 | https://arxiv.org/abs/2404.08447 | FedAvg-style local drift can hurt communication-computation trade-offs. | FedRed/DANE-style drift correction | reserve |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Exact-step signal is confounded by contention | Acar21 and McMahan17 motivate local compute as a real algorithmic knob, but our failed rows ended as simulator reachability failures. | `local_train_steps=500/600` both crashed at 1200 seconds with width 2. | A width-1 retry can separate runtime contention from algorithm quality without code changes. | CLI-only plus launch width. |
+| C2 | Local compute may still help under FedDyn | FedDyn changes the local objective and is designed around more device-level computation; FedNova normalizes local update counts. | Pre-FedDyn exact-step rows were valid but below best; post-FedDyn exact-step rows did not complete. | One single-lane exact-step audit is still justified before abandoning the axis. | CLI-only `--local_train_steps`. |
+| C3 | Stronger drift correction is more invasive | FedDC and FedRed add additional correction state/objective machinery. | FedDyn-lite already improved once; simple optimizer/local-compute follow-ups have mostly missed. | FedDC/FedRed should follow only after the no-code reliability audit fails or underperforms. | `client.py` and possibly `custom_aggregators.py` reserve. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P50 | Single-lane FedDyn exact-step reliability audit. | Acar21; Wang20; McMahan17 | CLI-only: `PARALLEL_CANDIDATES=1`, `--local_train_steps 600`, current best FedNova/FedDyn stack, unique run log/name. | Determine whether width-2 failures were host/NVFlare contention and recover a comparable exact-step score. | Another timeout/crash or score below `0.910900`. | Low-medium runtime risk; no code change. |
+| P51 | Single-lane lower exact-step reserve. | Acar21; Wang20 | CLI-only: `--local_train_steps 500` only if P50 completes and is close. | Check whether slightly less exact local compute is more reliable. | Timeout or worse score. | Low-medium runtime risk; reserve. |
+| P52 | FedDC/FedRed-style stronger drift correction. | Gao22; Jiang24 | Code: add a default-off local drift-correction variant after exact-step evidence is exhausted. | Reduce residual drift beyond FedDyn-lite. | Complexity, protocol pressure, or no score gain. | Medium-high; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P50 | Prior exact-step rows only partially overlap. | Width-2 crashes were not comparable algorithm outcomes. | keep |
+| P51 | Prior exact-step rows and P50. | Reserve only; do not run both until P50 provides a signal. | reserve |
+| P52 | FedDyn-style code only partially overlaps. | More invasive and not needed before one reliability-controlled audit. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P50 | 2 | 5 | 5 | 4 | 3 | 4 | 22 |
+| P51 | 2 | 5 | 5 | 3 | 2 | 4 | 20 |
+| P52 | 3 | 3 | 2 | 4 | 4 | 4 | 18 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P50 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_steps600_solo` | CLI-only: `PARALLEL_CANDIDATES=1 --local_train_steps 600 --feddyn_alpha 1e-4` with current best FedNova stack |
+
+### Reflective Memory
+
+- Treat the width-2 exact-step failures as an operational contention signal, not a scored algorithm result.
+- If the width-1 `steps600` audit also times out or underperforms, abandon exact local steps under the current FedDyn/FedNova stack and move to a source-backed FedDC/FedRed-style code proposal.
