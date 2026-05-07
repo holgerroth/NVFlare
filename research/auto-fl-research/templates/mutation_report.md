@@ -160,6 +160,7 @@ The initial campaign should establish which already-available algorithm family i
 - Twenty-fifth literature loop selected a small-head architecture weight-decay retune; it did not improve. `weight_decay=4.5e-4` scored `0.910300`; `2.5e-4` scored `0.907600`.
 - Twenty-sixth literature loop selected a small-head architecture server-LR retune; it did not improve. `server_lr=1.8125` scored `0.908500`; `1.9375` scored `0.908400`.
 - Twenty-seventh literature loop selected a current-stack client momentum audit after closing the small-head branch.
+- Current-stack client momentum retune did not improve: `momentum=0.85` scored `0.906100`; `0.95` scored `0.905800`.
 
 ## Literature basis
 
@@ -189,7 +190,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, scheduler-floor retunes, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR, scheduler-floor, epoch-count, and FedProx neighbors around the FedDrift best stack did not improve, so keep default client LR, default cosine floor, `aggregation_epochs=5`, and `fedproxloss_mu=0`. The small-head architecture came close but did not beat the current best, and its weight-decay and server-LR retunes regressed, so keep `moderate_cnn` and close the small-head branch unless a later literature loop provides a stronger reason. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR and momentum, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, scheduler-floor retunes, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR, client-momentum, scheduler-floor, epoch-count, and FedProx neighbors around the FedDrift best stack did not improve, so keep default client LR, default client momentum, default cosine floor, `aggregation_epochs=5`, and `fedproxloss_mu=0`. The small-head architecture came close but did not beat the current best, and its weight-decay and server-LR retunes regressed, so keep `moderate_cnn` and close the small-head branch unless a later literature loop provides a stronger reason. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -207,4 +208,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Launch the twenty-seventh literature-loop candidates: client momentum `0.85` and `0.95` under the current FedNova/FedDyn/FedDrift best stack. Do not continue momentum jitter if both miss.
+The client momentum audit missed and the watchdog reported `recommendation=continue`. Do not continue momentum jitter; run another literature-backed check before promoting any code-bearing local augmentation idea.

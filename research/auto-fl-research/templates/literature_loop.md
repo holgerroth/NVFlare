@@ -1936,3 +1936,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - The older momentum miss is not decisive under the current FedDyn/FedDrift local objective.
 - If both momentum neighbors fail, do not continue momentum jitter; promote the reserved local-only mixup idea only after another literature check confirms it can be implemented without protocol or evaluation changes.
+- Outcome: current-stack client momentum neighbors failed. `momentum=0.85` scored `0.906100`; `0.95` scored `0.905800`.
+- Action: keep client momentum at default `0.9`; do not continue momentum jitter under the current stack.
