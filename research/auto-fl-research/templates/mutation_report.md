@@ -147,6 +147,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedDrift beta neighbors did not improve: `beta=0.8` scored `0.908900`; `0.95` scored `0.908100`.
 - Seventeenth literature loop selected a FedDrift-enabled server-LR retune; it did not improve. `server_lr=1.9375` scored `0.909300`; `1.8125` scored `0.908800`.
 - The reserved FedDrift-enabled server-momentum retune also did not improve: `server_momentum=0.40` scored `0.910200`; `0.30` scored `0.909500`.
+- Eighteenth literature loop selected a FedDrift-enabled weight-decay retune; it did not improve. `weight_decay=3.75e-4` scored `0.909700`; `3.25e-4` scored `0.906800`.
 
 ## Literature basis
 
@@ -192,4 +193,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Eighteenth literature loop selected a FedDrift-enabled weight-decay retune before more server or client-LR jitter: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, and test `weight_decay=3.25e-4` and `3.75e-4` under the fixed 20-round budget.
+Run the reserved FedDrift-enabled FedDyn-alpha interaction from the Eighteenth literature loop: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, `weight_decay=3.5e-4`, and test `feddyn_alpha=5e-5` and `2e-4` under the fixed 20-round budget.

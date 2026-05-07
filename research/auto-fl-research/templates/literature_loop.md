@@ -1275,3 +1275,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep `weight_decay=3.5e-4` unless a FedDrift-enabled neighbor beats `0.913200`.
 - If both weight-decay neighbors fail, use the reserved FedDyn-alpha interaction before trying client LR.
+- Outcome: weight-decay neighbors failed. `3.75e-4` scored `0.909700`; `3.25e-4` scored `0.906800`.
+- Action: keep `weight_decay=3.5e-4` and launch the reserved FedDyn-alpha interaction under the FedDrift best stack.
