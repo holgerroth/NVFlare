@@ -190,4 +190,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a fresh literature loop before more local jitter. The current best remains `0.913200` with `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`; the last two FedDrift narrowing batches missed.
+Seventeenth literature loop selected a FedDrift-enabled server learning-rate retune before more client-local jitter: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, and test `server_lr=1.8125` and `1.9375` under the fixed 20-round budget.

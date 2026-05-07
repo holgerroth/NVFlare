@@ -1129,3 +1129,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Lower-side action: keep `feddrift_mu=2.5e-5`; switch the next narrow sweep to `feddrift_beta`.
 - Beta-sweep outcome: `feddrift_beta=0.8` scored `0.908900`; `0.95` scored `0.908100`.
 - Beta-sweep action: keep `feddrift_beta=0.9`. Two batches after the `0.913200` improvement failed, so start a fresh literature loop before more local jitter.
+
+## Seventeenth Literature Loop
+
+### Trigger
+
+- Reason: two same-budget follow-up batches failed after the FedDrift improvement to `0.913200`: lower `feddrift_mu` neighbors and `feddrift_beta` neighbors both underperformed.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: the client-side drift correction is useful but narrow; more local drift-state jitter is now producing worse scores.
+- Candidate width: `PARALLEL_CANDIDATES=2`; prefer CLI-only candidates before more code.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `Adaptive Federated Optimization server learning rate momentum client heterogeneity` | Check whether a changed local objective should trigger server optimizer retuning. | arXiv/paper indexes, paper pages | FedOpt frames server optimizer hyperparameters as central under heterogeneity. |
+| `FedDC local drift correction server optimizer learning rate federated learning non-IID` | Connect local drift correction to optimizer context. | CVF/arXiv/paper indexes | FedDC uses local drift variables; our FedDrift-lite shifted the best stack. |
+| `server momentum federated learning non-IID FedAvgM FedNova` | Compare server LR retune against server momentum retune. | ICLR/AAAI/arXiv pages | Momentum remains relevant but prior FedDyn momentum retunes were close misses. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Server optimizer parameters interact with client heterogeneity and communication efficiency. | FedOpt/FedAvgM | keep |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | Local updates and normalization affect the server-side update scale. | FedNova | keep |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://openaccess.thecvf.com/content/CVPR2022/papers/Gao_FedDC_Federated_Learning_With_Non-IID_Data_via_Local_Drift_Decoupling_CVPR_2022_paper.pdf | Auxiliary drift variables can improve non-IID convergence but change local update geometry. | FedDC | keep |
+| Jiang24 | Federated Optimization with Doubly Regularized Drift Correction / 2024 | https://arxiv.org/abs/2404.08447 | Drift correction targets communication-computation trade-offs. | FedRed/DANE-style drift correction | keep |
+| Cheng23 | Momentum Benefits Non-IID Federated Learning Simply and Provably / 2023 | https://arxiv.org/abs/2306.16504 | Momentum can help non-IID convergence but may be sensitive to the local correction context. | Momentum analysis | keep |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | FedDrift changed the server update scale | Reddi21 emphasizes server optimizer tuning under heterogeneity; Wang20 shows local-update normalization changes objective consistency. | `feddrift_mu=2.5e-5` improved to `0.913200`, while nearby drift coefficients regressed. | Retune server LR under the changed local objective before adding code. | CLI `--server_lr`. |
+| C2 | Momentum remains plausible but secondary | Cheng23 supports momentum for non-IID FL, but previous FedDyn momentum retunes were close misses. | FedDyn momentum `0.30` nearly tied (`0.910800`) before FedDrift, but did not beat the then-best. | Test momentum after server LR if LR neighbors fail. | CLI `--server_momentum`. |
+| C3 | More drift-state code risks overfitting the local correction | FedDC/FedRed motivate correction but also add objective/state complexity. | `mu=7.5e-5`, `3.75e-5`, `1.25e-5`, beta `0.8/0.95` all regressed. | Stop local correction jitter and change a server optimizer knob. | Reserve `client.py`; prefer CLI. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P53 | FedDrift-enabled server LR retune. | Reddi21; Wang20; Gao22 | CLI-only: current best stack with `--server_lr 1.8125` and `1.9375`. | Check whether the drift-corrected local updates want a smaller/larger server step. | Both below `0.913200`. | Low. |
+| P54 | FedDrift-enabled server momentum retune. | Cheng23; Reddi21 | CLI-only: current best stack with `--server_momentum 0.30` and `0.40`. | Recheck server inertia under the shifted local correction. | Both below `0.913200`. | Low; reserve. |
+| P55 | FedDrift-enabled client LR retune. | FedDC/FedOpt context | CLI-only: current best stack with `--lr 0.045` and `0.055`. | Local correction may shift stable client step size. | Both below best or slower without gain. | Low; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P53 | FedDyn-only server LR sweep. | FedDrift changed the local objective; not a duplicate. | keep |
+| P54 | FedDyn-only server momentum sweep. | Context changed, but LR is the more direct scale retune. | reserve |
+| P55 | FedNova client-LR sweep before FedDyn/FedDrift. | Context changed, but client-LR retunes have repeatedly regressed. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P53 | 3 | 5 | 5 | 4 | 3 | 3 | 25 |
+| P54 | 2 | 5 | 5 | 4 | 3 | 3 | 23 |
+| P55 | 2 | 5 | 5 | 3 | 2 | 3 | 21 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P53 | `fednova_lr18125_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_ep5` | CLI-only: `--server_lr 1.8125 --feddrift_mu 2.5e-5 --feddrift_beta 0.9` |
+| 2 | P53 | `fednova_lr19375_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_ep5` | CLI-only: `--server_lr 1.9375 --feddrift_mu 2.5e-5 --feddrift_beta 0.9` |
+
+### Reflective Memory
+
+- Keep `feddrift_mu=2.5e-5` and `feddrift_beta=0.9` unless a server optimizer retune beats `0.913200`.
+- If server LR neighbors fail, use the reserved server momentum retune before returning to client-local jitter.
