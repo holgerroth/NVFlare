@@ -1200,3 +1200,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep `feddrift_mu=2.5e-5` and `feddrift_beta=0.9` unless a server optimizer retune beats `0.913200`.
 - If server LR neighbors fail, use the reserved server momentum retune before returning to client-local jitter.
+- Outcome: server LR neighbors failed under the FedDrift best stack. `server_lr=1.9375` scored `0.909300`; `1.8125` scored `0.908800`.
+- Action: keep `server_lr=1.875` and launch the reserved FedDrift-enabled server momentum retune.

@@ -145,6 +145,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedDrift narrowing improved again: `feddrift_mu=2.5e-5, beta=0.9` scored `0.913200`; `7.5e-5` regressed to `0.905300`.
 - FedDrift lower-side mu neighbors did not improve: `1.25e-5` and `3.75e-5` both scored `0.909700`.
 - FedDrift beta neighbors did not improve: `beta=0.8` scored `0.908900`; `0.95` scored `0.908100`.
+- Seventeenth literature loop selected a FedDrift-enabled server-LR retune; it did not improve. `server_lr=1.9375` scored `0.909300`; `1.8125` scored `0.908800`.
 
 ## Literature basis
 
@@ -190,4 +191,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Seventeenth literature loop selected a FedDrift-enabled server learning-rate retune before more client-local jitter: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, and test `server_lr=1.8125` and `1.9375` under the fixed 20-round budget.
+Run the reserved FedDrift-enabled server-momentum retune from the Seventeenth literature loop: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, `server_lr=1.875`, and test `server_momentum=0.30` and `0.40` under the fixed 20-round budget.
