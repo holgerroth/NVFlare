@@ -199,4 +199,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twenty-first architecture subcampaign missed. Start a Twenty-second literature loop before adding a new architecture or local adaptive optimizer code.
+Twenty-second literature loop selected a very-light FedProx interaction under the current FedDyn/FedDrift stack before adding local adaptive optimizer code: test `--fedproxloss_mu 1e-6` and `5e-6`.

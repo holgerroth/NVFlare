@@ -1504,3 +1504,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both registered variants fail again, return to literature before adding a new architecture or local adaptive optimizer code.
 - Outcome: both registered architecture variants missed. `moderate_cnn_small_head` scored `0.912100`; `moderate_cnn_norm` scored `0.904600`.
 - Action: keep `moderate_cnn` for the active best stack and return to literature before adding a new architecture or local adaptive optimizer code.
+
+## Twenty-second Literature Loop
+
+### Trigger
+
+- Reason: the registered architecture subcampaign missed, and local adaptive optimizer code remains higher-risk. Revisit a low-risk existing local regularizer under the current FedDyn/FedDrift objective before new optimizer code.
+- Current best: `moderate_cnn` with FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, default client LR/scheduler, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: direct FedDyn-alpha, FedDrift-mu/beta, weight decay, LR, scheduler, epoch, architecture, and clipping retunes missed. FedProx was tested before FedDyn/FedDrift, but not as a very light interaction with both drift corrections enabled.
+- Candidate width: `PARALLEL_CANDIDATES=2`; use CLI-only candidates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `FedProx Federated Optimization in Heterogeneous Networks MLSys 2020 arXiv 1812.06127` | Confirm proximal local regularization source and heterogeneity motivation. | MLSys, arXiv/paper indexes | FedProx is a direct client-local heterogeneity stabilizer. |
+| `FedDyn dynamic regularization FedProx federated learning non-IID local regularization` | Compare proximal regularization with the current dynamic correction. | arXiv/OpenReview/paper indexes | FedDyn changes the local objective; a smaller FedProx coefficient may interact differently than prior rows. |
+| `FedDC FedProx client drift regularization federated learning non-IID` | Check whether local drift-correction context still supports proximal anchoring. | arXiv/CVF/paper indexes | FedDC/FedDrift-style correction and FedProx both target client drift from different angles. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Li20 | Federated Optimization in Heterogeneous Networks / 2020 | https://proceedings.mlsys.org/paper_files/paper/2020/hash/1f5fe83998a09396ebe6477d9475ba0c-Abstract.html | Statistical heterogeneity and variable local behavior destabilize FedAvg-style training. | FedProx | keep |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Dynamic regularization aligns local/global objectives. | FedDyn | keep |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://openaccess.thecvf.com/content/CVPR2022/html/Gao_FedDC_Federated_Learning_With_Non-IID_Data_via_Local_Drift_Decoupling_CVPR_2022_paper.html | Client drift correction can improve non-IID training. | FedDC | keep |
+| Wang21 | Local Adaptivity in Federated Learning / 2021 | https://arxiv.org/abs/2106.02305 | New local adaptive optimizers can add consistency risk. | local adaptivity | reject next |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Proximal anchor may need to be much smaller now | Li20 supports proximal stabilization; FedDyn/FedDrift already add local corrections. | Prior FedProx `1e-5/1e-4` under pre-FedDrift stack missed; current objective is different and likely needs smaller coefficients. | Existing `--fedproxloss_mu` is client-local and default-off. | CLI `--fedproxloss_mu`. |
+| C2 | Drift corrections are narrow | Acar21/Gao22 support drift correction, but alpha/mu/beta neighbors failed. | Best came from `feddyn_alpha=1e-4` plus `feddrift_mu=2.5e-5`, but nearby regularization was worse. | Use tiny FedProx values to avoid overwhelming the kept corrections. | CLI only. |
+| C3 | Avoid local adaptive optimizer code for one more batch | Wang21 flags consistency risk for local adaptivity. | Architecture and scheduler no-code audits just missed, but no-code FedProx interaction is still untested in current context. | Prefer existing proximal hook before adding optimizer state. | CLI only. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P68 | Very-light FedProx interaction under FedDrift. | Li20; Acar21; Gao22 | CLI-only: current best stack with `--fedproxloss_mu 1e-6`. | Add a weak global anchor without overpowering FedDyn/FedDrift. | Score below `0.913200`. | Low. |
+| P69 | Light FedProx interaction under FedDrift. | Li20; Acar21; Gao22 | CLI-only: current best stack with `--fedproxloss_mu 5e-6`. | Test a slightly stronger proximal anchor below prior failed `1e-5`. | Score below `0.913200`. | Low. |
+| P70 | Local adaptive optimizer code. | Kim24; Wang21 | Code: client-side adaptive LR/optimizer. | Per-client update adaptation. | Bias/complexity or no gain. | Medium-high; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P68 | Pre-FedDyn/FedDrift FedProx rows. | Context changed and coefficient is lower. | keep |
+| P69 | Pre-FedDyn/FedDrift FedProx rows. | Context changed and coefficient is below prior failed `1e-5`. | keep |
+| P70 | New optimizer code. | Higher risk than existing FedProx hook. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P68 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P69 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P70 | 3 | 3 | 2 | 3 | 4 | 4 | 18 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P68 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_fedprox1e6_ep5` | CLI-only: `--fedproxloss_mu 1e-6` |
+| 2 | P69 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_fedprox5e6_ep5` | CLI-only: `--fedproxloss_mu 5e-6` |
+
+### Reflective Memory
+
+- Keep `fedproxloss_mu=0` unless a very-light FedProx interaction beats `0.913200`.
+- Do not repeat `1e-5` or `1e-4` unless one of the lower values improves; both missed before FedDyn/FedDrift.
+- If both FedProx interactions fail, return to literature before adding local adaptive optimizer code.
