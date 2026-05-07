@@ -192,4 +192,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Start a fresh literature loop before selecting another axis. The current best remains `0.913200` with FedNova/FedDyn/FedDrift (`feddrift_mu=2.5e-5`, `feddrift_beta=0.9`); both server LR and server momentum retunes missed under this stack.
+Eighteenth literature loop selected a FedDrift-enabled weight-decay retune before more server or client-LR jitter: keep `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, and test `weight_decay=3.25e-4` and `3.75e-4` under the fixed 20-round budget.

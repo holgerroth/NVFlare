@@ -1204,3 +1204,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Action: keep `server_lr=1.875` and launch the reserved FedDrift-enabled server momentum retune.
 - Momentum outcome: server momentum neighbors also failed. `server_momentum=0.40` scored `0.910200`; `0.30` scored `0.909500`.
 - Momentum action: keep `server_momentum=0.35`. Two post-loop server optimizer batches failed, so start a new literature loop before selecting another axis.
+
+## Eighteenth Literature Loop
+
+### Trigger
+
+- Reason: two post-loop server optimizer batches failed under the FedDrift best stack: server LR and server momentum neighbors both scored below `0.913200`.
+- Current best: FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: server-side scale/inertia retunes are not helping after FedDrift; the useful signal is a narrow client-local drift/regularization interaction.
+- Candidate width: `PARALLEL_CANDIDATES=2`; prefer CLI-only candidates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning weight decay local regularization non-IID FedDyn FedDC` | Check whether local regularization is the next plausible axis after drift correction. | paper indexes, arXiv/CVF pages | Drift-correction methods alter the local objective, so static regularization may need retuning. |
+| `FedDyn dynamic regularization weight decay hyperparameter federated learning` | Connect FedDyn/FedDrift dynamic regularization to static L2 regularization. | OpenReview, paper indexes | FedDyn alpha and FedDrift mu introduce local regularization-like forces. |
+| `federated learning client learning rate local regularization drift correction non-IID` | Compare weight decay against client LR as local objective retune axes. | arXiv/paper indexes | Client LR has repeatedly been a weak axis in this campaign; weight decay was a stronger historical axis. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://openaccess.thecvf.com/content/CVPR2022/papers/Gao_FedDC_Federated_Learning_With_Non-IID_Data_via_Local_Drift_Decoupling_CVPR_2022_paper.pdf | Auxiliary local drift variables change the local objective and can reduce inconsistency. | FedDC | keep |
+| Jiang24 | Federated Optimization with Doubly Regularized Drift Correction / 2024 | https://arxiv.org/abs/2404.08447 | Doubly regularized correction highlights the value of local regularization balance. | FedRed/DANE-style drift correction | keep |
+| Acar21 | Federated Learning Based on Dynamic Regularization / 2021 | https://openreview.net/forum?id=B7v4QMR6Z9w | Dynamic regularization aligns client/global optima under heterogeneity. | FedDyn | keep |
+| Loshchilov19 | Decoupled Weight Decay Regularization / 2019 | https://arxiv.org/abs/1711.05101 | Weight decay is a distinct regularization control from optimizer step size. | Weight decay | keep as general optimizer context |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Server optimizer retuning was plausible but just failed empirically. | FedOpt | reject for next batch |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local regularization balance shifted | Acar21, Gao22, and Jiang24 all alter local objectives to control drift. | FedDrift improved to `0.913200`; nearby mu/beta settings and server retunes regressed. | Static weight decay may now be miscentered around `3.5e-4`. | CLI `--weight_decay`. |
+| C2 | Server optimizer retune is a current null | Reddi21 supports server tuning, but both server LR and momentum neighbors failed under the new stack. | LR neighbors scored `0.909300/0.908800`; momentum scored `0.910200/0.909500`. | Move away from server knobs until a new signal appears. | Avoid server knobs next. |
+| C3 | Client LR is less promising than weight decay | Local LR affects optimization scale, but this campaign has multiple client-LR misses. | FedNova client-LR retunes previously regressed; FedDrift server retunes also missed. | Weight decay has historically been a stronger axis and is a narrower regularization retune. | CLI `--weight_decay`; reserve `--lr`. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P56 | FedDrift-enabled weight-decay retune. | Acar21; Gao22; Jiang24; Loshchilov19 | CLI-only: current best stack with `--weight_decay 3.25e-4` and `3.75e-4`. | Recenter static L2 around the new dynamic drift corrections. | Both below `0.913200`. | Low. |
+| P57 | FedDrift-enabled client LR retune. | Gao22; FedOpt/local optimizer context | CLI-only: current best stack with `--lr 0.045` and `0.055`. | Check local step size only if weight decay fails. | Both below best. | Low; reserve. |
+| P58 | FedDrift alpha interaction retune. | Acar21; Gao22 | CLI-only: current best stack with `--feddyn_alpha 5e-5` and `2e-4`. | FedDrift may change the best FedDyn alpha. | Both below best or instability. | Low; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P56 | Pre-FedDrift weight-decay sweeps. | FedDrift changed the local objective; not duplicate. | keep |
+| P57 | Earlier client-LR sweeps. | Context changed but prior results were weak. | reserve |
+| P58 | FedDyn alpha neighbor sweep before FedDrift. | Context changed; still likely after weight decay. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P56 | 3 | 5 | 5 | 4 | 3 | 3 | 25 |
+| P57 | 2 | 5 | 5 | 3 | 2 | 3 | 21 |
+| P58 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P56 | `fednova_lr1875_m035_wd325e5_gc_feddyn1e4_feddrift2p5e5_ep5` | CLI-only: `--weight_decay 3.25e-4 --feddrift_mu 2.5e-5 --feddrift_beta 0.9` |
+| 2 | P56 | `fednova_lr1875_m035_wd375e5_gc_feddyn1e4_feddrift2p5e5_ep5` | CLI-only: `--weight_decay 3.75e-4 --feddrift_mu 2.5e-5 --feddrift_beta 0.9` |
+
+### Reflective Memory
+
+- Keep `weight_decay=3.5e-4` unless a FedDrift-enabled neighbor beats `0.913200`.
+- If both weight-decay neighbors fail, use the reserved FedDyn-alpha interaction before trying client LR.
