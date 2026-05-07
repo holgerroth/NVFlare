@@ -1863,3 +1863,76 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both small-head server-LR retunes fail, stop the small-head branch and return to literature before new architecture code.
 - Outcome: small-head server-LR retunes failed. `server_lr=1.8125` scored `0.908500`; `1.9375` scored `0.908400`.
 - Action: keep `moderate_cnn`, close the current small-head branch, and do not add new architecture code without another literature-backed rationale.
+
+## Twenty-seventh Literature Loop
+
+### Trigger
+
+- Reason: small-head server-LR retunes failed and the architecture branch is closed. Watchdog printed `recommendation=continue`, but the next safe axis should be literature-backed rather than a new architecture variant.
+- Current best: `0.913200` with `moderate_cnn`, FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, default client LR/scheduler, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: architecture, FedProx, scheduler-floor, client-LR, weight-decay, epoch, and server-scale neighbors failed under the drift-corrected stack. The client momentum axis was tested earlier under a weaker pre-FedDyn/FedDrift objective but not under the current best stack.
+- Candidate width: `PARALLEL_CANDIDATES=2`; no code changes, one local optimizer knob.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `federated learning non-IID client momentum SGD momentum benefits local training heterogeneity arXiv` | Check whether client-side momentum remains a plausible drift-control knob under non-IID local training. | arXiv, Hugging Face papers | Cheng23 directly supports momentum for non-IID FedAvg/SCAFFOLD-style local training. |
+| `federated learning CIFAR non-IID data augmentation mixup client local training arXiv` | Look for low-protocol client-only regularizers after optimizer retunes stalled. | arXiv, OpenReview/project pages | FedMix supports mixup-style augmentation, but its mean-sharing mechanism is a protocol change; local-only mixup is a possible later code mutation. |
+| `federated learning classifier calibration non-IID CIFAR classifier bias arXiv` | Revisit classifier-head bias after small-head architecture nearly matched best. | arXiv, paper indexes | CCVR supports classifier-bias diagnosis, but its post-training calibration needs new calibration logic and likely a separate subcampaign. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Cheng23 | Momentum Benefits Non-IID Federated Learning Simply and Provably / 2023 | https://arxiv.org/abs/2306.16504 | Momentum can improve convergence under non-IID local training without extra protocol state. | client optimizer momentum | keep |
+| Yoon21 | FedMix: Approximation of Mixup under Mean Augmented Federated Learning / 2021 | https://arxiv.org/abs/2107.00233 | Heterogeneous clients benefit from augmentation, but MAFL shares averaged local data. | augmentation | reserve |
+| Luo21 | No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data / 2021 | https://arxiv.org/abs/2106.05001 | Classifier layers can be more biased than representation layers under non-IID FL. | classifier calibration | reserve |
+| Gao22 | FedDC / 2022 | https://arxiv.org/abs/2203.11751 | Client drift correction is already the best local stateful mechanism here. | drift correction | context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local objective changed momentum needs | Cheng23 motivates momentum as a non-IID local-training stabilizer. | Client momentum was only tested before FedDyn/FedDrift; current objective now includes two local drift terms. | `--momentum` is already a client CLI knob and does not alter FLModel metadata. | CLI `--momentum`. |
+| C2 | Avoid protocol-changing augmentation | FedMix improves non-IID FL through mean-augmented mixup, but mean sharing is not in the current protocol. | Broad code mutations such as AdamW and clipping failed. | Keep augmentation as reserve unless CLI-only candidates fail. | Possible future `client.py` local-only mixup, not this batch. |
+| C3 | Classifier bias is plausible but heavier | Luo21 identifies classifier bias in non-IID classifiers. | Small-head came close but retunes missed. | Calibration would require new logic and careful comparability labeling. | Reserve; avoid before simpler momentum audit. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P83 | Lower client momentum under FedDrift best stack. | Cheng23 | CLI only: `--momentum 0.85`. | Reduce overshoot when FedDyn/FedDrift already supply local correction. | Score below `0.913200`. | Low. |
+| P84 | Higher client momentum under FedDrift best stack. | Cheng23 | CLI only: `--momentum 0.95`. | Test whether stronger local momentum complements drift correction. | Score below `0.913200`. | Low. |
+| P85 | Local-only mixup. | Yoon21 | Code: add default-off `--mixup_alpha`, local batch mixup only. | Improve generalization under label skew without sharing data. | No gain or unstable training. | Medium; reserve. |
+| P86 | Classifier calibration. | Luo21 | Code: post-training or classifier-head calibration. | Reduce non-IID classifier bias. | Requires evaluation/procedure changes or added complexity. | High; reject for now. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P83 | Pre-FedDrift client-momentum retune. | Not strict duplicate because current local objective changed. | keep |
+| P84 | Pre-FedDrift client-momentum retune. | Not strict duplicate; tests the other side around default `0.9`. | keep |
+| P85 | Label smoothing / clipping / AdamW code paths. | Different mechanism but code-bearing; reserve behind CLI audit. | reserve |
+| P86 | Small-head architecture subcampaign. | Too much new calibration surface after architecture branch failed. | reject |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P83 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P84 | 2 | 5 | 5 | 3 | 3 | 3 | 22 |
+| P85 | 3 | 4 | 2 | 3 | 4 | 3 | 20 |
+| P86 | 3 | 2 | 1 | 3 | 3 | 4 | 12 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P83 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_mom085_ep5` | Current best stack plus `--momentum 0.85` |
+| 2 | P84 | `fednova_lr1875_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_mom095_ep5` | Current best stack plus `--momentum 0.95` |
+
+### Reflective Memory
+
+- The older momentum miss is not decisive under the current FedDyn/FedDrift local objective.
+- If both momentum neighbors fail, do not continue momentum jitter; promote the reserved local-only mixup idea only after another literature check confirms it can be implemented without protocol or evaluation changes.

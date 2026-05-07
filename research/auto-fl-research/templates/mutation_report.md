@@ -159,6 +159,7 @@ The initial campaign should establish which already-available algorithm family i
 - Twenty-fourth literature loop selected default-off client gradient clipping; it did not improve. `clip_norm=5.0` scored `0.908700`; `1.0` scored `0.898400`. The optional clipping code path was reverted.
 - Twenty-fifth literature loop selected a small-head architecture weight-decay retune; it did not improve. `weight_decay=4.5e-4` scored `0.910300`; `2.5e-4` scored `0.907600`.
 - Twenty-sixth literature loop selected a small-head architecture server-LR retune; it did not improve. `server_lr=1.8125` scored `0.908500`; `1.9375` scored `0.908400`.
+- Twenty-seventh literature loop selected a current-stack client momentum audit after closing the small-head branch.
 
 ## Literature basis
 
@@ -183,6 +184,8 @@ The initial campaign should establish which already-available algorithm family i
 - FedSAM: Zhe Qu, Xingyu Li, Rui Duan, Yao Liu, Bo Tang, Zhuo Lu. "Generalized Federated Learning via Sharpness Aware Minimization." arXiv:2206.02618.
 - Auto-tuned clients: Junhyung Lyle Kim, Mohammad Taha Toghani, Cesar A. Uribe, Anastasios Kyrillidis. "Adaptive Federated Learning with Auto-Tuned Clients." arXiv:2306.11201.
 - FedCM: Jing Xu, Sen Wang, Liwei Wang, Andrew Chi-Chih Yao. "FedCM: Federated Learning with Client-level Momentum." arXiv:2106.10874.
+- FedMix: Tehrim Yoon, Sumin Shin, Sung Ju Hwang, Eunho Yang. "FedMix: Approximation of Mixup under Mean Augmented Federated Learning." ICLR 2021; arXiv:2107.00233.
+- CCVR: Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. "No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data." arXiv:2106.05001.
 
 ## Run analysis
 
@@ -204,4 +207,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-The small-head server-LR retune missed and the watchdog reported `recommendation=continue`. Close the small-head branch and run the next literature-backed proposal loop before adding any new architecture code.
+Launch the twenty-seventh literature-loop candidates: client momentum `0.85` and `0.95` under the current FedNova/FedDyn/FedDrift best stack. Do not continue momentum jitter if both miss.
