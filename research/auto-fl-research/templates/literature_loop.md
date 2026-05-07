@@ -1502,3 +1502,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Treat these as architecture-subcampaign rows; keep `max_model_params=5000000`.
 - Keep `moderate_cnn` unless a registered variant beats `0.913200` clearly enough to justify the schema change.
 - If both registered variants fail again, return to literature before adding a new architecture or local adaptive optimizer code.
+- Outcome: both registered architecture variants missed. `moderate_cnn_small_head` scored `0.912100`; `moderate_cnn_norm` scored `0.904600`.
+- Action: keep `moderate_cnn` for the active best stack and return to literature before adding a new architecture or local adaptive optimizer code.
