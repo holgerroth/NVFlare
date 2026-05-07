@@ -2013,3 +2013,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both conservative local mixup alphas fail, revert the optional code path and return to literature instead of broadening augmentation immediately.
 - Outcome: local-only mixup improved the best. `mixup_alpha=0.2` scored `0.914100`; `0.1` scored `0.913700`.
 - Action: keep the default-off `--mixup_alpha` code path and narrow around `0.2` before moving to another mechanism.
+- Follow-up: mixup narrowing missed. `mixup_alpha=0.15` scored `0.911800`; `0.3` scored `0.906100`.
+- Action: keep `mixup_alpha=0.2`; stop alpha-only jitter and test one interaction axis under the new local objective.

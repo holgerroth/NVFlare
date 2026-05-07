@@ -163,6 +163,7 @@ The initial campaign should establish which already-available algorithm family i
 - Current-stack client momentum retune did not improve: `momentum=0.85` scored `0.906100`; `0.95` scored `0.905800`.
 - Twenty-eighth literature loop selected default-off local-only mixup after rejecting FedMix/MAFL averaged-data exchange as a protocol change.
 - Local-only mixup improved the best: `mixup_alpha=0.2` scored `0.914100`; `0.1` scored `0.913700`.
+- Mixup alpha narrowing did not improve: `mixup_alpha=0.15` scored `0.911800`; `0.3` scored `0.906100`.
 
 ## Literature basis
 
@@ -212,4 +213,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Narrow the kept local-only mixup axis around `0.2`: test `--mixup_alpha 0.15` and `0.3` under the current FedNova/FedDyn/FedDrift best stack. Do not implement FedMix/MAFL averaged-data exchange.
+Test one regularization interaction under the kept mixup stack: `--mixup_alpha 0.2` with `weight_decay=3.0e-4` and `4.0e-4`. Keep the communication/evaluation budget fixed and do not continue alpha-only jitter.
