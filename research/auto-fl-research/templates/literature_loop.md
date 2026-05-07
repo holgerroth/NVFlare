@@ -1861,3 +1861,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep `moderate_cnn` and `server_lr=1.875` unless a labeled small-head server-LR neighbor beats `0.913200`.
 - If both small-head server-LR retunes fail, stop the small-head branch and return to literature before new architecture code.
+- Outcome: small-head server-LR retunes failed. `server_lr=1.8125` scored `0.908500`; `1.9375` scored `0.908400`.
+- Action: keep `moderate_cnn`, close the current small-head branch, and do not add new architecture code without another literature-backed rationale.
