@@ -92,6 +92,12 @@ def build_parser():
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
     )
+    parser.add_argument(
+        "--gradient_clip_norm",
+        type=float,
+        default=0.0,
+        help="Clip local gradient global norm before optimizer step. 0 disables clipping.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -357,6 +363,8 @@ def main(args):
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
         raise ValueError("feddrift_beta must be in [0, 1)")
+    if args.gradient_clip_norm < 0.0:
+        raise ValueError("gradient_clip_norm must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -530,6 +538,8 @@ def main(args):
                 loss.backward()
                 if args.gradient_centralization:
                     _apply_gradient_centralization(model)
+                if args.gradient_clip_norm > 0:
+                    nn.utils.clip_grad_norm_(model.parameters(), args.gradient_clip_norm)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -599,6 +609,8 @@ def main(args):
                     loss.backward()
                     if args.gradient_centralization:
                         _apply_gradient_centralization(model)
+                    if args.gradient_clip_norm > 0:
+                        nn.utils.clip_grad_norm_(model.parameters(), args.gradient_clip_norm)
                     optimizer.step()
 
                     curr_lr = get_lr_values(optimizer)[0]

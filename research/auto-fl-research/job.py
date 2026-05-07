@@ -110,6 +110,12 @@ def define_parser():
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
     )
+    parser.add_argument(
+        "--gradient_clip_norm",
+        type=float,
+        default=0.0,
+        help="Clip local gradient global norm before optimizer step. 0 disables clipping.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -322,6 +328,8 @@ def main():
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
         raise ValueError("feddrift_beta must be in [0, 1)")
+    if args.gradient_clip_norm < 0.0:
+        raise ValueError("gradient_clip_norm must be >= 0")
 
     if args.name:
         job_name = args.name
@@ -385,6 +393,8 @@ def main():
     ]
     if args.gradient_centralization:
         train_args.append("--gradient_centralization")
+    if args.gradient_clip_norm > 0:
+        train_args.extend(["--gradient_clip_norm", args.gradient_clip_norm])
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
     if args.evaluate_local:

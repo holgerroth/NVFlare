@@ -189,6 +189,7 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 
 - No FL protocol fields were changed.
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
+- Optional client gradient clipping is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - FedDyn-style dynamic regularization is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedDrift EMA correction is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
@@ -197,7 +198,7 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, and optional FedDrift EMA correction behind `--feddrift_mu`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, and local AdamW code paths have been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional client gradient clipping behind `--gradient_clip_norm`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, and optional FedDrift EMA correction behind `--feddrift_mu`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, and local AdamW code paths have been reverted.
 
 ## Next mutation
 
