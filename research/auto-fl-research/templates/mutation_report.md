@@ -130,6 +130,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedNova weight-power candidates underperformed: uniform weighting scored `0.904000`; square-root weighting scored `0.904800`. The optional weight-power code path was reverted.
 - Added optional `--feddyn_alpha` client-side dynamic regularization, default off, with persistent per-client correction state held inside the existing client process and no new FLModel fields.
 - FedDyn-style dynamic regularization improved the best: `alpha=1e-4` scored `0.910900`; `alpha=5e-4` scored `0.907300`. The default-off code path is kept.
+- FedDyn alpha neighbors did not improve: `alpha=5e-5` scored `0.906600`; `alpha=2e-4` scored `0.909600`.
 
 ## Literature basis
 
@@ -174,4 +175,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Narrow FedDyn-style alpha around the new best: run `--feddyn_alpha 5e-5` and `2e-4` under the current FedNova/gradient-centralization stack. Keep `--num_rounds 20`, `aggregation_epochs=5`, `local_train_steps=0`, cross-site evaluation, `CUDA_VISIBLE_DEVICES=0`, and candidate width 2.
+Retune server learning rate under the new FedDyn-enabled best: run `--server_lr 1.8125` and `1.9375` with `--feddyn_alpha 1e-4`, keeping all fixed budget fields unchanged.
