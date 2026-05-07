@@ -143,6 +143,7 @@ The initial campaign should establish which already-available algorithm family i
 - Added optional `--feddrift_mu` / `--feddrift_beta` client-local EMA drift correction inspired by FedDC/FedRed residual drift correction. The default `feddrift_mu=0.0` preserves existing behavior and adds no FLModel params, metadata, or aggregation keys.
 - FedDrift improved the best score: `feddrift_mu=5e-5, beta=0.9` scored `0.911400`; `mu=1e-4, beta=0.9` scored `0.910300` and was discarded.
 - FedDrift narrowing improved again: `feddrift_mu=2.5e-5, beta=0.9` scored `0.913200`; `7.5e-5` regressed to `0.905300`.
+- FedDrift lower-side mu neighbors did not improve: `1.25e-5` and `3.75e-5` both scored `0.909700`.
 
 ## Literature basis
 
@@ -188,4 +189,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Continue narrowing FedDrift under the current best stack by sweeping only `feddrift_mu` with `feddrift_beta=0.9` fixed: try `1.25e-5` and `3.75e-5`, keeping `aggregation_epochs=5`, `--num_rounds 20`, cross-site evaluation, and `RUN_TIMEOUT_SECONDS=1200` fixed.
+Switch to a one-axis FedDrift memory sweep under the current best stack: keep `feddrift_mu=2.5e-5` fixed and try `feddrift_beta=0.8` and `0.95`, keeping `aggregation_epochs=5`, `--num_rounds 20`, cross-site evaluation, and `RUN_TIMEOUT_SECONDS=1200` fixed.

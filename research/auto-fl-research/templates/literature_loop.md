@@ -1125,3 +1125,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Follow-up action: keep the default-off FedDrift code and narrow `feddrift_mu` around `5e-5` before changing `feddrift_beta`.
 - Narrowing outcome: `feddrift_mu=2.5e-5, beta=0.9` improved the best to `0.913200`; `mu=7.5e-5` regressed to `0.905300`.
 - Narrowing action: keep `feddrift_mu=2.5e-5` and test lower-side neighbors before changing `feddrift_beta`.
+- Lower-side outcome: `feddrift_mu=1.25e-5` and `3.75e-5` both scored `0.909700`.
+- Lower-side action: keep `feddrift_mu=2.5e-5`; switch the next narrow sweep to `feddrift_beta`.
