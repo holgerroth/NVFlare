@@ -156,3 +156,4 @@ Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty -
 - FedProx `mu=1e-5` on the current best stack scored 0.897600, below the 0.898900 best; do not rerun that exact setting.
 - Conservative FedAdam `server_lr=0.2,tau=0.1` completed without NaNs but scored 0.807800; adaptive Adam is a poor fit for the current custom aggregator/settings.
 - Carry forward SCAFFOLD as the remaining source-backed drift correction, but treat it as a labeled protocol-mode comparison because the default SCAFFOLD audit was weak.
+- Tuned SCAFFOLD with lr 0.04 and 0.02 scored 0.886800 and 0.884000, so do not retry SCAFFOLD on this optimizer/local budget without a stronger implementation change.
