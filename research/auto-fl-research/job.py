@@ -112,12 +112,6 @@ def define_parser():
         help="Mixup beta-distribution alpha for local training batches. 0 disables mixup.",
     )
     parser.add_argument(
-        "--class_balance_beta",
-        type=float,
-        default=0.0,
-        help="Effective-number class-balance beta in [0, 1). 0 disables class-balanced loss.",
-    )
-    parser.add_argument(
         "--gradient_centralization",
         action="store_true",
         help="Project eligible weight gradients to zero mean before each optimizer step.",
@@ -332,8 +326,6 @@ def main():
         raise ValueError("local_train_steps must be >= 0")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
-    if not 0.0 <= args.class_balance_beta < 1.0:
-        raise ValueError("class_balance_beta must be in [0, 1)")
     if args.feddrift_mu < 0.0:
         raise ValueError("feddrift_mu must be >= 0")
     if not 0.0 <= args.feddrift_beta < 1.0:
@@ -390,8 +382,6 @@ def main():
         args.weight_decay,
         "--mixup_alpha",
         args.mixup_alpha,
-        "--class_balance_beta",
-        args.class_balance_beta,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",

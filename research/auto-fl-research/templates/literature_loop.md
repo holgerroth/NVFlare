@@ -2232,3 +2232,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 ### Reflective Memory
 
 - If effective-number class weighting fails, revert the optional code path and stop local loss-code mutations until the next literature reset.
+- Outcome: effective-number class-balanced loss failed. `class_balance_beta=0.99` scored `0.906000`; `0.999` crashed with NVFlare abort/score-extraction failure.
+- Action: revert the optional class-balanced code path and stop local loss-code mutations until the next literature reset.
