@@ -2249,4 +2249,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Scheduler-floor retry under mixup produced a new material best: `cosine_lr_eta_min_factor=0.003` scored `0.915600`; `0.03` scored `0.906900`.
 - Scheduler-floor/client-LR interaction improved again: `lr=0.0475` with `cosine_lr_eta_min_factor=0.003` scored `0.916200`; `lr=0.055` scored `0.914000`.
 - Server-LR retune around the new best regressed: `server_lr=1.9375` scored `0.914100`; `1.8125` scored `0.913800`.
+- Server-momentum retune around the new best regressed: `server_momentum=0.40` scored `0.914600`; `0.30` scored `0.911600`.
 - Keep `aggregation_epochs=5`, `server_lr=1.875`, `server_momentum=0.35`, `lr=0.0475`, `feddyn_alpha=1e-4`, `feddrift_mu=2.5e-5`, `feddrift_beta=0.9`, and `cosine_lr_eta_min_factor=0.003`; avoid more client-loss code until a later literature reset.
