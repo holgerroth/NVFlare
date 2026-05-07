@@ -114,6 +114,18 @@ def build_parser():
         help="FedDyn-style dynamic regularization coefficient. 0 disables the correction.",
     )
     parser.add_argument(
+        "--feddrift_mu",
+        type=float,
+        default=0.0,
+        help="Client-local EMA drift-correction coefficient. 0 disables the correction.",
+    )
+    parser.add_argument(
+        "--feddrift_beta",
+        type=float,
+        default=0.9,
+        help="EMA decay for --feddrift_mu correction state.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -235,6 +247,26 @@ def _update_feddyn_state(model, global_params, dynamic_state, alpha):
                 dynamic_state[key].sub_(alpha * (param.detach() - global_params[key].detach()))
 
 
+def _feddrift_regularizer(model, global_params, drift_state, mu):
+    regularizer = None
+    for key, param in model.named_parameters():
+        if key not in drift_state:
+            continue
+        term = mu * torch.sum((param - global_params[key]) * drift_state[key])
+        regularizer = term if regularizer is None else regularizer + term
+    if regularizer is None:
+        return torch.zeros((), device=DEVICE)
+    return regularizer
+
+
+def _update_feddrift_state(model, global_params, drift_state, beta):
+    with torch.no_grad():
+        for key, param in model.named_parameters():
+            if key in drift_state:
+                local_delta = param.detach() - global_params[key].detach()
+                drift_state[key].mul_(beta).add_(local_delta, alpha=1.0 - beta)
+
+
 def _zero_scaffold_controls(model):
     return {
         key: torch.zeros_like(param, device=DEVICE)
@@ -321,6 +353,10 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.feddrift_mu < 0.0:
+        raise ValueError("feddrift_mu must be >= 0")
+    if not 0.0 <= args.feddrift_beta < 1.0:
+        raise ValueError("feddrift_beta must be in [0, 1)")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -368,6 +404,7 @@ def main(args):
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
     feddyn_state = None
+    feddrift_state = None
 
     while flare.is_running():
         input_model = flare.receive()
@@ -428,6 +465,12 @@ def main(args):
                 feddyn_state = _zero_parameter_state(model)
             feddyn_global_params = dict(global_model.named_parameters())
 
+        feddrift_global_params = None
+        if args.feddrift_mu > 0:
+            if feddrift_state is None or not _parameter_state_matches(feddrift_state, model):
+                feddrift_state = _zero_parameter_state(model)
+            feddrift_global_params = dict(global_model.named_parameters())
+
         metrics = {}
         if args.eval_global_every_round:
             val_acc_global_model = evaluate(global_model, valid_loader, DEVICE)
@@ -475,6 +518,13 @@ def main(args):
                         feddyn_global_params,
                         feddyn_state,
                         args.feddyn_alpha,
+                    )
+                if feddrift_state is not None:
+                    loss = loss + _feddrift_regularizer(
+                        model,
+                        feddrift_global_params,
+                        feddrift_state,
+                        args.feddrift_mu,
                     )
 
                 loss.backward()
@@ -538,6 +588,13 @@ def main(args):
                             feddyn_state,
                             args.feddyn_alpha,
                         )
+                    if feddrift_state is not None:
+                        loss = loss + _feddrift_regularizer(
+                            model,
+                            feddrift_global_params,
+                            feddrift_state,
+                            args.feddrift_mu,
+                        )
 
                     loss.backward()
                     if args.gradient_centralization:
@@ -591,6 +648,8 @@ def main(args):
             )
         if feddyn_state is not None:
             _update_feddyn_state(model, feddyn_global_params, feddyn_state, args.feddyn_alpha)
+        if feddrift_state is not None:
+            _update_feddrift_state(model, feddrift_global_params, feddrift_state, args.feddrift_beta)
 
         print(f"{site_name}: finished training for round {current_round}")
 

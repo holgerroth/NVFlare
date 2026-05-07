@@ -136,6 +136,18 @@ def define_parser():
         default=0.0,
         help="FedDyn-style dynamic regularization coefficient. 0 disables the correction.",
     )
+    parser.add_argument(
+        "--feddrift_mu",
+        type=float,
+        default=0.0,
+        help="Client-local EMA drift-correction coefficient. 0 disables the correction.",
+    )
+    parser.add_argument(
+        "--feddrift_beta",
+        type=float,
+        default=0.9,
+        help="EMA decay for --feddrift_mu correction state.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -306,6 +318,10 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.feddrift_mu < 0.0:
+        raise ValueError("feddrift_mu must be >= 0")
+    if not 0.0 <= args.feddrift_beta < 1.0:
+        raise ValueError("feddrift_beta must be in [0, 1)")
 
     if args.name:
         job_name = args.name
@@ -362,6 +378,10 @@ def main():
         args.fedproxloss_mu,
         "--feddyn_alpha",
         args.feddyn_alpha,
+        "--feddrift_mu",
+        args.feddrift_mu,
+        "--feddrift_beta",
+        args.feddrift_beta,
     ]
     if args.gradient_centralization:
         train_args.append("--gradient_centralization")

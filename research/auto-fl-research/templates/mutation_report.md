@@ -140,6 +140,7 @@ The initial campaign should establish which already-available algorithm family i
 - FedDyn-enabled exact local-step audit crashed: `local_train_steps=500` and `600` both hit `RUN_TIMEOUT_SECONDS=1200` with NVFlare target-unreachable/get-task failures.
 - Sixteenth literature loop selected a width-1 exact-step reliability audit before adding FedDC/FedRed-style drift-correction code.
 - The width-1 exact-step audit completed successfully but did not improve: `local_train_steps=600` scored `0.909300`, so exact local steps are now a discarded axis under the current FedNova/FedDyn stack.
+- Added optional `--feddrift_mu` / `--feddrift_beta` client-local EMA drift correction inspired by FedDC/FedRed residual drift correction. The default `feddrift_mu=0.0` preserves existing behavior and adds no FLModel params, metadata, or aggregation keys.
 
 ## Literature basis
 
@@ -174,14 +175,15 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 - No FL protocol fields were changed.
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - FedDyn-style dynamic regularization is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
+- FedDrift EMA correction is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--model_arch moderate_cnn`, `--max_model_params 5000000`, and `--final_eval_clients site-1`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, and optional FedDyn-style client regularization behind `--feddyn_alpha`; default behavior remains unchanged and validation/smoke have passed. The unsuccessful optional SAM and FedNova weight-power code paths have been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, and optional FedDyn-style client regularization behind `--feddyn_alpha`; default behavior remains unchanged and validation/smoke have passed. The new FedDrift option is default-off and must beat the current best before being kept. The unsuccessful optional SAM and FedNova weight-power code paths have been reverted.
 
 ## Next mutation
 
-Move to the FedDC/FedRed reserve: add a default-off, contract-safe client-local drift-correction option in `client.py`, keep DIFF uploads and existing metadata unchanged, validate/smoke it, then launch a narrow source-backed candidate batch under the current best FedNova/FedDyn stack.
+Launch a narrow FedDrift candidate batch under the current best FedNova/FedDyn stack: `--feddrift_mu 5e-5` and `1e-4` with `--feddrift_beta 0.9`, keeping `aggregation_epochs=5`, `--num_rounds 20`, cross-site evaluation, and `RUN_TIMEOUT_SECONDS=1200` fixed.

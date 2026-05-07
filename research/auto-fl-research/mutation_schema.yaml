@@ -37,6 +37,8 @@ mutable_args:
   evaluate_local: {type: bool}
   fedproxloss_mu: {type: float, min: 0.0, max: 1.0, log_scale: true}
   feddyn_alpha: {type: float, min: 0.0, max: 0.01, log_scale: true}
+  feddrift_mu: {type: float, min: 0.0, max: 0.01, log_scale: true}
+  feddrift_beta: {type: float, min: 0.0, max: 0.99}
   aggregator:
     type: str
     choices: [weighted, fedavg, fedavgm, fedadam, fedopt, fednova, scaffold, median, default]
