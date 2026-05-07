@@ -1350,3 +1350,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - Keep client LR at the default `0.05` unless a FedDrift-enabled LR neighbor beats `0.913200`.
 - If both client-LR neighbors fail, use the reserved epoch audit before adding more FedDrift code.
+- Outcome: client-LR neighbors failed. `lr=0.055` scored `0.911500`; `lr=0.045` scored `0.906900`.
+- Action: keep default client LR and launch the reserved FedDrift-enabled epoch audit with `aggregation_epochs=4` and `6`.
