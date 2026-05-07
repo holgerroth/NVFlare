@@ -162,6 +162,7 @@ The initial campaign should establish which already-available algorithm family i
 - Twenty-seventh literature loop selected a current-stack client momentum audit after closing the small-head branch.
 - Current-stack client momentum retune did not improve: `momentum=0.85` scored `0.906100`; `0.95` scored `0.905800`.
 - Twenty-eighth literature loop selected default-off local-only mixup after rejecting FedMix/MAFL averaged-data exchange as a protocol change.
+- Local-only mixup improved the best: `mixup_alpha=0.2` scored `0.914100`; `0.1` scored `0.913700`.
 
 ## Literature basis
 
@@ -192,7 +193,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR and momentum, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, scheduler-floor retunes, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR, client-momentum, scheduler-floor, epoch-count, and FedProx neighbors around the FedDrift best stack did not improve, so keep default client LR, default client momentum, default cosine floor, `aggregation_epochs=5`, and `fedproxloss_mu=0`. The small-head architecture came close but did not beat the current best, and its weight-decay and server-LR retunes regressed, so keep `moderate_cnn` and close the small-head branch unless a later literature loop provides a stronger reason. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections and local-only mixup with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR and momentum, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`, and `--mixup_alpha 0.2`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, scheduler-floor retunes, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR, client-momentum, scheduler-floor, epoch-count, and FedProx neighbors around the FedDrift best stack did not improve, so keep default client LR, default client momentum, default cosine floor, `aggregation_epochs=5`, and `fedproxloss_mu=0`. The small-head architecture came close but did not beat the current best, and its weight-decay and server-LR retunes regressed, so keep `moderate_cnn` and close the small-head branch unless a later literature loop provides a stronger reason. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -200,14 +201,15 @@ The calibration result now favors FedNova-style normalized DIFF aggregation plus
 - Gradient centralization is client-local and does not alter FLModel params, metadata, aggregation keys, or evaluation.
 - FedDyn-style dynamic regularization is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
 - FedDrift EMA correction is client-local state inside the existing client loop and adds no FLModel params, metadata, aggregation keys, or evaluation changes.
+- Local-only mixup is client-local loss/data interpolation inside each batch and adds no FLModel params, metadata, aggregation keys, shared data, or evaluation changes.
 - FedNova is server-local and reuses existing DIFF params plus `NUM_STEPS_CURRENT_ROUND`; it adds no client metadata.
 - All completed candidates used `--cross_site_eval`, `--num_rounds 20`, `--max_model_params 5000000`, and `--final_eval_clients site-1`; architecture-subcampaign rows were explicitly labeled when using `--model_arch moderate_cnn_small_head`.
 - DIFF upload, `NUM_STEPS_CURRENT_ROUND`, and strict state-dict loading remain governed by the existing validated code.
 
 ## Rollback risk
 
-Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, and optional FedDrift EMA correction behind `--feddrift_mu`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, local AdamW, and client gradient-clipping code paths have been reverted.
+Low to medium. The kept code mutations are optional gradient centralization behind `--gradient_centralization`, optional FedNova aggregation behind `--aggregator fednova`, optional FedDyn-style client regularization behind `--feddyn_alpha`, optional FedDrift EMA correction behind `--feddrift_mu`, and optional local-only mixup behind `--mixup_alpha`; default behavior remains unchanged and validation has passed. The unsuccessful optional SAM, FedNova weight-power, FedDrift state-clipping, local AdamW, and client gradient-clipping code paths have been reverted.
 
 ## Next mutation
 
-Implement default-off local-only `--mixup_alpha` in `client.py`/`job.py`, validate, then launch conservative alphas `0.1` and `0.2` under the current FedNova/FedDyn/FedDrift best stack. Do not implement FedMix/MAFL averaged-data exchange.
+Narrow the kept local-only mixup axis around `0.2`: test `--mixup_alpha 0.15` and `0.3` under the current FedNova/FedDyn/FedDrift best stack. Do not implement FedMix/MAFL averaged-data exchange.
