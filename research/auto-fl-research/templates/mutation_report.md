@@ -152,6 +152,7 @@ The initial campaign should establish which already-available algorithm family i
 - Nineteenth literature loop selected a FedDrift-enabled client learning-rate retune; it did not improve. `lr=0.055` scored `0.911500`; `0.045` scored `0.906900`.
 - The reserved FedDrift-enabled epoch-count audit also did not improve: `aggregation_epochs=6` scored `0.911500`; `4` scored `0.905000`.
 - The reserved FedDrift EMA-state clipping variant did not improve: `clip_norm=2.0` scored `0.910900`; `1.0` scored `0.906500`. The optional clipping code path was reverted.
+- Twentieth literature loop selected a FedDrift-enabled cosine scheduler-floor sweep; it did not improve. `eta_min_factor=0.003` scored `0.910900`; `0.03` scored `0.906100`.
 
 ## Literature basis
 
@@ -179,7 +180,7 @@ The initial campaign should establish which already-available algorithm family i
 
 ## Run analysis
 
-The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR and epoch-count neighbors around the FedDrift best stack did not improve, so keep default client LR and `aggregation_epochs=5`. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
+The calibration result now favors FedNova-style normalized DIFF aggregation plus small client-local drift corrections with the original `moderate_cnn` architecture. The best stack is `--aggregator fednova`, `server_lr=1.875`, `server_momentum=0.35`, default client LR, epoch-based local training with `aggregation_epochs=5`, `weight_decay=3.5e-4`, `--gradient_centralization`, `--feddyn_alpha 1e-4`, and `--feddrift_mu 2.5e-5 --feddrift_beta 0.9`. FedLC, label smoothing, SAM/FedSAM, FedProx, weight-power flattening, exact local steps, FedDrift state clipping, scheduler-floor retunes, and registered architecture variants did not improve. FedAdam-style adaptive server variants are currently unsafe or ineffective at tested settings. Exact local-step training is operationally unreliable at width 2 and lower-scoring at width 1, so stop that axis under this stack. Client-LR, scheduler-floor, and epoch-count neighbors around the FedDrift best stack did not improve, so keep default client LR, default cosine floor, and `aggregation_epochs=5`. The shared-memory validation crash at candidate width 4 is a resource-contention signal, so subsequent batches should use `PARALLEL_CANDIDATES=2` for epoch-based runs. Parallel run launches should also set unique pycache prefixes to avoid validator races.
 
 ## Contract check
 
@@ -197,4 +198,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twentieth literature loop selected a FedDrift-enabled cosine scheduler-floor sweep before adding local adaptive optimizer code: keep the best stack and test `--cosine_lr_eta_min_factor 0.003` and `0.03` under the fixed 20-round budget.
+Twentieth literature loop scheduler-floor candidates both missed. Start a Twenty-first literature loop before adding local adaptive optimizer code or selecting another candidate batch.

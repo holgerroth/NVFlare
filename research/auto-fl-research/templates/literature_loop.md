@@ -1429,3 +1429,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Keep the default cosine floor `0.01` unless a FedDrift-enabled scheduler-floor neighbor beats `0.913200`.
 - Do not test `0.001` again because an earlier low-floor run timed out; use bounded floor neighbors first.
 - If both scheduler-floor candidates fail, return to literature before adding local adaptive optimizer code.
+- Outcome: scheduler-floor neighbors failed. `eta_min_factor=0.003` scored `0.910900`; `0.03` scored `0.906100`.
+- Action: keep the default `cosine_lr_eta_min_factor=0.01` and return to literature before adding local adaptive optimizer code.
