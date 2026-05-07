@@ -1577,3 +1577,74 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - If both FedProx interactions fail, return to literature before adding local adaptive optimizer code.
 - Outcome: very-light FedProx interactions failed. `mu=1e-6` scored `0.908500`; `mu=5e-6` scored `0.906000`.
 - Action: keep `fedproxloss_mu=0` and return to literature before adding local adaptive optimizer code.
+
+## Twenty-third Literature Loop
+
+### Trigger
+
+- Reason: light FedProx under the FedDyn/FedDrift best stack missed, and the remaining no-code retunes are mostly exhausted or recently null. A bounded local optimizer-family mutation is now justified if default behavior remains SGD.
+- Current best: SGD with FedNova `server_lr=1.875`, `server_momentum=0.35`, `aggregation_epochs=5`, `weight_decay=3.5e-4`, default client LR/scheduler, `--gradient_centralization`, `--feddyn_alpha 1e-4`, `--feddrift_mu 2.5e-5`, `--feddrift_beta 0.9`.
+- Recent symptoms: FedProx, scheduler floor, architecture, epoch count, client LR, weight decay, FedDyn-alpha, and FedDrift-mu/beta retunes all missed. Local adaptive optimizer code has been reserved until simpler axes failed.
+- Candidate width: `PARALLEL_CANDIDATES=2`; add a default-off local optimizer selector, validate, and test two conservative AdamW client learning rates.
+
+### Search Queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| `Local Adaptivity in Federated Learning convergence consistency arXiv 2106.02305 Adam local optimizer federated` | Check risk/benefit of adaptive local client optimizers. | arXiv/paper indexes | Wang21 warns local adaptivity can bias the global solution, so test conservatively and keep default SGD. |
+| `Adaptive Federated Learning with Auto-Tuned Clients local learning rate optimizer arXiv 2306.11201` | Confirm client-side optimizer/step-size adaptation remains relevant. | arXiv/paper indexes | Kim24 motivates client-side adaptivity under heterogeneous FL. |
+| `Decoupled Weight Decay Regularization AdamW arXiv 1711.05101 image classification` | Choose AdamW over Adam when weight decay is already a kept regularizer. | arXiv/paper indexes | AdamW decouples weight decay for adaptive optimizers and is available in PyTorch. |
+| `Adaptive Federated Optimization Reddi 2021 federated learning client heterogeneity adaptive optimizer` | Compare adaptive method risk against prior server-adaptive failures. | arXiv/paper indexes | FedOpt supports adaptive ideas but previous server-adaptive variants were unstable here. |
+
+### Candidate Papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Wang21 | Local Adaptivity in Federated Learning: Convergence and Consistency / 2021 | https://arxiv.org/abs/2106.02305 | Local adaptive optimizers can accelerate but may introduce solution bias. | local adaptivity | keep with caution |
+| Kim24 | Adaptive Federated Learning with Auto-Tuned Clients / 2024 revision | https://arxiv.org/abs/2306.11201 | Client-side hyperparameter tuning is difficult under heterogeneity. | client adaptivity | keep |
+| Loshchilov17 | Decoupled Weight Decay Regularization / 2017 | https://arxiv.org/abs/1711.05101 | Adam-style adaptive optimizers need decoupled weight decay for reliable regularization. | AdamW | keep |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | Adaptive FL optimizers can help heterogeneity but tuning is sensitive. | adaptive FL optimizers | keep as context |
+
+### Challenge Cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | SGD local optimizer may be exhausted | Kim24 argues client-side step-size tuning is a central FL challenge. | Many SGD scalar retunes around the best missed. | A client optimizer-family flag is within `client.py` and does not change FLModel fields. | Default-off `--optimizer adamw`. |
+| C2 | Local adaptivity can bias the global objective | Wang21 warns adaptive local methods can introduce non-vanishing bias. | Server adaptive variants crashed or regressed; local code must be bounded. | Test only conservative AdamW LRs and revert if not better. | Default SGD remains unchanged. |
+| C3 | Weight decay semantics differ under adaptive optimizers | Loshchilov17 supports AdamW instead of Adam when using weight decay. | Current best relies on `weight_decay=3.5e-4`. | AdamW preserves a meaningful decoupled decay knob. | `torch.optim.AdamW`; no new dependency. |
+
+### Proposal Cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P71 | Default-off local AdamW optimizer at conservative LR. | Wang21; Kim24; Loshchilov17 | Code: add `--optimizer {sgd,adamw}`; candidate `--optimizer adamw --lr 0.001`. | Test local adaptivity while preserving FedNova/FedDyn/FedDrift contract. | Score below `0.913200` or instability. | Medium; client-local optimizer only. |
+| P72 | Lower-LR local AdamW optimizer. | Wang21; Kim24; Loshchilov17 | Same code; candidate `--optimizer adamw --lr 0.0005`. | Reduce local adaptivity bias/instability. | Score below `0.913200`. | Medium. |
+| P73 | Implement Delta-SGD-style adaptive step rule. | Kim24 | Code: per-client step-size adaptation. | More tailored client adaptivity. | Complexity or no gain. | Higher; reserve. |
+
+### Duplicate and Null Filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P71 | Server-adaptive FedAdam/FedYogi/FedAdagrad. | Local adaptivity is different but risky; use low LR. | keep |
+| P72 | Server-adaptive FedAdam/FedYogi/FedAdagrad. | Lower LR reduces instability risk. | keep |
+| P73 | New adaptive rule. | More invasive than optimizer-family hook. | reserve |
+
+### Proposal Scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P71 | 3 | 4 | 4 | 3 | 4 | 3 | 23 |
+| P72 | 2 | 4 | 4 | 3 | 4 | 3 | 21 |
+| P73 | 3 | 3 | 2 | 4 | 4 | 4 | 20 |
+
+### QWBE-style Next-Candidate Batch Plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P71 | `fednova_adamw1e3_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_ep5` | Code variant: `--optimizer adamw --lr 0.001` |
+| 2 | P72 | `fednova_adamw5e4_m035_wd35e5_gc_feddyn1e4_feddrift2p5e5_ep5` | Code variant: `--optimizer adamw --lr 0.0005` |
+
+### Reflective Memory
+
+- Keep `--optimizer sgd` as default and current best unless an AdamW candidate beats `0.913200`.
+- If both AdamW candidates fail, revert the optional optimizer code path and return to literature before implementing Delta-SGD.

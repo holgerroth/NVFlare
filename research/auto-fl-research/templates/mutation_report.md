@@ -200,4 +200,4 @@ Low to medium. The kept code mutations are optional gradient centralization behi
 
 ## Next mutation
 
-Twenty-second FedProx interaction candidates missed. Start a Twenty-third literature loop before adding local adaptive optimizer code.
+Twenty-third literature loop selected a default-off local AdamW optimizer-family mutation before Delta-SGD-style adaptive code: add `--optimizer {sgd,adamw}` and test AdamW at `lr=0.001` and `0.0005` under the current best stack.
