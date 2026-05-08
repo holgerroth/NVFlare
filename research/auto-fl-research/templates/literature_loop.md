@@ -608,3 +608,10 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Keep the loss knobs only if one candidate materially beats the 0.916900 raw high-water or is close enough to justify a narrow source-backed follow-up.
 - If all four miss, remove the default-off loss knobs and mark focal/class-balanced loss as null for this FedZMG stack.
 - Reserve LDAM only as a materially different class-imbalance branch; do not retry FedLC/FedRS/label smoothing, mixup, reduced-epoch SAM, or clipping.
+
+### Batch outcome
+
+- Four-wide launch was too aggressive for this stack: focal gamma `1.0`, focal gamma `2.0`, and class-balanced focal beta `0.99` gamma `1.0` were still in round 19 when `RUN_TIMEOUT_SECONDS=1200` killed them.
+- Class-balanced CE beta `0.99` failed earlier with `Diff norm is NaN or Inf: nan` at round 4.
+- The watchdog reset on this literature row and reports `recommendation=continue`; rerun the focal-only candidates at `PARALLEL_CANDIDATES=2` before deciding whether focal loss is a null result.
+- Do not retry beta `0.99` class-balanced weighting without a lower-beta stability bracket.

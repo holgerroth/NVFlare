@@ -378,3 +378,10 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 
 - Do not retry FedLC/FedRS/label smoothing, mixup, reduced-epoch SAM, update clipping, or scalar FedAvgM/FedProx jitter for this stack unless a materially different paper-backed mechanism is selected.
 - If focal/class-balanced variants miss, remove the default-off loss knobs and keep LDAM only as a distinct class-imbalance reserve.
+
+## Batch Outcome
+
+- Four concurrent source-backed candidates exceeded the one-H100 runtime envelope for this seven-epoch stack. The focal gamma `1.0`, focal gamma `2.0`, and class-balanced focal beta `0.99` gamma `1.0` runs were killed at 1200 seconds near round 19.
+- Class-balanced CE beta `0.99` failed at round 4 with `Diff norm is NaN or Inf: nan`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` after the crash batch.
+- Next action: lower `PARALLEL_CANDIDATES` to 2 and rerun the focal-only candidates before judging the focal hypothesis; treat beta `0.99` class-balanced weighting as unstable unless a lower-beta bracket is explicitly selected.
