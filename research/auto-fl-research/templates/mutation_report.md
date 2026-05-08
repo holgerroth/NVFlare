@@ -401,3 +401,4 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Client-momentum retune around beta `0.90` missed: `momentum=0.9125` scored 0.914700 and `0.9375` scored 0.910700, both discarded.
 - Weight-decay retune around beta `0.90` missed: `weight_decay=2.5e-4` scored 0.910800 and `7.5e-4` scored 0.908900, both discarded.
 - Exact-step local training around beta `0.90` missed: `local_train_steps=640` scored 0.909000 and `768` scored 0.913000, both discarded. One 768 launch hit a pre-training pycache race and was retried with an isolated `PYTHONPYCACHEPREFIX`.
+- FedAvg comparison around beta `0.90` missed badly: built-in FedAvg scored 0.898100 and weighted FedAvg scored 0.898000, both discarded.
