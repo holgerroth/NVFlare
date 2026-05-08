@@ -625,3 +625,5 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Lower-beta class-balanced bracket completed inside the cap: `--class_balanced_loss_beta 0.90` scored 0.918600 and was marked `keep`; `0.95` scored 0.913600 and was marked `discard`.
 - The watchdog reset on the beta `0.90` material improvement and reports `recommendation=continue`.
 - Remove the null focal-loss knob from `client.py` and `job.py`; keep only `--class_balanced_loss_beta` as the surviving source-backed loss surface.
+- Refinement around beta `0.90` missed: beta `0.875` scored 0.915300 and beta `0.925` scored 0.914800, both discarded.
+- Carry forward beta `0.90` as the active class-balanced setting.

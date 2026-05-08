@@ -390,3 +390,5 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Lower-beta class-balanced bracket completed at width 2: beta `0.90` scored 0.918600 and was marked `keep`; beta `0.95` scored 0.913600 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reset on the material improvement at row 309 and reported `recommendation=continue`.
 - The focal-loss knob was removed after its null result; keep `--class_balanced_loss_beta` as the surviving source-backed mutation.
+- Narrow beta refinement around the kept value missed: beta `0.875` scored 0.915300 and beta `0.925` scored 0.914800, so both were marked `discard`.
+- Keep beta `0.90` as the active class-balanced setting for follow-up optimizer or scheduler sweeps.
