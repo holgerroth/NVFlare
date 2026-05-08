@@ -430,3 +430,87 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - FedNova-style step-normalized FedAvgM scored 0.899100, far below the kept stack.
 - The FedNovaM default-off aggregator was removed after review; carry Wang20 FedNova as a null result for this budget unless local-step heterogeneity becomes explicit.
 - Keep the `--zero_mean_gradients` client knob and continue sweeps around the FedZMG/FedAvgM/FedProx stack.
+
+---
+
+# Literature Loop 2026-05-08 FedZMG Generalization Plateau
+
+## Trigger
+
+- Reason: watchdog `recommendation=literature` after 32 scored candidates since the FedZMG material improvement at row 235.
+- Current kept stack: 0.916700 with FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `aggregation_epochs=7`, `cosine_lr_eta_min_factor=0.0001`, `fedproxloss_mu=3e-5`, and `--zero_mean_gradients`.
+- Raw high-water: `eta_min_factor=0.00015` scored 0.916900, but was below the material keep threshold and subsequent scheduler brackets regressed.
+- Recent symptoms from `results.tsv`: FedProx, scheduler floor, client/server LR, client/server momentum, weight decay, local epochs, and exact-step variants all missed around the FedZMG stack.
+- Confirmed null/worse ideas to avoid: FedNovaM, FedLC/FedRS/label smoothing, prior update clipping and global self-distillation, FedAdam, SCAFFOLD, median/default/weighted FedAvg, more scalar jitter near already tested values.
+- Candidate width: 2 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated mixup label skew non-IID CIFAR10 client augmentation | local label-skew regularization after classifier calibration failed | web search, arXiv | Mixup-style augmentation has FL label-skew evidence and can be client-local. |
+| federated sharpness aware minimization non-IID FedSAM runtime CIFAR | current high-epoch local ERM may overfit sharp local minima | web search, arXiv | FedSAM is repeatedly reserved; reducing epochs can keep runtime inside cap. |
+| federated stochastic weight averaging highly heterogeneous FedSWA FedSAM generalization | search for newer flat-minima alternatives to expensive SAM | web search, arXiv | FedSWA suggests flat-minimum averaging, but server-state design is broader than one batch. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Yoon21 FedMix | FedMix: Approximation of Mixup under Mean Augmented Federated Learning / 2021 | https://arxiv.org/abs/2107.00233 | non-IID degradation from heterogeneous local data | mixup-style FL augmentation | keep as source support; do not exchange averaged data |
+| Sang24 MixNoise | Balancing Label Imbalance in Federated Environments Using Only Mixup and Artificially-Labeled Noise / 2024 | https://arxiv.org/abs/2409.13235 | label-skewed client distributions in CIFAR-10 | mixup plus pseudo-image balancing | keep for local-mixup rationale; reject noise generator |
+| Zhang17 Mixup | mixup: Beyond Empirical Risk Minimization / 2017 | https://arxiv.org/abs/1710.09412 | memorization and brittle decision boundaries | convex input/label interpolation | keep as implementation basis |
+| Qu22 FedSAM | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | ERM local training can find sharp, non-generalizing minima under distribution shift | local SAM optimizer | keep with reduced epochs for runtime |
+| Liu25 FedSWA | FedSWA: Improving Generalization in Federated Learning with Highly Heterogeneous Data via Momentum-Based Stochastic Controlled Weight Averaging / 2025 | https://arxiv.org/abs/2507.20016 | FedSAM can struggle under high heterogeneity; flatter minima help | stochastic weight averaging | reserve; server/global averaging state needs more design |
+| Lewy22 StatMix | StatMix: Data augmentation method that relies on image statistics in federated learning / 2022 | https://arxiv.org/abs/2207.04103 | FL image augmentation can improve CIFAR accuracy | statistic-based augmentation | reject: statistic exchange/data transform beyond current safe surface |
+| Bao24 BOBA | BOBA: Byzantine-Robust Federated Learning with Label Skewness / 2024 | https://proceedings.mlr.press/v238/bao24a.html | robust aggregation under label skew has selection bias | robust two-stage aggregation | reject: Byzantine target and stronger protocol assumptions |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local label-skew overfitting | FedMix and Sang24 both target heterogeneous/label-skewed FL with mixup-style augmentation; Zhang17 gives the local interpolation loss | FedLC/FedRS/label smoothing failed, but no vicinal image interpolation has been tested | client-local mixup can smooth local decision boundaries without sharing data or changing FLModel fields | `client.py`, `job.py` |
+| C2 | Sharp local minima after high local compute | Qu22 argues ERM local optimizers in non-IID FL can push the global model toward sharp valleys; Liu25 also frames flatness as a high-heterogeneity issue | seven-epoch FedZMG is best, but further local compute and scheduler retunes regress, suggesting a generalization ceiling | SAM can regularize local updates; using four epochs offsets the two-backward cost | `client.py`, `job.py` |
+| C3 | Server-side flat model averaging | Liu25 proposes SWA-style global averaging to improve heterogeneous FL generalization | many scalar FedAvgM retunes miss after the FedZMG jump | potential future server-local state, but needs careful compatibility with final global-model scoring | `custom_aggregators.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Client-local mixup | Yoon21 FedMix; Sang24 MixNoise; Zhang17 Mixup | add default-off `--mixup_alpha`; run active stack with `--mixup_alpha 0.2` | reduce label-skew overfitting and smooth local classifier boundaries with little runtime cost | score <= 0.916700 or underfitting relative to active stack | low: client-local batch transform and mixed CE loss |
+| P2 | Reduced-epoch FedSAM | Qu22 FedSAM | add default-off `--sam_rho`; run active stack with `--aggregation_epochs 4 --sam_rho 0.03` | trade some local epochs for flatness-aware updates while staying under timeout | timeout or score below active stack | medium: two backward passes but no protocol change |
+| P3 | FedSWA-style global averaging | Liu25 FedSWA | future custom aggregator maintaining SWA of global states late in training | flatter final global model after FedZMG plateau | evaluation uses wrong final checkpoint or score does not improve | medium: server state and final-model semantics require care |
+| P4 | StatMix/noise balancing | Lewy22 StatMix; Sang24 MixNoise | not selected | add label-balanced pseudo-images/statistics | requires data-statistic exchange, generated noise, or data-pipeline changes | high for this harness |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not FedLC/FedRS/label smoothing; changes inputs and soft targets, not logits only | no mixup rows exist | select |
+| P2 | FedSAM has been reserved but never run; reduced epochs addresses timeout risk | no SAM rows exist | select |
+| P3 | no direct duplicate | bigger server-state change; defer until client-local batch is scored | reserve |
+| P4 | data augmentation family overlaps P1 | requires unsafe data/statistic generation surface | reject |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 local mixup | 3 | 5 | 4 | 4 | 5 | 1 | 28 |
+| P2 reduced-epoch FedSAM | 3 | 4 | 3 | 5 | 5 | 3 | 24 |
+| P3 FedSWA-style averaging | 3 | 3 | 2 | 4 | 5 | 1 | 22 |
+| P4 StatMix/noise balancing | 2 | 2 | 1 | 3 | 4 | 2 | 14 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001_mu3e5_zmg_mixup02` | active FedZMG stack plus `--mixup_alpha 0.2` |
+| 2 | P2 | `fedavgm_lr18_m0475_epochs4_clientlr0045_cm0925_wd5e4_eta00001_mu3e5_zmg_sam003` | active FedZMG stack with `--aggregation_epochs 4 --sam_rho 0.03` |
+
+## Reflective memory
+
+- Keep: mixup is the cheapest non-duplicate label-skew augmentation left after logit-only calibration failed.
+- Keep with caution: FedSAM gets one reduced-epoch runtime-controlled attempt; do not run full seven-epoch SAM unless the reduced candidate is promising and comfortably inside timeout.
+- Reserve: FedSWA-style final averaging only after client-local mixup/SAM results because final-model semantics must stay comparable.

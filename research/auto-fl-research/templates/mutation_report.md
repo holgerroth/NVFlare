@@ -234,4 +234,51 @@ The active FedAvgM/FedProx stack has exhausted scalar retunes. The next viable m
 - FedZMG zero-mean gradients on the active FedAvgM/FedProx stack scored 0.913700 and reset the watchdog as a material improvement.
 - FedNova-style step-normalized FedAvgM scored 0.899100 and was discarded.
 - The FedNovaM aggregator surface was removed after review; `--zero_mean_gradients` remains as the kept source-backed client-local mutation.
-- Next sweeps should start from FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.04`, `momentum=0.925`, `weight_decay=5e-4`, `aggregation_epochs=7`, `cosine_lr_eta_min_factor=0.0001`, `fedproxloss_mu=3e-5`, and `--zero_mean_gradients`.
+- Next sweeps should start from FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `aggregation_epochs=7`, `cosine_lr_eta_min_factor=0.0001`, `fedproxloss_mu=3e-5`, and `--zero_mean_gradients`.
+
+---
+
+# Literature Loop 2026-05-08 FedZMG Generalization Plateau
+
+## Hypothesis
+
+The FedZMG stack has reached a local generalization ceiling: scalar optimizer, scheduler, FedProx, local-compute, and weight-decay retunes all missed after the 0.916700 material improvement. The next source-backed candidates should change the local training objective while preserving the DIFF protocol: client-local mixup for label-skew overfitting and reduced-epoch SAM for flatter local updates.
+
+## Sources
+
+- Yoon et al., "FedMix: Approximation of Mixup under Mean Augmented Federated Learning", ICLR 2021, arXiv:2107.00233, https://arxiv.org/abs/2107.00233. FedMix motivates mixup-style augmentation for heterogeneous FL, though this harness keeps it client-local and does not exchange averaged data.
+- Sang, Rabbani, and Huang, "Balancing Label Imbalance in Federated Environments Using Only Mixup and Artificially-Labeled Noise", 2024, arXiv:2409.13235, https://arxiv.org/abs/2409.13235. The paper targets label-skewed FL on CIFAR-10 with mixup/noise augmentation; only the local mixup part is compatible here.
+- Zhang et al., "mixup: Beyond Empirical Risk Minimization", ICLR 2018, arXiv:1710.09412, https://arxiv.org/abs/1710.09412. Mixup is the implementation basis for convex input/label interpolation.
+- Qu et al., "Generalized Federated Learning via Sharpness Aware Minimization", ICML 2022, arXiv:2206.02618, https://arxiv.org/abs/2206.02618. FedSAM motivates a local SAM optimizer for non-IID generalization; this batch uses reduced epochs to stay within runtime.
+- Liu et al., "FedSWA: Improving Generalization in Federated Learning with Highly Heterogeneous Data via Momentum-Based Stochastic Controlled Weight Averaging", ICML 2025, arXiv:2507.20016, https://arxiv.org/abs/2507.20016. FedSWA is reserved because server-side final-model averaging needs more careful semantics.
+
+## Files changed
+
+- `client.py`
+- `job.py`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Contract check
+
+- The client still receives full model params, loads them with `strict=True`, computes `compute_model_diff`, sends `ParamsType.DIFF`, and preserves `NUM_STEPS_CURRENT_ROUND`.
+- `--mixup_alpha` is default-off and only changes local batch inputs plus the CE target mix.
+- `--sam_rho` is default-off and only performs a local two-pass SAM perturb/restore before the same `optimizer.step()`.
+- No data files, evaluation, architecture, dependencies, server-client metadata, or parameter keys changed.
+
+## Selected batch
+
+- P1: active FedZMG/FedAvgM/FedProx stack plus `--mixup_alpha 0.2`, description tagged `[src: Yoon21 FedMix arXiv:2107.00233; Sang24 mixup-noise arXiv:2409.13235; Zhang17 mixup arXiv:1710.09412]`.
+- P2: active FedZMG/FedAvgM/FedProx stack with `--aggregation_epochs 4 --sam_rho 0.03`, description tagged `[src: Qu22 FedSAM arXiv:2206.02618]`.
+
+## Validation
+
+- `PYTHON=.venv/bin/python make validate` passed.
+- `PYTHON=.venv/bin/python make smoke` passed.
+- No-ledger targeted smoke with `--mixup_alpha 0.2 --sam_rho 0.03` passed.
+
+## Reflective memory
+
+- Do not retry logit-only FedLC/FedRS/label smoothing for the current stack; mixup is a different input-level augmentation branch.
+- Do not run full seven-epoch SAM unless reduced-epoch SAM is promising and runtime remains comfortably below 1200 seconds.
+- Treat FedSWA-style averaging as a future server-side proposal only after client-local objective changes are scored.

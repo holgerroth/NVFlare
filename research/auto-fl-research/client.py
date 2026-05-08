@@ -108,6 +108,18 @@ def build_parser():
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
     )
     parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Beta distribution alpha for client-local mixup. 0 disables mixup.",
+    )
+    parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="Sharpness-aware local optimizer perturbation radius. 0 disables SAM.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -247,6 +259,87 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
+def _mixup_inputs(inputs, labels, alpha):
+    if alpha <= 0.0 or inputs.size(0) < 2:
+        return inputs, labels, None, 1.0
+    lam = float(np.random.beta(alpha, alpha))
+    indices = torch.randperm(inputs.size(0), device=inputs.device)
+    mixed_inputs = lam * inputs + (1.0 - lam) * inputs[indices]
+    return mixed_inputs, labels, labels[indices], lam
+
+
+def _classification_loss(criterion, outputs, labels_a, labels_b=None, lam=1.0):
+    if labels_b is None:
+        return criterion(outputs, labels_a)
+    return lam * criterion(outputs, labels_a) + (1.0 - lam) * criterion(outputs, labels_b)
+
+
+def _grad_norm(model):
+    grads = [param.grad.norm(p=2) for param in model.parameters() if param.grad is not None]
+    if not grads:
+        return torch.tensor(0.0, device=DEVICE)
+    return torch.norm(torch.stack(grads), p=2)
+
+
+def _sam_perturb(model, rho):
+    grad_norm = _grad_norm(model)
+    if not torch.isfinite(grad_norm) or grad_norm.item() <= 0.0:
+        return [None for _ in model.parameters()]
+    scale = rho / (grad_norm + 1e-12)
+    perturbations = []
+    with torch.no_grad():
+        for param in model.parameters():
+            if param.grad is None:
+                perturbations.append(None)
+                continue
+            perturbation = param.grad * scale.to(param.device)
+            param.add_(perturbation)
+            perturbations.append(perturbation)
+    return perturbations
+
+
+def _sam_restore(model, perturbations):
+    with torch.no_grad():
+        for param, perturbation in zip(model.parameters(), perturbations):
+            if perturbation is not None:
+                param.sub_(perturbation)
+
+
+def _compute_train_loss(model, criterion, criterion_prox, global_model, inputs, labels_a, labels_b, lam):
+    outputs = model(inputs)
+    loss = _classification_loss(criterion, outputs, labels_a, labels_b, lam)
+    if criterion_prox is not None:
+        loss = loss + criterion_prox(model, global_model)
+    return loss
+
+
+def _backward_train_loss(
+    model,
+    criterion,
+    criterion_prox,
+    global_model,
+    inputs,
+    labels_a,
+    labels_b,
+    lam,
+    zero_mean_gradients,
+):
+    loss = _compute_train_loss(
+        model,
+        criterion,
+        criterion_prox,
+        global_model,
+        inputs,
+        labels_a,
+        labels_b,
+        lam,
+    )
+    loss.backward()
+    if zero_mean_gradients:
+        _apply_zero_mean_gradients(model)
+    return loss
+
+
 def _update_scaffold_controls(
     model,
     global_model,
@@ -280,6 +373,10 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.mixup_alpha < 0.0:
+        raise ValueError("mixup_alpha must be >= 0")
+    if args.sam_rho < 0.0:
+        raise ValueError("sam_rho must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -414,17 +511,35 @@ def main(args):
                     batch = next(loader_iter)
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
+                train_inputs, labels_a, labels_b, lam = _mixup_inputs(inputs, labels, args.mixup_alpha)
 
                 optimizer.zero_grad(set_to_none=True)
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
-
-                if criterion_prox is not None:
-                    loss = loss + criterion_prox(model, global_model)
-
-                loss.backward()
-                if args.zero_mean_gradients:
-                    _apply_zero_mean_gradients(model)
+                loss = _backward_train_loss(
+                    model,
+                    criterion,
+                    criterion_prox,
+                    global_model,
+                    train_inputs,
+                    labels_a,
+                    labels_b,
+                    lam,
+                    args.zero_mean_gradients,
+                )
+                if args.sam_rho > 0.0:
+                    perturbations = _sam_perturb(model, args.sam_rho)
+                    optimizer.zero_grad(set_to_none=True)
+                    loss = _backward_train_loss(
+                        model,
+                        criterion,
+                        criterion_prox,
+                        global_model,
+                        train_inputs,
+                        labels_a,
+                        labels_b,
+                        lam,
+                        args.zero_mean_gradients,
+                    )
+                    _sam_restore(model, perturbations)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -469,17 +584,35 @@ def main(args):
 
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
+                    train_inputs, labels_a, labels_b, lam = _mixup_inputs(inputs, labels, args.mixup_alpha)
 
                     optimizer.zero_grad(set_to_none=True)
-                    outputs = model(inputs)
-                    loss = criterion(outputs, labels)
-
-                    if criterion_prox is not None:
-                        loss = loss + criterion_prox(model, global_model)
-
-                    loss.backward()
-                    if args.zero_mean_gradients:
-                        _apply_zero_mean_gradients(model)
+                    loss = _backward_train_loss(
+                        model,
+                        criterion,
+                        criterion_prox,
+                        global_model,
+                        train_inputs,
+                        labels_a,
+                        labels_b,
+                        lam,
+                        args.zero_mean_gradients,
+                    )
+                    if args.sam_rho > 0.0:
+                        perturbations = _sam_perturb(model, args.sam_rho)
+                        optimizer.zero_grad(set_to_none=True)
+                        loss = _backward_train_loss(
+                            model,
+                            criterion,
+                            criterion_prox,
+                            global_model,
+                            train_inputs,
+                            labels_a,
+                            labels_b,
+                            lam,
+                            args.zero_mean_gradients,
+                        )
+                        _sam_restore(model, perturbations)
                     optimizer.step()
 
                     curr_lr = get_lr_values(optimizer)[0]
