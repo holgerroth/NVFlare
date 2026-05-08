@@ -103,6 +103,11 @@ def build_parser():
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
     parser.add_argument(
+        "--zero_mean_gradients",
+        action="store_true",
+        help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -232,6 +237,14 @@ def _apply_scaffold_correction(model, curr_lr, global_controls, local_controls):
         for key, param in model.named_parameters():
             if key in global_controls and key in local_controls:
                 param.sub_(curr_lr * (global_controls[key] - local_controls[key]))
+
+
+def _apply_zero_mean_gradients(model):
+    for param in model.parameters():
+        grad = param.grad
+        if grad is None or grad.dim() <= 1:
+            continue
+        grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
 def _update_scaffold_controls(
@@ -410,6 +423,8 @@ def main(args):
                     loss = loss + criterion_prox(model, global_model)
 
                 loss.backward()
+                if args.zero_mean_gradients:
+                    _apply_zero_mean_gradients(model)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -463,6 +478,8 @@ def main(args):
                         loss = loss + criterion_prox(model, global_model)
 
                     loss.backward()
+                    if args.zero_mean_gradients:
+                        _apply_zero_mean_gradients(model)
                     optimizer.step()
 
                     curr_lr = get_lr_values(optimizer)[0]

@@ -228,6 +228,58 @@ class FedAvgMAggregator(FedOptAggregator):
         )
 
 
+class FedNovaMAggregator(FedOptAggregator):
+    """FedNova-style local-step normalization followed by server momentum."""
+
+    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6):
+        super().__init__(
+            optimizer="sgdm",
+            server_lr=server_lr,
+            server_momentum=server_momentum,
+        )
+
+    def accept_model(self, model: FLModel):
+        steps = float(model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0))
+        if steps <= 0.0:
+            raise ValueError("FedNovaMAggregator requires positive NUM_STEPS_CURRENT_ROUND")
+        self.client_weights.append(steps)
+
+        if self.params_type is None:
+            self.params_type = model.params_type
+        elif self.params_type != model.params_type:
+            raise ValueError(f"ParamsType mismatch: expected {self.params_type}, got {model.params_type}.")
+
+        for key, value in model.params.items():
+            diff = _as_numpy(value).astype(np.float64, copy=False)
+            self.references.setdefault(key, value)
+            normalized_diff = diff / steps
+            if key not in self.weighted_sum:
+                self.weighted_sum[key] = normalized_diff
+            else:
+                self.weighted_sum[key] += normalized_diff
+        self.total_weight += steps
+        self.client_count += 1
+
+    def aggregate_model(self) -> FLModel:
+        if self.client_count == 0:
+            self.error("No client models to aggregate")
+            return FLModel(params={})
+
+        avg_steps = self.total_weight / self.client_count
+        mean_diff = {key: (val / self.client_count) * avg_steps for key, val in self.weighted_sum.items()}
+        update = self._sgdm_update(mean_diff)
+        aggregated_params = {key: _to_output_type(update[key], self.references[key]) for key in update}
+        return FLModel(params=aggregated_params, params_type=self.params_type)
+
+    def reset_stats(self):
+        self.weighted_sum = {}
+        self.total_weight = 0.0
+        self.client_count = 0
+        self.client_weights = []
+        self.params_type = None
+        self.references = {}
+
+
 class FedAdamAggregator(FedOptAggregator):
     def __init__(
         self,

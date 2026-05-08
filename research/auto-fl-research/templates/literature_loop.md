@@ -341,3 +341,85 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Label smoothing reserve scored 0.903400 at `0.02` and 0.904400 at `0.05`, still below the active kept stack.
 - The default-off client loss knobs were removed after review because the whole classifier-calibration branch missed and would add unsupported surface area.
 - Treat FedLC/FedRS/label-smoothing as null results for this budget unless a new source-backed implementation variant is materially different.
+
+---
+
+# Literature Loop 2026-05-08 Step-Normalization Plateau
+
+## Trigger
+
+- Reason: watchdog `recommendation=literature` after 32 scored candidates since the label-skew literature reset; scheduler, FedProx, server momentum, client momentum, weight decay, and exact-step brackets all missed.
+- Current best: active kept stack is 0.906100 with FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.04`, `momentum=0.925`, `weight_decay=5e-4`, `aggregation_epochs=7`, `cosine_lr_eta_min_factor=0.0001`, `fedproxloss_mu=3e-5`. The ledger high-water exact-step row is 0.906400 but was discarded as not material and costlier.
+- Recent symptoms from `results.tsv`: `eta_min_factor=0.000125` reached 0.905900 but tighter scheduler, FedProx, server-momentum, and exact-step follow-ups regressed; label-skew calibration and architecture variants also missed.
+- Confirmed null/worse ideas to avoid: FedLC/FedRS/label smoothing, FedAdam, SCAFFOLD, median/default/weighted FedAvg, current-stack scheduler floor/off variants, FedProx micro-brackets, exact-step repeats near 768 without a new mechanism.
+- Candidate width: 2 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| FedZMG efficient client-side optimization federated learning zero mean gradients non-IID | look for a cheap client-side drift correction after local loss/optimizer jitters stalled | arXiv, web search | FedZMG is parameter-free and maps to a local gradient projection. |
+| FedNova objective inconsistency heterogeneous federated optimization variable local steps | exact-step and epoch modes differ; Dirichlet splits can vary local step counts | arXiv, Princeton page, web search | FedNova-style normalization can be expressed inside DIFF aggregation. |
+| FedSAM sharpness aware minimization federated learning non-IID CIFAR runtime | reserve a stronger flatness idea if cheap mechanisms fail | arXiv, ResearchGate mirror | Good evidence, but double-backward cost is risky near the timeout cap. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Zantalis26 FedZMG | FedZMG: Efficient Client-Side Optimization in Federated Learning / 2026 | https://arxiv.org/abs/2602.18384 | client drift and gradient bias under non-IID data | zero-mean gradient projection | keep |
+| Wang20 FedNova | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | objective inconsistency from variable local update counts | normalized averaging | keep |
+| Qu22 FedSAM | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | local ERM can converge to sharp, less generalizable minima under distribution shift | SAM local optimizer | reserve: likely doubles local training cost |
+| Acar21 FedDyn | Federated Learning Based on Dynamic Regularization / 2021 | https://arxiv.org/abs/2111.04263 | local optima inconsistent with global empirical loss | dynamic regularization | reject: broader stateful objective change |
+| Krouka25 DRDM | Distributionally Robust Federated Learning with Client Drift Minimization / 2025 | https://arxiv.org/abs/2505.15371 | worst-client performance and drift | DRO plus dynamic regularization | reject: changes objective and fairness target beyond current single-score budget |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Biased local gradients | FedZMG projects gradients to a zero-mean space to reduce client-drift variance without extra communication | FedProx, FedRS/FedLC, and scalar optimizer retunes all missed, suggesting a different local gradient regularizer is needed | client-only projection before `optimizer.step()` preserves FLModel fields | `client.py`, `job.py` |
+| C2 | Objective inconsistency from varying local steps | FedNova targets bias from clients performing different numbers of local updates | epoch-based training uses `NUM_STEPS_CURRENT_ROUND` from local batch counts; exact-step variants were sensitive and costlier | normalize each DIFF by local steps before server momentum | `custom_aggregators.py`, `job.py` |
+| C3 | Flatness/generalization under non-IID | FedSAM reports local SAM improves global generalization under non-IID distribution shift | high local compute and scheduler changes have narrow, noisy gains | reserve for lower-width or reduced-local-compute trial if cheap ideas fail | `client.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedZMG-style zero-mean gradients | Zantalis26 FedZMG | add `--zero_mean_gradients`; run active FedAvgM/FedProx stack | reduce client-specific gradient bias with negligible runtime cost | score <= 0.906100 or instability | low: client-local gradient transform |
+| P2 | FedNova-style step-normalized FedAvgM | Wang20 FedNova; Reddi21 FedOpt | add `--aggregator fednovam`; run active client stack with `server_lr=1.8`, `server_momentum=0.475` | reduce local-step objective bias while retaining successful server momentum | score <= 0.906100 or behaves like weaker FedAvg | low-medium: new server-local DIFF normalization |
+| P3 | FedSAM local optimizer | Qu22 FedSAM | future `--sam_rho` default-off | flatter local minima and better non-IID generalization | timeout or no material gain | medium: two backward passes |
+| P4 | FedDyn/DRDM dynamic regularization | Acar21; Krouka25 | not selected | align local/global objectives | requires broader stateful objective and tuning | medium-high |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not FedProx/FedLC/self-distillation; operates directly on gradients | no zero-mean gradient rows exist | select |
+| P2 | not weighted FedAvg or median; normalizes DIFFs by local step count before momentum | pure FedNova was previously rejected for equal-step concern, but this campaign has variable epoch batch counts and exact-step sensitivity | select |
+| P3 | FedSAM was reserved before | runtime risk high at active 7 epochs | reserve |
+| P4 | no direct duplicate | too broad for first post-plateau batch | reject |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 FedZMG zero-mean gradients | 3 | 5 | 5 | 3 | 5 | 1 | 28 |
+| P2 FedNovaM step-normalized momentum | 3 | 4 | 3 | 5 | 5 | 1 | 26 |
+| P3 FedSAM | 3 | 4 | 2 | 5 | 4 | 4 | 21 |
+| P4 dynamic regularization | 3 | 3 | 1 | 4 | 4 | 3 | 18 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr004_cm0925_wd5e4_eta00001_mu3e5_zmg` | active stack plus `--zero_mean_gradients` |
+| 2 | P2 | `fednovam_lr18_m0475_epochs7_clientlr004_cm0925_wd5e4_eta00001_mu3e5` | active client stack plus `--aggregator fednovam --server_lr 1.8 --server_momentum 0.475` |
+
+## Reflective memory
+
+- Keep: zero-mean gradients and step-normalized momentum are the cheapest source-backed mechanisms not already falsified by this ledger.
+- Discard: more scalar scheduler/FedProx/server-momentum jitter until a new mechanism creates a better stack.
+- Do not retry: FedLC/FedRS/label smoothing, FedAdam, SCAFFOLD, median/default/weighted FedAvg under this budget.
+- Sources to carry forward: Zantalis26 FedZMG, Wang20 FedNova, Qu22 FedSAM reserve.

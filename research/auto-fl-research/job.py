@@ -31,6 +31,7 @@ from custom_aggregators import (
     FedAdamAggregator,
     FedAvgAggregator,
     FedAvgMAggregator,
+    FedNovaMAggregator,
     MedianAggregator,
     ScaffoldAggregator,
     WeightedAggregator,
@@ -124,6 +125,11 @@ def define_parser():
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
+    parser.add_argument(
+        "--zero_mean_gradients",
+        action="store_true",
+        help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -133,6 +139,7 @@ def define_parser():
             "weighted",
             "fedavg",
             "fedavgm",
+            "fednovam",
             "fedadam",
             "fedopt",
             "scaffold",
@@ -141,7 +148,8 @@ def define_parser():
         ],
         help=(
             "weighted/fedavg=data-size weighted FedAvg, fedavgm/fedopt=server momentum "
-            "over aggregated DIFFs, fedadam=server Adam over aggregated DIFFs, "
+            "over aggregated DIFFs, fednovam=step-normalized FedAvgM, "
+            "fedadam=server Adam over aggregated DIFFs, "
             "scaffold=SCAFFOLD with control-variate meta, median=robust median, "
             "default=built-in FedAvg"
         ),
@@ -238,6 +246,15 @@ def get_aggregator(args):
     if kind in {"fedavgm", "fedopt"}:
         print("Using FedAvgMAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
         return FedAvgMAggregator(
+            server_lr=args.server_lr,
+            server_momentum=args.server_momentum,
+        )
+    if kind == "fednovam":
+        print(
+            "Using FedNovaMAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})"
+        )
+        return FedNovaMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
         )
@@ -347,6 +364,8 @@ def main():
         train_args.append("--evaluate_local")
     if args.eval_global_every_round:
         train_args.append("--eval_global_every_round")
+    if args.zero_mean_gradients:
+        train_args.append("--zero_mean_gradients")
     if args.aggregator == "scaffold":
         train_args.append("--scaffold")
     if args.no_deterministic_training:

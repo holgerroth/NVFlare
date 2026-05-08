@@ -186,3 +186,45 @@ The active FedAvgM/FedProx stack has exhausted scalar optimizer, scheduler, and 
 - Label smoothing scored 0.903400 at `0.02` and 0.904400 at `0.05`.
 - None beat the active kept 0.906100 FedAvgM/FedProx lower-floor stack, so the default-off loss knobs were removed after review.
 - Do not retry FedLC, FedRS, or label smoothing under the current active stack unless a new paper-backed implementation differs materially from these simple local-logit variants.
+
+---
+
+# Literature Loop 2026-05-08 Step-Normalization Plateau
+
+## Hypothesis
+
+The active FedAvgM/FedProx stack has exhausted scalar retunes. The next viable mechanisms should change the update geometry without changing the FL protocol: a cheap client-side zero-mean gradient projection for non-IID drift, and a FedNova-style step-normalized FedAvgM aggregator for objective inconsistency from variable local step counts.
+
+## Sources
+
+- Zantalis, Zervas, and Koulouras, "FedZMG: Efficient Client-Side Optimization in Federated Learning", 2026, arXiv:2602.18384, https://arxiv.org/abs/2602.18384. FedZMG projects local gradients to a zero-mean space to reduce non-IID client-drift variance without extra communication.
+- Wang et al., "Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization", 2020, arXiv:2007.07481, https://arxiv.org/abs/2007.07481. FedNova normalizes local updates to reduce objective inconsistency when clients perform different numbers of local updates.
+- Qu et al., "Generalized Federated Learning via Sharpness Aware Minimization", 2022, arXiv:2206.02618, https://arxiv.org/abs/2206.02618. FedSAM remains a reserve idea because its two-backward local optimizer is likely too costly near the current runtime cap.
+- Acar et al., "Federated Learning Based on Dynamic Regularization", 2021, arXiv:2111.04263, https://arxiv.org/abs/2111.04263. Dynamic regularization is rejected for this batch because it is a broader stateful objective change.
+
+## Files changed
+
+- `client.py`
+- `custom_aggregators.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Contract check
+
+- The client still receives full model params, loads them with `strict=True`, computes `compute_model_diff`, sends `ParamsType.DIFF`, and preserves `NUM_STEPS_CURRENT_ROUND`.
+- `--zero_mean_gradients` is default-off and only projects existing local gradients before `optimizer.step()`.
+- `--aggregator fednovam` is default-off and only normalizes received DIFFs by `NUM_STEPS_CURRENT_ROUND` before applying server momentum; it does not add metadata or change parameter keys.
+- Fixed data, communication, architecture, and evaluation budget fields remain unchanged for the selected candidates.
+
+## Selected batch
+
+- P1: active FedAvgM/FedProx stack plus `--zero_mean_gradients`, description tagged `[src: Zantalis26 FedZMG arXiv:2602.18384]`.
+- P2: active client/FedProx stack plus `--aggregator fednovam --server_lr 1.8 --server_momentum 0.475`, description tagged `[src: Wang20 FedNova arXiv:2007.07481; Reddi21 FedOpt arXiv:2003.00295]`.
+
+## Reflective memory
+
+- Do not resume scalar FedAvgM/FedProx/scheduler jitter until these source-backed update-geometry candidates are scored.
+- Keep FedSAM as a reserve only if runtime room is available or if a reduced-local-compute variant is explicitly justified.
+- Treat FedLC/FedRS/label smoothing, FedAdam, SCAFFOLD, median/default/weighted FedAvg, and current-stack exact-step repeats as null under this budget.
