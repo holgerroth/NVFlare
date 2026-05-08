@@ -323,3 +323,10 @@ Update clipping was only tested on the pre-FedZMG stack, where norm 45 tied the 
 - `PYTHON=.venv/bin/python make validate` passed.
 - `PYTHON=.venv/bin/python make smoke` passed.
 - No-ledger targeted smoke with `--aggregator fedavgm --update_clip_norm 45` passed.
+
+## Batch Outcome
+
+- `--update_clip_norm 45` scored 0.916700.
+- `--update_clip_norm 60` scored 0.916700.
+- Both matched the kept material stack but did not beat the raw 0.916900 high-water and added aggregator complexity, so both rows were marked `discard`.
+- The default-off clipping aggregator knob was removed after review.
