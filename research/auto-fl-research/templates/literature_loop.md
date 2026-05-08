@@ -248,3 +248,4 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Global self-distillation with alpha 0.05 and temperature 2.0 scored 0.901000, below the current best.
 - The default-off code knobs were reverted after review; carry the paper hypotheses forward only as null results unless a stronger threshold/adaptive implementation is justified by new evidence.
 - Follow-up FedProx under the lower scheduler floor found a new best: `--fedproxloss_mu 3e-5 --cosine_lr_eta_min_factor 0.0001` scored 0.904100, while `mu=1e-6` scored 0.900200.
+- Server momentum refinement on that stack improved again: `--server_momentum 0.475` scored 0.906100 and becomes the active best; `0.425` scored 0.904900 but is a non-survivor below the new best.
