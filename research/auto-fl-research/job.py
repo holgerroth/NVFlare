@@ -129,6 +129,18 @@ def define_parser():
         action="store_true",
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
     )
+    parser.add_argument(
+        "--focal_loss_gamma",
+        type=float,
+        default=0.0,
+        help="Focal-loss gamma forwarded to clients. 0 disables focal scaling.",
+    )
+    parser.add_argument(
+        "--class_balanced_loss_beta",
+        type=float,
+        default=0.0,
+        help="Effective-number class-balanced loss beta forwarded to clients. 0 disables class reweighting.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -345,6 +357,10 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--focal_loss_gamma",
+        args.focal_loss_gamma,
+        "--class_balanced_loss_beta",
+        args.class_balanced_loss_beta,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

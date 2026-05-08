@@ -330,3 +330,51 @@ Update clipping was only tested on the pre-FedZMG stack, where norm 45 tied the 
 - `--update_clip_norm 60` scored 0.916700.
 - Both matched the kept material stack but did not beat the raw 0.916900 high-water and added aggregator complexity, so both rows were marked `discard`.
 - The default-off clipping aggregator knob was removed after review.
+
+---
+
+# Literature Loop 2026-05-08 Local Class-Imbalance Losses
+
+## Hypothesis
+
+FedZMG improved update geometry, but the plateau after 32 non-improving candidates suggests the remaining failure may be the local CE objective under Dirichlet label skew. A client-only loss reweighting branch can target rare-class and easy-example imbalance without adding metadata, changing model keys, or altering the DIFF contract.
+
+## Sources
+
+- Wang et al., "Addressing Class Imbalance in Federated Learning", AAAI 2021, https://ojs.aaai.org/index.php/AAAI/article/view/17219. The paper identifies class imbalance and non-IID data as a direct FL failure mode and motivates loss-level mitigation.
+- Sarkar, Narang, and Rai, "Fed-Focal Loss for imbalanced data classification in Federated Learning", 2020, arXiv:2011.06283, https://arxiv.org/abs/2011.06283. Fed-Focal supports focal-style local CE reshaping for imbalanced FL.
+- Cui et al., "Class-Balanced Loss Based on Effective Number of Samples", CVPR 2019, https://openaccess.thecvf.com/content_CVPR_2019/html/Cui_Class-Balanced_Loss_Based_on_Effective_Number_of_Samples_CVPR_2019_paper.html. This supplies the effective-number class weighting formula.
+- Lin et al., "Focal Loss for Dense Object Detection", ICCV 2017, arXiv:1708.02002, https://arxiv.org/abs/1708.02002. This is the focal-loss implementation basis.
+- Cao et al., "Learning Imbalanced Datasets with Label-Distribution-Aware Margin Loss", NeurIPS 2019, arXiv:1906.07413, https://arxiv.org/abs/1906.07413. LDAM is reserved as a materially different margin-loss branch if simpler reweighting misses.
+
+## Files changed
+
+- `client.py`
+- `job.py`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Contract check
+
+- The client still receives full model params, loads them with `strict=True`, computes `compute_model_diff`, sends `ParamsType.DIFF`, and preserves `NUM_STEPS_CURRENT_ROUND`.
+- `--focal_loss_gamma` is default-off and only rescales each sample's local CE loss by model confidence.
+- `--class_balanced_loss_beta` is default-off and only constructs local class weights from `train_dataset.targets` already present on the client.
+- No data files, model architecture, evaluation path, dependency set, server-client metadata, or parameter keys changed.
+
+## Selected batch
+
+- P1: active high-floor FedZMG stack plus `--focal_loss_gamma 1.0`, description tagged `[src: Sarkar20 Fed-Focal arXiv:2011.06283; Lin17 Focal arXiv:1708.02002]`.
+- P2: active high-floor FedZMG stack plus `--focal_loss_gamma 2.0`, same source tags.
+- P3: active high-floor FedZMG stack plus `--class_balanced_loss_beta 0.99`, description tagged `[src: Cui19 CBLoss CVPR; Wang21 RatioLoss AAAI]`.
+- P4: active high-floor FedZMG stack plus `--class_balanced_loss_beta 0.99 --focal_loss_gamma 1.0`, description tagged `[src: Cui19 CBLoss CVPR; Sarkar20 Fed-Focal arXiv:2011.06283]`.
+
+## Validation
+
+- `PYTHON=.venv/bin/python make validate` passed.
+- No-ledger targeted smoke with `--focal_loss_gamma 1.0 --class_balanced_loss_beta 0.99` passed.
+- Candidate scores are pending for this source-backed batch.
+
+## Reflective memory
+
+- Do not retry FedLC/FedRS/label smoothing, mixup, reduced-epoch SAM, update clipping, or scalar FedAvgM/FedProx jitter for this stack unless a materially different paper-backed mechanism is selected.
+- If focal/class-balanced variants miss, remove the default-off loss knobs and keep LDAM only as a distinct class-imbalance reserve.

@@ -521,3 +521,90 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Reduced-epoch FedSAM with `--aggregation_epochs 4 --sam_rho 0.03` scored 0.910700 and stayed within runtime, but did not recover the accuracy lost from reducing local epochs.
 - The default-off `--mixup_alpha` and `--sam_rho` knobs were removed after review because both source-backed mechanisms missed and would add non-surviving client surface area.
 - Do not retry local mixup or reduced-epoch SAM for this stack unless a materially different source-backed implementation is selected.
+
+---
+
+# Literature Loop 2026-05-08 Local Class-Imbalance Losses
+
+## Working memory
+
+- Watchdog trigger: `recommendation=literature` after 32 scored candidates since the prior literature reset.
+- Active kept stack: FedAvgM/FedProx/FedZMG, `aggregation_epochs=7`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.0001`, `fedproxloss_mu=3e-5`, `server_lr=1.8`, `server_momentum=0.475`, score 0.916700.
+- Raw high-water: same stack with `cosine_lr_eta_min_factor=0.00015`, score 0.916900, not material enough to keep as a code or config branch.
+- Confirmed null/worse ideas to avoid: FedLC/FedRS/label smoothing, mixup, reduced-epoch SAM, update clipping, FedNovaM, FedAdam, SCAFFOLD, median/default/weighted FedAvg, and more local scalar jitter near tested values.
+- Candidate width: `PARALLEL_CANDIDATES=4` on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning label skew class imbalance focal loss CIFAR non-IID paper | find objective changes for skewed local labels after logit calibration failed | web search, arXiv | Fed-Focal directly targets FL class imbalance with focal-style CE reshaping. |
+| federated learning class balanced loss label distribution skew non-IID paper | explore reweighting instead of logit shifting | web search, AAAI, CVF | FL imbalance literature supports the failure mode; CVPR effective-number loss is implementation-simple. |
+| federated learning long-tailed class imbalance LDAM focal loss label skew | search margin/reweighting alternatives for local objective changes | web search, arXiv | LDAM is relevant but adds margin and schedule complexity; reserve unless simpler losses miss. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Wang21 RatioLoss | Addressing Class Imbalance in Federated Learning / 2021 | https://ojs.aaai.org/index.php/AAAI/article/view/17219 | client-side class imbalance and non-IID data can damage the shared model | FL imbalance loss | keep as challenge evidence; reject direct ratio-loss implementation because the paper uses a monitoring scheme beyond this client-only surface |
+| Sarkar20 FedFocal | Fed-Focal Loss for imbalanced data classification in Federated Learning / 2020 | https://arxiv.org/abs/2011.06283 | class imbalance causes variable FL training performance | focal-style local loss | keep |
+| Cui19 CBLoss | Class-Balanced Loss Based on Effective Number of Samples / 2019 | https://openaccess.thecvf.com/content_CVPR_2019/html/Cui_Class-Balanced_Loss_Based_on_Effective_Number_of_Samples_CVPR_2019_paper.html | long-tailed class counts bias CE toward dominant classes | effective-number reweighting | keep |
+| Lin17 Focal | Focal Loss for Dense Object Detection / 2017 | https://arxiv.org/abs/1708.02002 | many easy examples dominate CE gradients | focal loss | keep as implementation basis |
+| Cao19 LDAM | Learning Imbalanced Datasets with Label-Distribution-Aware Margin Loss / 2019 | https://arxiv.org/abs/1906.07413 | rare classes need larger margins and delayed reweighting | margin loss plus schedule | reserve |
+| Zhang22 FedLC | Federated Learning with Label Distribution Skew via Logits Calibration / 2022 | https://proceedings.mlr.press/v162/zhang22p.html | label skew biases local classifiers | logit calibration | reject: already tested and removed |
+| Li21 FedRS | FedRS: Federated Learning with Restricted Softmax for Label Distribution Non-IID Data / 2021 | https://www.lamda.nju.edu.cn/lixc/papers/FedRS-KDD2021-Lixc.pdf | missing local classes corrupt softmax updates | restricted softmax | reject: already tested and removed |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local class-imbalance gradients | Wang21 and Sarkar20 identify class imbalance as a direct FL training failure mode | FedZMG improved update geometry but 32 follow-ups failed to beat 0.916900 | Dirichlet alpha 0.5 creates skewed local class counts each round | `client.py`, `job.py` default-off local loss args |
+| C2 | Easy-majority examples dominate local CE | Lin17 and Fed-Focal motivate downweighting well-classified examples | higher local compute and scheduler retunes regress, consistent with local ERM overfitting | focal scaling changes only local loss weighting and keeps optimizer/DIFF flow intact | `client.py`, `job.py` |
+| C3 | Rare local classes need stronger loss weight | Cui19 effective-number loss reweights by diminishing sample benefit rather than raw inverse frequency | FedLC/FedRS/logit-only fixes missed, so a weight-space CE change is a non-duplicate mechanism | per-client `train_dataset.targets` are already local and require no metadata exchange | `client.py`, `job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Local multiclass focal loss | Sarkar20 Fed-Focal; Lin17 Focal | add default-off `--focal_loss_gamma`; run gamma `1.0` and `2.0` on active FedZMG stack | reduce easy-majority dominance and sharpen hard examples without changing batches | score <= 0.916900 or unstable loss | low: client-local loss scalar |
+| P2 | Effective-number class-balanced CE | Cui19 CBLoss; Wang21 imbalance evidence | add default-off `--class_balanced_loss_beta`; run beta `0.99` on active stack | boost rare local class gradients while avoiding raw inverse-count extremes | score <= 0.916900 or obvious rare-class overfit | low: client-local class weights from local targets |
+| P3 | Class-balanced focal loss | Cui19 CBLoss; Sarkar20 Fed-Focal | combine `--class_balanced_loss_beta 0.99 --focal_loss_gamma 1.0` | jointly boost rare classes and downweight easy examples | score <= isolated P1/P2 or training instability | low-medium: two loss transforms combined |
+| P4 | LDAM local margin | Cao19 LDAM | future `--ldam_max_margin` plus optional delayed reweighting | improve rare-class margin after CE/focal misses | no gain from simpler P1/P2/P3 or schedule ambiguity | medium: more math and schedule state |
+| P5 | Ratio-loss style local reweighting | Wang21 RatioLoss | not selected; direct paper method needs monitoring/inference beyond current surface | FL-specific imbalance mitigation | requires server/client composition monitoring or a materially different local approximation | medium-high |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not FedLC/FedRS/label smoothing; changes per-example loss weight, not logits or targets | no focal rows exist | select |
+| P2 | not raw logit calibration; uses local effective-number CE weights | no class-balanced rows exist | select |
+| P3 | composition of two selected local loss terms | only run one conservative combo after isolated candidates | select |
+| P4 | related class-imbalance family | more complex than necessary before focal/CB evidence | reserve |
+| P5 | FL imbalance objective | direct implementation would exceed client-only safe surface | reject |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 focal loss | 3 | 5 | 5 | 4 | 5 | 1 | 29 |
+| P2 class-balanced CE | 3 | 5 | 5 | 4 | 5 | 1 | 29 |
+| P3 class-balanced focal | 3 | 4 | 4 | 4 | 5 | 1 | 26 |
+| P4 LDAM | 3 | 4 | 2 | 4 | 5 | 1 | 24 |
+| P5 ratio loss | 2 | 3 | 2 | 4 | 5 | 1 | 20 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_focal1` | active high-floor FedZMG stack plus `--focal_loss_gamma 1.0` |
+| 2 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_focal2` | active high-floor FedZMG stack plus `--focal_loss_gamma 2.0` |
+| 3 | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb099` | active high-floor FedZMG stack plus `--class_balanced_loss_beta 0.99` |
+| 4 | P3 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb099_focal1` | active high-floor FedZMG stack plus `--class_balanced_loss_beta 0.99 --focal_loss_gamma 1.0` |
+
+## Reflective memory
+
+- Keep the loss knobs only if one candidate materially beats the 0.916900 raw high-water or is close enough to justify a narrow source-backed follow-up.
+- If all four miss, remove the default-off loss knobs and mark focal/class-balanced loss as null for this FedZMG stack.
+- Reserve LDAM only as a materially different class-imbalance branch; do not retry FedLC/FedRS/label smoothing, mixup, reduced-epoch SAM, or clipping.

@@ -34,6 +34,7 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
+import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -106,6 +107,18 @@ def build_parser():
         "--zero_mean_gradients",
         action="store_true",
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
+    )
+    parser.add_argument(
+        "--focal_loss_gamma",
+        type=float,
+        default=0.0,
+        help="Focal-loss gamma for local class-imbalance regularization. 0 disables focal scaling.",
+    )
+    parser.add_argument(
+        "--class_balanced_loss_beta",
+        type=float,
+        default=0.0,
+        help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
     )
     parser.add_argument(
         "--scaffold",
@@ -247,6 +260,50 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
+def _class_counts_from_dataset(dataset, num_classes=10):
+    targets = getattr(dataset, "targets", None)
+    if targets is None:
+        raise ValueError("class-balanced/focal loss requires train_dataset.targets")
+
+    counts = torch.zeros(num_classes, dtype=torch.float32, device=DEVICE)
+    target_tensor = torch.as_tensor(targets, dtype=torch.long)
+    valid_targets = target_tensor[(0 <= target_tensor) & (target_tensor < num_classes)]
+    if valid_targets.numel() != target_tensor.numel():
+        raise ValueError("dataset targets contain labels outside the expected class range")
+    counts.scatter_add_(0, valid_targets.to(DEVICE), torch.ones_like(valid_targets, dtype=torch.float32, device=DEVICE))
+    return counts
+
+
+def _build_class_balanced_weights(class_counts, beta):
+    if beta <= 0.0:
+        return None
+    if beta >= 1.0:
+        raise ValueError("class_balanced_loss_beta must be in [0, 1)")
+
+    present = class_counts > 0
+    if not torch.any(present):
+        raise ValueError("class-balanced loss requires at least one local class")
+
+    weights = torch.zeros_like(class_counts)
+    effective_num = 1.0 - torch.pow(torch.full_like(class_counts[present], beta), class_counts[present])
+    weights[present] = (1.0 - beta) / effective_num
+    weights[present] *= present.sum().float() / weights[present].sum().clamp_min(1e-12)
+    return weights
+
+
+def _classification_loss(outputs, labels, criterion, class_weights, focal_gamma):
+    if focal_gamma <= 0.0:
+        return criterion(outputs, labels)
+
+    log_probs = F.log_softmax(outputs, dim=1)
+    log_pt = log_probs.gather(1, labels.unsqueeze(1)).squeeze(1)
+    pt = log_pt.exp()
+    loss = -log_pt * torch.pow(1.0 - pt, focal_gamma)
+    if class_weights is not None:
+        loss = loss * class_weights.gather(0, labels)
+    return loss.mean()
+
+
 def _update_scaffold_controls(
     model,
     global_model,
@@ -280,6 +337,10 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.focal_loss_gamma < 0.0:
+        raise ValueError("focal_loss_gamma must be >= 0")
+    if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
+        raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -297,7 +358,6 @@ def main(args):
         f"{site_name}: model_arch={args.model_arch} "
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
-    criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         model.parameters(),
         lr=args.lr,
@@ -323,6 +383,14 @@ def main(args):
         num_workers=args.num_workers,
         seed=site_seed,
     )
+    class_counts = _class_counts_from_dataset(train_dataset)
+    class_weights = _build_class_balanced_weights(class_counts, args.class_balanced_loss_beta)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    if args.class_balanced_loss_beta > 0.0 or args.focal_loss_gamma > 0.0:
+        print(
+            f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
+            f"class_balanced_loss_beta={args.class_balanced_loss_beta} focal_loss_gamma={args.focal_loss_gamma}"
+        )
 
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
@@ -417,7 +485,7 @@ def main(args):
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                loss = _classification_loss(outputs, labels, criterion, class_weights, args.focal_loss_gamma)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -472,7 +540,7 @@ def main(args):
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
-                    loss = criterion(outputs, labels)
+                    loss = _classification_loss(outputs, labels, criterion, class_weights, args.focal_loss_gamma)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
