@@ -333,3 +333,11 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: more scalar FedAvgM/FedProx/scheduler jitter until label-skew branch is tested.
 - Do not retry: prior FedAdam/SCAFFOLD/median/default/weighted FedAvg, scheduler floor/off, and exact-step variants unless a new source-backed implementation reason appears.
 - Sources to carry forward: Zhang22 FedLC, Li21 FedRS, Muller19 label smoothing, Qu22 FedSAM as runtime-expensive reserve.
+
+### Batch outcome
+
+- FedLC `--fedlc_tau 0.5` scored 0.899200, below the active kept 0.906100.
+- FedRS `--fedrs_alpha 0.5` scored 0.901200, below the active kept 0.906100.
+- Label smoothing reserve scored 0.903400 at `0.02` and 0.904400 at `0.05`, still below the active kept stack.
+- The default-off client loss knobs were removed after review because the whole classifier-calibration branch missed and would add unsupported surface area.
+- Treat FedLC/FedRS/label-smoothing as null results for this budget unless a new source-backed implementation variant is materially different.

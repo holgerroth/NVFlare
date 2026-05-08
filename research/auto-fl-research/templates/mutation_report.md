@@ -178,3 +178,11 @@ The active FedAvgM/FedProx stack has exhausted scalar optimizer, scheduler, and 
 - Treat label-skew calibration as a new branch; do not mix FedLC and FedRS in the same candidate until each has an isolated result.
 - If both miss, try the simple label smoothing reserve before returning to higher-cost FedSAM.
 - Do not resume scalar FedAvgM/FedProx jitter unless a classifier-calibration candidate creates a new active stack.
+
+## Literature Batch Outcome
+
+- FedLC `--fedlc_tau 0.5` scored 0.899200.
+- FedRS `--fedrs_alpha 0.5` scored 0.901200.
+- Label smoothing scored 0.903400 at `0.02` and 0.904400 at `0.05`.
+- None beat the active kept 0.906100 FedAvgM/FedProx lower-floor stack, so the default-off loss knobs were removed after review.
+- Do not retry FedLC, FedRS, or label smoothing under the current active stack unless a new paper-backed implementation differs materially from these simple local-logit variants.
