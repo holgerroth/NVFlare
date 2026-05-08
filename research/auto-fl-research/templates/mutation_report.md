@@ -398,3 +398,4 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Scheduler-floor retune around beta `0.90` missed: `cosine_lr_eta_min_factor=0.000125` scored 0.912700 and `0.000175` scored 0.913300, both discarded.
 - FedProx retune around beta `0.90` missed: `mu=2.5e-5` scored 0.913100 and `mu=3.5e-5` scored 0.914100, both discarded.
 - Server-momentum retune around beta `0.90` missed: `server_momentum=0.45` scored 0.914500 and `0.50` scored 0.912200, both discarded.
+- Client-momentum retune around beta `0.90` missed: `momentum=0.9125` scored 0.914700 and `0.9375` scored 0.910700, both discarded.
