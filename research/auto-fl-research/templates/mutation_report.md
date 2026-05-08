@@ -393,3 +393,4 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Narrow beta refinement around the kept value missed: beta `0.875` scored 0.915300 and beta `0.925` scored 0.914800, so both were marked `discard`.
 - Keep beta `0.90` as the active class-balanced setting for follow-up optimizer or scheduler sweeps.
 - Client-LR retune around beta `0.90` missed: `lr=0.04375` scored 0.916100 and `lr=0.04625` scored 0.911800, both below the kept 0.918600 stack.
+- Server-LR retune around beta `0.90` missed: `server_lr=1.75` scored 0.910400 and `server_lr=1.85` scored 0.913400, both discarded.
