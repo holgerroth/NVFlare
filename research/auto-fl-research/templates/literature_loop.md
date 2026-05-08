@@ -247,3 +247,4 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Update clipping with norm 45 tied the best at 0.903400 but added aggregation complexity, so it was discarded rather than kept.
 - Global self-distillation with alpha 0.05 and temperature 2.0 scored 0.901000, below the current best.
 - The default-off code knobs were reverted after review; carry the paper hypotheses forward only as null results unless a stronger threshold/adaptive implementation is justified by new evidence.
+- Follow-up FedProx under the lower scheduler floor found a new best: `--fedproxloss_mu 3e-5 --cosine_lr_eta_min_factor 0.0001` scored 0.904100, while `mu=1e-6` scored 0.900200.

@@ -135,4 +135,5 @@ The current FedAvgM stack has likely exhausted scalar optimizer retuning. Two so
 - Do not retry current-stack FedProx, SCAFFOLD, FedAdam, median aggregation, or scheduler floor/off variants without a stronger implementation-level reason.
 - Update clipping at norm 45 tied the best at 0.903400 but added complexity, so it was discarded and the default-off aggregation knob was reverted.
 - Global self-distillation at alpha 0.05, temperature 2.0 scored 0.901000 and the default-off client knob was reverted.
+- FedProx `mu=3e-5` combined with the lower scheduler floor `eta_min_factor=0.0001` scored a new best of 0.904100; `mu=1e-6` under the same floor scored 0.900200. Carry this stack forward as the active best.
 - Reserve FedSAM only if the runtime budget remains healthy; otherwise return to contract-safe aggregation changes.
