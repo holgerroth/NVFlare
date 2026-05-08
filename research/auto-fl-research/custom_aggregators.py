@@ -59,21 +59,6 @@ def _to_meta_numpy(value, reference):
     return result.astype(ref_array.dtype, copy=False)
 
 
-def _clip_diff_dict(param_diffs, clip_norm: float):
-    if clip_norm <= 0.0:
-        return param_diffs
-
-    squared_norm = 0.0
-    for diff in param_diffs.values():
-        squared_norm += float(np.sum(diff * diff))
-    norm = float(np.sqrt(squared_norm))
-    if not np.isfinite(norm) or norm <= clip_norm:
-        return param_diffs
-
-    scale = clip_norm / (norm + 1e-12)
-    return {key: diff * scale for key, diff in param_diffs.items()}
-
-
 class WeightedAggregator(ModelAggregator):
     def __init__(self):
         super().__init__()
@@ -133,7 +118,6 @@ class FedOptAggregator(ModelAggregator):
         beta1: float = 0.9,
         beta2: float = 0.99,
         tau: float = 1e-3,
-        update_clip_norm: float = 0.0,
     ):
         super().__init__()
         if optimizer not in {"sgdm", "adam"}:
@@ -148,8 +132,6 @@ class FedOptAggregator(ModelAggregator):
             raise ValueError("beta2 must be in [0, 1)")
         if tau <= 0.0:
             raise ValueError("tau must be > 0")
-        if update_clip_norm < 0.0:
-            raise ValueError("update_clip_norm must be >= 0")
 
         self.optimizer = optimizer
         self.server_lr = server_lr
@@ -157,7 +139,6 @@ class FedOptAggregator(ModelAggregator):
         self.beta1 = beta1
         self.beta2 = beta2
         self.tau = tau
-        self.update_clip_norm = update_clip_norm
 
         self.first_moment = {}
         self.second_moment = {}
@@ -173,14 +154,8 @@ class FedOptAggregator(ModelAggregator):
         elif self.params_type != model.params_type:
             raise ValueError(f"ParamsType mismatch: expected {self.params_type}, got {model.params_type}.")
 
-        param_diffs = {
-            key: _as_numpy(value).astype(np.float64, copy=False)
-            for key, value in model.params.items()
-        }
-        param_diffs = _clip_diff_dict(param_diffs, self.update_clip_norm)
-
-        for key, diff in param_diffs.items():
-            value = model.params[key]
+        for key, value in model.params.items():
+            diff = _as_numpy(value).astype(np.float64, copy=False)
             self.references.setdefault(key, value)
             if key not in self.weighted_sum:
                 self.weighted_sum[key] = diff * weight
@@ -245,12 +220,11 @@ class FedOptAggregator(ModelAggregator):
 
 
 class FedAvgMAggregator(FedOptAggregator):
-    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6, update_clip_norm: float = 0.0):
+    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6):
         super().__init__(
             optimizer="sgdm",
             server_lr=server_lr,
             server_momentum=server_momentum,
-            update_clip_norm=update_clip_norm,
         )
 
 
@@ -261,7 +235,6 @@ class FedAdamAggregator(FedOptAggregator):
         beta1: float = 0.9,
         beta2: float = 0.99,
         tau: float = 1e-3,
-        update_clip_norm: float = 0.0,
     ):
         super().__init__(
             optimizer="adam",
@@ -269,7 +242,6 @@ class FedAdamAggregator(FedOptAggregator):
             beta1=beta1,
             beta2=beta2,
             tau=tau,
-            update_clip_norm=update_clip_norm,
         )
 
 

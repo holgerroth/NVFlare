@@ -133,4 +133,6 @@ The current FedAvgM stack has likely exhausted scalar optimizer retuning. Two so
 ## Reflective memory
 
 - Do not retry current-stack FedProx, SCAFFOLD, FedAdam, median aggregation, or scheduler floor/off variants without a stronger implementation-level reason.
-- If clipping or self-distillation fails, reserve FedSAM only if the runtime budget remains healthy; otherwise return to contract-safe aggregation changes.
+- Update clipping at norm 45 tied the best at 0.903400 but added complexity, so it was discarded and the default-off aggregation knob was reverted.
+- Global self-distillation at alpha 0.05, temperature 2.0 scored 0.901000 and the default-off client knob was reverted.
+- Reserve FedSAM only if the runtime budget remains healthy; otherwise return to contract-safe aggregation changes.
