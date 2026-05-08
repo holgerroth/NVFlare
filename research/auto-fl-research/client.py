@@ -34,6 +34,7 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
+import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -101,6 +102,24 @@ def build_parser():
         type=float,
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
+    )
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="Cross-entropy label smoothing factor. 0 disables smoothing.",
+    )
+    parser.add_argument(
+        "--fedlc_tau",
+        type=float,
+        default=0.0,
+        help="FedLC-style local logit calibration strength. 0 disables calibration.",
+    )
+    parser.add_argument(
+        "--fedrs_alpha",
+        type=float,
+        default=1.0,
+        help="FedRS restricted-softmax scale for missing local classes. 1 disables restriction.",
     )
     parser.add_argument(
         "--scaffold",
@@ -179,6 +198,47 @@ def _create_seeded_data_loaders(
         generator=_make_generator(seed + 1),
     )
     return train_loader, valid_loader
+
+
+def _class_counts(dataset, num_classes):
+    targets = getattr(dataset, "targets", None)
+    if targets is None:
+        raise ValueError("label-skew losses require a dataset with a targets attribute")
+    counts = np.bincount(np.asarray(targets, dtype=np.int64), minlength=num_classes)
+    return torch.as_tensor(counts[:num_classes], dtype=torch.float32, device=DEVICE)
+
+
+class LabelSkewCrossEntropy(nn.Module):
+    def __init__(self, class_counts, label_smoothing=0.0, fedlc_tau=0.0, fedrs_alpha=1.0):
+        super().__init__()
+        if not 0.0 <= label_smoothing < 1.0:
+            raise ValueError("label_smoothing must be in [0, 1)")
+        if fedlc_tau < 0.0:
+            raise ValueError("fedlc_tau must be >= 0")
+        if not 0.0 <= fedrs_alpha <= 1.0:
+            raise ValueError("fedrs_alpha must be in [0, 1]")
+
+        self.label_smoothing = label_smoothing
+        self.fedlc_tau = fedlc_tau
+        self.fedrs_alpha = fedrs_alpha
+        safe_counts = class_counts.clamp_min(1.0)
+        present_mask = class_counts > 0
+        self.register_buffer("fedlc_offsets", safe_counts.pow(-0.25))
+        self.register_buffer(
+            "fedrs_scale",
+            torch.where(present_mask, torch.ones_like(class_counts), torch.full_like(class_counts, fedrs_alpha)),
+        )
+
+    def forward(self, logits, labels):
+        adjusted_logits = logits
+        if self.fedrs_alpha < 1.0:
+            adjusted_logits = adjusted_logits * self.fedrs_scale.to(device=logits.device, dtype=logits.dtype)
+        if self.fedlc_tau > 0.0:
+            adjusted_logits = adjusted_logits - self.fedlc_tau * self.fedlc_offsets.to(
+                device=logits.device,
+                dtype=logits.dtype,
+            )
+        return F.cross_entropy(adjusted_logits, labels, label_smoothing=self.label_smoothing)
 
 
 def _zero_scaffold_controls(model):
@@ -267,6 +327,14 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if not 0.0 <= args.label_smoothing < 1.0:
+        raise ValueError("label_smoothing must be in [0, 1)")
+    if args.fedlc_tau < 0.0:
+        raise ValueError("fedlc_tau must be >= 0")
+    if not 0.0 <= args.fedrs_alpha <= 1.0:
+        raise ValueError("fedrs_alpha must be in [0, 1]")
+    if args.fedlc_tau > 0.0 and args.fedrs_alpha < 1.0:
+        raise ValueError("fedlc_tau and fedrs_alpha should be evaluated as separate label-skew loss modes")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -284,7 +352,6 @@ def main(args):
         f"{site_name}: model_arch={args.model_arch} "
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
-    criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         model.parameters(),
         lr=args.lr,
@@ -301,6 +368,18 @@ def main(args):
     train_dataset, valid_dataset = create_datasets(
         site_name,
         train_idx_root=args.train_idx_root,
+    )
+    num_classes = len(getattr(valid_dataset, "classes", [])) or 10
+    local_class_counts = _class_counts(train_dataset, num_classes)
+    criterion = LabelSkewCrossEntropy(
+        local_class_counts,
+        label_smoothing=args.label_smoothing,
+        fedlc_tau=args.fedlc_tau,
+        fedrs_alpha=args.fedrs_alpha,
+    )
+    print(
+        f"{site_name}: class_counts={local_class_counts.to(dtype=torch.int64).cpu().tolist()} "
+        f"label_smoothing={args.label_smoothing} fedlc_tau={args.fedlc_tau} fedrs_alpha={args.fedrs_alpha}"
     )
     train_loader, valid_loader = _create_seeded_data_loaders(
         train_dataset,

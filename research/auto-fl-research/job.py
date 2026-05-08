@@ -124,6 +124,24 @@ def define_parser():
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="Cross-entropy label smoothing factor. 0 disables smoothing.",
+    )
+    parser.add_argument(
+        "--fedlc_tau",
+        type=float,
+        default=0.0,
+        help="FedLC-style local logit calibration strength. 0 disables calibration.",
+    )
+    parser.add_argument(
+        "--fedrs_alpha",
+        type=float,
+        default=1.0,
+        help="FedRS restricted-softmax scale for missing local classes. 1 disables restriction.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -286,6 +304,14 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if not 0.0 <= args.label_smoothing < 1.0:
+        raise ValueError("label_smoothing must be in [0, 1)")
+    if args.fedlc_tau < 0.0:
+        raise ValueError("fedlc_tau must be >= 0")
+    if not 0.0 <= args.fedrs_alpha <= 1.0:
+        raise ValueError("fedrs_alpha must be in [0, 1]")
+    if args.fedlc_tau > 0.0 and args.fedrs_alpha < 1.0:
+        raise ValueError("fedlc_tau and fedrs_alpha should be evaluated as separate label-skew loss modes")
 
     if args.name:
         job_name = args.name
@@ -340,6 +366,12 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--label_smoothing",
+        args.label_smoothing,
+        "--fedlc_tau",
+        args.fedlc_tau,
+        "--fedrs_alpha",
+        args.fedrs_alpha,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

@@ -249,3 +249,87 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - The default-off code knobs were reverted after review; carry the paper hypotheses forward only as null results unless a stronger threshold/adaptive implementation is justified by new evidence.
 - Follow-up FedProx under the lower scheduler floor found a new best: `--fedproxloss_mu 3e-5 --cosine_lr_eta_min_factor 0.0001` scored 0.904100, while `mu=1e-6` scored 0.900200.
 - Server momentum refinement on that stack improved again: `--server_momentum 0.475` scored 0.906100 and becomes the active best; `0.425` scored 0.904900 but is a non-survivor below the new best.
+
+---
+
+# Literature Loop 2026-05-08 Label-Skew Plateau
+
+## Trigger
+
+- Reason: watchdog `recommendation=literature` after 32 scored candidates without material improvement after the FedAvgM/FedProx lower-floor stack.
+- Current best: active kept stack is 0.906100 with FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.04`, `momentum=0.925`, `weight_decay=5e-4`, `aggregation_epochs=7`, `cosine_lr_eta_min_factor=0.0001`, `fedproxloss_mu=3e-5`. A costlier exact-step row scored 0.906400 but was discarded as below the material threshold.
+- Recent symptoms from `results.tsv`: server momentum/lr micro sweeps, FedProx mu brackets, weight decay, client lr, exact local steps, scheduler floor/off, FedAdam, SCAFFOLD, median, weighted/default FedAvg all missed.
+- Confirmed null/worse ideas to avoid: current-stack FedAdam, SCAFFOLD, median/default/weighted FedAvg, scheduler floor/off variants, FedProx mu 2e-5/5e-5, exact steps 640/720/832 and repeat 768 without a cost justification.
+- Candidate width: 2 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0` due prior contention at wider batches.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| FedLC federated learning label distribution skew logits calibration arXiv 2022 | current Dirichlet split and FedProx/SCAFFOLD misses suggest local classifier bias under label skew | arXiv, ResearchGate mirror, dblp | FedLC is client-local and can compose with FedProx/FedAvgM without protocol changes. |
+| FedRS restricted softmax label distribution non IID federated learning KDD 2021 | missing or rare local classes can corrupt classifier head updates | ACM/KDD listing, author PDF, dblp | FedRS is client-local and targets missing classes. |
+| model contrastive / dynamic regularization / sharpness-aware federated learning non-IID CIFAR10 | broader client-drift/generalization alternatives after scalar retunes stalled | CVF, arXiv, NeurIPS, ResearchGate mirror | MOON/FedDyn/FedSAM are relevant but higher-risk or higher-cost here. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Zhang22 FedLC | Federated Learning with Label Distribution Skew via Logits Calibration / 2022 | https://arxiv.org/abs/2209.00189 | majority/minority/missing local labels bias standard CE and worsen drift | client logit calibration | keep |
+| Li21 FedRS | FedRS: Federated Learning with Restricted Softmax for Label Distribution Non-IID Data / 2021 | https://www.lamda.nju.edu.cn/lixc/papers/FedRS-KDD2021-Lixc.pdf | missing local classes receive only indirect pushing in softmax classifier updates | restricted softmax | keep |
+| Muller19 LS | When Does Label Smoothing Help? / 2019 | https://papers.neurips.cc/paper/8717-when-does-label-smoothing-help | overconfident local CE can overfit skewed clients | label smoothing | keep as simple reserve |
+| Acar21 FedDyn | Federated Learning Based on Dynamic Regularization / 2021 | https://arxiv.org/abs/2111.04263 | local optima inconsistent with global empirical loss | dynamic regularization | reject for now: stateful broad objective change |
+| Li21 MOON | Model-Contrastive Federated Learning / 2021 | https://openaccess.thecvf.com/content/CVPR2021/html/Li_Model-Contrastive_Federated_Learning_CVPR_2021_paper.html | non-IID image FL needs representation-level correction | contrastive model loss | reject for now: requires feature path/previous model state |
+| Wang20 FedNova | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://papers.nips.cc/paper/2020/hash/564127c03caab942e503ee6f810f54fd-Abstract.html | objective inconsistency from variable local updates | normalized averaging | reject: all clients use fixed equal local compute in this budget |
+| Qu22 FedSAM | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | local ERM finds sharper/non-generalizing minima under shift | SAM local optimizer | reserve only: likely doubles runtime |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Classifier-head bias from label skew | FedLC reports standard CE is unsuitable when labels are majority/minority/missing and calibrates logits by local class occurrence | FedProx/SCAFFOLD and optimizer retunes plateau near 0.906, suggesting drift control alone is insufficient | CIFAR-10 Dirichlet alpha 0.5 creates label-prior skew per client | `client.py`, `job.py` default-off loss arg |
+| C2 | Missing-class proxy corruption | FedRS shows missing-class proxies receive only pushing forces and restricts their local updates with alpha in [0,1] | median/default/weighted/simple FedAvg are much worse, implying local update quality matters before aggregation | local client subsets may have absent or near-absent CIFAR classes | `client.py`, `job.py` default-off loss arg |
+| C3 | Overconfident local CE | label smoothing literature shows soft targets can improve generalization/calibration | scheduler-off overfits badly and high local compute has narrow wins, so local CE regularization is plausible | cheap client-only regularizer with no protocol surface | `client.py`, `job.py` default-off arg |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedLC-style logit calibration using local class counts | Zhang22 FedLC | add `--fedlc_tau`; first candidate `--fedlc_tau 0.5` on active FedAvgM/FedProx stack | reduce biased local updates for minority/missing classes | score <= 0.906100 or instability | low: client-local loss transform |
+| P2 | FedRS restricted softmax for missing local classes | Li21 FedRS | add `--fedrs_alpha`; first candidate `--fedrs_alpha 0.5` on active stack | reduce missing-class classifier drift | score <= 0.906100 or no classes missing so no effect | low: client-local logits scaling |
+| P3 | Label smoothing | Muller19 LS | add `--label_smoothing`; reserve candidate `--label_smoothing 0.02` | reduce overconfident local CE under skew | score <= active best | low: built-in CE smoothing |
+| P4 | FedSAM local optimizer | Qu22 FedSAM | future `--sam_rho` default-off if runtime budget allows | flatter local minima/generalization | timeout or no material gain | medium: double backward cost |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not duplicate of FedProx or prior self-distillation | no FedLC/FedRS rows exist | select |
+| P2 | not duplicate of median/default/weighted aggregation | no restricted-softmax row exists | select |
+| P3 | not duplicate | lower priority than FL-specific label-skew losses | reserve |
+| P4 | FedSAM already source-listed but not implemented | runtime likely exceeds safe cost at current 12m baseline | reserve |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 FedLC | 4 | 5 | 4 | 5 | 5 | 1 | 31 |
+| P2 FedRS | 3 | 5 | 4 | 4 | 5 | 1 | 28 |
+| P3 label smoothing | 2 | 5 | 5 | 4 | 4 | 1 | 26 |
+| P4 FedSAM | 3 | 4 | 2 | 4 | 4 | 4 | 20 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr004_cm0925_wd5e4_eta00001_mu3e5_fedlc05` | active stack plus `--fedlc_tau 0.5` |
+| 2 | P2 | `fedavgm_lr18_m0475_epochs7_clientlr004_cm0925_wd5e4_eta00001_mu3e5_fedrs05` | active stack plus `--fedrs_alpha 0.5` |
+
+## Reflective memory
+
+- Keep: FedLC/FedRS are the first classifier-calibration branch for this campaign; judge against active kept 0.906100 and material threshold 0.0005.
+- Discard: more scalar FedAvgM/FedProx/scheduler jitter until label-skew branch is tested.
+- Do not retry: prior FedAdam/SCAFFOLD/median/default/weighted FedAvg, scheduler floor/off, and exact-step variants unless a new source-backed implementation reason appears.
+- Sources to carry forward: Zhang22 FedLC, Li21 FedRS, Muller19 label smoothing, Qu22 FedSAM as runtime-expensive reserve.

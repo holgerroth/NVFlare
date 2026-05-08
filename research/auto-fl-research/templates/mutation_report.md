@@ -138,3 +138,43 @@ The current FedAvgM stack has likely exhausted scalar optimizer retuning. Two so
 - FedProx `mu=3e-5` combined with the lower scheduler floor `eta_min_factor=0.0001` scored a new best of 0.904100; `mu=1e-6` under the same floor scored 0.900200. Carry this stack forward as the active best.
 - Server momentum `0.475` on the FedProx/lower-floor stack scored a new best of 0.906100; `0.425` also beat the prior best at 0.904900 but is not the survivor. Carry `server_momentum=0.475` forward.
 - Reserve FedSAM only if the runtime budget remains healthy; otherwise return to contract-safe aggregation changes.
+
+---
+
+# Literature Loop 2026-05-08 Label-Skew Calibration
+
+## Hypothesis
+
+The active FedAvgM/FedProx stack has exhausted scalar optimizer, scheduler, and local-compute retunes. The remaining failure mode appears to be local classifier bias under Dirichlet label skew: local CE updates overfit majority classes and damage rare or missing class proxies before aggregation. A client-local classifier-calibration branch is contract-safe and directly targets that symptom.
+
+## Sources
+
+- Zhang et al., "Federated Learning with Label Distribution Skew via Logits Calibration", ICML 2022, arXiv:2209.00189, https://arxiv.org/abs/2209.00189. FedLC calibrates logits by local class occurrence to reduce biased local updates for majority, minority, and missing classes.
+- Li and Zhan, "FedRS: Federated Learning with Restricted Softmax for Label Distribution Non-IID Data", KDD 2021, https://www.lamda.nju.edu.cn/lixc/papers/FedRS-KDD2021-Lixc.pdf. FedRS scales missing-class logits during local softmax so missing-class classifier weights are not pushed as strongly without positive examples.
+- Muller, Kornblith, and Hinton, "When Does Label Smoothing Help?", NeurIPS 2019, https://papers.neurips.cc/paper/8717-when-does-label-smoothing-help. Label smoothing is a simple reserve regularizer for overconfident local CE.
+- Qu et al., "Generalized Federated Learning via Sharpness Aware Minimization", 2022, arXiv:2206.02618, https://arxiv.org/abs/2206.02618. FedSAM remains a reserve due likely double-backward runtime cost.
+
+## Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Contract check
+
+- The client still receives full model params, loads them with `strict=True`, computes `compute_model_diff`, sends `ParamsType.DIFF`, and preserves `NUM_STEPS_CURRENT_ROUND`.
+- New knobs are default-off and only transform the client-local CE logits or smoothing target: `--fedlc_tau`, `--fedrs_alpha`, and `--label_smoothing`.
+- No data, evaluation, architecture, dependency, or server-client metadata change is introduced.
+
+## Selected batch
+
+- P1: active FedAvgM/FedProx stack plus `--fedlc_tau 0.5`, description tagged `[src: Zhang22 FedLC arXiv:2209.00189]`.
+- P2: active FedAvgM/FedProx stack plus `--fedrs_alpha 0.5`, description tagged `[src: Li21 FedRS KDD:10.1145/3447548.3467254]`.
+
+## Reflective memory
+
+- Treat label-skew calibration as a new branch; do not mix FedLC and FedRS in the same candidate until each has an isolated result.
+- If both miss, try the simple label smoothing reserve before returning to higher-cost FedSAM.
+- Do not resume scalar FedAvgM/FedProx jitter unless a classifier-calibration candidate creates a new active stack.

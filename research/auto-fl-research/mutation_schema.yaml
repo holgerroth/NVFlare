@@ -35,6 +35,9 @@ mutable_args:
   cosine_lr_eta_min_factor: {type: float, min: 0.0001, max: 0.1, log_scale: true}
   evaluate_local: {type: bool}
   fedproxloss_mu: {type: float, min: 0.0, max: 1.0, log_scale: true}
+  label_smoothing: {type: float, min: 0.0, max: 0.2}
+  fedlc_tau: {type: float, min: 0.0, max: 2.0}
+  fedrs_alpha: {type: float, min: 0.0, max: 1.0}
   aggregator:
     type: str
     choices: [weighted, fedavg, fedavgm, fedadam, fedopt, scaffold, median, default]
