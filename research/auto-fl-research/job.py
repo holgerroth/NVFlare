@@ -129,18 +129,6 @@ def define_parser():
         action="store_true",
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
     )
-    parser.add_argument(
-        "--mixup_alpha",
-        type=float,
-        default=0.0,
-        help="Beta distribution alpha for client-local mixup. 0 disables mixup.",
-    )
-    parser.add_argument(
-        "--sam_rho",
-        type=float,
-        default=0.0,
-        help="Sharpness-aware local optimizer perturbation radius. 0 disables SAM.",
-    )
 
     parser.add_argument(
         "--aggregator",
@@ -357,10 +345,6 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
-        "--mixup_alpha",
-        args.mixup_alpha,
-        "--sam_rho",
-        args.sam_rho,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

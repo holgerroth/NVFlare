@@ -514,3 +514,10 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Keep: mixup is the cheapest non-duplicate label-skew augmentation left after logit-only calibration failed.
 - Keep with caution: FedSAM gets one reduced-epoch runtime-controlled attempt; do not run full seven-epoch SAM unless the reduced candidate is promising and comfortably inside timeout.
 - Reserve: FedSWA-style final averaging only after client-local mixup/SAM results because final-model semantics must stay comparable.
+
+### Batch outcome
+
+- Local mixup with `--mixup_alpha 0.2` scored 0.914800, below the active kept 0.916700 stack and below the raw high-water 0.916900.
+- Reduced-epoch FedSAM with `--aggregation_epochs 4 --sam_rho 0.03` scored 0.910700 and stayed within runtime, but did not recover the accuracy lost from reducing local epochs.
+- The default-off `--mixup_alpha` and `--sam_rho` knobs were removed after review because both source-backed mechanisms missed and would add non-surviving client surface area.
+- Do not retry local mixup or reduced-epoch SAM for this stack unless a materially different source-backed implementation is selected.

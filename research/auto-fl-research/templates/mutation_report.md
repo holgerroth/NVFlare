@@ -282,3 +282,10 @@ The FedZMG stack has reached a local generalization ceiling: scalar optimizer, s
 - Do not retry logit-only FedLC/FedRS/label smoothing for the current stack; mixup is a different input-level augmentation branch.
 - Do not run full seven-epoch SAM unless reduced-epoch SAM is promising and runtime remains comfortably below 1200 seconds.
 - Treat FedSWA-style averaging as a future server-side proposal only after client-local objective changes are scored.
+
+## Literature Batch Outcome
+
+- Local mixup with `--mixup_alpha 0.2` scored 0.914800, below the active kept 0.916700 stack and below the raw 0.916900 high-water.
+- Reduced-epoch FedSAM with `--aggregation_epochs 4 --sam_rho 0.03` scored 0.910700.
+- Both rows were marked `discard`; the plateau watchdog reset on the literature row and now reports `recommendation=continue` with two scored candidates since reset.
+- The default-off mixup and SAM client/job knobs were removed after review because neither mechanism survived the batch.
