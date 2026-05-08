@@ -423,3 +423,10 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: more scalar scheduler/FedProx/server-momentum jitter until a new mechanism creates a better stack.
 - Do not retry: FedLC/FedRS/label smoothing, FedAdam, SCAFFOLD, median/default/weighted FedAvg under this budget.
 - Sources to carry forward: Zantalis26 FedZMG, Wang20 FedNova, Qu22 FedSAM reserve.
+
+### Batch outcome
+
+- FedZMG zero-mean gradients scored 0.913700 and is the new kept stack.
+- FedNova-style step-normalized FedAvgM scored 0.899100, far below the kept stack.
+- The FedNovaM default-off aggregator was removed after review; carry Wang20 FedNova as a null result for this budget unless local-step heterogeneity becomes explicit.
+- Keep the `--zero_mean_gradients` client knob and continue sweeps around the FedZMG/FedAvgM/FedProx stack.

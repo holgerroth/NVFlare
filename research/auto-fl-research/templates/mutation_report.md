@@ -228,3 +228,10 @@ The active FedAvgM/FedProx stack has exhausted scalar retunes. The next viable m
 - Do not resume scalar FedAvgM/FedProx/scheduler jitter until these source-backed update-geometry candidates are scored.
 - Keep FedSAM as a reserve only if runtime room is available or if a reduced-local-compute variant is explicitly justified.
 - Treat FedLC/FedRS/label smoothing, FedAdam, SCAFFOLD, median/default/weighted FedAvg, and current-stack exact-step repeats as null under this budget.
+
+## Literature Batch Outcome
+
+- FedZMG zero-mean gradients on the active FedAvgM/FedProx stack scored 0.913700 and reset the watchdog as a material improvement.
+- FedNova-style step-normalized FedAvgM scored 0.899100 and was discarded.
+- The FedNovaM aggregator surface was removed after review; `--zero_mean_gradients` remains as the kept source-backed client-local mutation.
+- Next sweeps should start from FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.04`, `momentum=0.925`, `weight_decay=5e-4`, `aggregation_epochs=7`, `cosine_lr_eta_min_factor=0.0001`, `fedproxloss_mu=3e-5`, and `--zero_mean_gradients`.
