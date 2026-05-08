@@ -34,6 +34,7 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
+import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -101,6 +102,18 @@ def build_parser():
         type=float,
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
+    )
+    parser.add_argument(
+        "--global_distill_alpha",
+        type=float,
+        default=0.0,
+        help="KL regularization weight toward the received global model. 0 disables distillation.",
+    )
+    parser.add_argument(
+        "--global_distill_temperature",
+        type=float,
+        default=2.0,
+        help="Temperature for client-side global-model distillation.",
     )
     parser.add_argument(
         "--scaffold",
@@ -260,6 +273,14 @@ def _update_scaffold_controls(
     return new_local_controls, delta_controls
 
 
+def _global_distill_loss(student_logits, teacher_logits, temperature):
+    return F.kl_div(
+        F.log_softmax(student_logits / temperature, dim=1),
+        F.softmax(teacher_logits / temperature, dim=1),
+        reduction="batchmean",
+    ) * (temperature * temperature)
+
+
 def main(args):
     if args.eval_batch_size <= 0:
         raise ValueError("eval_batch_size must be > 0")
@@ -267,6 +288,10 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.global_distill_alpha < 0.0:
+        raise ValueError("global_distill_alpha must be >= 0")
+    if args.global_distill_temperature <= 0.0:
+        raise ValueError("global_distill_temperature must be > 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -358,6 +383,8 @@ def main(args):
         for p in global_model.parameters():
             p.requires_grad = False
         global_model.to(DEVICE)
+        if args.global_distill_alpha > 0.0:
+            global_model.eval()
 
         scaffold_global_controls = None
         scaffold_ctrl_diff = None
@@ -405,6 +432,14 @@ def main(args):
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
+                if args.global_distill_alpha > 0.0:
+                    with torch.no_grad():
+                        teacher_outputs = global_model(inputs)
+                    loss = loss + args.global_distill_alpha * _global_distill_loss(
+                        outputs,
+                        teacher_outputs,
+                        args.global_distill_temperature,
+                    )
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -458,6 +493,14 @@ def main(args):
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
+                    if args.global_distill_alpha > 0.0:
+                        with torch.no_grad():
+                            teacher_outputs = global_model(inputs)
+                        loss = loss + args.global_distill_alpha * _global_distill_loss(
+                            outputs,
+                            teacher_outputs,
+                            args.global_distill_temperature,
+                        )
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)

@@ -88,3 +88,49 @@ The optimizer-only plateau near 0.899 is likely driven by non-IID client drift a
 - Conservative FedAdam `server_lr=0.2,tau=0.1` avoided the prior crash but scored 0.807800, so the FedAdam branch should not be retried without a stronger implementation-level reason.
 - Next source-backed reserve is tuned SCAFFOLD, clearly labeled as the implemented opt-in control-variate protocol mode.
 - Tuned SCAFFOLD lr 0.04 and lr 0.02 scored 0.886800 and 0.884000, respectively. This rules out SCAFFOLD as a useful CLI-only recovery branch for the current budget.
+
+---
+
+# Literature Loop 2026-05-07 Row 141 Plateau
+
+## Hypothesis
+
+The current FedAvgM stack has likely exhausted scalar optimizer retuning. Two source-backed mechanisms remain compatible with the FLModel contract and target different failure modes: soft clipping of large client DIFFs before server momentum, and client-local self-distillation against the received global model to reduce drift.
+
+## Sources
+
+- Zhang et al., "Understanding Clipping for Federated Learning", 2021, arXiv:2106.13673, https://arxiv.org/abs/2106.13673. The selected proposal clips each client's full model update norm before aggregation.
+- Yashwanth et al., "Adaptive Self-Distillation for Minimizing Client Drift in Heterogeneous Federated Learning", 2024, arXiv:2305.19600, https://arxiv.org/abs/2305.19600. The selected proposal uses the received global model as a frozen teacher during local training.
+- Qu et al., "Generalized Federated Learning via Sharpness Aware Minimization", 2022, arXiv:2206.02618, https://arxiv.org/abs/2206.02618. FedSAM is a reserve idea because it likely doubles local training cost.
+- Gao et al., "FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction", 2022, arXiv:2203.11751, https://arxiv.org/abs/2203.11751. FedDC-style drift correction is reserved because it is a broader stateful objective change.
+
+## Files changed
+
+- `client.py`
+- `custom_aggregators.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python make validate`
+- `PYTHON=.venv/bin/python make smoke`
+
+## Contract check
+
+- The client still receives full model params, loads them with `strict=True`, computes `compute_model_diff`, sends `ParamsType.DIFF`, and preserves `NUM_STEPS_CURRENT_ROUND`.
+- `--update_clip_norm` is default-off and only rescales each already-received client DIFF inside FedOpt-style aggregation.
+- `--global_distill_alpha` is default-off and adds a client-local KL term using the existing received global model; it introduces no server-coupled metadata.
+- Fixed budget fields remain unchanged for the selected candidates.
+
+## Selected batch
+
+- P1: best stack plus `--update_clip_norm 45`, description tagged `[src: Zhang21 clipping arXiv:2106.13673]`.
+- P2: best stack plus `--global_distill_alpha 0.05 --global_distill_temperature 2.0`, description tagged `[src: Yashwanth24 ASD arXiv:2305.19600]`.
+
+## Reflective memory
+
+- Do not retry current-stack FedProx, SCAFFOLD, FedAdam, median aggregation, or scheduler floor/off variants without a stronger implementation-level reason.
+- If clipping or self-distillation fails, reserve FedSAM only if the runtime budget remains healthy; otherwise return to contract-safe aggregation changes.

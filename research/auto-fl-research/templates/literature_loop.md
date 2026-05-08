@@ -157,3 +157,87 @@ Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty -
 - Conservative FedAdam `server_lr=0.2,tau=0.1` completed without NaNs but scored 0.807800; adaptive Adam is a poor fit for the current custom aggregator/settings.
 - Carry forward SCAFFOLD as the remaining source-backed drift correction, but treat it as a labeled protocol-mode comparison because the default SCAFFOLD audit was weak.
 - Tuned SCAFFOLD with lr 0.04 and 0.02 scored 0.886800 and 0.884000, so do not retry SCAFFOLD on this optimizer/local budget without a stronger implementation change.
+
+---
+
+# Literature loop 2026-05-07 plateau after row 141
+
+## Trigger
+
+- Reason: watchdog recommendation=literature after 32 scored non-crash candidates since the material improvement to 0.903400 at row 109.
+- Current best: 0.903400, FedAvgM `server_lr=1.8`, `server_momentum=0.45`, client `lr=0.04`, `momentum=0.925`, `weight_decay=5e-4`, `aggregation_epochs=7`, `cosine_lr_eta_min_factor=0.005`.
+- Recent symptoms from `results.tsv`: scheduler floor/off, server/client momentum, client LR, weight decay, FedProx, exact local steps, FedAvg, and robust median sweeps all regressed.
+- Confirmed null/worse ideas to avoid: no scheduler, eta floor 0.0001/0.001/0.0025/0.0075/0.01, server momentum 0.4375/0.445/0.455/0.4625, FedProx 1e-6/3e-6/3e-5/1e-4, FedAdam conservative/aggressive, tuned SCAFFOLD, robust median.
+- Candidate width: 2 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0` after earlier width-4 contention.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning update clipping non-IID convergence client update clipping | update norms vary on the best run; soft clipping may suppress outlier client DIFFs without median's harsh coordinate-wise aggregation | web search, arXiv | Zhang21 directly studies clipped client updates in FL. |
+| adaptive self-distillation minimizing client drift heterogeneous federated learning | current plateau looks like client drift/local overfitting after many optimizer retunes | web search, arXiv/OpenReview | ASD uses the global model as a teacher to constrain client drift. |
+| federated sharpness-aware minimization non-IID client drift | generalization/flatness is an alternative to drift regularization | web search, arXiv | FedSAM is relevant but doubles local backward cost and needs more code. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Zhang21 | Understanding Clipping for Federated Learning / 2021 | https://arxiv.org/abs/2106.13673 | client updates can have large or uneven norms under heterogeneity | client update clipping | keep |
+| Yashwanth24 | Adaptive Self-Distillation for Minimizing Client Drift in Heterogeneous Federated Learning / 2024 | https://arxiv.org/abs/2305.19600 | local client objectives drift from global behavior | global-model self-distillation | keep |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://arxiv.org/abs/2206.02618 | non-IID clients overfit sharper local minima | sharpness-aware local training | reserve: higher runtime and code complexity |
+| Gao22 | FedDC: Federated Learning with Non-IID Data via Local Drift Decoupling and Correction / 2022 | https://arxiv.org/abs/2203.11751 | local drift accumulates across rounds | drift correction state | reject for now: larger stateful client objective change |
+| Li20 | Federated Optimization in Heterogeneous Networks / 2020 | https://arxiv.org/abs/1812.06127 | statistical heterogeneity destabilizes local training | FedProx proximal loss | reject: this campaign already bracketed current-stack FedProx nulls |
+| Karimireddy20 | SCAFFOLD: Stochastic Controlled Averaging for Federated Learning / 2020 | https://arxiv.org/abs/1910.06378 | client drift from heterogeneous data | control variates | reject: tuned SCAFFOLD was clearly below best |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | server optimizer sensitivity in heterogeneous FL | FedOpt/FedAdam | reject: FedAvgM is best; FedAdam branch failed badly |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Uneven client update norms | Zhang21 motivates clipping client updates before aggregation | best-run diff-norm telemetry spans p50=28.99 to max=62.54; median aggregation failed but softer norm control is untested | apply L2 clipping to each client DIFF before FedAvgM momentum without changing keys or params type | `custom_aggregators.py`, `job.py` |
+| C2 | Client drift from local objectives | Yashwanth24 targets heterogeneous FL drift using self-distillation | FedProx and SCAFFOLD did not help, but output-level global anchoring is untested | use the received global model as a frozen teacher during local training | `client.py`, `job.py` |
+| C3 | Local overfitting and sharp minima | FedSAM-style work targets flatter local solutions under non-IID data | 8 epochs and exact local steps regressed, suggesting local compute can overfit or destabilize | reserve for later because SAM doubles local training work near the timeout cap | `client.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | L2-clip each client DIFF before FedAvgM aggregation | Zhang21 | add `--update_clip_norm`; run best stack with `--update_clip_norm 45` | damp top-quartile client update spikes while preserving weighted FedAvgM direction | score <= 0.903400 or clipped run behaves like underfit median/FedAvg | low, server-local DIFF preprocessing |
+| P2 | Client-side global-model self-distillation | Yashwanth24 | add `--global_distill_alpha 0.05 --global_distill_temperature 2.0` to best stack | constrain local drift without proximal weight-space penalty | score <= 0.903400 or runtime exceeds cap | low, client-local loss using existing received model |
+| P3 | FedSAM local sharpness-aware update | Qu22 | add SAM two-step SGD around best stack | improve generalization under non-IID | runtime doubles and score does not exceed best | medium, code complexity and runtime |
+| P4 | FedDC-style drift correction | Gao22 | add persistent client drift correction state | correct repeated client drift across rounds | requires broader stateful objective tuning | medium-high, larger algorithm change |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not median; clipping is global-norm soft suppression | robust median scored 0.764500, but no soft DIFF clipping tested | select |
+| P2 | not FedProx; it regularizes logits against the global teacher | FedProx/SCAFFOLD nulls make this lower confidence but still distinct | select |
+| P3 | no direct duplicate | 8 local epochs and exact-step variants regressed; runtime risk high | reserve |
+| P4 | no direct duplicate | larger code/state change than needed for first post-plateau batch | reject for this batch |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 update clipping | 4 | 5 | 4 | 4 | 4 | 1 | 29 |
+| P2 global self-distillation | 3 | 5 | 3 | 4 | 5 | 2 | 26 |
+| P3 FedSAM | 3 | 4 | 2 | 4 | 5 | 4 | 21 |
+| P4 FedDC-style drift correction | 3 | 3 | 1 | 4 | 5 | 3 | 19 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m045_epochs7_clientlr004_cm0925_wd5e4_eta0005_clip45` | best stack plus `--update_clip_norm 45` |
+| 2 | P2 | `fedavgm_lr18_m045_epochs7_clientlr004_cm0925_wd5e4_eta0005_gdistill005_t2` | best stack plus `--global_distill_alpha 0.05 --global_distill_temperature 2.0` |
+
+## Reflective memory
+
+- Keep: update clipping and global self-distillation are the first source-backed code changes after the current-stack CLI plateau.
+- Discard: more FedProx/SCAFFOLD/FedAdam retries without new implementation evidence.
+- Do not retry: median aggregation as a robust outlier fix under this budget.
+- Sources to carry forward: Zhang21 update clipping, Yashwanth24 adaptive self-distillation, Qu22/FedSAM reserve.
