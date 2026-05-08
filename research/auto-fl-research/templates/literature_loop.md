@@ -615,3 +615,11 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Class-balanced CE beta `0.99` failed earlier with `Diff norm is NaN or Inf: nan` at round 4.
 - The watchdog reset on this literature row and reports `recommendation=continue`; rerun the focal-only candidates at `PARALLEL_CANDIDATES=2` before deciding whether focal loss is a null result.
 - Do not retry beta `0.99` class-balanced weighting without a lower-beta stability bracket.
+
+### Focal retry outcome
+
+- Width-2 focal retry completed inside the 1200-second cap.
+- `--focal_loss_gamma 1.0` scored 0.910100.
+- `--focal_loss_gamma 2.0` scored 0.903400.
+- Both were marked `discard`; focal loss is a null result for this FedZMG stack unless a different paper-backed objective changes the loss shape materially.
+- Next source-backed class-imbalance check: test a lower-beta class-balanced bracket before removing the default-off loss surface.
