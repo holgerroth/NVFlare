@@ -289,3 +289,37 @@ The FedZMG stack has reached a local generalization ceiling: scalar optimizer, s
 - Reduced-epoch FedSAM with `--aggregation_epochs 4 --sam_rho 0.03` scored 0.910700.
 - Both rows were marked `discard`; the plateau watchdog reset on the literature row and now reports `recommendation=continue` with two scored candidates since reset.
 - The default-off mixup and SAM client/job knobs were removed after review because neither mechanism survived the batch.
+
+---
+
+# FedZMG Update Clipping Retry
+
+## Hypothesis
+
+Update clipping was only tested on the pre-FedZMG stack, where norm 45 tied the then-best score but added non-surviving aggregator surface. The current FedZMG stack changes client update geometry, so soft server-side DIFF clipping is a materially different retry that may suppress remaining outlier client updates without switching to harsh coordinate-wise median aggregation.
+
+## Source
+
+- Zhang et al., "Understanding Clipping for Federated Learning", 2021, arXiv:2106.13673, https://arxiv.org/abs/2106.13673. Use only the contract-safe idea of clipping already-received client updates before aggregation.
+
+## Files changed
+
+- `custom_aggregators.py`
+- `job.py`
+- `templates/mutation_report.md`
+
+## Contract check
+
+- Clients still send the same `ParamsType.DIFF` payloads and `NUM_STEPS_CURRENT_ROUND`; clipping is server-local preprocessing inside the existing FedOpt-style aggregators.
+- `--update_clip_norm` is default-off and preserves parameter keys and shapes.
+
+## Selected batch
+
+- P1: kept FedZMG stack plus `--update_clip_norm 45`, description tagged `[src: Zhang21 clipping arXiv:2106.13673]`.
+- P2: kept FedZMG stack plus `--update_clip_norm 60`, description tagged `[src: Zhang21 clipping arXiv:2106.13673]`.
+
+## Validation
+
+- `PYTHON=.venv/bin/python make validate` passed.
+- `PYTHON=.venv/bin/python make smoke` passed.
+- No-ledger targeted smoke with `--aggregator fedavgm --update_clip_norm 45` passed.

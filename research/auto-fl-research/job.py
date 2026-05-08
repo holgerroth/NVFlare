@@ -181,6 +181,12 @@ def define_parser():
         default=1e-3,
         help="Numerical stabilizer for the fedadam aggregator.",
     )
+    parser.add_argument(
+        "--update_clip_norm",
+        type=float,
+        default=0.0,
+        help="Global L2 norm cap applied to each client DIFF before FedOpt aggregation. 0 disables clipping.",
+    )
     return parser.parse_args()
 
 
@@ -241,22 +247,29 @@ def get_aggregator(args):
         print("Using FedAvgAggregator")
         return FedAvgAggregator()
     if kind in {"fedavgm", "fedopt"}:
-        print("Using FedAvgMAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
+        print(
+            "Using FedAvgMAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
+            f"update_clip_norm={args.update_clip_norm})"
+        )
         return FedAvgMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
+            update_clip_norm=args.update_clip_norm,
         )
     if kind == "fedadam":
         print(
             "Using FedAdamAggregator "
             f"(server_lr={args.server_lr}, beta1={args.fedopt_beta1}, "
-            f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau})"
+            f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau}, "
+            f"update_clip_norm={args.update_clip_norm})"
         )
         return FedAdamAggregator(
             server_lr=args.server_lr,
             beta1=args.fedopt_beta1,
             beta2=args.fedopt_beta2,
             tau=args.fedopt_tau,
+            update_clip_norm=args.update_clip_norm,
         )
     if kind == "scaffold":
         print("Using ScaffoldAggregator")
