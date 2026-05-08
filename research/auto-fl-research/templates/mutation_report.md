@@ -395,3 +395,4 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Client-LR retune around beta `0.90` missed: `lr=0.04375` scored 0.916100 and `lr=0.04625` scored 0.911800, both below the kept 0.918600 stack.
 - Server-LR retune around beta `0.90` missed: `server_lr=1.75` scored 0.910400 and `server_lr=1.85` scored 0.913400, both discarded.
 - Local-compute retune around beta `0.90` missed: `aggregation_epochs=6` scored 0.914300 and `aggregation_epochs=8` scored 0.910000, both discarded.
+- Scheduler-floor retune around beta `0.90` missed: `cosine_lr_eta_min_factor=0.000125` scored 0.912700 and `0.000175` scored 0.913300, both discarded.
