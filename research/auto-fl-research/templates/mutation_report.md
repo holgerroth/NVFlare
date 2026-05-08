@@ -357,8 +357,8 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 ## Contract check
 
 - The client still receives full model params, loads them with `strict=True`, computes `compute_model_diff`, sends `ParamsType.DIFF`, and preserves `NUM_STEPS_CURRENT_ROUND`.
-- `--focal_loss_gamma` is default-off and only rescales each sample's local CE loss by model confidence.
 - `--class_balanced_loss_beta` is default-off and only constructs local class weights from `train_dataset.targets` already present on the client.
+- The focal-loss knob was removed after scored null results; the surviving code surface is class-balanced CE only.
 - No data files, model architecture, evaluation path, dependency set, server-client metadata, or parameter keys changed.
 
 ## Selected batch
@@ -371,13 +371,14 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 ## Validation
 
 - `PYTHON=.venv/bin/python make validate` passed.
-- No-ledger targeted smoke with `--focal_loss_gamma 1.0 --class_balanced_loss_beta 0.99` passed.
-- Candidate scores are pending for this source-backed batch.
+- No-ledger targeted smoke with `--focal_loss_gamma 1.0 --class_balanced_loss_beta 0.99` passed before focal cleanup.
+- Cleanup `PYTHON=.venv/bin/python make validate` passed after focal removal.
+- No-ledger targeted smoke with `--class_balanced_loss_beta 0.90` passed after focal removal.
 
 ## Reflective memory
 
 - Do not retry FedLC/FedRS/label smoothing, mixup, reduced-epoch SAM, update clipping, or scalar FedAvgM/FedProx jitter for this stack unless a materially different paper-backed mechanism is selected.
-- If focal/class-balanced variants miss, remove the default-off loss knobs and keep LDAM only as a distinct class-imbalance reserve.
+- Keep LDAM only as a distinct class-imbalance reserve if class-balanced CE follow-ups plateau.
 
 ## Batch Outcome
 
@@ -386,4 +387,6 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` after the crash batch.
 - Width-2 focal retry completed: gamma `1.0` scored 0.910100 and gamma `2.0` scored 0.903400. Both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` after finalizing the focal retry.
-- Next action: keep `PARALLEL_CANDIDATES=2` and test a lower-beta class-balanced stability bracket. Treat beta `0.99` class-balanced weighting as unstable.
+- Lower-beta class-balanced bracket completed at width 2: beta `0.90` scored 0.918600 and was marked `keep`; beta `0.95` scored 0.913600 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reset on the material improvement at row 309 and reported `recommendation=continue`.
+- The focal-loss knob was removed after its null result; keep `--class_balanced_loss_beta` as the surviving source-backed mutation.

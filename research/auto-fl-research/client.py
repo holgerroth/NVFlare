@@ -34,7 +34,6 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
-import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -107,12 +106,6 @@ def build_parser():
         "--zero_mean_gradients",
         action="store_true",
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
-    )
-    parser.add_argument(
-        "--focal_loss_gamma",
-        type=float,
-        default=0.0,
-        help="Focal-loss gamma for local class-imbalance regularization. 0 disables focal scaling.",
     )
     parser.add_argument(
         "--class_balanced_loss_beta",
@@ -263,7 +256,7 @@ def _apply_zero_mean_gradients(model):
 def _class_counts_from_dataset(dataset, num_classes=10):
     targets = getattr(dataset, "targets", None)
     if targets is None:
-        raise ValueError("class-balanced/focal loss requires train_dataset.targets")
+        raise ValueError("class-balanced loss requires train_dataset.targets")
 
     counts = torch.zeros(num_classes, dtype=torch.float32, device=DEVICE)
     target_tensor = torch.as_tensor(targets, dtype=torch.long)
@@ -289,19 +282,6 @@ def _build_class_balanced_weights(class_counts, beta):
     weights[present] = (1.0 - beta) / effective_num
     weights[present] *= present.sum().float() / weights[present].sum().clamp_min(1e-12)
     return weights
-
-
-def _classification_loss(outputs, labels, criterion, class_weights, focal_gamma):
-    if focal_gamma <= 0.0:
-        return criterion(outputs, labels)
-
-    log_probs = F.log_softmax(outputs, dim=1)
-    log_pt = log_probs.gather(1, labels.unsqueeze(1)).squeeze(1)
-    pt = log_pt.exp()
-    loss = -log_pt * torch.pow(1.0 - pt, focal_gamma)
-    if class_weights is not None:
-        loss = loss * class_weights.gather(0, labels)
-    return loss.mean()
 
 
 def _update_scaffold_controls(
@@ -337,8 +317,6 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
-    if args.focal_loss_gamma < 0.0:
-        raise ValueError("focal_loss_gamma must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -386,10 +364,10 @@ def main(args):
     class_counts = _class_counts_from_dataset(train_dataset)
     class_weights = _build_class_balanced_weights(class_counts, args.class_balanced_loss_beta)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
-    if args.class_balanced_loss_beta > 0.0 or args.focal_loss_gamma > 0.0:
+    if args.class_balanced_loss_beta > 0.0:
         print(
             f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
-            f"class_balanced_loss_beta={args.class_balanced_loss_beta} focal_loss_gamma={args.focal_loss_gamma}"
+            f"class_balanced_loss_beta={args.class_balanced_loss_beta}"
         )
 
     summary_writer = SummaryWriter()
@@ -485,7 +463,7 @@ def main(args):
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
-                loss = _classification_loss(outputs, labels, criterion, class_weights, args.focal_loss_gamma)
+                loss = criterion(outputs, labels)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -540,7 +518,7 @@ def main(args):
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
-                    loss = _classification_loss(outputs, labels, criterion, class_weights, args.focal_loss_gamma)
+                    loss = criterion(outputs, labels)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)

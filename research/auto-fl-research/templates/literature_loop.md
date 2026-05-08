@@ -622,4 +622,6 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - `--focal_loss_gamma 1.0` scored 0.910100.
 - `--focal_loss_gamma 2.0` scored 0.903400.
 - Both were marked `discard`; focal loss is a null result for this FedZMG stack unless a different paper-backed objective changes the loss shape materially.
-- Next source-backed class-imbalance check: test a lower-beta class-balanced bracket before removing the default-off loss surface.
+- Lower-beta class-balanced bracket completed inside the cap: `--class_balanced_loss_beta 0.90` scored 0.918600 and was marked `keep`; `0.95` scored 0.913600 and was marked `discard`.
+- The watchdog reset on the beta `0.90` material improvement and reports `recommendation=continue`.
+- Remove the null focal-loss knob from `client.py` and `job.py`; keep only `--class_balanced_loss_beta` as the surviving source-backed loss surface.
