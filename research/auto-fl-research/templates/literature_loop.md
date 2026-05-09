@@ -165,6 +165,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both FedProx rows were finalized as `discard`; `fedproxloss_mu=3e-5` remains active for the SAM stack.
 - Class-balanced beta bracket under SAM missed: `class_balanced_loss_beta=0.875` scored 0.923000 and `0.925` scored 0.918500.
 - Both beta rows were finalized as `discard`; `class_balanced_loss_beta=0.90` remains active for the SAM stack.
+- Scheduler-floor bracket under SAM missed: `cosine_lr_eta_min_factor=0.0001` scored 0.922200 and `0.0002` scored 0.920400.
+- Both scheduler rows were finalized as `discard`; `cosine_lr_eta_min_factor=0.00015` remains active for the SAM stack.
 
 ---
 
