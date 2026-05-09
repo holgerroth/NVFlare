@@ -135,18 +135,6 @@ def define_parser():
         default=0.0,
         help="Effective-number class-balanced loss beta forwarded to clients. 0 disables class reweighting.",
     )
-    parser.add_argument(
-        "--label_smoothing",
-        type=float,
-        default=0.0,
-        help="Cross-entropy label smoothing forwarded to clients. 0 disables smoothing.",
-    )
-    parser.add_argument(
-        "--mixup_alpha",
-        type=float,
-        default=0.0,
-        help="Local mixup Beta(alpha, alpha) parameter forwarded to clients. 0 disables mixup.",
-    )
 
     parser.add_argument(
         "--aggregator",
@@ -365,10 +353,6 @@ def main():
         args.fedproxloss_mu,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
-        "--label_smoothing",
-        args.label_smoothing,
-        "--mixup_alpha",
-        args.mixup_alpha,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

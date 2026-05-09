@@ -583,3 +583,10 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Hypothesis: the active stack may now be limited by local overconfidence or class-skew overfitting rather than server optimizer scaling; local-only mixup and label smoothing should regularize client training without altering DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, model keys, data splits, or cross-site evaluation.
 - Selected next candidates: active best stack plus `--mixup_alpha 0.2`, and active best stack plus `--label_smoothing 0.05`. Reserve: combined light mixup/smoothing only if either single mechanism is near-best.
 - Rejected source-backed ideas: FedMix mean-sharing and FedBN/local-BN mechanics are not selected because they would change data exchange, protocol semantics, or fixed `model_arch` comparability in this optimizer campaign.
+
+## Batch Outcome
+
+- Local mixup `alpha=0.2` scored 0.912200; label smoothing `0.05` scored 0.912600.
+- Both source-backed local regularization candidates were marked `discard`.
+- The default-off mixup and label-smoothing code/schema additions were removed after review because the mechanism underfit badly relative to the 0.918600 high-water mark.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.

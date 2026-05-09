@@ -152,6 +152,12 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Do not retry: scalar class-balanced beta, FedProx, scheduler, client/server LR/momentum, and local-compute jitter unless a new mechanism first changes the failure mode.
 - Sources to carry forward: Zhang18 mixup, Yoon21 FedMix, Muller19 label smoothing, Szegedy16 label smoothing, Li21 FedBN.
 
+## Batch outcome
+
+- Local mixup `alpha=0.2` scored 0.912200 and label smoothing `0.05` scored 0.912600.
+- Both were discarded, and the default-off `mixup_alpha` / `label_smoothing` code was removed after review because neither source-backed regularizer approached the 0.918600 high-water mark.
+- Do not retry standalone mixup or label smoothing on this class-balanced FedZMG stack without a different mechanism or architecture subcampaign.
+
 ---
 
 # Literature loop 2026-05-09 FedNova normalized aggregation

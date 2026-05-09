@@ -114,18 +114,6 @@ def build_parser():
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
     )
     parser.add_argument(
-        "--label_smoothing",
-        type=float,
-        default=0.0,
-        help="Cross-entropy label smoothing in [0, 1). 0 disables smoothing.",
-    )
-    parser.add_argument(
-        "--mixup_alpha",
-        type=float,
-        default=0.0,
-        help="Local mixup Beta(alpha, alpha) parameter. 0 disables mixup.",
-    )
-    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -265,26 +253,6 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _mixup_batch(inputs, labels, alpha):
-    if alpha <= 0.0 or inputs.size(0) < 2:
-        return inputs, labels, None, 1.0
-
-    beta = torch.distributions.Beta(
-        torch.tensor(alpha, dtype=inputs.dtype, device=inputs.device),
-        torch.tensor(alpha, dtype=inputs.dtype, device=inputs.device),
-    )
-    lam = float(beta.sample().item())
-    perm = torch.randperm(inputs.size(0), device=inputs.device)
-    mixed_inputs = lam * inputs + (1.0 - lam) * inputs[perm]
-    return mixed_inputs, labels, labels[perm], lam
-
-
-def _criterion_loss(criterion, outputs, labels, mix_labels=None, mix_lambda=1.0):
-    if mix_labels is None:
-        return criterion(outputs, labels)
-    return mix_lambda * criterion(outputs, labels) + (1.0 - mix_lambda) * criterion(outputs, mix_labels)
-
-
 def _class_counts_from_dataset(dataset, num_classes=10):
     targets = getattr(dataset, "targets", None)
     if targets is None:
@@ -351,10 +319,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
-    if args.label_smoothing < 0.0 or args.label_smoothing >= 1.0:
-        raise ValueError("label_smoothing must be in [0, 1)")
-    if args.mixup_alpha < 0.0:
-        raise ValueError("mixup_alpha must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -399,16 +363,11 @@ def main(args):
     )
     class_counts = _class_counts_from_dataset(train_dataset)
     class_weights = _build_class_balanced_weights(class_counts, args.class_balanced_loss_beta)
-    criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=args.label_smoothing)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     if args.class_balanced_loss_beta > 0.0:
         print(
             f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
             f"class_balanced_loss_beta={args.class_balanced_loss_beta}"
-        )
-    if args.label_smoothing > 0.0 or args.mixup_alpha > 0.0:
-        print(
-            f"{site_name}: regularization "
-            f"label_smoothing={args.label_smoothing} mixup_alpha={args.mixup_alpha}"
         )
 
     summary_writer = SummaryWriter()
@@ -501,11 +460,10 @@ def main(args):
                     batch = next(loader_iter)
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
-                inputs, labels, mix_labels, mix_lambda = _mixup_batch(inputs, labels, args.mixup_alpha)
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
-                loss = _criterion_loss(criterion, outputs, labels, mix_labels, mix_lambda)
+                loss = criterion(outputs, labels)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -557,11 +515,10 @@ def main(args):
 
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
-                    inputs, labels, mix_labels, mix_lambda = _mixup_batch(inputs, labels, args.mixup_alpha)
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
-                    loss = _criterion_loss(criterion, outputs, labels, mix_labels, mix_lambda)
+                    loss = criterion(outputs, labels)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
