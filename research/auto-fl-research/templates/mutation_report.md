@@ -535,3 +535,11 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - P1: active class-balanced FedZMG client stack plus `--aggregator fednova --server_lr 1.0 --server_momentum 0.0`, description tagged `[src: Wang20 FedNova NeurIPS]`.
 - P2: active class-balanced FedZMG client stack plus `--aggregator fednova --server_lr 1.8 --server_momentum 0.0`, same source tag.
 - Reserve: `--aggregator fednova --server_lr 1.0 --server_momentum 0.475`, tagged `[src: Wang20 FedNova NeurIPS; Cheng24 Momentum ICLR]`, only if P1/P2 are close enough to justify the momentum variant.
+
+## Batch Outcome
+
+- P1 scored 0.900900 and P2 scored 0.899000; both were marked `discard`.
+- The FedNova branch underfit badly relative to the 0.918600 high-water mark, so the reserve momentum variant was not launched.
+- The default-off `fednova` aggregator code and schema choice were removed after review; do not retry FedNova on this stack without a materially different implementation or evidence.
+- Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.

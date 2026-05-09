@@ -152,6 +152,12 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Do not retry: class-balanced beta, LDAM, focal, FedProx, local-compute, scheduler floor, and scalar FedAvgM jitter without a new implementation-level mechanism.
 - Sources to carry forward: Wang20 FedNova, Cheng24 momentum, Zantalis26 FedZMG, Cui19 class-balanced loss.
 
+## Batch outcome
+
+- Pure FedNova scored 0.900900; server-LR-rescaled FedNova scored 0.899000.
+- Both were discarded, and the reserve momentum variant was not run because normalized aggregation was far below the high-water mark.
+- FedNova code was removed after review; keep Wang20 as a null result for this stack unless a future branch changes the implementation substantially.
+
 ---
 
 # Literature loop 2026-05-07 plateau after row 80
