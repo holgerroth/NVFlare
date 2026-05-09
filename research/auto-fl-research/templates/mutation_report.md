@@ -559,3 +559,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fifteen scored candidates since the literature reset.
 - Aggregation-epoch endpoint continuation missed: `aggregation_epochs=3` scored 0.901900 and `11` scored 0.915500, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seventeen scored candidates since the literature reset.
+- Exact-step local-compute endpoint continuation missed: `local_train_steps=256` scored 0.895300 and `1408` scored 0.912500, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with nineteen scored candidates since the literature reset.
