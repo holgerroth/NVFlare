@@ -114,12 +114,6 @@ def build_parser():
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
     )
     parser.add_argument(
-        "--ldam_max_margin",
-        type=float,
-        default=0.0,
-        help="LDAM maximum true-class margin. 0 disables LDAM.",
-    )
-    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -290,30 +284,6 @@ def _build_class_balanced_weights(class_counts, beta):
     return weights
 
 
-def _build_ldam_margins(class_counts, max_margin):
-    if max_margin <= 0.0:
-        return None
-
-    present = class_counts > 0
-    if not torch.any(present):
-        raise ValueError("LDAM loss requires at least one local class")
-
-    margins = torch.zeros_like(class_counts)
-    raw_margins = 1.0 / torch.sqrt(torch.sqrt(class_counts[present]))
-    margins[present] = raw_margins * (max_margin / raw_margins.max().clamp_min(1e-12))
-    return margins
-
-
-def _classification_loss(outputs, labels, criterion, ldam_margins):
-    if ldam_margins is None:
-        return criterion(outputs, labels)
-
-    adjusted_outputs = outputs.clone()
-    row_indices = torch.arange(labels.size(0), device=labels.device)
-    adjusted_outputs[row_indices, labels] -= ldam_margins[labels]
-    return criterion(adjusted_outputs, labels)
-
-
 def _update_scaffold_controls(
     model,
     global_model,
@@ -349,8 +319,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
-    if args.ldam_max_margin < 0.0:
-        raise ValueError("ldam_max_margin must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -395,13 +363,11 @@ def main(args):
     )
     class_counts = _class_counts_from_dataset(train_dataset)
     class_weights = _build_class_balanced_weights(class_counts, args.class_balanced_loss_beta)
-    ldam_margins = _build_ldam_margins(class_counts, args.ldam_max_margin)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
-    if args.class_balanced_loss_beta > 0.0 or args.ldam_max_margin > 0.0:
+    if args.class_balanced_loss_beta > 0.0:
         print(
             f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
-            f"class_balanced_loss_beta={args.class_balanced_loss_beta} "
-            f"ldam_max_margin={args.ldam_max_margin}"
+            f"class_balanced_loss_beta={args.class_balanced_loss_beta}"
         )
 
     summary_writer = SummaryWriter()
@@ -497,7 +463,7 @@ def main(args):
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
-                loss = _classification_loss(outputs, labels, criterion, ldam_margins)
+                loss = criterion(outputs, labels)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -552,7 +518,7 @@ def main(args):
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
-                    loss = _classification_loss(outputs, labels, criterion, ldam_margins)
+                    loss = criterion(outputs, labels)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)

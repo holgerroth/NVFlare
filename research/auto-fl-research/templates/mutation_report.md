@@ -454,3 +454,11 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 
 - Treat Balanced Softmax/logit-prior corrections as reserve only; FedLC and FedRS already missed.
 - Treat MOON or other representation-drift regularizers as higher-risk reserves because they require model feature plumbing or local state beyond this lightweight LDAM branch.
+
+## Batch Outcome
+
+- LDAM width-1 candidates completed inside `RUN_TIMEOUT_SECONDS=1200`.
+- `--ldam_max_margin 0.25` scored 0.911700.
+- `--ldam_max_margin 0.50` scored 0.911300.
+- Both were marked `discard`; remove the LDAM knob and do not retry LDAM on this beta `0.90` stack without a materially different paper-backed schedule or representation change.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.

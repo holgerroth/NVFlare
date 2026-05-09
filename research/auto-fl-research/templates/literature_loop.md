@@ -708,3 +708,12 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: do not start Balanced Softmax until LDAM scores, because FedLC/FedRS/logit-prior changes are already null for this campaign.
 - Do not retry: width-2 for long seven-epoch candidates after the scheduler communication timeouts; use sequential width 1 unless runtimes become too slow.
 - Sources to carry forward: Cao19 LDAM; Cui19 CBLoss; Ren20 Balanced Softmax; Li21 MOON; Acar21 FedDyn.
+
+### Batch outcome
+
+- LDAM width-1 candidates completed inside the 1200-second cap.
+- `--ldam_max_margin 0.25` scored 0.911700.
+- `--ldam_max_margin 0.50` scored 0.911300.
+- Both were marked `discard`; LDAM is a null result for the active beta `0.90` FedZMG stack.
+- Remove the default-off LDAM knob from `client.py`, `job.py`, and `mutation_schema.yaml`; keep `--class_balanced_loss_beta` as the only surviving class-imbalance loss surface.
+- The watchdog reset on the literature row and reports `recommendation=continue` with two scored candidates since reset.
