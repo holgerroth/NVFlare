@@ -71,6 +71,89 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-09 local vicinal regularization
+
+## Trigger
+
+- Reason: watchdog `recommendation=literature` after 32 scored non-crash class-balanced FedZMG candidates since the row 309 high-water mark.
+- Current best: 0.918600, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: scalar beta, FedProx, client LR/momentum, server LR/momentum, scheduler floor, local-compute, exact-step, and FedNova branches all regressed; the best recent near-miss is client `lr=0.04375` at 0.916100.
+- Confirmed null/worse ideas to avoid: FedNova, SCAFFOLD, FedAdam, median aggregation, focal loss, LDAM, FedLC/FedRS/logit-prior variants, self-distillation, update clipping, SAM, current-stack FedProx brackets, local-compute endpoints, and scalar FedAvgM jitter.
+- Candidate width: run width 1 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`, because width-2 NVFlare runs previously exposed communication failures.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning non-IID overfitting label smoothing mixup CIFAR-10 paper | plateau now looks like local overfitting/generalization rather than optimizer scaling | web search, arXiv | mixup and label smoothing are client-local and do not touch FL protocol. |
+| mixup Beyond Empirical Risk Minimization arXiv 1710.09412 label smoothing calibration neural networks paper | find primary regularization papers with CIFAR/image evidence | arXiv, web search | Zhang18 mixup and Muller19 label smoothing are primary sources. |
+| federated learning batch normalization non-IID FedBN paper arXiv | check whether normalization-locality is relevant after many FedAvgM scalar nulls | arXiv, web search | FedBN is relevant but would require architecture/protocol care outside this optimizer campaign. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Zhang18 | mixup: Beyond Empirical Risk Minimization / 2018 | https://arxiv.org/abs/1710.09412 | neural nets memorize and overfit; mixup improves CIFAR/ImageNet generalization by training on convex combinations | vicinal data augmentation | keep |
+| Yoon21 | FedMix: Approximation of Mixup under Mean Augmented Federated Learning / 2021 | https://arxiv.org/abs/2107.00233 | heterogeneity degrades FL as non-IID severity increases; mixup-style augmentation can help FL benchmarks | federated mixup | keep as support, reject mean-sharing mechanics |
+| Muller19 | When Does Label Smoothing Help? / 2019 | https://arxiv.org/abs/1906.02629 | over-confident classifiers can generalize/calibrate poorly; soft targets improve generalization and calibration | target regularization | keep |
+| Szegedy16 | Rethinking the Inception Architecture for Computer Vision / 2016 | https://arxiv.org/abs/1512.00567 | large image classifiers benefit from aggressive regularization including label smoothing | label smoothing in vision | keep as secondary |
+| Li21 | FedBN: Federated Learning on Non-IID Features via Local Batch Normalization / 2021 | https://arxiv.org/abs/2102.07623 | non-IID feature shift can make averaging BN parameters harmful | local normalization | reject for next batch: fixed `model_arch` and no protocol change |
+| Zhang21 | Understanding Clipping for Federated Learning / 2021 | https://arxiv.org/abs/2106.13673 | update clipping can help under heterogeneity | clipping | reject: update clipping already nulled on this stack |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local overconfidence after class reweighting | Muller19 shows smoothed labels reduce overconfidence and can improve generalization/calibration | class-balanced beta helped once, then all beta and LR/momentum refinements regressed | add a small soft-target regularizer without changing class weights or server logic | `client.py`, `job.py` |
+| C2 | Sparse local support from non-IID class skew | Zhang18 and Yoon21 support mixup-style interpolation as a low-overhead regularizer; FedMix targets non-IID FL but mean sharing is out of scope | site splits are label-skewed and local-compute endpoints overfit/regressed | local-only mixup can smooth per-client decision boundaries while preserving DIFF uploads | `client.py`, `job.py` |
+| C3 | Feature/normalization shift remains plausible but too invasive | Li21 shows local BN can help feature-shift non-IID FL | optimizer/loss jitter plateau suggests a representational issue may remain | architecture/BN locality is not safe inside the fixed `moderate_cnn` optimizer campaign | reject or future architecture subcampaign |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Add small label smoothing | Muller19; Szegedy16 | add `--label_smoothing`; run active stack with `--label_smoothing 0.05` | reduce overconfidence from local class-balanced training | score <= recent 0.916100 near-miss or clear underfitting | low, local loss only |
+| P2 | Add local mixup | Zhang18; Yoon21 | add `--mixup_alpha`; run active stack with `--mixup_alpha 0.2` | smooth local decision boundaries under class skew | score <= active stack by >0.002 or slower without gain | low, local batch transform only |
+| P3 | Combine light mixup and light smoothing | Zhang18; Muller19 | run `--mixup_alpha 0.2 --label_smoothing 0.025` only if P1/P2 are near-best | regularize both inputs and targets without changing server | worse than both single mechanisms | low-medium, two regularizers may underfit |
+| P4 | Local BN / registered normalized architecture | Li21 | future architecture subcampaign using registered `moderate_cnn_norm` only if human labels new budget | mitigate feature-shift style drift | not comparable in current optimizer ledger | rejected now: fixed `model_arch` budget |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | no existing `label_smoothing` arg or row | not the same as class-balanced beta; source targets overconfidence | select |
+| P2 | no existing `mixup_alpha` arg or row | local augmentation differs from loss reweighting and FedMix mean sharing | select |
+| P3 | P1/P2 combination | could duplicate failure if both singles underfit | reserve |
+| P4 | architecture/normalization branch | violates fixed optimizer-campaign `model_arch` comparability | reject |
+
+## Proposal scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 label smoothing 0.05 | 3 | 5 | 5 | 4 | 5 | 1 | 29 |
+| P2 mixup alpha 0.2 | 4 | 5 | 4 | 5 | 5 | 2 | 30 |
+| P3 mixup plus smoothing | 3 | 5 | 3 | 4 | 4 | 2 | 25 |
+| P4 local BN architecture | 3 | 2 | 2 | 5 | 4 | 2 | 19 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_mixup02_w1` | active best stack plus `--mixup_alpha 0.2` |
+| 2 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_ls005_w1` | active best stack plus `--label_smoothing 0.05` |
+| 3 | P3 reserve | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_mixup02_ls0025_w1` | run only if one single-mechanism result is near-best |
+| 4 | reserve |  | keep empty at width 1 to avoid NVFlare contention |
+
+## Reflective memory
+
+- Keep: source-backed client regularization is the next branch because optimizer/loss scalar jitter has plateaued.
+- Discard: FedMix mean-sharing and FedBN/local-BN mechanics for this campaign because they would alter data/protocol or architecture comparability.
+- Do not retry: scalar class-balanced beta, FedProx, scheduler, client/server LR/momentum, and local-compute jitter unless a new mechanism first changes the failure mode.
+- Sources to carry forward: Zhang18 mixup, Yoon21 FedMix, Muller19 label smoothing, Szegedy16 label smoothing, Li21 FedBN.
+
+---
+
 # Literature loop 2026-05-09 FedNova normalized aggregation
 
 ## Trigger

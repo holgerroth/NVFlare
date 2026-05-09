@@ -575,3 +575,11 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the literature reset.
 - Scheduler-floor threshold probe missed: `cosine_lr_eta_min_factor=0.0002` scored 0.911400 and was discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the literature reset.
+
+## Literature Basis: Local Vicinal Regularization
+
+- Trigger: watchdog plateau at thirty-two scored candidates without a material improvement after the class-balanced FedZMG high-water mark.
+- Sources: Zhang et al., "mixup: Beyond Empirical Risk Minimization" (ICLR 2018, https://arxiv.org/abs/1710.09412); Yoon et al., "FedMix: Approximation of Mixup under Mean Augmented Federated Learning" (ICLR 2021, https://arxiv.org/abs/2107.00233); Muller et al., "When Does Label Smoothing Help?" (NeurIPS 2019, https://arxiv.org/abs/1906.02629); Szegedy et al., "Rethinking the Inception Architecture for Computer Vision" (CVPR 2016, https://arxiv.org/abs/1512.00567); Li et al., "FedBN" (ICLR 2021, https://arxiv.org/abs/2102.07623).
+- Hypothesis: the active stack may now be limited by local overconfidence or class-skew overfitting rather than server optimizer scaling; local-only mixup and label smoothing should regularize client training without altering DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, model keys, data splits, or cross-site evaluation.
+- Selected next candidates: active best stack plus `--mixup_alpha 0.2`, and active best stack plus `--label_smoothing 0.05`. Reserve: combined light mixup/smoothing only if either single mechanism is near-best.
+- Rejected source-backed ideas: FedMix mean-sharing and FedBN/local-BN mechanics are not selected because they would change data exchange, protocol semantics, or fixed `model_arch` comparability in this optimizer campaign.
