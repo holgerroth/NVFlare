@@ -627,3 +627,84 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Remove the null focal-loss knob from `client.py` and `job.py`; keep only `--class_balanced_loss_beta` as the surviving source-backed loss surface.
 - Refinement around beta `0.90` missed: beta `0.875` scored 0.915300 and beta `0.925` scored 0.914800, both discarded.
 - Carry forward beta `0.90` as the active class-balanced setting.
+
+---
+
+# Literature Loop 2026-05-09 LDAM Margin Loss
+
+## Working memory
+
+- Watchdog trigger: `recommendation=literature` after 32 scored candidates since the beta `0.90` material improvement at row 309.
+- Active kept stack: FedAvgM/FedProx/FedZMG/class-balanced CE, `aggregation_epochs=7`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `server_lr=1.8`, `server_momentum=0.475`, `class_balanced_loss_beta=0.90`, score 0.918600.
+- Recent symptoms: beta refinements, client/server LR, local compute, scheduler floors, FedProx, momentum, weight decay, exact local steps, FedAvg/median/SCAFFOLD aggregation, and component ablations all missed.
+- Crash note: width-2 scheduler-floor sweep hit NVFlare communication timeouts; width-1 retries completed, so use sequential width 1 for the next source-backed batch.
+- Candidate width: `PARALLEL_CANDIDATES=1`, pinned with `CUDA_VISIBLE_DEVICES=0`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning label distribution skew LDAM loss class imbalance CIFAR non-IID | find a margin-level class-imbalance branch after effective-number CE plateaued | web search, NeurIPS/arXiv | LDAM is distinct from class weighting and focal loss. |
+| balanced softmax long-tailed visual recognition federated label skew | check whether class-prior softmax corrections are a safe non-duplicate | web search, NeurIPS | Balanced Softmax is simple but overlaps logit-calibration nulls. |
+| model contrastive federated learning non-IID client drift image classification | look for a representation/client-drift mechanism after scalar FedProx/SCAFFOLD misses | web search, CVPR | MOON is relevant but needs feature/previous-model state and more code risk. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Cao19 LDAM | Learning Imbalanced Datasets with Label-Distribution-Aware Margin Loss / 2019 | https://papers.nips.cc/paper/8435-learning-imbalanced-datasets-with-label-distribution-aware-margin-loss | rare classes need larger decision margins, not only larger CE weights | margin loss | keep |
+| Ren20 Balanced Softmax | Balanced Meta-Softmax for Long-Tailed Visual Recognition / 2020 | https://papers.nips.cc/paper/2020/hash/2ba61cc3a8f44143e1f2f13b2b729ab3-Abstract.html | softmax gradients are biased under long-tailed class priors | logit/prior adjusted CE | reserve/reject as too close to FedLC/FedRS nulls |
+| Li21 MOON | Model-Contrastive Federated Learning / 2021 | https://openaccess.thecvf.com/content/CVPR2021/html/Li_Model-Contrastive_Federated_Learning_CVPR_2021_paper.html | local representations drift under heterogeneous data | model-contrastive regularization | reserve; more implementation risk |
+| Acar21 FedDyn | Federated Learning Based on Dynamic Regularization / 2021 | https://iclr.cc/virtual/2021/oral/3503 | local-device minima are inconsistent with global minima under heterogeneity | dynamic regularization | reject: needs server-coupled per-client state outside current safe surface |
+| Zhang22 FedLC | Federated Learning with Label Distribution Skew via Logits Calibration / 2022 | https://proceedings.mlr.press/v162/zhang22p.html | local softmax CE overfits under label skew | logits calibration | reject: already tested and removed |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Reweighting alone may not fix minority margins | Cao19 separates label-distribution-aware margins from reweighting and reports both can help | effective-number beta `0.90` helped, but all beta and optimizer follow-ups plateaued | local class counts already exist; margin changes only local logits | `client.py`, `job.py` |
+| C2 | Logit-prior corrections are mostly exhausted | Ren20 and Zhang22 motivate prior/logit softmax corrections | FedLC/FedRS and multiple scheduler/CE variants were null | another prior-shift CE is likely duplicate unless LDAM fails | `client.py`, `job.py` |
+| C3 | Drift regularizers need more state than this loop should add now | MOON/FedDyn target heterogeneous local drift | FedProx/SCAFFOLD/aggregation retunes missed, but protocol/state risk is higher | keep as reserve after a low-risk margin-loss attempt | `client.py` or explicit protocol mode only |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | LDAM true-class margin | Cao19 LDAM; Cui19 CBLoss | add default-off `--ldam_max_margin`; run margins `0.25` and `0.50` with beta `0.90` active stack | improve rare-class decision boundaries beyond CE reweighting | both margins score <= 0.918600 or destabilize | low: client-local logit adjustment |
+| P2 | Balanced Softmax local-count prior | Ren20 Balanced Softmax | add CE over `logits + log(local_counts)` with clamped counts | reduce biased softmax gradients from skewed local priors | repeats FedLC/FedRS failure pattern | low-medium but duplicate risk |
+| P3 | MOON-style model contrastive loss | Li21 MOON | add local previous/global representation contrastive term | reduce representation drift after FedProx/SCAFFOLD miss | runtime or feature plumbing exceeds budget; no score gain | medium: needs feature access and local state |
+| P4 | FedDyn-style dynamic regularization | Acar21 FedDyn | not selected; would need per-client dynamic server/client state | align local/global optima under heterogeneity | violates safe state boundary | high |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | distinct from focal and class-balanced CE; margin not weight/logit calibration | no LDAM rows exist | select |
+| P2 | close to FedLC/FedRS/logit calibration null results | prior logit calibration already removed | reserve/reject |
+| P3 | not duplicate, but larger code surface than P1 | FedProx/SCAFFOLD misses reduce confidence | reserve |
+| P4 | dynamic regularization family | requires forbidden server-coupled state | reject |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 LDAM | 3 | 5 | 5 | 4 | 4 | 1 | 28 |
+| P2 Balanced Softmax | 2 | 4 | 4 | 4 | 2 | 1 | 21 |
+| P3 MOON | 3 | 3 | 2 | 4 | 5 | 2 | 21 |
+| P4 FedDyn | 3 | 1 | 1 | 4 | 5 | 2 | 16 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_ldam025_w1` | active kept stack plus `--ldam_max_margin 0.25` |
+| 2 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_ldam050_w1` | active kept stack plus `--ldam_max_margin 0.50` |
+
+## Reflective memory
+
+- Keep: LDAM is the lowest-risk non-duplicate after effective-number CE became the surviving source-backed class-imbalance mechanism.
+- Discard: do not start Balanced Softmax until LDAM scores, because FedLC/FedRS/logit-prior changes are already null for this campaign.
+- Do not retry: width-2 for long seven-epoch candidates after the scheduler communication timeouts; use sequential width 1 unless runtimes become too slow.
+- Sources to carry forward: Cao19 LDAM; Cui19 CBLoss; Ren20 Balanced Softmax; Li21 MOON; Acar21 FedDyn.

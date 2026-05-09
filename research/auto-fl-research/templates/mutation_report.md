@@ -409,3 +409,48 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Broader scheduler-floor width-2 sweep crashed due a shared NVFlare communication failure: eta `0.0005` and eta `0.001` both timed out at 1200 seconds with target-unreachable / failed-download errors. Retry this scheduler axis at width 1 before treating it as a scored model result.
 - Width-1 scheduler-floor retry completed and missed: eta `0.0005` scored 0.913300 and eta `0.001` scored 0.915800, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with 32 scored candidates since the row 309 material improvement.
+
+---
+
+# Literature Loop 2026-05-09 LDAM Margin Loss
+
+## Hypothesis
+
+Class-balanced CE beta `0.90` was the only class-imbalance mechanism to materially improve the FedZMG stack, but 32 follow-ups failed to move past 0.918600. LDAM adds a per-class decision margin from local class counts, which is distinct from both effective-number CE weights and the focal/logit-calibration null results.
+
+## Sources
+
+- Cao et al., "Learning Imbalanced Datasets with Label-Distribution-Aware Margin Loss", NeurIPS 2019, https://papers.nips.cc/paper/8435-learning-imbalanced-datasets-with-label-distribution-aware-margin-loss. This supplies the LDAM margin formula and motivates margin changes as separate from reweighting.
+- Ren et al., "Balanced Meta-Softmax for Long-Tailed Visual Recognition", NeurIPS 2020, https://papers.nips.cc/paper/2020/hash/2ba61cc3a8f44143e1f2f13b2b729ab3-Abstract.html. Considered as a prior-corrected CE reserve, but too close to earlier logit-calibration nulls for the next batch.
+- Li et al., "Model-Contrastive Federated Learning", CVPR 2021, https://openaccess.thecvf.com/content/CVPR2021/html/Li_Model-Contrastive_Federated_Learning_CVPR_2021_paper.html. Kept as a higher-risk reserve for representation drift.
+- Acar et al., "Federated Learning Based on Dynamic Regularization", ICLR 2021, https://iclr.cc/virtual/2021/oral/3503. Rejected for now because FedDyn-style state exceeds the current safe protocol surface.
+
+## Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Contract check
+
+- LDAM is default-off via `--ldam_max_margin 0.0`.
+- LDAM only adjusts local logits before local CE and uses local `train_dataset.targets`; it does not add metadata, change model keys, or alter the DIFF upload path.
+- The client still preserves `compute_model_diff`, `ParamsType.DIFF`, `NUM_STEPS_CURRENT_ROUND`, strict model loading, and the evaluation branch.
+
+## Validation
+
+- `PYTHON=.venv/bin/python make validate` passed.
+- No-ledger targeted smoke with `--class_balanced_loss_beta 0.90 --ldam_max_margin 0.5` passed.
+
+## Selected batch
+
+- P1a: active kept beta `0.90` stack plus `--ldam_max_margin 0.25`.
+- P1b: active kept beta `0.90` stack plus `--ldam_max_margin 0.50`.
+- Run sequentially at width 1 because the previous width-2 scheduler batch exposed NVFlare communication contention.
+
+## Reflective memory
+
+- Treat Balanced Softmax/logit-prior corrections as reserve only; FedLC and FedRS already missed.
+- Treat MOON or other representation-drift regularizers as higher-risk reserves because they require model feature plumbing or local state beyond this lightweight LDAM branch.

@@ -135,6 +135,12 @@ def define_parser():
         default=0.0,
         help="Effective-number class-balanced loss beta forwarded to clients. 0 disables class reweighting.",
     )
+    parser.add_argument(
+        "--ldam_max_margin",
+        type=float,
+        default=0.0,
+        help="LDAM maximum true-class margin forwarded to clients. 0 disables LDAM.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -353,6 +359,8 @@ def main():
         args.fedproxloss_mu,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
+        "--ldam_max_margin",
+        args.ldam_max_margin,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
