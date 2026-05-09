@@ -563,3 +563,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with nineteen scored candidates since the literature reset.
 - Scheduler-floor continuation missed: `cosine_lr_eta_min_factor=0.000075` scored 0.914400 and `0.0001` scored 0.913700, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the literature reset.
+- FedProx `mu` continuation missed: `fedproxloss_mu=5e-5` scored 0.914100 and `7.5e-5` scored 0.912100, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-three scored candidates since the literature reset.
