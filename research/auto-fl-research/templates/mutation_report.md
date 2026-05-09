@@ -557,3 +557,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirteen scored candidates since the literature reset.
 - Tight client-momentum continuation missed: `momentum=0.921875` scored 0.911300 and `0.928125` scored 0.911500, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fifteen scored candidates since the literature reset.
+- Aggregation-epoch endpoint continuation missed: `aggregation_epochs=3` scored 0.901900 and `11` scored 0.915500, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seventeen scored candidates since the literature reset.
