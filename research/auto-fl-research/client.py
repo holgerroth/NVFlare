@@ -108,12 +108,6 @@ def build_parser():
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
     )
     parser.add_argument(
-        "--grad_clip_norm",
-        type=float,
-        default=0.0,
-        help="Clip client gradient norm before each optimizer step. 0 disables clipping.",
-    )
-    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -323,8 +317,6 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
-    if args.grad_clip_norm < 0.0:
-        raise ValueError("grad_clip_norm must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -377,8 +369,6 @@ def main(args):
             f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
             f"class_balanced_loss_beta={args.class_balanced_loss_beta}"
         )
-    if args.grad_clip_norm > 0.0:
-        print(f"{site_name}: grad_clip_norm={args.grad_clip_norm}")
 
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
@@ -481,8 +471,6 @@ def main(args):
                 loss.backward()
                 if args.zero_mean_gradients:
                     _apply_zero_mean_gradients(model)
-                if args.grad_clip_norm > 0.0:
-                    nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -538,8 +526,6 @@ def main(args):
                     loss.backward()
                     if args.zero_mean_gradients:
                         _apply_zero_mean_gradients(model)
-                    if args.grad_clip_norm > 0.0:
-                        nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                     optimizer.step()
 
                     curr_lr = get_lr_values(optimizer)[0]

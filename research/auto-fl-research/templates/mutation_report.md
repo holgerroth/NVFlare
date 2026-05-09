@@ -596,3 +596,9 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Source basis: Zhang et al., "Understanding Clipping for Federated Learning" (2021, https://arxiv.org/abs/2106.13673) supports clipping as a heterogeneity-control mechanism; prior nulls were server update clipping, not per-step client gradient clipping.
 - Proposed change: add a default-off `--grad_clip_norm` client knob and test norms `1.0` and `5.0` on the active class-balanced FedZMG stack.
 - Expected effect: suppress rare high-norm local optimizer steps from label-skewed clients without changing DIFF uploads, model keys, or `NUM_STEPS_CURRENT_ROUND`.
+
+## Batch Outcome
+
+- Client gradient clipping missed: `grad_clip_norm=1.0` scored 0.897200 and `5.0` scored 0.915200, both discarded.
+- The default-off clipping code/schema additions were removed after review because even the looser norm remained below the 0.918600 high-water mark.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the literature reset.

@@ -130,12 +130,6 @@ def define_parser():
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
     )
     parser.add_argument(
-        "--grad_clip_norm",
-        type=float,
-        default=0.0,
-        help="Clip client gradient norm before each optimizer step. 0 disables clipping.",
-    )
-    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -357,8 +351,6 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
-        "--grad_clip_norm",
-        args.grad_clip_norm,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
     ]
