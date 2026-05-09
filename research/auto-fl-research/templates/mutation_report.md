@@ -482,3 +482,5 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty scored candidates since the literature reset.
 - Upper exact-step local-compute continuation missed: `local_train_steps=1152` scored 0.913200 and `1280` scored 0.914900, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-two scored candidates since the literature reset.
+- Lower exact-step local-compute continuation missed: `local_train_steps=512` scored 0.913600 and `384` scored 0.908100, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-four scored candidates since the literature reset.
