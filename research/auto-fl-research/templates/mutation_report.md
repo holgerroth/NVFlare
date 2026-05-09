@@ -565,3 +565,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the literature reset.
 - FedProx `mu` continuation missed: `fedproxloss_mu=5e-5` scored 0.914100 and `7.5e-5` scored 0.912100, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-three scored candidates since the literature reset.
+- Server-learning-rate continuation missed: `server_lr=1.7` scored 0.915500 and `1.9` scored 0.914400, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-five scored candidates since the literature reset.
