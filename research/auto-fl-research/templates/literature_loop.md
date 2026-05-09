@@ -155,6 +155,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both follow-up rows were finalized as `discard`; `sam_rho=0.05` remains the active SAM radius.
 - Local-compute bracket under SAM missed: `aggregation_epochs=6` scored 0.917900 and `aggregation_epochs=8` scored 0.918900.
 - Both local-compute rows were finalized as `discard`; `aggregation_epochs=7` remains active for the SAM stack.
+- Client-LR bracket under SAM missed: `lr=0.04` scored 0.918800 and `lr=0.05` scored 0.922200.
+- Both LR rows were finalized as `discard`; `lr=0.045` remains active for the SAM stack.
 
 ---
 
