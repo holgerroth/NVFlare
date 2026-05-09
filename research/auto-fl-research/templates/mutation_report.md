@@ -644,3 +644,9 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Hypothesis: client-local ERM on label-skewed sites is landing in sharp local minima; a default-off FedSAM-style `--sam_rho` knob can favor flatter local updates while preserving DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, fixed model keys, data splits, and cross-site evaluation.
 - Selected next candidates: active best stack plus `--sam_rho 0.02`, and active best stack plus `--sam_rho 0.05`; local SWA remains a reserve if SAM fails only on cost or shows a near-best signal.
 - Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `--sam_rho 0.02` smoke passed before launching full candidates.
+
+## Batch Outcome
+
+- FedSAM `sam_rho=0.02` scored 0.914800 and was marked `discard`.
+- FedSAM `sam_rho=0.05` scored 0.923900 and was marked `keep`, becoming the new active high-water mark.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` and reset on material improvement at row 427.

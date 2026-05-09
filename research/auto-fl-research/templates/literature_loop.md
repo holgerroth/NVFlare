@@ -146,6 +146,12 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Sources to carry forward: Qu22 FedSAM; Foret21 SAM; Izmailov18 SWA.
 - Validation: default-off `sam_rho` branch passed `make validate`, `make smoke`, and a no-ledger `--sam_rho 0.02` smoke.
 
+## Batch outcome
+
+- FedSAM `sam_rho=0.02` scored 0.914800 and was finalized as `discard`.
+- FedSAM `sam_rho=0.05` scored 0.923900 and was finalized as `keep`, making SAM the active branch.
+- Watchdog reset on the material improvement at row 427 with `recommendation=continue`.
+
 ---
 
 # Literature loop 2026-05-09 local occlusion augmentation
