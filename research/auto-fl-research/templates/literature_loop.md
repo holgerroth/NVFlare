@@ -177,6 +177,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Keep `class_balanced_loss_beta=0.90` in the active SAM stack.
 - Tight radius bracket under SAM missed: `sam_rho=0.0475` scored 0.917600 and `0.0525` scored 0.920900.
 - Both tight radius rows were finalized as `discard`; `sam_rho=0.05` remains active.
+- Exact-step bracket under SAM missed: `local_train_steps=704` scored 0.919200 and `768` scored 0.920500.
+- Both exact-step rows were finalized as `discard`; epoch-based `aggregation_epochs=7` remains active for the SAM stack.
 
 ---
 

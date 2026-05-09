@@ -676,3 +676,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-two scored candidates since the SAM improvement.
 - Tight SAM radius bracket missed: `sam_rho=0.0475` scored 0.917600 and `0.0525` scored 0.920900; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-four scored candidates since the SAM improvement.
+- SAM exact-step bracket missed: `local_train_steps=704` scored 0.919200 and `768` scored 0.920500; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-six scored candidates since the SAM improvement.
