@@ -151,6 +151,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - FedSAM `sam_rho=0.02` scored 0.914800 and was finalized as `discard`.
 - FedSAM `sam_rho=0.05` scored 0.923900 and was finalized as `keep`, making SAM the active branch.
 - Watchdog reset on the material improvement at row 427 with `recommendation=continue`.
+- Radius bracket follow-up missed: `sam_rho=0.04` scored 0.917800 and `sam_rho=0.06` scored 0.920700.
+- Both follow-up rows were finalized as `discard`; `sam_rho=0.05` remains the active SAM radius.
 
 ---
 

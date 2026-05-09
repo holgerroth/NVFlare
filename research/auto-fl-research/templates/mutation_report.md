@@ -650,3 +650,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - FedSAM `sam_rho=0.02` scored 0.914800 and was marked `discard`.
 - FedSAM `sam_rho=0.05` scored 0.923900 and was marked `keep`, becoming the new active high-water mark.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` and reset on material improvement at row 427.
+- SAM radius bracket missed: `sam_rho=0.04` scored 0.917800 and `sam_rho=0.06` scored 0.920700; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the SAM improvement.
