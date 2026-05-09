@@ -494,3 +494,44 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the literature reset.
 - Class-balanced beta midpoint missed: `class_balanced_loss_beta=0.9125` scored 0.910400 and was discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the literature reset; stop local jitter and run the literature loop before the next candidates.
+
+---
+
+# Literature Loop 2026-05-09 FedNova Normalized Aggregation
+
+## Hypothesis
+
+The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, local-compute, and class-imbalance sweeps. The cached Dirichlet split is highly uneven across clients, so naive step-weighted DIFF aggregation may still carry objective inconsistency from unequal local trajectories. A FedNova-style server aggregator can normalize each client DIFF by `NUM_STEPS_CURRENT_ROUND`, rescale by the weighted mean local steps, and preserve the existing FLModel DIFF contract.
+
+## Sources
+
+- Wang et al., "Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization", NeurIPS 2020, arXiv:2007.07481, https://arxiv.org/abs/2007.07481. This motivates normalized averaging to remove objective inconsistency from heterogeneous local update counts.
+- Cheng et al., "Momentum Benefits Non-IID Federated Learning Simply and Provably", ICLR 2024, arXiv:2306.16504, https://arxiv.org/abs/2306.16504. This supports keeping a momentum variant in reserve if pure normalized aggregation is near-best.
+- Karimireddy et al., "SCAFFOLD: Stochastic Controlled Averaging for Federated Learning", ICML 2020, arXiv:1910.06378, https://arxiv.org/abs/1910.06378. Rejected for the next batch because current-stack SCAFFOLD already scored 0.906600.
+- Reddi et al., "Adaptive Federated Optimization", ICLR 2021, arXiv:2003.00295, https://arxiv.org/abs/2003.00295. Rejected for the next batch because FedAdam variants were poor or crashy in this harness.
+
+## Files changed
+
+- `custom_aggregators.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Contract check
+
+- `fednova` is a server-side aggregator only; clients still receive full params, load with `strict=True`, compute `compute_model_diff`, send `ParamsType.DIFF`, and preserve `NUM_STEPS_CURRENT_ROUND`.
+- The new aggregator uses the existing DIFF keys and existing local-step metadata; it adds no client metadata, no model keys, no dependencies, no data changes, and no evaluation changes.
+- When all clients take the same number of local steps, the normalized update reduces to the existing weighted FedAvg DIFF.
+
+## Validation
+
+- `PYTHON=.venv/bin/python make validate` passed.
+- `PYTHON=.venv/bin/python make smoke` passed.
+- No-ledger one-round FedNova smoke passed with `--aggregator fednova --server_lr 1.0 --server_momentum 0.0`.
+
+## Selected batch
+
+- P1: active class-balanced FedZMG client stack plus `--aggregator fednova --server_lr 1.0 --server_momentum 0.0`, description tagged `[src: Wang20 FedNova NeurIPS]`.
+- P2: active class-balanced FedZMG client stack plus `--aggregator fednova --server_lr 1.8 --server_momentum 0.0`, same source tag.
+- Reserve: `--aggregator fednova --server_lr 1.0 --server_momentum 0.475`, tagged `[src: Wang20 FedNova NeurIPS; Cheng24 Momentum ICLR]`, only if P1/P2 are close enough to justify the momentum variant.

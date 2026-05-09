@@ -71,6 +71,89 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-09 FedNova normalized aggregation
+
+## Trigger
+
+- Reason: watchdog `recommendation=literature` after 32 scored non-crash candidates since the class-balanced beta `0.90` improvement at row 309.
+- Current best: 0.918600, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: beta, FedProx, LR, momentum, weight decay, scheduler floor, local-compute, FedAvg, median, SCAFFOLD, and upper server-LR sweeps all regressed; `server_lr=2.6` crashed before a comparable score.
+- Confirmed null/worse ideas to avoid: current-stack FedProx brackets, SCAFFOLD, FedAdam, median aggregation, focal loss, LDAM, FedLC/FedRS/logit-prior variants, self-distillation, update clipping, SAM, and scalar beta/LR/momentum jitter.
+- Candidate width: run width 1 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`, because recent width-2 NVFlare runs exposed communication failures.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning local steps objective inconsistency FedNova non IID | recent epoch and exact-step sweeps show local-compute sensitivity and split sizes differ strongly by site | web search, arXiv, NeurIPS | Wang20 FedNova directly targets objective inconsistency from heterogeneous local updates. |
+| federated learning non-IID client drift control variates SCAFFOLD | compare FedNova against already-implemented drift correction family and avoid repeat nulls | web search, arXiv | SCAFFOLD is relevant but already scored 0.906600 on the current class-balanced stack. |
+| momentum benefits non-IID federated learning FedAvg SCAFFOLD | current best depends on server momentum; need source support for a momentum variant if pure FedNova under-scales | web search, arXiv, ICLR/OpenReview | Cheng24 supports momentum as a heterogeneity aid, but candidate should stay a small FedNova variant. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Wang20 | Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization / 2020 | https://arxiv.org/abs/2007.07481 | variable local steps and heterogeneous data bias naive averaging | FedNova normalized averaging | keep |
+| Cheng24 | Momentum Benefits Non-IID Federated Learning Simply and Provably / 2024 | https://arxiv.org/abs/2306.16504 | FedAvg/SCAFFOLD convergence under data heterogeneity | momentum variants | keep as FedNova momentum variant support |
+| Karimireddy20 | SCAFFOLD: Stochastic Controlled Averaging for Federated Learning / 2020 | https://arxiv.org/abs/1910.06378 | client drift under heterogeneous data | control variates | reject for next batch: current-stack SCAFFOLD scored 0.906600 |
+| Reddi21 | Adaptive Federated Optimization / 2021 | https://arxiv.org/abs/2003.00295 | FedAvg tuning/convergence under heterogeneity | FedOpt/FedAdam | reject: FedAdam was repeatedly poor or crashed |
+| Zantalis26 | FedZMG: Efficient Client-Side Optimization in Federated Learning / 2026 | https://arxiv.org/abs/2602.18384 | client drift from biased local gradients | zero-mean gradients | keep only as active-stack context; already in best |
+| Cui19 | Class-Balanced Loss Based on Effective Number of Samples / 2019 | https://openaccess.thecvf.com/content_CVPR_2019/html/Cui_Class-Balanced_Loss_Based_on_Effective_Number_of_Samples_CVPR_2019_paper.html | class imbalance | effective-number local loss | keep only as active-stack context; beta refinements now null |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Objective inconsistency from unequal local work | Wang20 argues naive averaging can converge to a mismatched objective when local update counts vary and proposes normalized averaging | site split sizes range from 2013 to 8302 samples; local-compute sweeps and exact-step variants regressed | current weighted aggregation uses `NUM_STEPS_CURRENT_ROUND` as weight but does not normalize each client DIFF by its local trajectory length | `custom_aggregators.py`, `job.py` |
+| C2 | Momentum helps heterogeneity but scalar momentum jitter is exhausted | Cheng24 supports momentum as a simple non-IID convergence aid | current high-water depends on FedAvgM, but scalar server/client momentum brackets all missed | add momentum only as a FedNova variant, not another FedAvgM jitter run | `custom_aggregators.py`, CLI |
+| C3 | Drift-control/adaptive-server repeats are confirmed nulls | Karimireddy20 and Reddi21 motivate SCAFFOLD/FedOpt, but local evidence matters | current-stack SCAFFOLD 0.906600, median 0.884800, FedAdam poor/crashy | reject these despite paper relevance; choose a distinct normalized-aggregation mechanism | ledger filter, `templates/literature_loop.md` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedNova normalized DIFF aggregation | Wang20 FedNova | add `--aggregator fednova`; run active stack with `--server_lr 1.0 --server_momentum 0.0` | reduce bias from unequal client local steps while preserving all DIFF keys | score <= 0.918600 or severe under-scaling | low, server-local aggregation over existing DIFFs and `NUM_STEPS_CURRENT_ROUND` |
+| P2 | FedNova with server LR rescale | Wang20 FedNova | same as P1 but `--server_lr 1.8 --server_momentum 0.0` | compensate if normalized updates are too small relative to active FedAvgM stack | score <= pure FedNova or instability | low, same aggregator with scalar multiplier |
+| P3 | FedNova with momentum | Wang20 FedNova; Cheng24 momentum | `--aggregator fednova --server_lr 1.0 --server_momentum 0.475` | combine normalized local-work correction with the momentum property that helped this campaign | score <= P1/P2 or oscillation | low-medium, persistent server velocity but no protocol change |
+| P4 | Revisit SCAFFOLD/FedAdam | Karimireddy20; Reddi21 | CLI-only aggregation swap | none expected after nulls | any score below current best confirms reject | rejected before scoring; duplicate null conflict |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | no exact duplicate; `fednova` not previously available | differs from weighted/FedAvg/FedAvgM because it normalizes each DIFF by local steps | select |
+| P2 | P1 variant | scalar server-LR jitter was null for FedAvgM, but this rescales a new normalized aggregator | select after P1 if P1 under-scales or as paired variant |
+| P3 | P1 variant plus momentum | scalar momentum jitter was null, but momentum is applied after step normalization | reserve unless P1/P2 near best |
+| P4 | current-stack SCAFFOLD/FedAdam/median rows | SCAFFOLD 0.906600, median 0.884800, FedAdam poor/crashy | reject |
+
+## Proposal scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 pure FedNova | 4 | 5 | 4 | 5 | 5 | 1 | 31 |
+| P2 FedNova lr rescale | 3 | 5 | 4 | 4 | 4 | 1 | 27 |
+| P3 FedNova momentum | 3 | 4 | 3 | 4 | 4 | 1 | 24 |
+| P4 SCAFFOLD/FedAdam repeat | 1 | 4 | 5 | 5 | 1 | 1 | 20 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fednova_lr10_m0_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_w1` | active best client stack plus `--aggregator fednova --server_lr 1.0 --server_momentum 0.0` |
+| 2 | P2 | `fednova_lr18_m0_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_w1` | active best client stack plus `--aggregator fednova --server_lr 1.8 --server_momentum 0.0` |
+| 3 | P3 reserve | `fednova_lr10_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_w1` | run only if P1/P2 are close enough to justify momentum |
+| 4 | reserve |  | keep empty at width 1 to avoid NVFlare contention |
+
+## Reflective memory
+
+- Keep: FedNova is the next source-backed branch because it targets unequal client local-work normalization, a different failure mode from loss reweighting and FedAvgM scalar tuning.
+- Discard: paper-relevant but locally nulled SCAFFOLD/FedAdam/median repeats.
+- Do not retry: class-balanced beta, LDAM, focal, FedProx, local-compute, scheduler floor, and scalar FedAvgM jitter without a new implementation-level mechanism.
+- Sources to carry forward: Wang20 FedNova, Cheng24 momentum, Zantalis26 FedZMG, Cui19 class-balanced loss.
+
+---
+
 # Literature loop 2026-05-07 plateau after row 80
 
 ## Trigger

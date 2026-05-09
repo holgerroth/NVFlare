@@ -31,6 +31,7 @@ from custom_aggregators import (
     FedAdamAggregator,
     FedAvgAggregator,
     FedAvgMAggregator,
+    FedNovaAggregator,
     MedianAggregator,
     ScaffoldAggregator,
     WeightedAggregator,
@@ -146,6 +147,7 @@ def define_parser():
             "fedavgm",
             "fedadam",
             "fedopt",
+            "fednova",
             "scaffold",
             "median",
             "default",
@@ -153,8 +155,8 @@ def define_parser():
         help=(
             "weighted/fedavg=data-size weighted FedAvg, fedavgm/fedopt=server momentum "
             "over aggregated DIFFs, fedadam=server Adam over aggregated DIFFs, "
-            "scaffold=SCAFFOLD with control-variate meta, median=robust median, "
-            "default=built-in FedAvg"
+            "fednova=step-normalized FedNova-style DIFF averaging, scaffold=SCAFFOLD "
+            "with control-variate meta, median=robust median, default=built-in FedAvg"
         ),
     )
     parser.add_argument(
@@ -263,6 +265,12 @@ def get_aggregator(args):
             beta1=args.fedopt_beta1,
             beta2=args.fedopt_beta2,
             tau=args.fedopt_tau,
+        )
+    if kind == "fednova":
+        print("Using FedNovaAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
+        return FedNovaAggregator(
+            server_lr=args.server_lr,
+            server_momentum=args.server_momentum,
         )
     if kind == "scaffold":
         print("Using ScaffoldAggregator")
