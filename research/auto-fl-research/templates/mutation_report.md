@@ -405,4 +405,5 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Tight beta refinement around the kept class-balanced setting missed: beta `0.895` scored 0.913000 and beta `0.905` scored 0.911400, both discarded.
 - Component ablations around beta `0.90` missed: removing FedProx scored 0.914900, and removing zero-mean gradients scored 0.901500, both discarded. Keep both `--fedproxloss_mu 3e-5` and `--zero_mean_gradients` in the active stack.
 - Lower local-compute sweep around beta `0.90` missed: `aggregation_epochs=4` scored 0.907700 and `aggregation_epochs=5` scored 0.910400, both discarded. Keep `aggregation_epochs=7` as the active local-compute setting.
-- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with 28 scored candidates since the row 309 material improvement.
+- Aggregation-mode audit around beta `0.90` missed: median aggregation scored 0.884800 and SCAFFOLD metadata mode scored 0.906600, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with 30 scored candidates since the row 309 material improvement.
