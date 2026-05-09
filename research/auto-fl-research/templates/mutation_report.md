@@ -462,3 +462,5 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `--ldam_max_margin 0.50` scored 0.911300.
 - Both were marked `discard`; remove the LDAM knob and do not retry LDAM on this beta `0.90` stack without a materially different paper-backed schedule or representation change.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.
+- Exact-step continuation after LDAM removal missed: `local_train_steps=896` scored 0.910100 and `1000` scored 0.914700, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the literature reset.
