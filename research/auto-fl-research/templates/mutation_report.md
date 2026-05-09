@@ -682,3 +682,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-eight scored candidates since the SAM improvement.
 - Upper SAM radius check missed: `sam_rho=0.075` scored 0.922900 and `0.1` scored 0.920600; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the SAM improvement.
+- Final pre-watchdog SAM checks missed: scheduler-off scored 0.763200 and SCAFFOLD mode scored 0.912100; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the SAM improvement.

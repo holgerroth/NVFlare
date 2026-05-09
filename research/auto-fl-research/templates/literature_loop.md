@@ -183,6 +183,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both aggregation rows were finalized as `discard`; FedAvgM remains active for the SAM stack.
 - Upper radius check under SAM missed: `sam_rho=0.075` scored 0.922900 and `0.1` scored 0.920600.
 - Both upper-radius rows were finalized as `discard`; `sam_rho=0.05` remains active.
+- Final pre-watchdog checks under SAM missed: scheduler-off scored 0.763200 and SCAFFOLD mode scored 0.912100.
+- Watchdog reached `recommendation=literature` after thirty-two scored candidates since the row 427 SAM improvement.
 
 ---
 
