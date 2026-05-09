@@ -403,4 +403,5 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Exact-step local training around beta `0.90` missed: `local_train_steps=640` scored 0.909000 and `768` scored 0.913000, both discarded. One 768 launch hit a pre-training pycache race and was retried with an isolated `PYTHONPYCACHEPREFIX`.
 - FedAvg comparison around beta `0.90` missed badly: built-in FedAvg scored 0.898100 and weighted FedAvg scored 0.898000, both discarded.
 - Tight beta refinement around the kept class-balanced setting missed: beta `0.895` scored 0.913000 and beta `0.905` scored 0.911400, both discarded.
-- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with 24 scored candidates since the row 309 material improvement.
+- Component ablations around beta `0.90` missed: removing FedProx scored 0.914900, and removing zero-mean gradients scored 0.901500, both discarded. Keep both `--fedproxloss_mu 3e-5` and `--zero_mean_gradients` in the active stack.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with 26 scored candidates since the row 309 material improvement.
