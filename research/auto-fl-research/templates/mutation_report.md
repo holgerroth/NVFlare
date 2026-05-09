@@ -590,3 +590,9 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Both source-backed local regularization candidates were marked `discard`.
 - The default-off mixup and label-smoothing code/schema additions were removed after review because the mechanism underfit badly relative to the 0.918600 high-water mark.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.
+
+## Hypothesis: Client Gradient Clipping
+
+- Source basis: Zhang et al., "Understanding Clipping for Federated Learning" (2021, https://arxiv.org/abs/2106.13673) supports clipping as a heterogeneity-control mechanism; prior nulls were server update clipping, not per-step client gradient clipping.
+- Proposed change: add a default-off `--grad_clip_norm` client knob and test norms `1.0` and `5.0` on the active class-balanced FedZMG stack.
+- Expected effect: suppress rare high-norm local optimizer steps from label-skewed clients without changing DIFF uploads, model keys, or `NUM_STEPS_CURRENT_ROUND`.
