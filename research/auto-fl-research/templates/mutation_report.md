@@ -703,3 +703,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the local-SWA literature reset.
 - Conservative FedAdam under the kept FedSAM stack (`server_lr=0.1`, `fedopt_tau=0.01`) crashed with NaN local losses and `Diff norm is NaN or Inf`; keep the active FedAvgM server optimizer.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`; the FedAdam crash did not add a scored candidate after the local-SWA literature reset.
+- Client-LR fine bracket missed: `lr=0.0475` scored 0.917800 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with five scored candidates since the local-SWA literature reset.
