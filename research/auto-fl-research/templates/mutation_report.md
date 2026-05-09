@@ -670,3 +670,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eighteen scored candidates since the SAM improvement.
 - SAM client-momentum bracket missed: `momentum=0.9125` scored 0.921700 and `0.9375` scored 0.919900; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty scored candidates since the SAM improvement.
+- SAM zero-mean-gradient ablation scored 0.907400 and was marked `discard`; keep `--zero_mean_gradients` in the active SAM stack.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the SAM improvement.

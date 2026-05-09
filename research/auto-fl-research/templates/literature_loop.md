@@ -171,6 +171,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both weight-decay rows were finalized as `discard`; `weight_decay=5e-4` remains active for the SAM stack.
 - Client-momentum bracket under SAM missed: `momentum=0.9125` scored 0.921700 and `0.9375` scored 0.919900.
 - Both client-momentum rows were finalized as `discard`; `momentum=0.925` remains active for the SAM stack.
+- Zero-mean-gradient ablation under SAM scored 0.907400 and was finalized as `discard`.
+- Keep `--zero_mean_gradients` in the active SAM stack.
 
 ---
 
