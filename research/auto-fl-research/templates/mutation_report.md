@@ -613,3 +613,9 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 
 - Proposed change: add a default-off `--nesterov` client optimizer toggle and test it under the active class-balanced FedZMG stack.
 - Expected effect: use the same momentum magnitude but look ahead in the local SGD update, which may help the current high-momentum client optimizer without changing the federated protocol.
+
+## Batch Outcome
+
+- Client Nesterov momentum scored 0.908600 and was marked `discard`.
+- The default-off Nesterov code/schema additions were removed after review.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seven scored candidates since the literature reset.
