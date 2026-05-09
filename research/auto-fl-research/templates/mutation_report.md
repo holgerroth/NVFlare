@@ -406,4 +406,5 @@ FedZMG improved update geometry, but the plateau after 32 non-improving candidat
 - Component ablations around beta `0.90` missed: removing FedProx scored 0.914900, and removing zero-mean gradients scored 0.901500, both discarded. Keep both `--fedproxloss_mu 3e-5` and `--zero_mean_gradients` in the active stack.
 - Lower local-compute sweep around beta `0.90` missed: `aggregation_epochs=4` scored 0.907700 and `aggregation_epochs=5` scored 0.910400, both discarded. Keep `aggregation_epochs=7` as the active local-compute setting.
 - Aggregation-mode audit around beta `0.90` missed: median aggregation scored 0.884800 and SCAFFOLD metadata mode scored 0.906600, both discarded.
+- Broader scheduler-floor width-2 sweep crashed due a shared NVFlare communication failure: eta `0.0005` and eta `0.001` both timed out at 1200 seconds with target-unreachable / failed-download errors. Retry this scheduler axis at width 1 before treating it as a scored model result.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with 30 scored candidates since the row 309 material improvement.
