@@ -71,6 +71,89 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-09 local occlusion augmentation
+
+## Trigger
+
+- Reason: watchdog is still `recommendation=continue`, but after Nesterov, architecture variants, client clipping, label smoothing, mixup, FedNova, and scalar optimizer/loss sweeps, no clear non-duplicate safe local axis remains.
+- Current best: 0.918600, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: mixup 0.912200, label smoothing 0.912600, client grad clipping 0.897200/0.915200, architecture variants 0.911600/0.911800, Nesterov 0.908600.
+- Confirmed null/worse ideas to avoid: standalone mixup and label smoothing, client/server update clipping, Nesterov, registered architecture variants, FedNova, SCAFFOLD, FedAdam, median aggregation, focal/LDAM/FedLC/FedRS/logit-prior/self-distillation, and scalar FedAvgM/FedProx/local-compute jitter.
+- Candidate width: run width 1 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`, because width-2 NVFlare runs previously exposed communication failures.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| Cutout regularization convolutional neural networks CIFAR arXiv 1708.04552 | find a local augmentation distinct from failed mixup/label smoothing | arXiv, web search | Cutout targets overfitting with square masking and reports CIFAR gains. |
+| CutMix regularization strong classifiers CIFAR arXiv 1905.04899 | compare patch reuse versus patch deletion after mixup failed | arXiv, web search | CutMix is stronger but label-mixing repeats the failed mixup-style target path. |
+| Random Erasing Data Augmentation arXiv 1708.04896 image classification | check a close alternative to Cutout with random rectangles | arXiv, web search | Random erasing supports occlusion robustness with no protocol change. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| DeVries17 | Improved Regularization of Convolutional Neural Networks with Cutout / 2017 | https://arxiv.org/abs/1708.04552 | CNN overfitting on image classification; regularization beyond crop/flip | square occlusion augmentation | keep |
+| Zhong17 | Random Erasing Data Augmentation / 2017 | https://arxiv.org/abs/1708.04896 | overfitting and occlusion sensitivity in image classifiers | random rectangle erasing | keep as supporting variant |
+| Yun19 | CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features / 2019 | https://arxiv.org/abs/1905.04899 | regional dropout loses information; patch replacement can preserve pixels | patch replacement with label mixing | keep as context, reserve due label mixing |
+| Zhang18 | mixup: Beyond Empirical Risk Minimization / 2018 | https://arxiv.org/abs/1710.09412 | vicinal regularization and memorization | convex sample/label mixing | reject: local mixup already scored 0.912200 |
+| Muller19 | When Does Label Smoothing Help? / 2019 | https://arxiv.org/abs/1906.02629 | overconfidence and calibration | target smoothing | reject: smoothing already scored 0.912600 |
+| Li21 | FedBN / 2021 | https://arxiv.org/abs/2102.07623 | feature-shift non-IID | local normalization | reject: architecture/protocol comparability issue in this campaign |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Overfitting despite standard crop/flip | DeVries17 shows square input masking complements existing augmentation and improves CIFAR/SVHN robustness | scalar optimizer/loss and architecture searches no longer approach the 0.918600 high-water mark | add local masking after the existing data transform without editing `data/*` | `client.py`, `job.py` |
+| C2 | Occlusion/shortcut sensitivity under class skew | Zhong17 frames random erasing as generating occluded examples that reduce overfitting | class-balanced loss helps but local clients may still learn class-specific shortcuts | per-batch cutout can regularize client updates while preserving DIFF uploads | `client.py`, `job.py` |
+| C3 | Patch mixing may be too close to failed mixup | Yun19 supports patch replacement, but label mixing repeats a path that failed locally | mixup `alpha=0.2` scored 0.912200 | prefer label-preserving cutout before implementing CutMix | duplicate/null filter |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Local Cutout, small mask | DeVries17; Zhong17 | add `--cutout_size`; run active stack with `--cutout_size 8` | regularize local image shortcuts while preserving labels | score <= 0.916100 near-miss or clear underfitting | low, client-local tensor masking only |
+| P2 | Local Cutout, medium mask | DeVries17 | same code with `--cutout_size 12` | stronger augmentation if size 8 is too weak | score below P1 or severe underfitting | low |
+| P3 | Random-erasing probability/area variant | Zhong17 | future `--random_erasing_prob` if Cutout is near-best | more diverse occlusion shapes | no gain over Cutout | low-medium, more knobs |
+| P4 | CutMix | Yun19 | future `--cutmix_alpha` only if Cutout helps | preserve pixels while using patch-level mixing | repeats mixup underfit | medium, label mixing complexity |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | no existing `cutout_size` arg or row | different from mixup/label smoothing because labels stay hard | select |
+| P2 | P1 variant | may underfit if masking too large | select paired severity check |
+| P3 | P1 family | defer until Cutout shows signal | reserve |
+| P4 | mixup-style label mixing | mixup already scored 0.912200 | reject for next batch |
+
+## Proposal scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 Cutout size 8 | 3 | 5 | 5 | 4 | 5 | 1 | 29 |
+| P2 Cutout size 12 | 3 | 5 | 5 | 4 | 4 | 1 | 28 |
+| P3 Random erasing | 2 | 5 | 3 | 4 | 4 | 1 | 24 |
+| P4 CutMix | 2 | 4 | 2 | 5 | 3 | 2 | 20 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_cutout8_w1` | active best stack plus `--cutout_size 8` |
+| 2 | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_cutout12_w1` | active best stack plus `--cutout_size 12` |
+| 3 | reserve |  | no launch unless Cutout is near-best |
+| 4 | reserve |  | keep empty at width 1 to avoid NVFlare contention |
+
+## Reflective memory
+
+- Keep: local occlusion augmentation is distinct from the failed target-mixing regularizers and does not require data or protocol edits.
+- Discard: CutMix for now because label mixing overlaps with failed mixup and is more complex.
+- Do not retry: standalone mixup, label smoothing, Nesterov, client/server clipping, and architecture variants on this active stack.
+- Sources to carry forward: DeVries17 Cutout, Zhong17 Random Erasing, Yun19 CutMix.
+
+---
+
 # Literature loop 2026-05-09 local vicinal regularization
 
 ## Trigger

@@ -33,6 +33,7 @@ mutable_args:
   weight_decay: {type: float, min: 0.0, max: 0.001, log_scale: true}
   no_lr_scheduler: {type: bool}
   cosine_lr_eta_min_factor: {type: float, min: 0.0001, max: 0.1, log_scale: true}
+  cutout_size: {type: int, min: 0, max: 16}
   evaluate_local: {type: bool}
   fedproxloss_mu: {type: float, min: 0.0, max: 1.0, log_scale: true}
   zero_mean_gradients: {type: bool}

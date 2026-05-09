@@ -619,3 +619,10 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Client Nesterov momentum scored 0.908600 and was marked `discard`.
 - The default-off Nesterov code/schema additions were removed after review.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seven scored candidates since the literature reset.
+
+## Literature Basis: Local Occlusion Augmentation
+
+- Trigger: no clear non-duplicate safe local axis remained after the post-literature regularization, clipping, architecture, and optimizer-toggle nulls.
+- Sources: DeVries and Taylor, "Improved Regularization of Convolutional Neural Networks with Cutout" (2017, https://arxiv.org/abs/1708.04552); Zhong et al., "Random Erasing Data Augmentation" (2017, https://arxiv.org/abs/1708.04896); Yun et al., "CutMix" (2019, https://arxiv.org/abs/1905.04899).
+- Hypothesis: label-preserving local occlusion may regularize class-skewed clients differently from failed target-mixing methods, while preserving the FL contract and avoiding `data/*` edits.
+- Selected next candidates: active best stack plus `--cutout_size 8`, and active best stack plus `--cutout_size 12`. CutMix is rejected for now because local mixup already underfit.

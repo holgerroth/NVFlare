@@ -106,6 +106,7 @@ def define_parser():
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
+    parser.add_argument("--cutout_size", type=int, default=0, help="Square cutout mask size forwarded to clients.")
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -349,6 +350,8 @@ def main():
         args.weight_decay,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
+        "--cutout_size",
+        args.cutout_size,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
         "--class_balanced_loss_beta",
