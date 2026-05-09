@@ -602,3 +602,9 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Client gradient clipping missed: `grad_clip_norm=1.0` scored 0.897200 and `5.0` scored 0.915200, both discarded.
 - The default-off clipping code/schema additions were removed after review because even the looser norm remained below the 0.918600 high-water mark.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the literature reset.
+
+## Architecture Subcampaign Outcome
+
+- Registered architecture audit under the active optimizer stack missed: `moderate_cnn_norm` scored 0.911600 and `moderate_cnn_small_head` scored 0.911800.
+- Both were marked `discard`; the original `moderate_cnn` remains the active architecture for this run.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with six scored candidates since the literature reset.
