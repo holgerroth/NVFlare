@@ -608,3 +608,8 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Registered architecture audit under the active optimizer stack missed: `moderate_cnn_norm` scored 0.911600 and `moderate_cnn_small_head` scored 0.911800.
 - Both were marked `discard`; the original `moderate_cnn` remains the active architecture for this run.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with six scored candidates since the literature reset.
+
+## Hypothesis: Nesterov Client Momentum
+
+- Proposed change: add a default-off `--nesterov` client optimizer toggle and test it under the active class-balanced FedZMG stack.
+- Expected effect: use the same momentum magnitude but look ahead in the local SGD update, which may help the current high-momentum client optimizer without changing the federated protocol.
