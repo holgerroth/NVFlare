@@ -133,6 +133,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both rows were finalized as `discard`; the default-off SWA knob was removed from `client.py`, `job.py`, and `mutation_schema.yaml`.
 - Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
 - Watchdog reported `recommendation=continue` with two scored candidates since the local-SWA literature reset.
+- SAM architecture subcampaign missed: `moderate_cnn_norm` scored 0.916000 and `moderate_cnn_small_head` scored 0.917800.
+- Both architecture rows were finalized as `discard`; `moderate_cnn` remains active for the SAM stack.
 
 ---
 

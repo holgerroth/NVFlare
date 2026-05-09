@@ -699,3 +699,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - The default-off local SWA code/schema additions were removed after review because neither averaging window approached the 0.923900 high-water mark.
 - Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the local-SWA literature reset.
+- SAM architecture subcampaign missed: `moderate_cnn_norm` scored 0.916000 and `moderate_cnn_small_head` scored 0.917800; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the local-SWA literature reset.
