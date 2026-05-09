@@ -701,3 +701,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the local-SWA literature reset.
 - SAM architecture subcampaign missed: `moderate_cnn_norm` scored 0.916000 and `moderate_cnn_small_head` scored 0.917800; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the local-SWA literature reset.
+- Conservative FedAdam under the kept FedSAM stack (`server_lr=0.1`, `fedopt_tau=0.01`) crashed with NaN local losses and `Diff norm is NaN or Inf`; keep the active FedAvgM server optimizer.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`; the FedAdam crash did not add a scored candidate after the local-SWA literature reset.
