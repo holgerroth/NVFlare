@@ -692,3 +692,10 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Hypothesis: after SAM improved the local optimizer, averaging late local epoch endpoints may further bias each client DIFF toward a flatter local solution without changing model keys, communication budget, data splits, or evaluation.
 - Selected next candidates: active SAM stack plus `--local_swa_start_frac 0.5`, and active SAM stack plus `--local_swa_start_frac 0.75`.
 - Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `--local_swa_start_frac 0.5` smoke passed before launching full candidates.
+
+## Batch Outcome
+
+- Local SWA missed: `local_swa_start_frac=0.5` scored 0.919300 and `0.75` scored 0.919900; both were marked `discard`.
+- The default-off local SWA code/schema additions were removed after review because neither averaging window approached the 0.923900 high-water mark.
+- Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the local-SWA literature reset.

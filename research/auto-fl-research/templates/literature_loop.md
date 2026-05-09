@@ -127,6 +127,13 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Sources to carry forward: Izmailov18 SWA; Zhang19 Lookahead; Foret21 SAM; Qu22 FedSAM.
 - Validation: default-off `local_swa_start_frac` branch passed `make validate`, `make smoke`, and a no-ledger `--local_swa_start_frac 0.5` smoke.
 
+## Batch outcome
+
+- Local SWA missed: `local_swa_start_frac=0.5` scored 0.919300 and `0.75` scored 0.919900.
+- Both rows were finalized as `discard`; the default-off SWA knob was removed from `client.py`, `job.py`, and `mutation_schema.yaml`.
+- Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
+- Watchdog reported `recommendation=continue` with two scored candidates since the local-SWA literature reset.
+
 ---
 
 # Literature loop 2026-05-09 local sharpness minimization

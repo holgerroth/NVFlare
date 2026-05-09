@@ -25,7 +25,6 @@ Provenance:
 
 import argparse
 import copy
-import math
 import os
 import random
 import re
@@ -113,12 +112,6 @@ def build_parser():
         type=float,
         default=0.0,
         help="Sharpness-aware minimization perturbation radius. 0 disables SAM.",
-    )
-    parser.add_argument(
-        "--local_swa_start_frac",
-        type=float,
-        default=0.0,
-        help="Start fraction of local epochs for local stochastic weight averaging. 0 disables local SWA.",
     )
     parser.add_argument(
         "--class_balanced_loss_beta",
@@ -323,21 +316,6 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
     return sam_loss.item()
 
 
-def _update_swa_state(swa_state, model, count):
-    state = model.state_dict()
-    if swa_state is None:
-        return {key: value.detach().clone() for key, value in state.items()}, 1
-
-    next_count = count + 1
-    for key, value in state.items():
-        value = value.detach()
-        if torch.is_floating_point(swa_state[key]):
-            swa_state[key].mul_(count / next_count).add_(value, alpha=1.0 / next_count)
-        else:
-            swa_state[key] = value.clone()
-    return swa_state, next_count
-
-
 def _class_counts_from_dataset(dataset, num_classes=10):
     targets = getattr(dataset, "targets", None)
     if targets is None:
@@ -404,12 +382,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
-    if args.local_swa_start_frac < 0.0 or args.local_swa_start_frac > 1.0:
-        raise ValueError("local_swa_start_frac must be in [0, 1]")
-    if args.local_swa_start_frac > 0.0 and args.local_train_steps > 0:
-        raise ValueError("local_swa_start_frac currently supports epoch-based training only")
-    if args.local_swa_start_frac > 0.0 and args.scaffold:
-        raise ValueError("local_swa_start_frac is not supported with scaffold control variates")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -464,8 +436,6 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
-    if args.local_swa_start_frac > 0.0:
-        print(f"{site_name}: local_swa_start_frac={args.local_swa_start_frac}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
@@ -542,12 +512,6 @@ def main(args):
 
         steps = args.local_train_steps if args.local_train_steps > 0 else args.aggregation_epochs * train_batches
         curr_lr = get_lr_values(optimizer)[0]
-        swa_state = None
-        swa_count = 0
-        swa_start_epoch = None
-        if args.local_swa_start_frac > 0.0:
-            swa_start_epoch = max(1, math.ceil(args.aggregation_epochs * args.local_swa_start_frac))
-
         if args.local_train_steps > 0:
             model.train()
             running_loss = 0.0
@@ -653,13 +617,6 @@ def main(args):
 
                 if scheduler is not None:
                     scheduler.step()
-
-                if swa_start_epoch is not None and epoch + 1 >= swa_start_epoch:
-                    swa_state, swa_count = _update_swa_state(swa_state, model, swa_count)
-
-        if swa_state is not None:
-            model.load_state_dict(swa_state, strict=True)
-            print(f"{site_name}: applied local_swa_count={swa_count}")
 
         if args.scaffold:
             scaffold_local_controls, scaffold_ctrl_diff = _update_scaffold_controls(
