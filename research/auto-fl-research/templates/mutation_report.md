@@ -476,3 +476,5 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fourteen scored candidates since the literature reset.
 - Broad FedProx continuation around beta `0.90` missed: `mu=1e-5` scored 0.911200 and `1e-4` scored 0.913700, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with sixteen scored candidates since the literature reset.
+- Scheduler-floor continuation around beta `0.90` missed: `cosine_lr_eta_min_factor=0.00005` scored 0.914000 and `0.00025` scored 0.913400, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eighteen scored candidates since the literature reset.
