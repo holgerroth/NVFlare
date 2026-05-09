@@ -157,6 +157,10 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - First-pass Cutout missed the active best: `cutout_size=8` scored 0.915600 and `cutout_size=12` scored 0.917500.
 - Both rows were finalized as `discard`; the size-12 near miss justifies a narrow 10/14 bracket before keeping or reverting the Cutout code.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the Cutout literature reset.
+- Follow-up Cutout missed as well: `cutout_size=10` scored 0.918400 and `cutout_size=14` scored 0.917000.
+- Both follow-up rows were finalized as `discard`; the default-off Cutout knob was removed from `client.py`, `job.py`, and `mutation_schema.yaml`.
+- Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the Cutout literature reset.
 
 ---
 

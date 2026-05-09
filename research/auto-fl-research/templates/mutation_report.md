@@ -632,3 +632,7 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - First-pass Cutout missed the 0.918600 high-water mark: `cutout_size=8` scored 0.915600 and `cutout_size=12` scored 0.917500; both were marked `discard`.
 - `cutout_size=12` is the closest post-literature result, so a narrow bracket at sizes 10 and 14 follows before deciding whether to keep or remove the default-off Cutout code.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the Cutout literature reset.
+- Follow-up Cutout also missed: `cutout_size=10` scored 0.918400 and `cutout_size=14` scored 0.917000; both were marked `discard`.
+- The default-off Cutout code/schema additions were removed after review because no mask size beat the 0.918600 high-water mark.
+- Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the Cutout literature reset.

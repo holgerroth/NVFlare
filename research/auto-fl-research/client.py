@@ -89,7 +89,6 @@ def build_parser():
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
-    parser.add_argument("--cutout_size", type=int, default=0, help="Square cutout mask size in pixels. 0 disables cutout.")
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -254,28 +253,6 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _apply_cutout(inputs, size):
-    if size <= 0:
-        return inputs
-    if inputs.dim() != 4:
-        raise ValueError("cutout expects image batches with shape NCHW")
-
-    _, _, height, width = inputs.shape
-    mask_size = min(size, height, width)
-    half = mask_size // 2
-    augmented = inputs.clone()
-    centers_y = torch.randint(0, height, (inputs.size(0),), device=inputs.device)
-    centers_x = torch.randint(0, width, (inputs.size(0),), device=inputs.device)
-
-    for index, (center_y, center_x) in enumerate(zip(centers_y.tolist(), centers_x.tolist())):
-        y1 = max(0, center_y - half)
-        y2 = min(height, y1 + mask_size)
-        x1 = max(0, center_x - half)
-        x2 = min(width, x1 + mask_size)
-        augmented[index, :, y1:y2, x1:x2] = 0.0
-    return augmented
-
-
 def _class_counts_from_dataset(dataset, num_classes=10):
     targets = getattr(dataset, "targets", None)
     if targets is None:
@@ -340,8 +317,6 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
-    if args.cutout_size < 0:
-        raise ValueError("cutout_size must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -394,9 +369,6 @@ def main(args):
             f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
             f"class_balanced_loss_beta={args.class_balanced_loss_beta}"
         )
-    if args.cutout_size > 0:
-        print(f"{site_name}: cutout_size={args.cutout_size}")
-
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
@@ -487,7 +459,6 @@ def main(args):
                     batch = next(loader_iter)
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
-                inputs = _apply_cutout(inputs, args.cutout_size)
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
@@ -543,7 +514,6 @@ def main(args):
 
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
-                    inputs = _apply_cutout(inputs, args.cutout_size)
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
