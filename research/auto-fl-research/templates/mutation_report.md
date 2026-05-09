@@ -472,3 +472,5 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with ten scored candidates since the literature reset.
 - Broad weight-decay endpoints around beta `0.90` missed badly: `weight_decay=0.0` scored 0.867900 and `1e-3` scored 0.905100, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twelve scored candidates since the literature reset.
+- Broad client-LR continuation around beta `0.90` missed: `lr=0.04` scored 0.912700 and `0.05` scored 0.914400, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fourteen scored candidates since the literature reset.
