@@ -571,3 +571,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-seven scored candidates since the literature reset.
 - Class-balanced beta upper-midpoint continuation missed: `class_balanced_loss_beta=0.9025` and `0.9075` both scored 0.914900, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-nine scored candidates since the literature reset.
+- Client-learning-rate midpoint continuation missed: `lr=0.04375` scored 0.916100 and `0.04625` scored 0.911800, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the literature reset.
