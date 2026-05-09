@@ -466,3 +466,5 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the literature reset.
 - Broad server-LR continuation around beta `0.90` missed: `server_lr=1.6` scored 0.914400 and `2.0` scored 0.914100, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with six scored candidates since the literature reset.
+- Broad server-momentum continuation around beta `0.90` missed: `server_momentum=0.40` scored 0.915100 and `0.55` scored 0.911900, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eight scored candidates since the literature reset.
