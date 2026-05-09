@@ -492,3 +492,5 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the literature reset.
 - Upper server-LR extension missed: `server_lr=2.4` scored 0.909700 and was discarded; `server_lr=2.6` crashed before a comparable cross-site score, so do not extend this upper edge further.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the literature reset.
+- Class-balanced beta midpoint missed: `class_balanced_loss_beta=0.9125` scored 0.910400 and was discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the literature reset; stop local jitter and run the literature loop before the next candidates.
