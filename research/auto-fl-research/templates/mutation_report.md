@@ -656,3 +656,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the SAM improvement.
 - SAM client-LR bracket missed: `lr=0.04` scored 0.918800 and `lr=0.05` scored 0.922200; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with six scored candidates since the SAM improvement.
+- SAM server-LR bracket missed: `server_lr=1.7` scored 0.920200 and `server_lr=1.9` scored 0.919700; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eight scored candidates since the SAM improvement.
