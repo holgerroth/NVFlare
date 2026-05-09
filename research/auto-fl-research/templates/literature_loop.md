@@ -181,6 +181,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both exact-step rows were finalized as `discard`; epoch-based `aggregation_epochs=7` remains active for the SAM stack.
 - Aggregation-family check under SAM missed: plain FedAvg scored 0.901200 and median aggregation scored 0.883700.
 - Both aggregation rows were finalized as `discard`; FedAvgM remains active for the SAM stack.
+- Upper radius check under SAM missed: `sam_rho=0.075` scored 0.922900 and `0.1` scored 0.920600.
+- Both upper-radius rows were finalized as `discard`; `sam_rho=0.05` remains active.
 
 ---
 
