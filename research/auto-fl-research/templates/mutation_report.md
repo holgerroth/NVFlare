@@ -543,3 +543,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - The default-off `fednova` aggregator code and schema choice were removed after review; do not retry FedNova on this stack without a materially different implementation or evidence.
 - Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.
+- Post-literature server-LR continuation missed: `server_lr=2.1` scored 0.913300 and was discarded; `server_lr=2.3` crashed before final cross-site scoring, matching the high-LR instability pattern.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with three scored candidates since the literature reset.
