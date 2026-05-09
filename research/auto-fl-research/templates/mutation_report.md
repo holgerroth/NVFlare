@@ -652,3 +652,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` and reset on material improvement at row 427.
 - SAM radius bracket missed: `sam_rho=0.04` scored 0.917800 and `sam_rho=0.06` scored 0.920700; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the SAM improvement.
+- SAM local-compute bracket missed: `aggregation_epochs=6` scored 0.917900 and `aggregation_epochs=8` scored 0.918900 under `sam_rho=0.05`; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the SAM improvement.

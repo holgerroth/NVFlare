@@ -153,6 +153,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Watchdog reset on the material improvement at row 427 with `recommendation=continue`.
 - Radius bracket follow-up missed: `sam_rho=0.04` scored 0.917800 and `sam_rho=0.06` scored 0.920700.
 - Both follow-up rows were finalized as `discard`; `sam_rho=0.05` remains the active SAM radius.
+- Local-compute bracket under SAM missed: `aggregation_epochs=6` scored 0.917900 and `aggregation_epochs=8` scored 0.918900.
+- Both local-compute rows were finalized as `discard`; `aggregation_epochs=7` remains active for the SAM stack.
 
 ---
 
