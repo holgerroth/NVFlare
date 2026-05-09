@@ -668,3 +668,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with sixteen scored candidates since the SAM improvement.
 - SAM weight-decay bracket missed: `weight_decay=4e-4` scored 0.920100 and `6e-4` scored 0.918300; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eighteen scored candidates since the SAM improvement.
+- SAM client-momentum bracket missed: `momentum=0.9125` scored 0.921700 and `0.9375` scored 0.919900; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty scored candidates since the SAM improvement.
