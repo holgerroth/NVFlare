@@ -175,6 +175,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Keep `--zero_mean_gradients` in the active SAM stack.
 - Class-balanced-loss ablation under SAM scored 0.918600 and was finalized as `discard`.
 - Keep `class_balanced_loss_beta=0.90` in the active SAM stack.
+- Tight radius bracket under SAM missed: `sam_rho=0.0475` scored 0.917600 and `0.0525` scored 0.920900.
+- Both tight radius rows were finalized as `discard`; `sam_rho=0.05` remains active.
 
 ---
 

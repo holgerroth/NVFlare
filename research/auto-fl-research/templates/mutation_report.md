@@ -674,3 +674,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the SAM improvement.
 - SAM class-balanced-loss ablation scored 0.918600 and was marked `discard`; keep `class_balanced_loss_beta=0.90` in the active SAM stack.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-two scored candidates since the SAM improvement.
+- Tight SAM radius bracket missed: `sam_rho=0.0475` scored 0.917600 and `0.0525` scored 0.920900; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-four scored candidates since the SAM improvement.
