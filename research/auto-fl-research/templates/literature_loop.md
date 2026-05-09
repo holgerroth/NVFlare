@@ -152,6 +152,12 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Do not retry: standalone mixup, label smoothing, Nesterov, client/server clipping, and architecture variants on this active stack.
 - Sources to carry forward: DeVries17 Cutout, Zhong17 Random Erasing, Yun19 CutMix.
 
+## Batch outcome
+
+- First-pass Cutout missed the active best: `cutout_size=8` scored 0.915600 and `cutout_size=12` scored 0.917500.
+- Both rows were finalized as `discard`; the size-12 near miss justifies a narrow 10/14 bracket before keeping or reverting the Cutout code.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the Cutout literature reset.
+
 ---
 
 # Literature loop 2026-05-09 local vicinal regularization

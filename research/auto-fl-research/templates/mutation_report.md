@@ -626,3 +626,9 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - Sources: DeVries and Taylor, "Improved Regularization of Convolutional Neural Networks with Cutout" (2017, https://arxiv.org/abs/1708.04552); Zhong et al., "Random Erasing Data Augmentation" (2017, https://arxiv.org/abs/1708.04896); Yun et al., "CutMix" (2019, https://arxiv.org/abs/1905.04899).
 - Hypothesis: label-preserving local occlusion may regularize class-skewed clients differently from failed target-mixing methods, while preserving the FL contract and avoiding `data/*` edits.
 - Selected next candidates: active best stack plus `--cutout_size 8`, and active best stack plus `--cutout_size 12`. CutMix is rejected for now because local mixup already underfit.
+
+## Batch Outcome
+
+- First-pass Cutout missed the 0.918600 high-water mark: `cutout_size=8` scored 0.915600 and `cutout_size=12` scored 0.917500; both were marked `discard`.
+- `cutout_size=12` is the closest post-literature result, so a narrow bracket at sizes 10 and 14 follows before deciding whether to keep or remove the default-off Cutout code.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the Cutout literature reset.
