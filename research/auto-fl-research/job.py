@@ -136,6 +136,12 @@ def define_parser():
         help="Sharpness-aware minimization perturbation radius forwarded to clients. 0 disables SAM.",
     )
     parser.add_argument(
+        "--local_swa_start_frac",
+        type=float,
+        default=0.0,
+        help="Start fraction of local epochs for local stochastic weight averaging. 0 disables local SWA.",
+    )
+    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -359,6 +365,8 @@ def main():
         args.fedproxloss_mu,
         "--sam_rho",
         args.sam_rho,
+        "--local_swa_start_frac",
+        args.local_swa_start_frac,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
     ]

@@ -684,3 +684,11 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the SAM improvement.
 - Final pre-watchdog SAM checks missed: scheduler-off scored 0.763200 and SCAFFOLD mode scored 0.912100; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the SAM improvement.
+
+## Literature Basis: Local Weight Averaging
+
+- Trigger: watchdog plateau after the row 427 FedSAM improvement and thirty-two scored SAM follow-ups.
+- Sources: Izmailov et al., "Averaging Weights Leads to Wider Optima and Better Generalization" (UAI 2018, https://arxiv.org/abs/1803.05407); Zhang et al., "Lookahead Optimizer: k steps forward, 1 step back" (NeurIPS 2019, https://papers.nips.cc/paper/9155-lookahead-optimizer-k-steps-forward-1-step-back); Foret et al., "Sharpness-Aware Minimization" (ICLR 2021, https://openreview.net/forum?id=6Tm1mposlrM).
+- Hypothesis: after SAM improved the local optimizer, averaging late local epoch endpoints may further bias each client DIFF toward a flatter local solution without changing model keys, communication budget, data splits, or evaluation.
+- Selected next candidates: active SAM stack plus `--local_swa_start_frac 0.5`, and active SAM stack plus `--local_swa_start_frac 0.75`.
+- Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `--local_swa_start_frac 0.5` smoke passed before launching full candidates.

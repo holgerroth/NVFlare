@@ -71,6 +71,64 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-09 local weight averaging
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` reached `recommendation=literature` after thirty-two scored candidates since the row 427 FedSAM improvement.
+- Current best: 0.923900, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `sam_rho=0.05`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: SAM radius, local compute, LR/momentum, FedProx, scheduler, beta, weight decay, aggregation family, zero-mean/class-balanced ablations, and SCAFFOLD all missed after the SAM improvement.
+- Candidate width: run width 1 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| Stochastic Weight Averaging averaging weights leads to wider optima better generalization arXiv 1803.05407 | reserve flat-minima mechanism after SAM plateau | UAI, arXiv/web search | SWA averages late SGD trajectory points with little compute overhead. |
+| Lookahead optimizer k steps forward 1 step back NeurIPS 2019 | compare slow/fast weight averaging alternative | NeurIPS/web search | Lookahead improves stability with slow weights but changes every local optimizer step. |
+| federated learning stochastic weight averaging SWA non-IID CIFAR | check FL-specific support | web search | no safer FL-specific implementation found than local-only averaging. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Izmailov18 | Averaging Weights Leads to Wider Optima and Better Generalization / 2018 | https://arxiv.org/abs/1803.05407 | single SGD endpoint may sit in a sharper part of the trajectory | stochastic weight averaging | keep |
+| Zhang19 | Lookahead Optimizer: k steps forward, 1 step back / 2019 | https://papers.nips.cc/paper/9155-lookahead-optimizer-k-steps-forward-1-step-back | optimizer trajectories can be noisy and unstable | slow/fast local weight averaging | reserve |
+| Foret21 | Sharpness-Aware Minimization / 2021 | https://openreview.net/forum?id=6Tm1mposlrM | sharpness-aware local optimization improved the active stack | SAM | carry forward as current mechanism |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Late local SWA, half-window | Izmailov18; Foret21 | add default-off `--local_swa_start_frac`; run active SAM stack with `--local_swa_start_frac 0.5` | average late local trajectory points to further bias toward flatter local endpoint | score <= 0.923900 or runtime/regression | low, client-local state averaging before DIFF |
+| P2 | Late local SWA, last-quarter window | Izmailov18 | active SAM stack with `--local_swa_start_frac 0.75` | avoid averaging too-early local points if 0.5 underfits | score <= P1 and <= active best | low |
+| P3 | Lookahead local optimizer | Zhang19 | future slow-weight update every k local steps | stabilize local SGD/SAM path | no SWA signal or too much optimizer code | medium |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1/P2 | no existing `local_swa_start_frac` arg or rows | distinct from SAM: averages local trajectory endpoints after SAM steps | select |
+| P3 | local weight averaging family | more invasive than SWA and overlaps with Nesterov/momentum nulls | reserve |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam005_swa050_w1` | active SAM stack plus `--local_swa_start_frac 0.5` |
+| 2 | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam005_swa075_w1` | active SAM stack plus `--local_swa_start_frac 0.75` |
+
+## Reflective memory
+
+- Keep: local SWA is the smallest source-backed flat-minima mechanism left after SAM scalar retunes plateaued.
+- Discard: Lookahead for this first batch because it would touch every local optimizer step and add more implementation risk.
+- Do not retry: post-SAM scalar jitter unless SWA creates a new active stack.
+- Sources to carry forward: Izmailov18 SWA; Zhang19 Lookahead; Foret21 SAM; Qu22 FedSAM.
+- Validation: default-off `local_swa_start_frac` branch passed `make validate`, `make smoke`, and a no-ledger `--local_swa_start_frac 0.5` smoke.
+
+---
+
 # Literature loop 2026-05-09 local sharpness minimization
 
 ## Trigger
