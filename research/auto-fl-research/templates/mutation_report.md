@@ -488,3 +488,5 @@ Class-balanced CE beta `0.90` was the only class-imbalance mechanism to material
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-six scored candidates since the literature reset.
 - Upper scheduler-floor continuation missed: `cosine_lr_eta_min_factor=0.002` scored 0.911700 and `0.005` scored 0.912100, both discarded.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-eight scored candidates since the literature reset.
+- Server-LR edge continuation missed: `server_lr=1.4` scored 0.911500 and `2.2` scored 0.915700, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the literature reset.
