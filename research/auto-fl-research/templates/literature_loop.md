@@ -173,6 +173,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both client-momentum rows were finalized as `discard`; `momentum=0.925` remains active for the SAM stack.
 - Zero-mean-gradient ablation under SAM scored 0.907400 and was finalized as `discard`.
 - Keep `--zero_mean_gradients` in the active SAM stack.
+- Class-balanced-loss ablation under SAM scored 0.918600 and was finalized as `discard`.
+- Keep `class_balanced_loss_beta=0.90` in the active SAM stack.
 
 ---
 
