@@ -163,6 +163,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both server-momentum rows were finalized as `discard`; `server_momentum=0.475` remains active for the SAM stack.
 - FedProx bracket under SAM missed: `fedproxloss_mu=1e-5` scored 0.921700 and `fedproxloss_mu=5e-5` scored 0.919300.
 - Both FedProx rows were finalized as `discard`; `fedproxloss_mu=3e-5` remains active for the SAM stack.
+- Class-balanced beta bracket under SAM missed: `class_balanced_loss_beta=0.875` scored 0.923000 and `0.925` scored 0.918500.
+- Both beta rows were finalized as `discard`; `class_balanced_loss_beta=0.90` remains active for the SAM stack.
 
 ---
 
