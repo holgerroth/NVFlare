@@ -545,3 +545,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.
 - Post-literature server-LR continuation missed: `server_lr=2.1` scored 0.913300 and was discarded; `server_lr=2.3` crashed before final cross-site scoring, matching the high-LR instability pattern.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with three scored candidates since the literature reset.
+- Exact-step continuation under the post-literature stack missed: `local_train_steps=928` scored 0.912300 and `960` scored 0.911700, both discarded.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with five scored candidates since the literature reset.
