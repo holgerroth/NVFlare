@@ -666,3 +666,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fourteen scored candidates since the SAM improvement.
 - SAM scheduler-floor bracket missed: `cosine_lr_eta_min_factor=0.0001` scored 0.922200 and `0.0002` scored 0.920400; both were marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with sixteen scored candidates since the SAM improvement.
+- SAM weight-decay bracket missed: `weight_decay=4e-4` scored 0.920100 and `6e-4` scored 0.918300; both were marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eighteen scored candidates since the SAM improvement.
