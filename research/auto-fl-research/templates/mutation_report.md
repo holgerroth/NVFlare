@@ -636,3 +636,11 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - The default-off Cutout code/schema additions were removed after review because no mask size beat the 0.918600 high-water mark.
 - Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the Cutout literature reset.
+
+## Literature Basis: Local Sharpness Minimization
+
+- Trigger: watchdog still recommends `continue`, but a ledger scan found no clear non-duplicate scalar/local-compute axis after the Cutout branch missed and was removed.
+- Sources: Qu et al., "Generalized Federated Learning via Sharpness Aware Minimization" (ICML 2022, https://proceedings.mlr.press/v162/qu22a.html); Foret et al., "Sharpness-Aware Minimization for Efficiently Improving Generalization" (ICLR 2021, https://openreview.net/forum?id=6Tm1mposlrM); Izmailov et al., "Averaging Weights Leads to Wider Optima and Better Generalization" (2018, https://arxiv.org/abs/1803.05407).
+- Hypothesis: client-local ERM on label-skewed sites is landing in sharp local minima; a default-off FedSAM-style `--sam_rho` knob can favor flatter local updates while preserving DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, fixed model keys, data splits, and cross-site evaluation.
+- Selected next candidates: active best stack plus `--sam_rho 0.02`, and active best stack plus `--sam_rho 0.05`; local SWA remains a reserve if SAM fails only on cost or shows a near-best signal.
+- Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `--sam_rho 0.02` smoke passed before launching full candidates.

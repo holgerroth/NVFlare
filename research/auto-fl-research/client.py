@@ -108,6 +108,12 @@ def build_parser():
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
     )
     parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="Sharpness-aware minimization perturbation radius. 0 disables SAM.",
+    )
+    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -253,6 +259,63 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
+def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
+    outputs = model(inputs)
+    loss = criterion(outputs, labels)
+    if criterion_prox is not None:
+        loss = loss + criterion_prox(model, global_model)
+    return loss
+
+
+def _grad_norm(model):
+    grads = [param.grad.detach().norm(p=2) for param in model.parameters() if param.grad is not None]
+    if not grads:
+        return torch.tensor(0.0, device=DEVICE)
+    return torch.norm(torch.stack(grads), p=2)
+
+
+def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
+    optimizer.zero_grad(set_to_none=True)
+    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    loss.backward()
+    if args.zero_mean_gradients:
+        _apply_zero_mean_gradients(model)
+
+    if args.sam_rho <= 0:
+        optimizer.step()
+        return loss.item()
+
+    grad_norm = _grad_norm(model)
+    if not torch.isfinite(grad_norm) or grad_norm <= 0:
+        optimizer.step()
+        return loss.item()
+
+    scale = args.sam_rho / (grad_norm + 1e-12)
+    perturbations = []
+    with torch.no_grad():
+        for param in model.parameters():
+            if param.grad is None:
+                perturbations.append(None)
+                continue
+            perturbation = param.grad * scale.to(param.device)
+            param.add_(perturbation)
+            perturbations.append(perturbation)
+
+    optimizer.zero_grad(set_to_none=True)
+    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    sam_loss.backward()
+    if args.zero_mean_gradients:
+        _apply_zero_mean_gradients(model)
+
+    with torch.no_grad():
+        for param, perturbation in zip(model.parameters(), perturbations):
+            if perturbation is not None:
+                param.sub_(perturbation)
+
+    optimizer.step()
+    return sam_loss.item()
+
+
 def _class_counts_from_dataset(dataset, num_classes=10):
     targets = getattr(dataset, "targets", None)
     if targets is None:
@@ -317,6 +380,8 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.sam_rho < 0.0:
+        raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -369,6 +434,8 @@ def main(args):
             f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
             f"class_balanced_loss_beta={args.class_balanced_loss_beta}"
         )
+    if args.sam_rho > 0.0:
+        print(f"{site_name}: sam_rho={args.sam_rho}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
@@ -460,17 +527,7 @@ def main(args):
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
-                optimizer.zero_grad(set_to_none=True)
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
-
-                if criterion_prox is not None:
-                    loss = loss + criterion_prox(model, global_model)
-
-                loss.backward()
-                if args.zero_mean_gradients:
-                    _apply_zero_mean_gradients(model)
-                optimizer.step()
+                loss_value = _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args)
 
                 curr_lr = get_lr_values(optimizer)[0]
                 if args.scaffold:
@@ -481,7 +538,7 @@ def main(args):
                         scaffold_local_controls,
                     )
                     scaffold_steps += 1
-                running_loss += loss.item()
+                running_loss += loss_value
 
                 if scheduler is not None:
                     scheduler.step()
@@ -515,17 +572,16 @@ def main(args):
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
-                    optimizer.zero_grad(set_to_none=True)
-                    outputs = model(inputs)
-                    loss = criterion(outputs, labels)
-
-                    if criterion_prox is not None:
-                        loss = loss + criterion_prox(model, global_model)
-
-                    loss.backward()
-                    if args.zero_mean_gradients:
-                        _apply_zero_mean_gradients(model)
-                    optimizer.step()
+                    loss_value = _optimizer_step(
+                        model,
+                        optimizer,
+                        inputs,
+                        labels,
+                        criterion,
+                        criterion_prox,
+                        global_model,
+                        args,
+                    )
 
                     curr_lr = get_lr_values(optimizer)[0]
                     if args.scaffold:
@@ -536,7 +592,7 @@ def main(args):
                             scaffold_local_controls,
                         )
                         scaffold_steps += 1
-                    running_loss += loss.item()
+                    running_loss += loss_value
 
                 avg_loss = running_loss / train_batches
                 global_epoch = current_round * args.aggregation_epochs + epoch

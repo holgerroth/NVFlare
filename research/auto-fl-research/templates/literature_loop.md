@@ -71,6 +71,83 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-09 local sharpness minimization
+
+## Trigger
+
+- Reason: watchdog is `recommendation=continue`, but the ledger scan found no clear non-duplicate scalar/local-compute axis after Cutout missed and was removed.
+- Current best: 0.918600, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: Cutout sizes 8/12/10/14 scored 0.915600/0.917500/0.918400/0.917000; local epochs 5/6/8/9/11, exact steps, scheduler, FedProx, class-balanced beta, LR/momentum, clipping, Nesterov, architecture variants, mixup, and smoothing are null.
+- Confirmed null/worse ideas to avoid: scalar optimizer/local-compute jitter, target-mixing regularizers, local occlusion, client clipping, Nesterov, FedNova, SCAFFOLD, FedAdam, median aggregation, focal/LDAM/FedLC/FedRS/logit-prior/self-distillation.
+- Candidate width: run width 1 on one H100, pinned with `CUDA_VISIBLE_DEVICES=0`, because width-2 NVFlare runs previously exposed communication failures.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| FedSAM federated learning sharpness-aware minimization non-IID CIFAR arXiv | find a non-duplicate FL-local optimizer for non-IID sharp minima | web search, ICML/PMLR | FedSAM directly targets ERM local optimizers falling into sharp valleys under non-IID FL. |
+| Sharpness-Aware Minimization for Efficiently Improving Generalization ICLR 2021 arXiv Foret | primary SAM source and CIFAR generalization evidence | OpenReview, Google Research | SAM minimizes both loss value and sharpness with two local forward/backward passes. |
+| federated learning stochastic weight averaging local weight averaging non-IID CIFAR | reserve flat-minima alternative with lower runtime cost | web search, arXiv | SWA is simple and low overhead but less FL-specific than FedSAM. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://proceedings.mlr.press/v162/qu22a.html | non-IID FL local ERM can drive sharp valleys and local-client deviation | FedSAM local optimizer | keep |
+| Foret21 | Sharpness-Aware Minimization for Efficiently Improving Generalization / 2021 | https://openreview.net/forum?id=6Tm1mposlrM | conventional loss minimization can generalize poorly; flat neighborhoods improve robustness | SAM | keep |
+| Izmailov18 | Averaging Weights Leads to Wider Optima and Better Generalization / 2018 | https://arxiv.org/abs/1803.05407 | averaging SGD trajectory points finds flatter solutions with low overhead | local SWA | reserve |
+| Qu22 MoFedSAM | momentum bridge from local to global SAM | https://proceedings.mlr.press/v162/qu22a.html | local/global model mismatch under SAM | server-coupled momentum variant | reject now: active FedAvgM already provides server momentum; avoid broader protocol/state change |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Active local ERM may be landing in sharp client minima | Qu22 argues local ERM under distribution shift can increase deviation and sharp global valleys | many local regularizers and scalar sweeps miss the 0.918600 mark | swap local optimizer step while preserving DIFF upload and metadata | `client.py`, `job.py` |
+| C2 | Generalization, not training budget, is the likely limit | Foret21 reports SAM generalization gains on CIFAR-style benchmarks | more local epochs/steps underfit or regress | add two-backward SAM only when `--sam_rho > 0` | `client.py` |
+| C3 | A cheaper flat-minima fallback exists | Izmailov18 supports SWA with minimal compute | SAM may exceed runtime or underfit with dropout/FedProx | reserve local weight averaging if SAM fails due runtime/cost | `client.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedSAM light radius | Qu22; Foret21 | add default-off `--sam_rho`; run active stack with `--sam_rho 0.02` | flatten local objectives without changing aggregation | timeout or score below 0.916 | low-medium: two backward passes but client-local |
+| P2 | FedSAM standard radius | Qu22; Foret21 | active stack with `--sam_rho 0.05` | stronger sharpness penalty if 0.02 is too weak | underfit, timeout, or worse than P1 | low-medium |
+| P3 | Local SWA | Izmailov18 | future default-off local weight averaging near end of each round | cheap flat-solution bias | no gain after SAM or code complexity not justified | low |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1/P2 | no existing SAM rows or `sam_rho` arg | different from clipping, FedProx, and zero-mean gradients because it perturbs weights before the optimizer step | select |
+| P3 | related flat-minima family | less FL-specific than FedSAM; could average dropout-heavy local trajectories poorly | reserve |
+
+## Proposal scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 SAM rho 0.02 | 3 | 4 | 3 | 5 | 5 | 4 | 24 |
+| P2 SAM rho 0.05 | 3 | 4 | 3 | 5 | 4 | 4 | 23 |
+| P3 local SWA | 2 | 5 | 3 | 4 | 4 | 1 | 24 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam002_w1` | active best stack plus `--sam_rho 0.02` |
+| 2 | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam005_w1` | active best stack plus `--sam_rho 0.05` |
+| 3 | P3 reserve |  | no launch unless SAM shows signal or fails only on cost |
+
+## Reflective memory
+
+- Keep: SAM is the lowest-risk non-duplicate optimizer mechanism left because it is local-only and source-backed for non-IID FL.
+- Discard: MoFedSAM/server-coupled variants for now because the active stack already uses FedAvgM and protocol/state risk is higher.
+- Do not retry: scalar jitter, Cutout, mixup, label smoothing, Nesterov, clipping, and architecture variants under the current active stack.
+- Sources to carry forward: Qu22 FedSAM; Foret21 SAM; Izmailov18 SWA.
+- Validation: default-off `sam_rho` branch passed `make validate`, `make smoke`, and a no-ledger `--sam_rho 0.02` smoke.
+
+---
+
 # Literature loop 2026-05-09 local occlusion augmentation
 
 ## Trigger

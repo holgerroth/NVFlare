@@ -130,6 +130,12 @@ def define_parser():
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
     )
     parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="Sharpness-aware minimization perturbation radius forwarded to clients. 0 disables SAM.",
+    )
+    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -351,6 +357,8 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--sam_rho",
+        args.sam_rho,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
     ]
