@@ -711,3 +711,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seven scored candidates since the local-SWA literature reset.
 - SAM radius fine bracket missed: `sam_rho=0.07` scored 0.919900 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eight scored candidates since the local-SWA literature reset.
+- FedProx fine bracket missed: `fedproxloss_mu=2e-5` scored 0.916800 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with nine scored candidates since the local-SWA literature reset.
