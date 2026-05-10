@@ -753,3 +753,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-eight scored candidates since the local-SWA literature reset.
 - SAM radius upper shoulder check missed: `sam_rho=0.085` scored 0.922200 and was marked `discard`; the previous `sam_rho=0.05` high-water stack remains active.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-nine scored candidates since the local-SWA literature reset.
+- Class-balanced beta upper shoulder missed: `class_balanced_loss_beta=0.95` scored 0.918800 and was marked `discard`; beta values above the active `0.90` have not improved the kept stack.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the local-SWA literature reset.
