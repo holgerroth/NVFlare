@@ -71,6 +71,90 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-10 trajectory SAM
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` reached `recommendation=literature` after row 528, with thirty-two scored candidates since the row 494 literature reset and no material improvement over the 0.923900 FedSAM high-water mark.
+- Current best: 0.923900, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `sam_rho=0.05`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: tight SAM radius, client/server LR, FedProx, class-balanced beta, scheduler floor, weight decay, and local-compute brackets all missed after the SAM improvement.
+- Confirmed null/worse ideas to avoid: aligned FedAvgM, dynamic FedProx scheduling, local SWA, LDAM, focal loss, logit-prior variants, cutout, mixup/label smoothing, clipping, Nesterov, FedNova, SCAFFOLD, FedAdam, median aggregation, architecture variants, and routine scalar jitter.
+- Candidate width: effective width 1 on one local GPU, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning adaptive sharpness aware minimization ASAM non-IID CIFAR | find a non-scalar SAM variant after radius brackets failed | web search, PMLR, OpenReview | ASAM and FedLESAM are distinct from fixed-radius local SAM. |
+| federated learning SAM momentum echo oscillation weighted momentum sharpness-aware minimization | check whether FedAvgM+SAM has known phase or momentum failure modes | web search, OpenReview | FedWMSAM identifies local-global curvature mismatch and momentum echo. |
+| locally estimated global perturbation federated sharpness-aware minimization ICML 2024 | find a client-local global-sharpness approximation compatible with this harness | web search, OpenReview/PDF | FedLESAM directly uses the previous received global model trajectory. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Fan24 FedLESAM | Locally Estimated Global Perturbations are Better than Local Perturbations for Federated Sharpness-aware Minimization / 2024 | https://openreview.net/forum?id=6axTFAlzRV | local SAM perturbations can disagree with global flatness under heterogeneity | trajectory-estimated global SAM perturbation | keep |
+| Li25 FedWMSAM | FedWMSAM: Fast and Flat Federated Learning via Weighted Momentum and Sharpness-Aware Minimization / 2025 | https://openreview.net/forum?id=75JiIa0fU1 | combining momentum and SAM can leave curvature misalignment and late momentum oscillation | momentum-aware dynamic SAM | keep as support/reserve |
+| Kwon21 ASAM | ASAM: Adaptive Sharpness-Aware Minimization for Scale-Invariant Learning of Deep Neural Networks / 2021 | https://proceedings.mlr.press/v139/kwon21b.html | fixed-radius sharpness is sensitive to parameter rescaling | adaptive scale-invariant SAM | keep as reserve |
+| Qu22 FedSAM | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://proceedings.mlr.press/v162/qu22a.html | non-IID ERM can converge to sharp valleys and divergent local models | local SAM / MoFedSAM | keep as active context |
+| Sun23 FedSMOO | Dynamic Regularized Sharpness Aware Minimization in Federated Learning / 2023 | https://openreview.net/forum?id=vD1R00hROK | local optima deviate from the global objective under non-IID data | dynamic regularization plus global SAM | reject for next run: dynamic FedProx already missed and full FedDyn-style state is outside the safe surface |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local SAM directions may not optimize global flatness | Fan24 argues local loss landscapes may not reflect global flatness and estimates global perturbation from consecutive received global models | constant `sam_rho=0.05` is best, but all nearby radius checks and aligned aggregation missed | clients can keep the previous received global model locally and perturb before loss without new server metadata | `client.py`, `job.py`, `mutation_schema.yaml` |
+| C2 | FedAvgM plus SAM can have phase mismatch | Li25 identifies local-global curvature misalignment and momentum-echo oscillation when momentum and SAM are combined | server momentum/LR and SAM radius brackets have sharp regressions around the high-water stack | a future round-aware SAM schedule can be client-local, but full momentum-guided perturbation would need server-coupled state | `client.py`, `job.py` |
+| C3 | Fixed-radius SAM may be scale-sensitive | Kwon21 shows rigid sharpness regions are sensitive to parameter rescaling and proposes adaptive sharpness | scalar SAM and weight-decay interpolation failed to improve over 0.923900 | an ASAM-style perturbation changes only client perturbation math, but it is more code than FedLESAM | `client.py`, `job.py`, `mutation_schema.yaml` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedLESAM trajectory perturbation | Fan24; Qu22 | add default-off `--sam_global_trajectory`; run active stack with `--sam_rho 0.05 --sam_global_trajectory` | replace local sharpness direction with previous-global trajectory while preserving DIFF uploads and reducing SAM compute after round 0 | score <= 0.923900 or instability/NaN | low: client-local cached global weights only |
+| P2 | FedLESAM stronger radius | Fan24 | same code with `--sam_rho 0.075 --sam_global_trajectory` if P1 is stable but below best | trajectory direction may tolerate the upper radius that local SAM could not | score below P1 or prior `sam_rho=0.075` pattern | low |
+| P3 | Late-SAM schedule | Li25 | future default-off `--sam_rho_schedule late_cosine`, e.g. start near 0 and end at 0.075 | reduce early perturbation noise and emphasize late flatness | repeats scalar-radius regressions or underfits | low-medium: partial FedWMSAM without server momentum |
+| P4 | ASAM perturbation scaling | Kwon21 | future default-off `--sam_adaptive_scale`, scaling perturbations by parameter magnitude | fix fixed-radius scale sensitivity after scalar rho jitter failed | no gain over P1/P2 or unstable perturb norms | low-medium: more perturbation math |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not local SAM radius jitter and not aligned aggregation; changes perturbation source using client-local previous global weights | no FedLESAM/trajectory rows exist | select |
+| P2 | nearby P1 variant | only run after P1 is stable; prior local `sam_rho=0.075` missed but source says global trajectory is a different perturbation | reserve |
+| P3 | dynamic SAM, not dynamic FedProx | scalar `sam_rho` brackets missed; full FedWMSAM needs server momentum state outside safe surface | reserve |
+| P4 | adaptive local SAM family | local SAM scalar and local SWA are null; still distinct but less FL-specific than P1 | reserve |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 FedLESAM trajectory | 4 | 5 | 4 | 5 | 5 | 1 | 31 |
+| P2 FedLESAM radius variant | 3 | 5 | 4 | 4 | 4 | 1 | 27 |
+| P3 late-SAM schedule | 2 | 5 | 4 | 3 | 4 | 1 | 24 |
+| P4 ASAM scaling | 3 | 4 | 3 | 4 | 5 | 4 | 24 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam005_lesam_w1` | active best stack plus `--sam_global_trajectory` |
+| reserve | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam0075_lesam_w1` | same stack with `--sam_rho 0.075 --sam_global_trajectory` if P1 is stable |
+| reserve | P3 |  | late-SAM schedule only if trajectory perturbation fails cleanly |
+| reserve | P4 |  | ASAM scaling only after the FL-specific trajectory branch is falsified |
+
+## Reflective memory
+
+- Keep: FedLESAM is the least invasive source-backed branch because it stores only a local copy of the previously received global weights and still sends the usual DIFF with `NUM_STEPS_CURRENT_ROUND`.
+- Discard: full FedWMSAM momentum-guided perturbations for now because they require server-to-client momentum state not present in the contract.
+- Do not retry: more constant `sam_rho`, FedProx, beta, LR, weight-decay, or local-compute jitter before testing a new perturbation mechanism.
+- Sources to carry forward: Fan24 FedLESAM, Li25 FedWMSAM, Kwon21 ASAM, Qu22 FedSAM, Sun23 FedSMOO.
+
+---
+
 # Literature loop 2026-05-10 aligned update weighting
 
 ## Trigger

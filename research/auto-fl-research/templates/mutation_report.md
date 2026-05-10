@@ -836,3 +836,15 @@ SAM-radius upper interpolation missed: `sam_rho=0.055` scored 0.916000 and was m
 Server learning-rate tight interpolation missed: `server_lr=1.8125` scored 0.917500 and was marked `discard`; the active FedAvgM server step size `1.8` remains better than tight nearby upper-side checks. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the literature reset.
 
 Weight-decay upper interpolation missed: `weight_decay=5.125e-4` scored 0.917100 and was marked `discard`; the active `5e-4` regularization remains better than nearby upper and lower checks under the kept FedSAM/FedAvgM stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the literature reset.
+
+## Literature Reset: Trajectory SAM
+
+The post-FedSAM high-water plateau has now exhausted scalar radius, FedAvgM, FedProx, class-balanced beta, scheduler, weight-decay, and local-compute jitter. The selected source-backed branch is FedLESAM-style trajectory SAM: keep a client-local copy of the previously received global model and use the normalized difference from the current global model as the SAM perturbation direction. This changes only the client perturbation source; the NVFlare receive/send loop, strict state load, DIFF upload, and `NUM_STEPS_CURRENT_ROUND` metadata stay intact.
+
+Sources:
+- Fan et al., "Locally Estimated Global Perturbations are Better than Local Perturbations for Federated Sharpness-aware Minimization", ICML 2024, https://openreview.net/forum?id=6axTFAlzRV. Motivation: local SAM perturbations can disagree with the global loss landscape under heterogeneous FL; the paper estimates global perturbations from consecutive received global models and uses one backward pass.
+- Li et al., "FedWMSAM: Fast and Flat Federated Learning via Weighted Momentum and Sharpness-Aware Minimization", NeurIPS 2025, https://openreview.net/forum?id=75JiIa0fU1. Motivation: FedAvgM plus SAM can suffer local-global curvature misalignment and momentum-echo oscillation; full momentum-guided perturbation is reserved because it would need server-to-client momentum state.
+- Kwon et al., "ASAM: Adaptive Sharpness-Aware Minimization for Scale-Invariant Learning of Deep Neural Networks", ICML 2021, https://proceedings.mlr.press/v139/kwon21b.html. Reserve idea: adaptive perturbation scaling if the FL-specific trajectory branch is falsified.
+- Qu et al., "Generalized Federated Learning via Sharpness Aware Minimization", ICML 2022, https://proceedings.mlr.press/v162/qu22a.html. Context: the active high-water stack already benefits from local FedSAM at `sam_rho=0.05`.
+
+Proposal selected: add default-off `--sam_global_trajectory` and run the active best stack with `--sam_rho 0.05 --sam_global_trajectory`. If it is stable but misses, reserve a trajectory radius variant at `sam_rho=0.075`; otherwise fall back to late-SAM or ASAM only after this FL-specific perturbation branch is falsified.
