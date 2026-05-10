@@ -727,3 +727,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fifteen scored candidates since the local-SWA literature reset.
 - Server-momentum fine bracket missed: `server_momentum=0.4875` scored 0.918100 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with sixteen scored candidates since the local-SWA literature reset.
+- Server-LR upper fine bracket missed: `server_lr=1.85` scored 0.920700 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seventeen scored candidates since the local-SWA literature reset.
