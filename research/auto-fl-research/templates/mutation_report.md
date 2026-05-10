@@ -794,3 +794,5 @@ Local-compute upper epoch bracket missed: `aggregation_epochs=8` scored 0.918900
 Class-balanced beta fine check missed: `class_balanced_loss_beta=0.9125` scored 0.917800 and was marked `discard`; the active beta `0.90` remains better under the kept FedSAM/FedAvgM stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with ten scored candidates since the literature reset.
 
 Client learning-rate midpoint missed: `lr=0.044375` scored 0.921800 and was marked `discard`; it matched the lower-shoulder score and did not improve on the active `lr=0.045`. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eleven scored candidates since the literature reset.
+
+Class-balanced beta midpoint missed: `class_balanced_loss_beta=0.8875` scored 0.919800 and was marked `discard`; the active beta `0.90` remains the best point in the lower-beta bracket. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twelve scored candidates since the literature reset.
