@@ -816,3 +816,5 @@ FedProx lower tight bracket missed: `fedproxloss_mu=2.5e-5` scored 0.921300 and 
 Class-balanced beta lower tight bracket missed: `class_balanced_loss_beta=0.865625` scored 0.921000 and was marked `discard`; the earlier `0.86875` near miss remains the best lower-beta check, while the active `0.90` beta high-water still holds. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the literature reset.
 
 Server learning-rate midpoint missed: `server_lr=1.775` scored 0.920100 and was marked `discard`; the active FedAvgM server step size `1.8` remains better than the nearby lower-side bracket. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-two scored candidates since the literature reset.
+
+Client learning-rate midpoint missed: `lr=0.04875` scored 0.921500 and was marked `discard`; it improved over the weak `0.0475` check but did not match the earlier `0.05` near-miss or the active `0.045` high-water. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-three scored candidates since the literature reset.
