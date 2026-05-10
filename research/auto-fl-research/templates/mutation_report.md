@@ -770,3 +770,5 @@ Sources:
 - Sun et al., "Dynamic Regularized Sharpness Aware Minimization in Federated Learning", ICML 2023, arXiv:2305.11584, https://arxiv.org/abs/2305.11584. Reserve idea: dynamic client regularization if server-only alignment misses.
 
 Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `--aggregator aligned_fedavgm` smoke passed.
+
+Aligned FedAvgM missed: the full candidate scored 0.918300 and was marked `discard`, so the default-off `aligned_fedavgm` implementation was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml`. Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the literature reset.

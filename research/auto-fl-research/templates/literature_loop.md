@@ -154,6 +154,14 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Sources to carry forward: Rahil25 FedSCAM; Sun23 FedSMOO; Yin18 robust aggregation; Li22 gamma-mean; Qu22 FedSAM.
 - Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `aligned_fedavgm` smoke passed before the full candidate.
 
+## Batch outcome
+
+- Aligned FedAvgM missed: `--aggregator aligned_fedavgm` scored 0.918300 and was marked `discard`, well below the 0.923900 high-water stack.
+- The default-off `aligned_fedavgm` implementation was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml` after review.
+- Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the literature reset.
+- Next source-backed reserve: dynamic FedProx scheduling from the same literature worksheet, because static FedProx was null but a round-dependent client-local regularizer remains distinct.
+
 ---
 
 # Literature loop 2026-05-09 local weight averaging
