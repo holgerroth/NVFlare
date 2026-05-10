@@ -161,6 +161,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the trajectory-SAM literature reset.
 - Do not retry FedLESAM trajectory perturbations on this stack unless a materially different source-backed implementation changes the perturbation sign, warmup, or coupling mechanism.
 - Reserve P3 promoted: default-off `--sam_rho_schedule late_cosine` was added and validated with `make validate`, `make smoke`, and a no-ledger two-round schedule smoke. Launch the active stack with `--sam_rho 0.10 --sam_rho_schedule late_cosine` next.
+- Late-cosine SAM scheduling missed: `sam_rho=0.10 --sam_rho_schedule late_cosine` scored 0.920000 in 846 seconds and was marked `discard`.
+- The default-off schedule implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`; do not retry scheduled rho on this stack without a different mechanism.
 
 ---
 

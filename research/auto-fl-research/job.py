@@ -136,13 +136,6 @@ def define_parser():
         help="Sharpness-aware minimization perturbation radius forwarded to clients. 0 disables SAM.",
     )
     parser.add_argument(
-        "--sam_rho_schedule",
-        type=str,
-        default="constant",
-        choices=["constant", "late_cosine"],
-        help="SAM rho schedule forwarded to clients.",
-    )
-    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -366,8 +359,6 @@ def main():
         args.fedproxloss_mu,
         "--sam_rho",
         args.sam_rho,
-        "--sam_rho_schedule",
-        args.sam_rho_schedule,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
     ]

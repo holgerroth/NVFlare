@@ -25,7 +25,6 @@ Provenance:
 
 import argparse
 import copy
-import math
 import os
 import random
 import re
@@ -113,13 +112,6 @@ def build_parser():
         type=float,
         default=0.0,
         help="Sharpness-aware minimization perturbation radius. 0 disables SAM.",
-    )
-    parser.add_argument(
-        "--sam_rho_schedule",
-        type=str,
-        default="constant",
-        choices=["constant", "late_cosine"],
-        help="Round schedule for --sam_rho. late_cosine ramps from 0 to sam_rho over training.",
     )
     parser.add_argument(
         "--class_balanced_loss_beta",
@@ -282,27 +274,14 @@ def _grad_norm(model):
     return torch.norm(torch.stack(grads), p=2)
 
 
-def _scheduled_sam_rho(base_rho, schedule, current_round, total_rounds):
-    if base_rho <= 0.0 or schedule == "constant":
-        return base_rho
-    if schedule != "late_cosine":
-        raise ValueError(f"unknown sam_rho_schedule={schedule!r}")
-
-    total_rounds = max(1, int(total_rounds or 1))
-    round_index = max(0, int(current_round or 0))
-    progress = min(1.0, round_index / max(1, total_rounds - 1))
-    return base_rho * 0.5 * (1.0 - math.cos(math.pi * progress))
-
-
-def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args, sam_rho=None):
-    sam_rho = args.sam_rho if sam_rho is None else sam_rho
+def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
     optimizer.zero_grad(set_to_none=True)
     loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
     loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
 
-    if sam_rho <= 0:
+    if args.sam_rho <= 0:
         optimizer.step()
         return loss.item()
 
@@ -311,7 +290,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
         optimizer.step()
         return loss.item()
 
-    scale = sam_rho / (grad_norm + 1e-12)
+    scale = args.sam_rho / (grad_norm + 1e-12)
     perturbations = []
     with torch.no_grad():
         for param in model.parameters():
@@ -403,8 +382,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
-    if args.sam_rho_schedule != "constant" and args.sam_rho <= 0.0:
-        raise ValueError("sam_rho_schedule requires sam_rho > 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -459,8 +436,6 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
-    if args.sam_rho_schedule != "constant":
-        print(f"{site_name}: sam_rho_schedule={args.sam_rho_schedule}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
@@ -536,14 +511,6 @@ def main(args):
             )
 
         steps = args.local_train_steps if args.local_train_steps > 0 else args.aggregation_epochs * train_batches
-        effective_sam_rho = _scheduled_sam_rho(
-            args.sam_rho,
-            args.sam_rho_schedule,
-            current_round,
-            input_model.total_rounds,
-        )
-        if args.sam_rho_schedule != "constant":
-            print(f"{site_name}: effective_sam_rho={effective_sam_rho:.6f}")
         curr_lr = get_lr_values(optimizer)[0]
         if args.local_train_steps > 0:
             model.train()
@@ -568,7 +535,6 @@ def main(args):
                     criterion_prox,
                     global_model,
                     args,
-                    sam_rho=effective_sam_rho,
                 )
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -623,7 +589,6 @@ def main(args):
                         criterion_prox,
                         global_model,
                         args,
-                        sam_rho=effective_sam_rho,
                     )
 
                     curr_lr = get_lr_values(optimizer)[0]
