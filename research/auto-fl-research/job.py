@@ -136,6 +136,17 @@ def define_parser():
         help="Sharpness-aware minimization perturbation radius forwarded to clients. 0 disables SAM.",
     )
     parser.add_argument(
+        "--sam_adaptive_scale",
+        action="store_true",
+        help="Ask clients to scale SAM perturbations by parameter magnitude, ASAM-style.",
+    )
+    parser.add_argument(
+        "--sam_adaptive_eta",
+        type=float,
+        default=0.01,
+        help="Small positive offset forwarded for --sam_adaptive_scale.",
+    )
+    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -359,6 +370,8 @@ def main():
         args.fedproxloss_mu,
         "--sam_rho",
         args.sam_rho,
+        "--sam_adaptive_eta",
+        args.sam_adaptive_eta,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
     ]
@@ -370,6 +383,8 @@ def main():
         train_args.append("--eval_global_every_round")
     if args.zero_mean_gradients:
         train_args.append("--zero_mean_gradients")
+    if args.sam_adaptive_scale:
+        train_args.append("--sam_adaptive_scale")
     if args.aggregator == "scaffold":
         train_args.append("--scaffold")
     if args.no_deterministic_training:
