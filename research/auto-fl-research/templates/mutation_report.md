@@ -834,3 +834,5 @@ Client learning-rate upper interpolation missed: `lr=0.050625` scored 0.916200 a
 SAM-radius upper interpolation missed: `sam_rho=0.055` scored 0.916000 and was marked `discard`; the active `sam_rho=0.05` remains better than the tight upper interpolation and wider upper checks. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the literature reset.
 
 Server learning-rate tight interpolation missed: `server_lr=1.8125` scored 0.917500 and was marked `discard`; the active FedAvgM server step size `1.8` remains better than tight nearby upper-side checks. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the literature reset.
+
+Weight-decay upper interpolation missed: `weight_decay=5.125e-4` scored 0.917100 and was marked `discard`; the active `5e-4` regularization remains better than nearby upper and lower checks under the kept FedSAM/FedAvgM stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the literature reset.
