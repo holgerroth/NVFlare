@@ -721,3 +721,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twelve scored candidates since the local-SWA literature reset.
 - Class-balanced beta lower fine bracket missed: `class_balanced_loss_beta=0.8625` scored 0.920100 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirteen scored candidates since the local-SWA literature reset.
+- Client-LR high-side fine bracket missed: `lr=0.0525` scored 0.917400 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fourteen scored candidates since the local-SWA literature reset.
