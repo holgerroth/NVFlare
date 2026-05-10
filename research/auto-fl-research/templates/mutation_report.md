@@ -800,3 +800,5 @@ Class-balanced beta midpoint missed: `class_balanced_loss_beta=0.8875` scored 0.
 SAM-radius lower bracket missed: `sam_rho=0.04` scored 0.917800 and was marked `discard`; reducing the radius below the active `0.05` hurt the kept FedAvgM stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirteen scored candidates since the literature reset.
 
 Client learning-rate upper tight bracket missed: `lr=0.04625` scored 0.920900 and was marked `discard`; the active `lr=0.045` remains better than both nearby lower and upper checks. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fourteen scored candidates since the literature reset.
+
+FedProx tight upper bracket missed: `fedproxloss_mu=3.5e-5` scored 0.919300 and was marked `discard`; the active `3e-5` remains better than the nearby upper proximal settings. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with fifteen scored candidates since the literature reset.
