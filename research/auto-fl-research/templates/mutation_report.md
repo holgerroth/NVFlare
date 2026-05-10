@@ -739,3 +739,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the local-SWA literature reset.
 - Scheduler-floor upper fine bracket missed: `cosine_lr_eta_min_factor=0.000175` scored 0.920800 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-two scored candidates since the local-SWA literature reset.
+- SAM radius upper fine bracket missed: `sam_rho=0.08` scored 0.921500 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-three scored candidates since the local-SWA literature reset.
