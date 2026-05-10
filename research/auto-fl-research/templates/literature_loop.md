@@ -152,6 +152,7 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: full FedWMSAM momentum-guided perturbations for now because they require server-to-client momentum state not present in the contract.
 - Do not retry: more constant `sam_rho`, FedProx, beta, LR, weight-decay, or local-compute jitter before testing a new perturbation mechanism.
 - Sources to carry forward: Fan24 FedLESAM, Li25 FedWMSAM, Kwon21 ASAM, Qu22 FedSAM, Sun23 FedSMOO.
+- Validation: `make validate`, `make smoke`, and a no-ledger two-round `--sam_global_trajectory` smoke passed before the full candidate.
 
 ---
 

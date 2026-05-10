@@ -848,3 +848,5 @@ Sources:
 - Qu et al., "Generalized Federated Learning via Sharpness Aware Minimization", ICML 2022, https://proceedings.mlr.press/v162/qu22a.html. Context: the active high-water stack already benefits from local FedSAM at `sam_rho=0.05`.
 
 Proposal selected: add default-off `--sam_global_trajectory` and run the active best stack with `--sam_rho 0.05 --sam_global_trajectory`. If it is stable but misses, reserve a trajectory radius variant at `sam_rho=0.075`; otherwise fall back to late-SAM or ASAM only after this FL-specific perturbation branch is falsified.
+
+Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round `--sam_global_trajectory` smoke passed. The targeted smoke confirmed the default-off flag parsed on clients, used the local SAM fallback on round 0, and completed after a round with previous global weights available.

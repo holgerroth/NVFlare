@@ -37,6 +37,7 @@ mutable_args:
   fedproxloss_mu: {type: float, min: 0.0, max: 1.0, log_scale: true}
   zero_mean_gradients: {type: bool}
   sam_rho: {type: float, min: 0.0, max: 0.2}
+  sam_global_trajectory: {type: bool}
   aggregator:
     type: str
     choices: [weighted, fedavg, fedavgm, fedadam, fedopt, scaffold, median, default]

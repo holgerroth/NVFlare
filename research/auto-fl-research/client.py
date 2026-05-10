@@ -114,6 +114,11 @@ def build_parser():
         help="Sharpness-aware minimization perturbation radius. 0 disables SAM.",
     )
     parser.add_argument(
+        "--sam_global_trajectory",
+        action="store_true",
+        help="Use previous received global weights as the SAM perturbation direction.",
+    )
+    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -274,7 +279,79 @@ def _grad_norm(model):
     return torch.norm(torch.stack(grads), p=2)
 
 
-def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
+def _clone_floating_named_parameters(model):
+    return {
+        name: param.detach().cpu().clone()
+        for name, param in model.named_parameters()
+        if torch.is_floating_point(param)
+    }
+
+
+def _build_global_trajectory_perturbations(model, previous_global_params, rho):
+    if previous_global_params is None or rho <= 0.0:
+        return None
+
+    deltas = {}
+    norms = []
+    for name, param in model.named_parameters():
+        if not torch.is_floating_point(param):
+            continue
+        previous_param = previous_global_params.get(name)
+        if previous_param is None:
+            raise ValueError(f"sam_global_trajectory missing previous global parameter {name!r}")
+        if previous_param.shape != param.shape:
+            raise ValueError(
+                f"sam_global_trajectory previous global parameter {name!r} has shape "
+                f"{tuple(previous_param.shape)}, expected {tuple(param.shape)}"
+            )
+        delta = previous_param.to(device=param.device, dtype=param.dtype) - param.detach()
+        deltas[name] = delta
+        norms.append(delta.norm(p=2))
+
+    if not norms:
+        return None
+
+    trajectory_norm = torch.norm(torch.stack(norms), p=2)
+    if not torch.isfinite(trajectory_norm) or trajectory_norm <= 0:
+        return None
+
+    scale = rho / (trajectory_norm + 1e-12)
+    return {name: delta * scale.to(delta.device) for name, delta in deltas.items()}
+
+
+def _optimizer_step(
+    model,
+    optimizer,
+    inputs,
+    labels,
+    criterion,
+    criterion_prox,
+    global_model,
+    args,
+    trajectory_perturbations=None,
+):
+    if trajectory_perturbations is not None:
+        optimizer.zero_grad(set_to_none=True)
+        with torch.no_grad():
+            for name, param in model.named_parameters():
+                perturbation = trajectory_perturbations.get(name)
+                if perturbation is not None:
+                    param.add_(perturbation)
+        try:
+            loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+            loss.backward()
+            if args.zero_mean_gradients:
+                _apply_zero_mean_gradients(model)
+        finally:
+            with torch.no_grad():
+                for name, param in model.named_parameters():
+                    perturbation = trajectory_perturbations.get(name)
+                    if perturbation is not None:
+                        param.sub_(perturbation)
+
+        optimizer.step()
+        return loss.item()
+
     optimizer.zero_grad(set_to_none=True)
     loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
     loss.backward()
@@ -382,6 +459,8 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
+    if args.sam_global_trajectory and args.sam_rho <= 0.0:
+        raise ValueError("sam_global_trajectory requires sam_rho > 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -436,8 +515,11 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
+    if args.sam_global_trajectory:
+        print(f"{site_name}: sam_global_trajectory=True")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
+    previous_global_params = None
 
     while flare.is_running():
         input_model = flare.receive()
@@ -478,6 +560,17 @@ def main(args):
                 )
             )
             continue
+
+        current_global_params = _clone_floating_named_parameters(model) if args.sam_global_trajectory else None
+        trajectory_perturbations = None
+        if args.sam_global_trajectory:
+            trajectory_perturbations = _build_global_trajectory_perturbations(
+                model,
+                previous_global_params,
+                args.sam_rho,
+            )
+            if trajectory_perturbations is None:
+                print(f"{site_name}: sam_global_trajectory using local SAM fallback for round {current_round}")
 
         global_model = copy.deepcopy(model)
         for p in global_model.parameters():
@@ -526,7 +619,17 @@ def main(args):
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
-                loss_value = _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args)
+                loss_value = _optimizer_step(
+                    model,
+                    optimizer,
+                    inputs,
+                    labels,
+                    criterion,
+                    criterion_prox,
+                    global_model,
+                    args,
+                    trajectory_perturbations=trajectory_perturbations,
+                )
 
                 curr_lr = get_lr_values(optimizer)[0]
                 if args.scaffold:
@@ -580,6 +683,7 @@ def main(args):
                         criterion_prox,
                         global_model,
                         args,
+                        trajectory_perturbations=trajectory_perturbations,
                     )
 
                     curr_lr = get_lr_values(optimizer)[0]
@@ -655,6 +759,9 @@ def main(args):
             metrics=metrics,
             meta=output_meta,
         )
+
+        if current_global_params is not None:
+            previous_global_params = current_global_params
 
         flare.send(output_model)
 
