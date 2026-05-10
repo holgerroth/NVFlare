@@ -733,3 +733,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eighteen scored candidates since the local-SWA literature reset.
 - Lower epoch-compute check missed: `aggregation_epochs=5` scored 0.919600 and was marked `discard`; epoch 7 remains the active local-compute setting despite the higher runtime.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with nineteen scored candidates since the local-SWA literature reset.
+- FedProx upper fine bracket missed: `fedproxloss_mu=4e-5` scored 0.921200 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty scored candidates since the local-SWA literature reset.
