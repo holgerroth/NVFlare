@@ -790,3 +790,5 @@ SAM-radius plus scheduler-floor combination missed: pairing `sam_rho=0.075` with
 Local-compute epoch bracket missed: `aggregation_epochs=6` scored 0.917900 and was marked `discard`; the active `aggregation_epochs=7` stack remains materially better despite the extra runtime. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eight scored candidates since the literature reset.
 
 Local-compute upper epoch bracket missed: `aggregation_epochs=8` scored 0.918900 and was marked `discard`; adding local epochs beyond the active `aggregation_epochs=7` increased runtime to 16.2m without improving accuracy. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with nine scored candidates since the literature reset.
+
+Class-balanced beta fine check missed: `class_balanced_loss_beta=0.9125` scored 0.917800 and was marked `discard`; the active beta `0.90` remains better under the kept FedSAM/FedAvgM stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with ten scored candidates since the literature reset.
