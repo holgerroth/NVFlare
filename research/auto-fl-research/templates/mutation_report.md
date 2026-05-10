@@ -737,3 +737,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty scored candidates since the local-SWA literature reset.
 - Weight-decay upper fine bracket missed: `weight_decay=5.5e-4` scored 0.920200 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the local-SWA literature reset.
+- Scheduler-floor upper fine bracket missed: `cosine_lr_eta_min_factor=0.000175` scored 0.920800 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-two scored candidates since the local-SWA literature reset.
