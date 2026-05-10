@@ -735,3 +735,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with nineteen scored candidates since the local-SWA literature reset.
 - FedProx upper fine bracket missed: `fedproxloss_mu=4e-5` scored 0.921200 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty scored candidates since the local-SWA literature reset.
+- Weight-decay upper fine bracket missed: `weight_decay=5.5e-4` scored 0.920200 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-one scored candidates since the local-SWA literature reset.
