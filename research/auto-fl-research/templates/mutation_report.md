@@ -780,3 +780,5 @@ Dynamic FedProx scheduling missed: `fedproxloss_mu=1e-4` with cosine decay score
 Near-miss combination missed: pairing `class_balanced_loss_beta=0.875` with `sam_rho=0.075` scored 0.920500 and was marked `discard`; the separately strong near-misses did not combine constructively. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with three scored candidates since the literature reset.
 
 Beta plus scheduler-floor combination missed: pairing `class_balanced_loss_beta=0.875` with `cosine_lr_eta_min_factor=0.0001` scored 0.920800 and was marked `discard`; keep the active beta `0.90` and eta floor `0.00015`. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with four scored candidates since the literature reset.
+
+Beta plus client-LR combination missed: pairing `class_balanced_loss_beta=0.875` with `lr=0.05` scored 0.919300 and was marked `discard`; the higher client LR did not rescue the lower beta under the kept FedSAM/FedAvgM stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with five scored candidates since the literature reset.
