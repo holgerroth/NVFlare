@@ -776,3 +776,5 @@ Aligned FedAvgM missed: the full candidate scored 0.918300 and was marked `disca
 Reserve P2 is now active: a default-off `--fedproxloss_mu_schedule cosine_decay` knob was added to test Sun23-style dynamic client regularization without changing metadata or aggregation. Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger dynamic FedProx smoke passed.
 
 Dynamic FedProx scheduling missed: `fedproxloss_mu=1e-4` with cosine decay scored 0.919000 and was marked `discard`. The default-off schedule implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`; post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.
+
+Near-miss combination missed: pairing `class_balanced_loss_beta=0.875` with `sam_rho=0.075` scored 0.920500 and was marked `discard`; the separately strong near-misses did not combine constructively. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with three scored candidates since the literature reset.
