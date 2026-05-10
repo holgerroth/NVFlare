@@ -747,3 +747,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-five scored candidates since the local-SWA literature reset.
 - Server-momentum lower fine bracket missed: `server_momentum=0.4625` scored 0.919600 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-six scored candidates since the local-SWA literature reset.
+- Exact-step lower check missed: `local_train_steps=640` scored 0.918700 and was marked `discard`; exact-step training is consistently below epoch-based `aggregation_epochs=7` under the kept SAM stack.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-seven scored candidates since the local-SWA literature reset.
