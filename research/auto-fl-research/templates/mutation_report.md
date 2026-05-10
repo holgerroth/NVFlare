@@ -850,3 +850,5 @@ Sources:
 Proposal selected: add default-off `--sam_global_trajectory` and run the active best stack with `--sam_rho 0.05 --sam_global_trajectory`. If it is stable but misses, reserve a trajectory radius variant at `sam_rho=0.075`; otherwise fall back to late-SAM or ASAM only after this FL-specific perturbation branch is falsified.
 
 Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round `--sam_global_trajectory` smoke passed. The targeted smoke confirmed the default-off flag parsed on clients, used the local SAM fallback on round 0, and completed after a round with previous global weights available.
+
+Trajectory SAM missed: `--sam_global_trajectory` with `sam_rho=0.05` scored 0.915400 in 510 seconds and was marked `discard`, well below both the local-SAM high-water and recent near misses. The source-backed trajectory branch was therefore falsified for this stack; remove the default-off knob and keep the simpler local FedSAM implementation. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the trajectory-SAM literature reset.

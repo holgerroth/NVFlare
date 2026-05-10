@@ -136,11 +136,6 @@ def define_parser():
         help="Sharpness-aware minimization perturbation radius forwarded to clients. 0 disables SAM.",
     )
     parser.add_argument(
-        "--sam_global_trajectory",
-        action="store_true",
-        help="Ask clients to use previous received global weights as the SAM perturbation direction.",
-    )
-    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -375,8 +370,6 @@ def main():
         train_args.append("--eval_global_every_round")
     if args.zero_mean_gradients:
         train_args.append("--zero_mean_gradients")
-    if args.sam_global_trajectory:
-        train_args.append("--sam_global_trajectory")
     if args.aggregator == "scaffold":
         train_args.append("--scaffold")
     if args.no_deterministic_training:

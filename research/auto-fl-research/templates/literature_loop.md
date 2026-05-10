@@ -154,6 +154,13 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Sources to carry forward: Fan24 FedLESAM, Li25 FedWMSAM, Kwon21 ASAM, Qu22 FedSAM, Sun23 FedSMOO.
 - Validation: `make validate`, `make smoke`, and a no-ledger two-round `--sam_global_trajectory` smoke passed before the full candidate.
 
+## Batch outcome
+
+- FedLESAM trajectory SAM missed: `--sam_global_trajectory` with `sam_rho=0.05` scored 0.915400 in 510 seconds and was marked `discard`.
+- The default-off `sam_global_trajectory` implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`; keep the simpler local FedSAM `sam_rho=0.05` branch.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the trajectory-SAM literature reset.
+- Do not retry FedLESAM trajectory perturbations on this stack unless a materially different source-backed implementation changes the perturbation sign, warmup, or coupling mechanism.
+
 ---
 
 # Literature loop 2026-05-10 aligned update weighting
