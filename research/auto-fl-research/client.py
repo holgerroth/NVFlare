@@ -25,6 +25,7 @@ Provenance:
 
 import argparse
 import copy
+import math
 import os
 import random
 import re
@@ -101,6 +102,13 @@ def build_parser():
         type=float,
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
+    )
+    parser.add_argument(
+        "--fedproxloss_mu_schedule",
+        type=str,
+        default="constant",
+        choices=["constant", "cosine_decay"],
+        help="Round schedule for FedProx mu. constant keeps --fedproxloss_mu fixed.",
     )
     parser.add_argument(
         "--zero_mean_gradients",
@@ -347,6 +355,19 @@ def _build_class_balanced_weights(class_counts, beta):
     return weights
 
 
+def _effective_fedprox_mu(args, current_round, total_rounds):
+    if args.fedproxloss_mu <= 0.0:
+        return 0.0
+    if args.fedproxloss_mu_schedule == "constant":
+        return args.fedproxloss_mu
+    if args.fedproxloss_mu_schedule == "cosine_decay":
+        if total_rounds is None or total_rounds <= 1 or current_round is None:
+            return args.fedproxloss_mu
+        progress = min(1.0, max(0.0, float(current_round) / float(total_rounds - 1)))
+        return args.fedproxloss_mu * 0.5 * (1.0 + math.cos(math.pi * progress))
+    raise ValueError(f"Unknown fedproxloss_mu_schedule: {args.fedproxloss_mu_schedule}")
+
+
 def _update_scaffold_controls(
     model,
     global_model,
@@ -380,6 +401,8 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.fedproxloss_mu < 0.0:
+        raise ValueError("fedproxloss_mu must be >= 0")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
@@ -409,9 +432,6 @@ def main(args):
     )
 
     scheduler = None
-    criterion_prox = None
-    if args.fedproxloss_mu > 0:
-        criterion_prox = PTFedProxLoss(mu=args.fedproxloss_mu)
 
     print(f"Creating datasets for site={site_name}")
     train_dataset, valid_dataset = create_datasets(
@@ -434,6 +454,8 @@ def main(args):
             f"{site_name}: local_loss class_counts={class_counts.detach().cpu().int().tolist()} "
             f"class_balanced_loss_beta={args.class_balanced_loss_beta}"
         )
+    if args.fedproxloss_mu > 0.0:
+        print(f"{site_name}: fedproxloss_mu={args.fedproxloss_mu} schedule={args.fedproxloss_mu_schedule}")
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
     summary_writer = SummaryWriter()
@@ -483,6 +505,9 @@ def main(args):
         for p in global_model.parameters():
             p.requires_grad = False
         global_model.to(DEVICE)
+        effective_fedprox_mu = _effective_fedprox_mu(args, current_round, input_model.total_rounds)
+        criterion_prox = PTFedProxLoss(mu=effective_fedprox_mu) if effective_fedprox_mu > 0.0 else None
+        summary_writer.add_scalar("fedproxloss_mu", effective_fedprox_mu, current_round)
 
         scaffold_global_controls = None
         scaffold_ctrl_diff = None

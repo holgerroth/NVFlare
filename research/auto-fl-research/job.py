@@ -125,6 +125,13 @@ def define_parser():
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
     parser.add_argument(
+        "--fedproxloss_mu_schedule",
+        type=str,
+        default="constant",
+        choices=["constant", "cosine_decay"],
+        help="FedProx mu schedule forwarded to clients.",
+    )
+    parser.add_argument(
         "--zero_mean_gradients",
         action="store_true",
         help="Project multi-dimensional local gradients to zero mean before each optimizer step.",
@@ -357,6 +364,8 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--fedproxloss_mu_schedule",
+        args.fedproxloss_mu_schedule,
         "--sam_rho",
         args.sam_rho,
         "--class_balanced_loss_beta",

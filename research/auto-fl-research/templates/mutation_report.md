@@ -772,3 +772,5 @@ Sources:
 Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `--aggregator aligned_fedavgm` smoke passed.
 
 Aligned FedAvgM missed: the full candidate scored 0.918300 and was marked `discard`, so the default-off `aligned_fedavgm` implementation was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml`. Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the literature reset.
+
+Reserve P2 is now active: a default-off `--fedproxloss_mu_schedule cosine_decay` knob was added to test Sun23-style dynamic client regularization without changing metadata or aggregation. Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger dynamic FedProx smoke passed.

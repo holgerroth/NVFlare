@@ -35,6 +35,9 @@ mutable_args:
   cosine_lr_eta_min_factor: {type: float, min: 0.0001, max: 0.1, log_scale: true}
   evaluate_local: {type: bool}
   fedproxloss_mu: {type: float, min: 0.0, max: 1.0, log_scale: true}
+  fedproxloss_mu_schedule:
+    type: str
+    choices: [constant, cosine_decay]
   zero_mean_gradients: {type: bool}
   sam_rho: {type: float, min: 0.0, max: 0.2}
   aggregator:

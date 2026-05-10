@@ -161,6 +161,7 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the literature reset.
 - Next source-backed reserve: dynamic FedProx scheduling from the same literature worksheet, because static FedProx was null but a round-dependent client-local regularizer remains distinct.
+- Reserve P2 was promoted after the P1 miss: added default-off `--fedproxloss_mu_schedule cosine_decay`, validated with `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger cosine-decay FedProx smoke.
 
 ---
 
