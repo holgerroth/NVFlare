@@ -806,3 +806,5 @@ FedProx tight upper bracket missed: `fedproxloss_mu=3.5e-5` scored 0.919300 and 
 Class-balanced beta upper tight bracket missed: `class_balanced_loss_beta=0.903125` scored 0.921400 and was marked `discard`; this improves over the wider upper check but remains below the active `0.90` beta stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with sixteen scored candidates since the literature reset.
 
 Class-balanced beta lower-side bracket missed: `class_balanced_loss_beta=0.86875` scored 0.923200 and was marked `discard`; it is the strongest post-reset near miss but remains below the active `0.90` beta high-water. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seventeen scored candidates since the literature reset.
+
+Class-balanced beta lower-midpoint bracket missed: `class_balanced_loss_beta=0.871875` scored 0.921500 and was marked `discard`; the lower beta shoulder is noisy and did not interpolate above the `0.86875` near miss. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eighteen scored candidates since the literature reset.
