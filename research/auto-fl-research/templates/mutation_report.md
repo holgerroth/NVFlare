@@ -808,3 +808,5 @@ Class-balanced beta upper tight bracket missed: `class_balanced_loss_beta=0.9031
 Class-balanced beta lower-side bracket missed: `class_balanced_loss_beta=0.86875` scored 0.923200 and was marked `discard`; it is the strongest post-reset near miss but remains below the active `0.90` beta high-water. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with seventeen scored candidates since the literature reset.
 
 Class-balanced beta lower-midpoint bracket missed: `class_balanced_loss_beta=0.871875` scored 0.921500 and was marked `discard`; the lower beta shoulder is noisy and did not interpolate above the `0.86875` near miss. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with eighteen scored candidates since the literature reset.
+
+SAM-radius midpoint missed: `sam_rho=0.07` scored 0.919900 and was marked `discard`; the earlier `0.075` near miss did not imply a smooth improvement between active `0.05` and the larger-radius shoulder. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with nineteen scored candidates since the literature reset.
