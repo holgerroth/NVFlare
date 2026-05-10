@@ -114,17 +114,6 @@ def build_parser():
         help="Sharpness-aware minimization perturbation radius. 0 disables SAM.",
     )
     parser.add_argument(
-        "--sam_adaptive_scale",
-        action="store_true",
-        help="Scale SAM perturbations by parameter magnitude, ASAM-style.",
-    )
-    parser.add_argument(
-        "--sam_adaptive_eta",
-        type=float,
-        default=0.01,
-        help="Small positive offset for --sam_adaptive_scale parameter magnitudes.",
-    )
-    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -278,18 +267,12 @@ def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global
     return loss
 
 
-def _adaptive_sam_scale(param, eta):
-    return param.detach().abs().add(eta)
-
-
-def _grad_norm(model, args):
+def _grad_norm(model):
     grads = []
     for param in model.parameters():
         if param.grad is None:
             continue
         grad = param.grad.detach()
-        if args.sam_adaptive_scale:
-            grad = grad * _adaptive_sam_scale(param, args.sam_adaptive_eta)
         grads.append(grad.norm(p=2))
     if not grads:
         return torch.tensor(0.0, device=DEVICE)
@@ -307,7 +290,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
         optimizer.step()
         return loss.item()
 
-    grad_norm = _grad_norm(model, args)
+    grad_norm = _grad_norm(model)
     if not torch.isfinite(grad_norm) or grad_norm <= 0:
         optimizer.step()
         return loss.item()
@@ -320,9 +303,6 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
                 perturbations.append(None)
                 continue
             perturbation = param.grad
-            if args.sam_adaptive_scale:
-                adaptive_scale = _adaptive_sam_scale(param, args.sam_adaptive_eta)
-                perturbation = perturbation * adaptive_scale.square()
             perturbation = perturbation * rho_scale.to(param.device)
             param.add_(perturbation)
             perturbations.append(perturbation)
@@ -408,10 +388,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
-    if args.sam_adaptive_eta < 0.0:
-        raise ValueError("sam_adaptive_eta must be >= 0")
-    if args.sam_adaptive_scale and args.sam_rho <= 0.0:
-        raise ValueError("sam_adaptive_scale requires sam_rho > 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
 
@@ -466,8 +442,6 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
-    if args.sam_adaptive_scale:
-        print(f"{site_name}: sam_adaptive_scale=True sam_adaptive_eta={args.sam_adaptive_eta}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 

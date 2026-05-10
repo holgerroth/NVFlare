@@ -163,7 +163,10 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Reserve P3 promoted: default-off `--sam_rho_schedule late_cosine` was added and validated with `make validate`, `make smoke`, and a no-ledger two-round schedule smoke. Launch the active stack with `--sam_rho 0.10 --sam_rho_schedule late_cosine` next.
 - Late-cosine SAM scheduling missed: `sam_rho=0.10 --sam_rho_schedule late_cosine` scored 0.920000 in 846 seconds and was marked `discard`.
 - The default-off schedule implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`; do not retry scheduled rho on this stack without a different mechanism.
-- Reserve P4 promoted: default-off `--sam_adaptive_scale --sam_adaptive_eta 0.01` was added and validated with `make validate`, `make smoke`, and a no-ledger ASAM smoke. Launch the active stack with `--sam_rho 0.10 --sam_adaptive_scale --sam_adaptive_eta 0.01` next.
+- Reserve P4 promoted: default-off `--sam_adaptive_scale --sam_adaptive_eta 0.01` was added and validated with `make validate`, `make smoke`, and a no-ledger ASAM smoke, then launched on the active stack with `--sam_rho 0.10`.
+- ASAM adaptive scaling missed: `sam_rho=0.10 --sam_adaptive_scale --sam_adaptive_eta 0.01` scored 0.915500 in 906 seconds and was marked `discard`.
+- The default-off ASAM implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`; do not retry parameter-magnitude perturbation scaling on this stack without a different source-backed mechanism.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with three scored candidates since the trajectory-SAM literature reset.
 
 ---
 
