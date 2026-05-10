@@ -755,3 +755,5 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-nine scored candidates since the local-SWA literature reset.
 - Class-balanced beta upper shoulder missed: `class_balanced_loss_beta=0.95` scored 0.918800 and was marked `discard`; beta values above the active `0.90` have not improved the kept stack.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the local-SWA literature reset.
+- FedProx upper shoulder missed: `fedproxloss_mu=6e-5` scored 0.920100 and was marked `discard`; the active `3e-5` remains the best proximal setting under the kept FedSAM stack.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the local-SWA literature reset.
