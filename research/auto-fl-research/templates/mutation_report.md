@@ -759,3 +759,14 @@ The active beta `0.90` FedZMG stack has exhausted scalar optimizer, scheduler, l
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the local-SWA literature reset.
 - Client learning-rate lower shoulder missed: `lr=0.04375` scored 0.921800 and was marked `discard`; the active `0.045` remains better.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the local-SWA literature reset, so the next batch should come from the literature loop rather than routine scalar jittering.
+
+## Literature Reset: Aligned FedAvgM
+
+The post-SAM plateau exhausted scalar jitter and the active aggregation-family checks already rejected plain FedAvg, median, SCAFFOLD, and FedAdam. The selected source-backed branch is a default-off `aligned_fedavgm` aggregator: compute the normal step-weighted round mean DIFF, score each client by cosine alignment with that direction, apply a conservative alignment floor, and then feed the aligned mean into the existing FedAvgM server-momentum update.
+
+Sources:
+- Rahil et al., "FedSCAM (Federated Sharpness-Aware Minimization with Clustered Aggregation and Modulation)", arXiv:2601.00853, https://arxiv.org/abs/2601.00853. Motivation: SAM under client heterogeneity can benefit from aggregation that prioritizes updates aligned with the global optimization direction.
+- Yin et al., "Byzantine-Robust Distributed Learning: Towards Optimal Statistical Rates", ICML 2018, https://proceedings.mlr.press/v80/yin18a.html. Motivation: coordinate-wise robust aggregation families reduce sensitivity to outlier updates.
+- Sun et al., "Dynamic Regularized Sharpness Aware Minimization in Federated Learning", ICML 2023, arXiv:2305.11584, https://arxiv.org/abs/2305.11584. Reserve idea: dynamic client regularization if server-only alignment misses.
+
+Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `--aggregator aligned_fedavgm` smoke passed.

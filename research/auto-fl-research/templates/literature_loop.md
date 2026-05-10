@@ -71,6 +71,91 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-10 aligned update weighting
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` reached `recommendation=literature` after row 493, with thirty-two scored post-literature candidates and no material improvement over the 0.923900 FedSAM high-water mark.
+- Current best: 0.923900, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `sam_rho=0.05`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: SAM radius, LR/momentum, server LR/momentum, FedProx, class-balanced beta, scheduler floor, weight decay, exact steps, lower epochs, plain FedAvg, median aggregation, SCAFFOLD, local SWA, and architecture variants all missed.
+- Confirmed null/worse ideas to avoid: FedAdam under SAM crashed with NaN/Inf DIFFs; median aggregation and SCAFFOLD were poor under the active stack; full scalar jitter around the active stack is exhausted.
+- Candidate width: run width 1 on one local GPU, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated sharpness aware minimization non-IID client heterogeneity alignment aggregation | find SAM-specific post-plateau mechanisms beyond scalar radius tuning | arXiv, PMLR/web search | FedSCAM targets uniform FedSAM perturbations and alignment-aware aggregation. |
+| dynamic regularized sharpness aware minimization federated learning global consistency | look for local/global consistency mechanisms compatible with client-local regularization | arXiv, DBLP/web search | FedSMOO supports dynamic regularization but full global-SAM server logic is too invasive. |
+| robust aggregation federated learning trimmed mean median non-IID update outliers | find a softer alternative to failed coordinate-wise median | PMLR, MDPI/web search | Trimmed mean is source-backed but close to the failed median branch. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Rahil25 | FedSCAM: Federated Sharpness-Aware Minimization with Clustered Aggregation and Modulation / 2025 | https://arxiv.org/abs/2601.00853 | uniform FedSAM ignores client-specific heterogeneity and update alignment | heterogeneity/alignment-aware SAM aggregation | keep |
+| Sun23 | Dynamic Regularized Sharpness Aware Minimization in Federated Learning / 2023 | https://arxiv.org/abs/2305.11584 | local clients overfit into local optima that deviate from the global objective | dynamic regularization plus global flatness | keep |
+| Yin18 | Byzantine-Robust Distributed Learning / 2018 | https://proceedings.mlr.press/v80/yin18a.html | mean aggregation is sensitive to outlier or conflicting updates | median / trimmed mean robust aggregation | keep |
+| Li22 | Robust Aggregation for Federated Learning by Minimum gamma-Divergence Estimation / 2022 | https://www.mdpi.com/1099-4300/24/5/686 | robust aggregation can reduce outlier influence with less brittle weighting | robust data-driven aggregation | keep as support |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://proceedings.mlr.press/v162/qu22a.html | non-IID local ERM creates sharp valleys and local-client deviation | FedSAM / MoFedSAM | keep as active mechanism |
+| Karimireddy20 | SCAFFOLD / 2020 | https://arxiv.org/abs/1910.06378 | FedAvg client drift under heterogeneity | control variates | reject: active-stack SCAFFOLD row was poor |
+| Cheng24 | Momentum Benefits Non-IID Federated Learning / 2024 | https://arxiv.org/abs/2306.16504 | momentum can help FedAvg/SCAFFOLD under non-IID data | momentum FL | reject: FedAvgM momentum is already the active server family and scalar momentum sweeps missed |
+| Mueller23 | Normalization Layers Are All That SAM Needs / 2023 | https://arxiv.org/abs/2306.04226 | full-parameter SAM perturbation may be suboptimal | normalization-only SAM | reject: active `moderate_cnn` has no norm layers and `moderate_cnn_norm` already missed |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Uniform FedSAM may overweight destabilizing client directions | Rahil25 proposes aggregation weights that prioritize updates aligned with the global optimization direction | `sam_rho` brackets up to 0.1 missed after 0.05; median and SCAFFOLD were too blunt | server can reweight already-received DIFFs without changing client metadata | `custom_aggregators.py`, `job.py` |
+| C2 | Local optima still drift away from the global objective | Sun23 argues local clients can overfit to isolated non-IID optima and uses dynamic regularization toward global consistency | static FedProx values from 1e-5 to 6e-5 all missed | a future round-aware proximal schedule can stay client-local | `client.py`, `job.py` |
+| C3 | Some client updates may be outliers even without Byzantine clients | Yin18 and Li22 support robust aggregation families that reduce outlier influence | coordinate-wise median failed badly, but scalar/compute retunes no longer help | a softer alignment-weighted FedAvgM can preserve momentum while reducing conflicting updates | `custom_aggregators.py`, `job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Alignment-weighted FedAvgM | Rahil25; Qu22 | add `--aggregator aligned_fedavgm`; run active stack with existing `server_lr=1.8`, `server_momentum=0.475` | downweight client DIFFs that oppose the round mean while preserving FedAvgM momentum | score <= 0.923900 or instability/timeout | low: server-only reweighting of DIFFs |
+| P2 | Dynamic proximal regularization | Sun23; Qu22 | future default-off round-decayed `fedproxloss_mu` schedule, e.g. high early and low late | suppress early drift without late-round over-regularization | no gain over static FedProx near-misses | low-medium: client-local loss schedule |
+| P3 | Trimmed-mean FedAvgM reserve | Yin18; Li22 | future coordinate-wise trim one client from each tail before FedAvgM update | softer robust aggregation than median | underfits like median or conflicts with non-IID useful extremes | low: server-only aggregation |
+| P4 | Normalization-only SAM | Mueller23 | perturb only norm affine parameters during SAM | lower SAM perturbation noise | not applicable to active `moderate_cnn`; norm architecture already missed | medium: architecture-dependent |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not previously tested; distinct from median because it preserves all clients with a floor and applies FedAvgM | related to robust aggregation, but not the failed coordinate-wise median or plain FedAvg | select |
+| P2 | related to FedProx | static FedProx is null; schedule is distinct but needs new client code | reserve |
+| P3 | median robust aggregation family | median scored 0.883700 under SAM | reserve only if P1 alignment shows promise |
+| P4 | `moderate_cnn_norm` architecture subcampaign | norm architecture scored 0.916000 and active model has no normalization layers | reject |
+
+## Proposal scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 aligned FedAvgM | 3 | 5 | 4 | 4 | 5 | 1 | 28 |
+| P2 dynamic FedProx | 3 | 4 | 3 | 4 | 4 | 1 | 24 |
+| P3 trimmed-mean FedAvgM | 2 | 5 | 3 | 4 | 3 | 1 | 23 |
+| P4 norm-only SAM | 1 | 3 | 2 | 4 | 3 | 1 | 14 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `alignedfedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam005_w1` | active best stack with `--aggregator aligned_fedavgm --server_lr 1.8 --server_momentum 0.475` |
+| reserve | P2 |  | dynamic FedProx schedule only if P1 misses without instability |
+| reserve | P3 |  | trimmed-mean FedAvgM only if alignment helps or logs show outlier-client behavior |
+
+## Reflective memory
+
+- Keep: alignment-weighted server aggregation is the least invasive new mechanism because it uses existing DIFFs and preserves FedAvgM.
+- Discard: normalization-only SAM for this campaign because the active model has no norm parameters and the norm architecture already missed.
+- Do not retry: routine scalar jitter, median aggregation, SCAFFOLD, FedAdam, local SWA, and architecture variants without a stronger source-backed reason.
+- Sources to carry forward: Rahil25 FedSCAM; Sun23 FedSMOO; Yin18 robust aggregation; Li22 gamma-mean; Qu22 FedSAM.
+- Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger `aligned_fedavgm` smoke passed before the full candidate.
+
+---
+
 # Literature loop 2026-05-09 local weight averaging
 
 ## Trigger

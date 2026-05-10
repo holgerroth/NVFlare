@@ -28,6 +28,7 @@ import shlex
 from pathlib import Path
 
 from custom_aggregators import (
+    AlignedFedAvgMAggregator,
     FedAdamAggregator,
     FedAvgAggregator,
     FedAvgMAggregator,
@@ -152,6 +153,7 @@ def define_parser():
             "fedavgm",
             "fedadam",
             "fedopt",
+            "aligned_fedavgm",
             "scaffold",
             "median",
             "default",
@@ -159,6 +161,7 @@ def define_parser():
         help=(
             "weighted/fedavg=data-size weighted FedAvg, fedavgm/fedopt=server momentum "
             "over aggregated DIFFs, fedadam=server Adam over aggregated DIFFs, "
+            "aligned_fedavgm=cosine-aligned client weights plus FedAvgM, "
             "scaffold=SCAFFOLD with control-variate meta, median=robust median, "
             "default=built-in FedAvg"
         ),
@@ -255,6 +258,15 @@ def get_aggregator(args):
     if kind in {"fedavgm", "fedopt"}:
         print("Using FedAvgMAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
         return FedAvgMAggregator(
+            server_lr=args.server_lr,
+            server_momentum=args.server_momentum,
+        )
+    if kind == "aligned_fedavgm":
+        print(
+            "Using AlignedFedAvgMAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})"
+        )
+        return AlignedFedAvgMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
         )
