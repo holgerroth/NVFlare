@@ -832,3 +832,5 @@ Class-balanced beta lower interpolation missed: `class_balanced_loss_beta=0.8671
 Client learning-rate upper interpolation missed: `lr=0.050625` scored 0.916200 and was marked `discard`; the high client-LR shoulder degrades quickly above the `0.05` near miss, so keep the active `lr=0.045` stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with twenty-nine scored candidates since the literature reset.
 
 SAM-radius upper interpolation missed: `sam_rho=0.055` scored 0.916000 and was marked `discard`; the active `sam_rho=0.05` remains better than the tight upper interpolation and wider upper checks. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty scored candidates since the literature reset.
+
+Server learning-rate tight interpolation missed: `server_lr=1.8125` scored 0.917500 and was marked `discard`; the active FedAvgM server step size `1.8` remains better than tight nearby upper-side checks. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the literature reset.
