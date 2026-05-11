@@ -363,6 +363,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - P2 `fedntd_beta=0.02`, `fedntd_temperature=2.0` completed in 966s and scored 0.920000, so it was marked `discard`. Lowering the masked teacher pressure did not recover the active FedSAM/FedAvgM stack.
 - After P1 and P2 both missed cleanly, the default-off FedNTD code path was removed from `client.py`, `job.py`, and `mutation_schema.yaml`. Do not retry FedNTD-style distillation without a materially different source-backed mechanism.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=2`, `reset_source=literature`; continue with a non-duplicate local axis or the next reserve idea only after validation/smoke confirms the removal.
+- Reserve P4 promoted: add default-off `--feddyn_alpha` as a client-local FedDyn-lite regularizer. Each client persists its own normalized linear correction state across rounds, adds the dynamic term during local training, and still sends the unchanged DIFF payload with `NUM_STEPS_CURRENT_ROUND`. Candidate planned: active stack plus `--feddyn_alpha 0.01`.
+- Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedDyn smoke passed. The targeted smoke logged `feddyn_alpha=0.01` and increasing `feddyn_state_norm` on both clients.
 
 ---
 
