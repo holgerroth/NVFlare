@@ -369,6 +369,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=2`, `reset_source=literature`; the crash does not count as a scored plateau row.
 - Reserve P5 promoted: add `fedyogi` as a conservative server-side FedOpt variant using Yogi's bounded second-moment update. Candidate planned: active client stack with `--aggregator fedyogi --server_lr 0.2 --fedopt_beta1 0.9 --fedopt_beta2 0.99 --fedopt_tau 0.1`.
 - Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedYogi smoke passed. The targeted smoke logged `Using FedYogiAggregator (server_lr=0.2, beta1=0.9, beta2=0.99, tau=0.1)` and completed cross-site evaluation without writing to `results.tsv`.
+- FedYogi `server_lr=0.2`, `tau=0.1` completed in 864s and scored 0.857200, so it was marked `discard`. This confirms the adaptive FedOpt family remains a poor fit for the active FedSAM stack despite the Yogi second-moment variant.
+- After the miss, `fedyogi` support was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml`. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=3`.
 
 ---
 
