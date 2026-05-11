@@ -31,7 +31,6 @@ from custom_aggregators import (
     FedAdamAggregator,
     FedAvgAggregator,
     FedAvgMAggregator,
-    FedExpAggregator,
     MedianAggregator,
     ScaffoldAggregator,
     WeightedAggregator,
@@ -152,7 +151,6 @@ def define_parser():
             "fedavgm",
             "fedadam",
             "fedopt",
-            "fedexp",
             "scaffold",
             "median",
             "default",
@@ -160,7 +158,6 @@ def define_parser():
         help=(
             "weighted/fedavg=data-size weighted FedAvg, fedavgm/fedopt=server momentum "
             "over aggregated DIFFs, fedadam=server Adam over aggregated DIFFs, "
-            "fedexp=bounded FedExP adaptive step over aggregated DIFFs, "
             "scaffold=SCAFFOLD with control-variate meta, median=robust median, "
             "default=built-in FedAvg"
         ),
@@ -194,12 +191,6 @@ def define_parser():
         type=float,
         default=1e-3,
         help="Numerical stabilizer for the fedadam aggregator.",
-    )
-    parser.add_argument(
-        "--fedexp_epsilon",
-        type=float,
-        default=1e-12,
-        help="Numerical stabilizer for the fedexp adaptive-step denominator.",
     )
     return parser.parse_args()
 
@@ -277,12 +268,6 @@ def get_aggregator(args):
             beta1=args.fedopt_beta1,
             beta2=args.fedopt_beta2,
             tau=args.fedopt_tau,
-        )
-    if kind == "fedexp":
-        print(f"Using FedExpAggregator (max_server_lr={args.server_lr}, epsilon={args.fedexp_epsilon})")
-        return FedExpAggregator(
-            max_server_lr=args.server_lr,
-            epsilon=args.fedexp_epsilon,
         )
     if kind == "scaffold":
         print("Using ScaffoldAggregator")
