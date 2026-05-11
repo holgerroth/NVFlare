@@ -1564,3 +1564,10 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: do not launch another scalar SAM/FedProx/LR/weight-decay/local-compute jitter before testing the source-backed blend.
 - Do not retry: FedLAW-style aligned aggregation unless a non-duplicate implementation avoids the prior aligned FedAvgM and median failures.
 - Sources to carry forward: Zhao22 GNP; Sun23 FedSpeed; Xu24 FedGAM; Jhunjhunwala23 FedExP; Li23 FedLAW; Qu22 FedSAM; Foret21 SAM.
+
+### Batch outcome
+
+- P1 `--sam_blend 0.5` on the active FedSAM/FedAvgM stack scored 0.922100 in 879s and was marked `discard`.
+- The branch was numerically stable but did not improve over the 0.925200 high-water, so the lower blend is not useful for this stack.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=1` after the literature reset.
+- Promote P2 reserve next: run the same active stack with `--sam_blend 0.75` to test whether a blend closer to pure SAM preserves the source-backed mechanism without the lower-blend regression.
