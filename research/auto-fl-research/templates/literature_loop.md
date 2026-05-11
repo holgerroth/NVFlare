@@ -360,6 +360,9 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 - P1 `fedntd_beta=0.05`, `fedntd_temperature=2.0` completed in 966s and scored 0.920300, so it was marked `discard` against the 0.923900 high-water. The masked teacher signal was stable but too strong for the active FedSAM/FedAvgM stack.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=1`, `reset_source=literature`, so the reserved P2 lower-beta FedNTD candidate remains the next source-backed test before removing this branch.
+- P2 `fedntd_beta=0.02`, `fedntd_temperature=2.0` completed in 966s and scored 0.920000, so it was marked `discard`. Lowering the masked teacher pressure did not recover the active FedSAM/FedAvgM stack.
+- After P1 and P2 both missed cleanly, the default-off FedNTD code path was removed from `client.py`, `job.py`, and `mutation_schema.yaml`. Do not retry FedNTD-style distillation without a materially different source-backed mechanism.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=2`, `reset_source=literature`; continue with a non-duplicate local axis or the next reserve idea only after validation/smoke confirms the removal.
 
 ---
 

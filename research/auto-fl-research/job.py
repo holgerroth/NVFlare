@@ -142,19 +142,6 @@ def define_parser():
         help="Effective-number class-balanced loss beta forwarded to clients. 0 disables class reweighting.",
     )
     parser.add_argument(
-        "--fedntd_beta",
-        type=float,
-        default=0.0,
-        help="Federated Not-True Distillation loss weight forwarded to clients. 0 disables FedNTD.",
-    )
-    parser.add_argument(
-        "--fedntd_temperature",
-        type=float,
-        default=2.0,
-        help="Softmax temperature for FedNTD when --fedntd_beta > 0.",
-    )
-
-    parser.add_argument(
         "--aggregator",
         type=str,
         default="weighted",
@@ -373,10 +360,6 @@ def main():
         args.sam_rho,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
-        "--fedntd_beta",
-        args.fedntd_beta,
-        "--fedntd_temperature",
-        args.fedntd_temperature,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
