@@ -2,12 +2,12 @@
 
 ## Executive Summary
 
-- **Branch:** `autoresearch/h100-algocal-20260507` at `77cd9269d`
-- **Rows analyzed:** 613 total, 597 scored
-- **Best score:** 0.925200 at experiment `#574`
+- **Branch:** `autoresearch/h100-algocal-20260507` at `4d933cdc5`
+- **Rows analyzed:** 632 total, 616 scored
+- **Best score:** 0.925800 at experiment `#626`
 - **Baseline:** 0.852100 at experiment `#0`
-- **Lift:** +0.073100 absolute, 8.6% relative
-- **Runtime cost:** 117.88h aggregate; 11.5m average over 613 timed candidates
+- **Lift:** +0.073700 absolute, 8.6% relative
+- **Runtime cost:** 122.42h aggregate; 11.6m average over 632 timed candidates
 - **Agent model/effort:** Agent model output, optional: GPT-5.5 Agent effort output, optional: xhigh
 - **Agent/tooling cost:** Agent cost telemetry unavailable; no agent cost output was pasted. Experiment runtime cost is reported from results.tsv.
 - **Best status:** `keep`; treat as needing reproduction unless independently repeated or marked `keep`.
@@ -22,22 +22,22 @@
 
 | field | value |
 | --- | --- |
-| experiment | #574 |
-| score | 0.925200 |
-| delta vs baseline | +0.073100 |
+| experiment | #626 |
+| score | 0.925800 |
+| delta vs baseline | +0.073700 |
 | relative lift | 8.6% |
 | status | keep |
-| commit | d33b9efe5 |
-| runtime | 14.4m |
+| commit | b1db3dd29 |
+| runtime | 14.3m |
 | target | client.py |
-| description | SAM radius 0.0725 tight upper-shoulder interpolation under kept FedSAM/FedAvgM stack [src: Qu22 FedSAM] |
-| artifact | /tmp/nvflare/simulation/fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam00725_w1 |
+| description | Very tight upper cosine floor 0.0001625 interpolation on active FedSAM/FedAvgM high-water stack |
+| artifact | /tmp/nvflare/simulation/fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001625_mu3e5_zmg_cb090_sam00725_w1 |
 | contract mode | Strict DIFF contract |
 
 ### Exact Budget / Args
 
 ```text
---n_clients 8 --num_rounds 20 --aggregation_epochs 7 --local_train_steps 0 --batch_size 64 --eval_batch_size 1024 --alpha 0.5 --seed 0 --model_arch moderate_cnn --max_model_params 5000000 --aggregator fedavgm --server_lr 1.8 --server_momentum 0.475 --lr 0.045 --momentum 0.925 --weight_decay 5e-4 --cosine_lr_eta_min_factor 0.00015 --sam_rho 0.0725 --fedproxloss_mu 3e-5 --zero_mean_gradients --class_balanced_loss_beta 0.90 --final_eval_clients site-1 --name fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam00725_w1
+--n_clients 8 --num_rounds 20 --aggregation_epochs 7 --local_train_steps 0 --batch_size 64 --eval_batch_size 1024 --alpha 0.5 --seed 0 --model_arch moderate_cnn --max_model_params 5000000 --aggregator fedavgm --server_lr 1.8 --server_momentum 0.475 --lr 0.045 --momentum 0.925 --weight_decay 5e-4 --cosine_lr_eta_min_factor 0.0001625 --sam_rho 0.0725 --fedproxloss_mu 3e-5 --zero_mean_gradients --class_balanced_loss_beta 0.90 --final_eval_clients site-1 --name fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001625_mu3e5_zmg_cb090_sam00725_w1
 ```
 
 ## Improvement Path
@@ -55,17 +55,17 @@ Major running-best milestones, selected by first/last and largest score jumps:
 | #227 | 0.913700 | +0.007300 | FedZMG zero-mean gradients on active FedAvgM FedProx stack [src: Zant... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | Zantalis26 FedZMG arXiv:2602.18384 |
 | #235 | 0.916700 | +0.002900 | Client lr 0.045 around FedZMG new best stack [src: Zantalis26 FedZMG ... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | Zantalis26 FedZMG arXiv:2602.18384 |
 | #427 | 0.923900 | +0.005300 | active class-balanced FedZMG stack plus FedSAM rho 0.05 [src: Qu22 Fe... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | Qu22 FedSAM ICML; Foret21 SAM ICLR |
-| #574 | 0.925200 | +0.001300 | SAM radius 0.0725 tight upper-shoulder interpolation under kept FedSA... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | Qu22 FedSAM |
+| #626 | 0.925800 | +0.000600 | Very tight upper cosine floor 0.0001625 interpolation on active FedSA... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay |  |
 
 ## Runtime and Reliability
 
 | metric | value |
 | --- | --- |
-| total aggregate runtime | 117.88h |
-| average runtime per timed candidate | 11.5m |
-| timed candidates | 613 |
+| total aggregate runtime | 122.42h |
+| average runtime per timed candidate | 11.6m |
+| timed candidates | 632 |
 | candidate rows | 0 |
-| kept rows | 23 |
+| kept rows | 24 |
 | crash rows | 15 |
 
 The runtime total is aggregate candidate runtime from `runtime_seconds`, not wall-clock elapsed campaign time.
@@ -189,22 +189,22 @@ Source refs are extracted from `[src: ...]` markers in `results.tsv` description
 | status | rows |
 | --- | --- |
 | crash | 15 |
-| discard | 559 |
-| keep | 23 |
+| discard | 577 |
+| keep | 24 |
 | literature | 16 |
 
 ### Top Scored Rows
 
 | rank | experiment | score | runtime | status | description |
 | --- | --- | --- | --- | --- | --- |
-| 1 | #574 | 0.925200 | 14.4m | keep | SAM radius 0.0725 tight upper-shoulder interpolation under kept FedSAM/FedAvgM stack ... |
-| 2 | #427 | 0.923900 | 14.3m | keep | active class-balanced FedZMG stack plus FedSAM rho 0.05 [src: Qu22 FedSAM ICML; Foret... |
-| 3 | #511 | 0.923200 | 14.4m | discard | Class-balanced beta 0.86875 lower-side bracket under kept FedSAM/FedAvgM stack [src: ... |
-| 4 | #440 | 0.923000 | 14.3m | discard | Class-balanced beta 0.875 under kept FedSAM rho 0.05 stack [src: Cui19 CBLoss; Qu22 F... |
-| 5 | #571 | 0.923000 | 14.3m | discard | Class-balanced beta 0.89375 tight upper interpolation under kept FedSAM/FedAvgM stack... |
-| 6 | #456 | 0.922900 | 14.4m | discard | SAM radius 0.075 upper-bound check under kept stack [src: Qu22 FedSAM ICML] |
-| 7 | #600 | 0.922800 | 14.3m | discard | Combined lower weight decay 4.75e-4 and lower server lr 1.796875 under new kept SAM 0... |
-| 8 | #551 | 0.922500 | 14.4m | discard | Lower server momentum with higher SAM radius near-miss pairing under kept FedSAM stac... |
-| 9 | #589 | 0.922500 | 14.3m | discard | Cosine eta_min_factor 0.0001 lower neighbor under new kept SAM 0.0725 FedSAM/FedAvgM ... |
-| 10 | #535 | 0.922400 | 14.3m | discard | Server momentum 0.46875 tight lower interpolation under kept FedSAM/FedAvgM stack [sr... |
+| 1 | #626 | 0.925800 | 14.3m | keep | Very tight upper cosine floor 0.0001625 interpolation on active FedSAM/FedAvgM high-w... |
+| 2 | #574 | 0.925200 | 14.4m | keep | SAM radius 0.0725 tight upper-shoulder interpolation under kept FedSAM/FedAvgM stack ... |
+| 3 | #625 | 0.924300 | 14.4m | discard | Tight upper cosine floor 0.000175 interpolation on active FedSAM/FedAvgM high-water s... |
+| 4 | #427 | 0.923900 | 14.3m | keep | active class-balanced FedZMG stack plus FedSAM rho 0.05 [src: Qu22 FedSAM ICML; Foret... |
+| 5 | #629 | 0.923800 | 14.3m | discard | Post-improvement lower FedAvgM server momentum 0.47421875 interpolation on active cos... |
+| 6 | #614 | 0.923500 | 14.4m | discard | Tight lower SAM rho 0.0721875 interpolation on active FedSAM/FedAvgM high-water stack |
+| 7 | #511 | 0.923200 | 14.4m | discard | Class-balanced beta 0.86875 lower-side bracket under kept FedSAM/FedAvgM stack [src: ... |
+| 8 | #630 | 0.923100 | 14.4m | discard | Post-improvement upper FedAvgM server momentum 0.47578125 interpolation on active cos... |
+| 9 | #440 | 0.923000 | 14.3m | discard | Class-balanced beta 0.875 under kept FedSAM rho 0.05 stack [src: Cui19 CBLoss; Qu22 F... |
+| 10 | #571 | 0.923000 | 14.3m | discard | Class-balanced beta 0.89375 tight upper interpolation under kept FedSAM/FedAvgM stack... |
 
