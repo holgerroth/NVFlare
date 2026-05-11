@@ -258,12 +258,103 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Aligned FedAvgM missed: `--aggregator aligned_fedavgm` scored 0.918300 and was marked `discard`, well below the 0.923900 high-water stack.
 - The default-off `aligned_fedavgm` implementation was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml` after review.
 - Post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
+
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with one scored candidate since the literature reset.
 - Next source-backed reserve: dynamic FedProx scheduling from the same literature worksheet, because static FedProx was null but a round-dependent client-local regularizer remains distinct.
 - Reserve P2 was promoted after the P1 miss: added default-off `--fedproxloss_mu_schedule cosine_decay`, validated with `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger cosine-decay FedProx smoke.
 - Dynamic FedProx missed: `fedproxloss_mu=1e-4` with cosine decay scored 0.919000 and was marked `discard`.
 - The default-off schedule implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`; post-removal `PYTHON=.venv/bin/python make validate` and `make smoke` passed.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with two scored candidates since the literature reset.
+
+---
+
+# Literature loop 2026-05-10 client forgetting controls
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` reached `recommendation=literature` after row 559, with thirty-two scored candidates since the trajectory-SAM literature reset and no material improvement over the 0.923900 FedSAM/FedAvgM high-water mark.
+- Current best: 0.923900, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `sam_rho=0.05`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: lower-server-momentum pairings with stronger client LR, colder cosine tail, lower FedProx, higher SAM, and lower class-balanced beta all missed; scalar FedProx, SAM radius, class-balanced beta, weight decay, client/server momentum, server LR, exact steps, and batch-size checks are bracketed.
+- Confirmed null/worse ideas to avoid: FedLESAM trajectory, late-cosine SAM, ASAM, aligned FedAvgM, dynamic FedProx, FedNova, FedAdam, SCAFFOLD, median aggregation, FedLC/FedRS/logit-prior variants, full global self-distillation, label smoothing, mixup/cutout, clipping, Nesterov, local SWA, LDAM, focal loss, architecture variants, and routine scalar jitter.
+- Candidate width: effective width 1 on one local GPU, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning non-IID local overfitting global model logits not true distillation | find a client-local way to preserve global knowledge after full distillation and class-balanced scalar checks failed | arXiv, ResearchGate/web search | FedNTD directly masks the true class to avoid fighting local CE. |
+| federated learning model contrastive local global representation non-IID | explore representation-level correction after optimizer and SAM surfaces plateaued | arXiv, web search | MOON is relevant but needs feature extraction and previous local model state. |
+| federated learning logit drift forgetting reweighted cross entropy non-IID | find lighter-weight logit/forgetting controls that are not just class-balanced beta | arXiv, PMLR, DBLP/web search | Reweighted softmax and FedCSD support the forgetting/logit-drift challenge but overlap with failed logit-prior branches. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Lee22 FedNTD | Preservation of the Global Knowledge by Not-True Distillation in Federated Learning / NeurIPS 2022 | https://arxiv.org/abs/2106.03097 | local training forgets global knowledge outside each client's distribution | not-true-class global distillation | keep |
+| Li21 MOON | Model-Contrastive Federated Learning / CVPR 2021 | https://arxiv.org/abs/2103.16257 | local representations drift under heterogeneous client data | model-level contrastive regularization | keep as reserve |
+| Acar21 FedDyn | Federated Learning Based on Dynamic Regularization / ICLR 2021 | https://arxiv.org/abs/2111.04263 | local and global empirical minima are inconsistent | dynamic client regularization | keep as reserve |
+| Song24 FedDistill | FedDistill: Global Model Distillation for Local Model De-Biasing in Non-IID Federated Learning / 2024 | https://arxiv.org/abs/2404.09210 | imbalanced data induces local forgetting, especially for underrepresented classes | group distillation | keep as support; full method is too large |
+| Yan23 FedCSD | Rethinking Client Drift in Federated Learning: A Logit Perspective / 2023 | https://arxiv.org/abs/2308.10162 | local/global logit differences grow during training | class-prototype similarity distillation | keep as support; prototypes are not safe without new state |
+| Legate23 RSC | Re-Weighted Softmax Cross-Entropy to Control Forgetting in Federated Learning / PMLR 2023 | https://proceedings.mlr.press/v232/legate23a.html | clients forget classes outside their local label set | logit reweighting | reject for next run: close to failed FedLC/FedRS/logit-prior branches |
+| Reddi21 FedOpt | Adaptive Federated Optimization / ICLR 2021 | https://arxiv.org/abs/2003.00295 | FedAvg can be hard to tune under heterogeneity | FedAdam/FedYogi server optimizers | reject for next run: multiple FedAdam variants were unstable or poor |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Local training forgets non-local classes | FedNTD frames FL heterogeneity as continual forgetting and preserves global perspective only on not-true classes; FedDistill also targets local forgetting under imbalance | class-balanced beta, FedProx, and full global self-distillation failed; underrepresented-class handling may need a less conflicting teacher signal | the received global model is already available client-side, so a masked KL term needs no new metadata | `client.py`, `job.py`, `mutation_schema.yaml` |
+| C2 | Logit and representation drift persist after optimizer retunes | MOON corrects local training with global/previous representations; FedCSD observes growing local/global logit gaps | server/client LR and momentum plus SAM radius brackets are exhausted | representation or logit alignment can be client-local, but full prototypes or feature API changes add risk | `client.py`, possible `model.py` only if needed |
+| C3 | Adaptive server/objective corrections remain risky under SAM | FedDyn and FedOpt address objective inconsistency and heterogeneity; Reddi21 includes FedYogi as an adaptive alternative | FedAdam crashed or underperformed, dynamic FedProx missed, and scalar FedAvgM is locally bracketed | these are compatible in principle, but recent nulls make them lower priority than a client-local forgetting control | `client.py`, `custom_aggregators.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedNTD masked global distillation | Lee22; Song24; Yan23 | add default-off `--fedntd_beta` and `--fedntd_temperature`; run active stack with `--fedntd_beta 0.05 --fedntd_temperature 2.0` | preserve global off-label knowledge while local CE still controls the true class, avoiding the prior full-KD conflict | score <= 0.923900 or runtime exceeds 1200s | low: client-local extra teacher forward only |
+| P2 | FedNTD lower-weight variant | Lee22 | same implementation with `--fedntd_beta 0.02 --fedntd_temperature 2.0` if P1 is stable but over-regularized | reduce teacher pressure while keeping not-true preservation | no gain over P1 or active stack | low |
+| P3 | MOON-lite contrastive alignment | Li21 | store previous local model and add model/global/previous representation contrast if a feature path can be exposed cleanly | align local trajectory at representation level rather than logits | implementation needs model interface churn or slows beyond cap | medium |
+| P4 | FedDyn-lite local dynamic regularizer | Acar21 | persist client-side linear correction state with a default-off `--feddyn_alpha` | address objective inconsistency beyond static FedProx | behaves like failed dynamic FedProx or destabilizes SAM | medium |
+| P5 | Conservative FedYogi aggregator | Reddi21 | add `--aggregator fedyogi` with low `server_lr` and high `tau` | adaptive second moment may be stabler than FedAdam | repeats prior adaptive-server optimizer collapses | low-medium |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | related to prior global self-distillation but masks the true class and runs on the current FedSAM stack | full global KD at alpha 0.05 scored 0.901000 on an older stack; P1 is distinct enough because it avoids true-class teacher conflict | select |
+| P2 | nearby P1 weight variant | only useful if P1 is stable but weak/over-regularized | reserve |
+| P3 | not tested directly | more invasive than P1 and may require feature extraction changes | reserve |
+| P4 | related to dynamic FedProx | dynamic FedProx missed, but FedDyn's linear correction is distinct; still not first choice | reserve |
+| P5 | adaptive FedOpt family | FedAdam variants crashed or scored far below best; FedYogi is distinct but lower priority | reserve |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 FedNTD masked KL | 3 | 5 | 4 | 5 | 4 | 3 | 26 |
+| P2 FedNTD lower beta | 2 | 5 | 4 | 4 | 3 | 3 | 22 |
+| P3 MOON-lite | 3 | 3 | 2 | 5 | 4 | 4 | 19 |
+| P4 FedDyn-lite | 3 | 3 | 3 | 4 | 4 | 1 | 22 |
+| P5 FedYogi | 2 | 4 | 4 | 4 | 3 | 1 | 22 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam005_fedntd005_t2_w1` | active best stack plus `--fedntd_beta 0.05 --fedntd_temperature 2.0` |
+| reserve | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam005_fedntd002_t2_w1` | same stack with lower FedNTD beta if P1 is stable but appears over-regularized |
+| reserve | P4 |  | FedDyn-lite only if masked distillation misses cleanly |
+| reserve | P5 |  | FedYogi only if client-local forgetting controls are exhausted |
+
+## Reflective memory
+
+- Keep: FedNTD is the smallest source-backed branch because it uses only the already received global model as a teacher and sends the same DIFF update.
+- Discard: full global KD remains a null result; any distillation follow-up must preserve FedNTD's not-true masking or have a new source-backed reason.
+- Do not retry: more scalar FedAvgM/FedProx/SAM/class-beta jitter before testing this source-backed forgetting control.
+- Sources to carry forward: Lee22 FedNTD, Song24 FedDistill, Yan23 FedCSD, Li21 MOON, Acar21 FedDyn, Reddi21 FedOpt.
+- Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedNTD smoke passed before the full candidate; the targeted smoke logged `fedntd_beta=0.05 temperature=2.0` on both clients.
 
 ---
 

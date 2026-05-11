@@ -918,3 +918,18 @@ Stronger-client-LR/lower-FedProx pairing missed: client `lr=0.05` with `fedproxl
 Lower-server-momentum/beta-0.875 pairing missed: `server_momentum=0.46875` with `class_balanced_loss_beta=0.875` scored 0.919500 in 860 seconds and was marked `discard`. The lower beta shoulder did not compose with reduced FedAvgM server inertia, so keep the active `server_momentum=0.475`, `class_balanced_loss_beta=0.90` pairing under the kept FedSAM/FedAvgM stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with thirty-one scored candidates since the trajectory-SAM literature reset.
 
 Lower-server-momentum/slightly-lower-FedProx pairing missed: `server_momentum=0.46875` with `fedproxloss_mu=2.5e-5` scored 0.922400 in 861 seconds and was marked `discard`. This again matched the lower-server-momentum shoulder but did not improve it, so the local scalar search around FedAvgM inertia and FedProx strength is exhausted for this stack. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=literature` with thirty-two scored candidates since the trajectory-SAM literature reset.
+
+## Literature Reset: Client Forgetting Controls
+
+The post-trajectory-reset plateau has exhausted scalar and near-miss pairings around the kept FedSAM/FedAvgM stack. The selected source-backed branch is Federated Not-True Distillation: add a default-off client-local KL term against the received global model, but mask the true class so the teacher preserves global off-label knowledge without directly fighting local cross-entropy.
+
+Sources:
+- Lee et al., "Preservation of the Global Knowledge by Not-True Distillation in Federated Learning", NeurIPS 2022, https://arxiv.org/abs/2106.03097. Motivation: local training under non-IID data induces forgetting outside each client's distribution; FedNTD preserves the global perspective on not-true classes without extra communication.
+- Song et al., "FedDistill: Global Model Distillation for Local Model De-Biasing in Non-IID Federated Learning", 2024, https://arxiv.org/abs/2404.09210. Support: imbalanced local data can bias local models and cause local forgetting, especially for underrepresented classes.
+- Yan et al., "Rethinking Client Drift in Federated Learning: A Logit Perspective", 2023, https://arxiv.org/abs/2308.10162. Support: local/global logit differences can grow during training under non-IID data, motivating a targeted logit-level alignment term.
+- Li et al., "Model-Contrastive Federated Learning", CVPR 2021, https://arxiv.org/abs/2103.16257. Reserve idea: representation-level alignment if masked logit distillation misses.
+- Acar et al., "Federated Learning Based on Dynamic Regularization", ICLR 2021, https://arxiv.org/abs/2111.04263. Reserve idea: dynamic client regularization if forgetting controls miss cleanly.
+
+Proposal selected: add default-off `--fedntd_beta` and `--fedntd_temperature` in `client.py`/`job.py`, record the bounds in `mutation_schema.yaml`, and run the active best stack with `--fedntd_beta 0.05 --fedntd_temperature 2.0`. This differs from the earlier failed full global distillation branch because it masks the true class and only preserves non-true global knowledge.
+
+Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedNTD smoke passed. The targeted smoke confirmed the default-off flags were forwarded to both clients and completed cross-site evaluation without writing to `results.tsv`.

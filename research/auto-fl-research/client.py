@@ -34,6 +34,7 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
+import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -118,6 +119,18 @@ def build_parser():
         type=float,
         default=0.0,
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
+    )
+    parser.add_argument(
+        "--fedntd_beta",
+        type=float,
+        default=0.0,
+        help="Federated Not-True Distillation loss weight. 0 disables FedNTD.",
+    )
+    parser.add_argument(
+        "--fedntd_temperature",
+        type=float,
+        default=2.0,
+        help="Softmax temperature for FedNTD when --fedntd_beta > 0.",
     )
     parser.add_argument(
         "--scaffold",
@@ -259,11 +272,31 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
+def _fedntd_loss(student_logits, teacher_logits, labels, temperature):
+    scaled_student = student_logits / temperature
+    scaled_teacher = teacher_logits / temperature
+    not_true_mask = torch.ones_like(scaled_student, dtype=torch.bool)
+    not_true_mask.scatter_(1, labels.view(-1, 1), False)
+    fill_value = torch.finfo(scaled_student.dtype).min
+    student_log_probs = F.log_softmax(scaled_student.masked_fill(~not_true_mask, fill_value), dim=1)
+    teacher_probs = F.softmax(scaled_teacher.masked_fill(~not_true_mask, fill_value), dim=1)
+    return F.kl_div(student_log_probs, teacher_probs, reduction="batchmean") * (temperature**2)
+
+
+def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args):
     outputs = model(inputs)
     loss = criterion(outputs, labels)
     if criterion_prox is not None:
         loss = loss + criterion_prox(model, global_model)
+    if args.fedntd_beta > 0.0:
+        with torch.no_grad():
+            teacher_outputs = global_model(inputs)
+        loss = loss + args.fedntd_beta * _fedntd_loss(
+            outputs,
+            teacher_outputs,
+            labels,
+            args.fedntd_temperature,
+        )
     return loss
 
 
@@ -281,7 +314,7 @@ def _grad_norm(model):
 
 def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
     optimizer.zero_grad(set_to_none=True)
-    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args)
     loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -308,7 +341,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
             perturbations.append(perturbation)
 
     optimizer.zero_grad(set_to_none=True)
-    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args)
     sam_loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -390,6 +423,10 @@ def main(args):
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
+    if args.fedntd_beta < 0.0:
+        raise ValueError("fedntd_beta must be >= 0")
+    if args.fedntd_temperature <= 0.0:
+        raise ValueError("fedntd_temperature must be > 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -442,6 +479,8 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
+    if args.fedntd_beta > 0.0:
+        print(f"{site_name}: fedntd_beta={args.fedntd_beta} temperature={args.fedntd_temperature}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
@@ -489,6 +528,7 @@ def main(args):
         for p in global_model.parameters():
             p.requires_grad = False
         global_model.to(DEVICE)
+        global_model.eval()
 
         scaffold_global_controls = None
         scaffold_ctrl_diff = None
