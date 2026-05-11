@@ -114,12 +114,6 @@ def build_parser():
         help="Sharpness-aware minimization perturbation radius. 0 disables SAM.",
     )
     parser.add_argument(
-        "--sam_blend",
-        type=float,
-        default=1.0,
-        help="Blend weight for the SAM perturbed gradient; 1 preserves ordinary SAM.",
-    )
-    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -303,16 +297,11 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
 
     rho_scale = args.sam_rho / (grad_norm + 1e-12)
     perturbations = []
-    original_grads = [] if args.sam_blend < 1.0 else None
     with torch.no_grad():
         for param in model.parameters():
             if param.grad is None:
                 perturbations.append(None)
-                if original_grads is not None:
-                    original_grads.append(None)
                 continue
-            if original_grads is not None:
-                original_grads.append(param.grad.detach().clone())
             perturbation = param.grad
             perturbation = perturbation * rho_scale.to(param.device)
             param.add_(perturbation)
@@ -323,12 +312,6 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
     sam_loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
-    if original_grads is not None:
-        with torch.no_grad():
-            for param, original_grad in zip(model.parameters(), original_grads):
-                if param.grad is None or original_grad is None:
-                    continue
-                param.grad.mul_(args.sam_blend).add_(original_grad, alpha=1.0 - args.sam_blend)
 
     with torch.no_grad():
         for param, perturbation in zip(model.parameters(), perturbations):
@@ -405,8 +388,6 @@ def main(args):
         raise ValueError("local_train_steps must be >= 0")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
-    if args.sam_blend < 0.0 or args.sam_blend > 1.0:
-        raise ValueError("sam_blend must be in [0, 1]")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
     flare.init()
@@ -460,8 +441,6 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
-        if args.sam_blend < 1.0:
-            print(f"{site_name}: sam_blend={args.sam_blend}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 

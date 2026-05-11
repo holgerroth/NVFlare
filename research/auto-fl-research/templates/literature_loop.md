@@ -1571,3 +1571,6 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - The branch was numerically stable but did not improve over the 0.925200 high-water, so the lower blend is not useful for this stack.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=1` after the literature reset.
 - Promote P2 reserve next: run the same active stack with `--sam_blend 0.75` to test whether a blend closer to pure SAM preserves the source-backed mechanism without the lower-blend regression.
+- P2 `--sam_blend 0.75` scored 0.919200 in 879s and was marked `discard`, worse than P1 and the active high-water.
+- Both gradient-blend branches are now falsified for this stack. Remove the default-off `sam_blend` knob from `client.py`, `job.py`, and `mutation_schema.yaml`; do not retry vanilla/SAM gradient blending without a materially different source-backed mechanism.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=2` after the literature reset.
