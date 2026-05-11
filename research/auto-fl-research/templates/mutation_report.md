@@ -933,3 +933,5 @@ Sources:
 Proposal selected: add default-off `--fedntd_beta` and `--fedntd_temperature` in `client.py`/`job.py`, record the bounds in `mutation_schema.yaml`, and run the active best stack with `--fedntd_beta 0.05 --fedntd_temperature 2.0`. This differs from the earlier failed full global distillation branch because it masks the true class and only preserves non-true global knowledge.
 
 Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedNTD smoke passed. The targeted smoke confirmed the default-off flags were forwarded to both clients and completed cross-site evaluation without writing to `results.tsv`.
+
+Reviewed candidate: `fedntd_beta=0.05`, `fedntd_temperature=2.0` under the kept FedSAM/FedAvgM stack scored 0.920300 in 966s and was marked `discard`. The run was stable but missed the 0.923900 high-water, consistent with over-regularization from the not-true teacher signal. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=1`, so the reserved lower-weight FedNTD candidate is the next source-backed follow-up before removing or abandoning this branch.

@@ -356,6 +356,11 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Sources to carry forward: Lee22 FedNTD, Song24 FedDistill, Yan23 FedCSD, Li21 MOON, Acar21 FedDyn, Reddi21 FedOpt.
 - Validation: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedNTD smoke passed before the full candidate; the targeted smoke logged `fedntd_beta=0.05 temperature=2.0` on both clients.
 
+## Batch outcome
+
+- P1 `fedntd_beta=0.05`, `fedntd_temperature=2.0` completed in 966s and scored 0.920300, so it was marked `discard` against the 0.923900 high-water. The masked teacher signal was stable but too strong for the active FedSAM/FedAvgM stack.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=1`, `reset_source=literature`, so the reserved P2 lower-beta FedNTD candidate remains the next source-backed test before removing this branch.
+
 ---
 
 # Literature loop 2026-05-09 local weight averaging
