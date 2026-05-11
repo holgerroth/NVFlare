@@ -1475,3 +1475,92 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Both were marked `discard`; LDAM is a null result for the active beta `0.90` FedZMG stack.
 - Remove the default-off LDAM knob from `client.py`, `job.py`, and `mutation_schema.yaml`; keep `--class_balanced_loss_beta` as the only surviving class-imbalance loss surface.
 - The watchdog reset on the literature row and reports `recommendation=continue` with two scored candidates since reset.
+
+---
+
+# Literature loop 2026-05-11 gradient-norm SAM blend
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` reached `recommendation=literature` after row 606, with thirty-two scored candidates since the row 574 material improvement and no score above the 0.925200 FedSAM/FedAvgM high-water.
+- Current best: 0.925200, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.00015`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `sam_rho=0.0725`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: SAM radius, FedProx, client/server LR and momentum, scheduler floor, weight decay, class-balanced beta, local-compute mode, and the best lower server-LR/lower-WD interaction all bracketed below the high-water.
+- Confirmed null/worse ideas to avoid: FedNTD, FedDyn-lite, FedYogi/FedAdam-style adaptive branches, FedLESAM trajectory, late SAM schedule, ASAM, weighted aggregation, FedNova, SCAFFOLD, median, aligned FedAvgM, dynamic FedProx, local SWA, LDAM, focal, FedLC/FedRS/logit-prior, global self-distillation, cutout/mixup/label smoothing, clipping, Nesterov, exact local steps, batch-size 128, and architecture variants.
+- Candidate width: effective width 1 on one local GPU, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning SAM scalar radius plateau gradient norm penalty blend | find a non-radius flatness mechanism after pure FedSAM brackets failed | web search, OpenReview, PMLR, MDPI | Zhao22 and FedSpeed both support blending vanilla and perturbed gradients instead of pure SAM. |
+| federated learning server step size extrapolation FedAvgM non-IID CIFAR | find server-side adaptation after manual `server_lr` brackets missed | web search, OpenReview, IBM page | FedExP is source-backed but requires a new server optimizer. |
+| federated learning aggregation coherence shrinking weights non-IID generalization | check whether aggregation-weight mechanisms are distinct from failed aligned/weighted branches | web search, PMLR, OpenReview | FedLAW is relevant but global weight shrinking is not directly expressible with DIFF-only aggregation. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Zhao22 GNP | Penalizing Gradient Norm for Efficiently Improving Generalization / 2022 | https://proceedings.mlr.press/v162/zhao22i.html | pure SAM is one endpoint of a broader gradient-norm penalty blend | gradient norm penalty / SAM blend | keep |
+| Sun23 FedSpeed | FedSpeed: Larger Local Interval, Less Communication Round, and Higher Generalization Accuracy / 2023 | https://openreview.net/forum?id=bZjxxYURKT | local inconsistency and local overfitting persist in heterogeneous FL | prox correction plus blended perturbation gradient | keep |
+| Xu24 FedGAM | Generalized Federated Learning via Gradient Norm-Aware Minimization and Control Variables / 2024 | https://www.mdpi.com/2227-7390/12/17/2644 | FedSAM may not directly address first-order flatness or global flatness | GAM / control-variate flatness | keep as support |
+| Jhunjhunwala23 FedExP | FedExP: Speeding Up Federated Averaging via Extrapolation / 2023 | https://openreview.net/forum?id=IPrzNbddXV | fixed server step size can limit convergence speed | adaptive server extrapolation | keep as reserve |
+| Li23 FedLAW | Revisiting Weighted Aggregation in Federated Learning with Neural Networks / 2023 | https://proceedings.mlr.press/v202/li23s.html | normalized data-size weights may not be optimal for generalization | learnable/coherence aggregation weights | keep as reserve |
+| Qu22 FedSAM | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://proceedings.mlr.press/v162/qu22a.html | non-IID local ERM can converge to sharp local minima | FedSAM / MoFedSAM | keep as active context |
+| Foret21 SAM | Sharpness-Aware Minimization for Efficiently Improving Generalization / 2021 | https://openreview.net/forum?id=6Tm1mposlrM | loss sharpness hurts generalization | local SAM | keep as active context |
+| Yin18 Robust FL | Byzantine-Robust Distributed Learning / 2018 | https://proceedings.mlr.press/v80/yin18a.html | means can be sensitive to outlier updates | coordinate median / trimmed mean | reject: median already missed badly |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Pure SAM may overcouple perturb radius and gradient-norm penalty strength | Zhao22 frames SAM as a special gradient-norm-penalty endpoint; Sun23 FedSpeed blends vanilla and perturbed gradients to address local overfitting | `sam_rho=0.0725` is best, but both nearby radii and scheduler/regularization interactions missed | existing `_optimizer_step` already computes both vanilla and SAM gradients, so a default-off blend is small and contract-local | `client.py`, `job.py`, `mutation_schema.yaml` |
+| C2 | Fixed server step size may be a plateau after manual brackets | FedExP adapts server step size from dynamically changing pseudo-gradients | `server_lr` lower/upper brackets and lower server-LR interactions all missed | a new server-only aggregator could adapt DIFF scaling without client metadata | `custom_aggregators.py`, `job.py`, `mutation_schema.yaml` |
+| C3 | Aggregation coherence can matter, but prior robust/aligned attempts are risky duplicates | FedLAW studies client coherence and non-normalized aggregation weights for generalization | weighted, median, SCAFFOLD, and aligned FedAvgM branches are logged nulls | DIFF-only aggregation can reweight updates, but full global weight shrinking would need current global weights | `custom_aggregators.py`, `job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Gradient-norm penalty SAM blend | Zhao22 GNP; Sun23 FedSpeed; Xu24 FedGAM | add default-off `--sam_blend`; run active stack with `--sam_rho 0.0725 --sam_blend 0.5` | decouple the perturb radius from the penalty blend, preserving flatness pressure while reducing pure-SAM over-perturbation | score <= 0.925200 or NaN/timeout | low: client-local gradient replacement only |
+| P2 | Higher SAM blend reserve | Zhao22 GNP; Sun23 FedSpeed | same code with `--sam_blend 0.75` if P1 is stable but below best | keep more SAM pressure while still mixing vanilla gradients | score below P1 or repeats scalar SAM misses | low |
+| P3 | FedExP-style adaptive server step | Jhunjhunwala23 FedExP | add `--aggregator fedexp` with bounded adaptive step around the mean DIFF/FedAvgM direction | adapt step size where fixed `server_lr` brackets failed | unstable step scaling, worse than 0.922800 near miss, or timeout | low-medium: server-only optimizer state |
+| P4 | FedLAW coherence/global shrink | Li23 FedLAW | not selected: coherence reweighting or shrinkage around weighted DIFFs | could regularize generalization through aggregation weights | duplicates aligned FedAvgM or cannot express true global shrink with DIFF-only update | medium |
+| P5 | FedGAM-CV control variables | Xu24 FedGAM | not selected: control-variate flatness branch | directly align local/global flatness | requires scaffold-like protocol mode and duplicates poor SCAFFOLD branch | high |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not scalar `sam_rho` jitter; changes the optimizer gradient from pure SAM to a vanilla/SAM blend | no gradient-blend rows exist; SAM itself is the high-water family | select |
+| P2 | nearby P1 variant | reserve only after P1; still distinct from constant radius changes | reserve |
+| P3 | not manual `server_lr`; adaptive step schedule is source-backed | FedAdam/Yogi and fixed server-LR checks missed, so keep as reserve after lower-risk client patch | reserve |
+| P4 | close to aligned/weighted aggregation and median null branches | global shrink is not cleanly expressible through DIFF-only aggregation | reject |
+| P5 | control variate family | SCAFFOLD was poor and protocol-state risk is higher | reject |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 gradient-norm SAM blend | 3 | 5 | 4 | 5 | 5 | 1 | 29 |
+| P2 blend variant | 2 | 5 | 4 | 4 | 4 | 1 | 25 |
+| P3 FedExP-style adaptive server step | 3 | 4 | 3 | 4 | 4 | 1 | 24 |
+| P4 FedLAW aggregation | 2 | 3 | 2 | 4 | 2 | 1 | 17 |
+| P5 FedGAM-CV | 3 | 1 | 1 | 4 | 4 | 2 | 15 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam00725_blend050_w1` | active high-water stack plus `--sam_blend 0.5` |
+| reserve | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta000015_mu3e5_zmg_cb090_sam00725_blend075_w1` | same stack with `--sam_blend 0.75` if P1 is stable |
+| reserve | P3 | `fedexp_sam00725_adaptive_step_w1` | FedExP-style server step only if gradient blending is falsified |
+
+## Reflective memory
+
+- Keep: the first branch should test gradient blending because it reuses the existing SAM double-backward path and leaves the NVFlare DIFF contract untouched.
+- Discard: do not launch another scalar SAM/FedProx/LR/weight-decay/local-compute jitter before testing the source-backed blend.
+- Do not retry: FedLAW-style aligned aggregation unless a non-duplicate implementation avoids the prior aligned FedAvgM and median failures.
+- Sources to carry forward: Zhao22 GNP; Sun23 FedSpeed; Xu24 FedGAM; Jhunjhunwala23 FedExP; Li23 FedLAW; Qu22 FedSAM; Foret21 SAM.
