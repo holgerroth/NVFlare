@@ -365,6 +365,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=2`, `reset_source=literature`; continue with a non-duplicate local axis or the next reserve idea only after validation/smoke confirms the removal.
 - Reserve P4 promoted: add default-off `--feddyn_alpha` as a client-local FedDyn-lite regularizer. Each client persists its own normalized linear correction state across rounds, adds the dynamic term during local training, and still sends the unchanged DIFF payload with `NUM_STEPS_CURRENT_ROUND`. Candidate planned: active stack plus `--feddyn_alpha 0.01`.
 - Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedDyn smoke passed. The targeted smoke logged `feddyn_alpha=0.01` and increasing `feddyn_state_norm` on both clients.
+- FedDyn-lite `feddyn_alpha=0.01` reached final evaluation with `site-1` accuracy 0.921500 but exceeded `RUN_TIMEOUT_SECONDS=1200` immediately after evaluation, so `run_iteration.sh` recorded the row as `crash` with score 0.000000 and the run log as artifact. Because the observed score was still below 0.923900 and the implementation crossed the runtime cap, the default-off FedDyn-lite code path was removed before continuing.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=2`, `reset_source=literature`; the crash does not count as a scored plateau row.
 
 ---
 

@@ -120,12 +120,6 @@ def build_parser():
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
     )
     parser.add_argument(
-        "--feddyn_alpha",
-        type=float,
-        default=0.0,
-        help="FedDyn-lite client dynamic regularizer strength. 0 disables the persistent correction.",
-    )
-    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -265,76 +259,11 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _feddyn_state_matches_model(state, model):
-    if state is None:
-        return False
-    params = {key: param for key, param in model.named_parameters() if param.requires_grad}
-    if set(state) != set(params):
-        return False
-    return all(state[key].shape == param.shape for key, param in params.items())
-
-
-def _ensure_feddyn_state(model, state):
-    if not _feddyn_state_matches_model(state, model):
-        return {
-            key: torch.zeros_like(param.detach())
-            for key, param in model.named_parameters()
-            if param.requires_grad
-        }
-
-    for key, param in model.named_parameters():
-        if key in state:
-            state[key] = state[key].to(device=param.device, dtype=param.dtype)
-    return state
-
-
-def _feddyn_regularizer(model, global_model, feddyn_state, alpha):
-    if alpha <= 0.0 or feddyn_state is None:
-        return None
-
-    global_params = dict(global_model.named_parameters())
-    regularizer = None
-    param_count = 0
-    for key, param in model.named_parameters():
-        if not param.requires_grad:
-            continue
-        state = feddyn_state.get(key)
-        if state is None:
-            continue
-        reference = global_params[key].detach()
-        term = 0.5 * alpha * torch.sum((param - reference) ** 2) - torch.sum(param * state.detach())
-        regularizer = term if regularizer is None else regularizer + term
-        param_count += param.numel()
-
-    if regularizer is None or param_count == 0:
-        return None
-    return regularizer / param_count
-
-
-def _update_feddyn_state(model, global_model, feddyn_state, alpha):
-    if alpha <= 0.0 or feddyn_state is None:
-        return 0.0
-
-    global_params = dict(global_model.named_parameters())
-    state_norm_sq = torch.tensor(0.0, device=DEVICE)
-    with torch.no_grad():
-        for key, param in model.named_parameters():
-            if key not in feddyn_state:
-                continue
-            reference = global_params[key].detach()
-            feddyn_state[key].sub_(alpha * (param.detach() - reference))
-            state_norm_sq += torch.sum(feddyn_state[key] ** 2)
-    return torch.sqrt(state_norm_sq).item()
-
-
-def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, feddyn_state, args):
+def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
     outputs = model(inputs)
     loss = criterion(outputs, labels)
     if criterion_prox is not None:
         loss = loss + criterion_prox(model, global_model)
-    feddyn_loss = _feddyn_regularizer(model, global_model, feddyn_state, args.feddyn_alpha)
-    if feddyn_loss is not None:
-        loss = loss + feddyn_loss
     return loss
 
 
@@ -350,18 +279,9 @@ def _grad_norm(model):
     return torch.norm(torch.stack(grads), p=2)
 
 
-def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, feddyn_state, args):
+def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
     optimizer.zero_grad(set_to_none=True)
-    loss = _compute_train_loss(
-        model,
-        inputs,
-        labels,
-        criterion,
-        criterion_prox,
-        global_model,
-        feddyn_state,
-        args,
-    )
+    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
     loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -388,16 +308,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
             perturbations.append(perturbation)
 
     optimizer.zero_grad(set_to_none=True)
-    sam_loss = _compute_train_loss(
-        model,
-        inputs,
-        labels,
-        criterion,
-        criterion_prox,
-        global_model,
-        feddyn_state,
-        args,
-    )
+    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
     sam_loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -479,8 +390,6 @@ def main(args):
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
-    if args.feddyn_alpha < 0.0:
-        raise ValueError("feddyn_alpha must be >= 0")
     flare.init()
     site_name = flare.get_site_name()
     site_seed = _site_seed(args.seed, site_name)
@@ -532,11 +441,8 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
-    if args.feddyn_alpha > 0.0:
-        print(f"{site_name}: feddyn_alpha={args.feddyn_alpha}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
-    feddyn_state = None
 
     while flare.is_running():
         input_model = flare.receive()
@@ -582,8 +488,6 @@ def main(args):
         for p in global_model.parameters():
             p.requires_grad = False
         global_model.to(DEVICE)
-        if args.feddyn_alpha > 0.0:
-            feddyn_state = _ensure_feddyn_state(model, feddyn_state)
 
         scaffold_global_controls = None
         scaffold_ctrl_diff = None
@@ -635,7 +539,6 @@ def main(args):
                     criterion,
                     criterion_prox,
                     global_model,
-                    feddyn_state,
                     args,
                 )
 
@@ -690,7 +593,6 @@ def main(args):
                         criterion,
                         criterion_prox,
                         global_model,
-                        feddyn_state,
                         args,
                     )
 
@@ -739,10 +641,6 @@ def main(args):
                 scaffold_local_controls,
                 scaffold_steps,
             )
-        if args.feddyn_alpha > 0.0:
-            feddyn_state_norm = _update_feddyn_state(model, global_model, feddyn_state, args.feddyn_alpha)
-            summary_writer.add_scalar("feddyn_state_norm", feddyn_state_norm, current_round)
-            print(f"{site_name}: feddyn_state_norm={feddyn_state_norm:.6f}")
 
         print(f"{site_name}: finished training for round {current_round}")
 
