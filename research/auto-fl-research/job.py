@@ -31,6 +31,7 @@ from custom_aggregators import (
     FedAdamAggregator,
     FedAvgAggregator,
     FedAvgMAggregator,
+    FedYogiAggregator,
     MedianAggregator,
     ScaffoldAggregator,
     WeightedAggregator,
@@ -151,6 +152,7 @@ def define_parser():
             "fedavgm",
             "fedadam",
             "fedopt",
+            "fedyogi",
             "scaffold",
             "median",
             "default",
@@ -158,6 +160,7 @@ def define_parser():
         help=(
             "weighted/fedavg=data-size weighted FedAvg, fedavgm/fedopt=server momentum "
             "over aggregated DIFFs, fedadam=server Adam over aggregated DIFFs, "
+            "fedyogi=server Yogi over aggregated DIFFs, "
             "scaffold=SCAFFOLD with control-variate meta, median=robust median, "
             "default=built-in FedAvg"
         ),
@@ -264,6 +267,18 @@ def get_aggregator(args):
             f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau})"
         )
         return FedAdamAggregator(
+            server_lr=args.server_lr,
+            beta1=args.fedopt_beta1,
+            beta2=args.fedopt_beta2,
+            tau=args.fedopt_tau,
+        )
+    if kind == "fedyogi":
+        print(
+            "Using FedYogiAggregator "
+            f"(server_lr={args.server_lr}, beta1={args.fedopt_beta1}, "
+            f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau})"
+        )
+        return FedYogiAggregator(
             server_lr=args.server_lr,
             beta1=args.fedopt_beta1,
             beta2=args.fedopt_beta2,

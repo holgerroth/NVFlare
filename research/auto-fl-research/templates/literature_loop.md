@@ -367,6 +367,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedDyn smoke passed. The targeted smoke logged `feddyn_alpha=0.01` and increasing `feddyn_state_norm` on both clients.
 - FedDyn-lite `feddyn_alpha=0.01` reached final evaluation with `site-1` accuracy 0.921500 but exceeded `RUN_TIMEOUT_SECONDS=1200` immediately after evaluation, so `run_iteration.sh` recorded the row as `crash` with score 0.000000 and the run log as artifact. Because the observed score was still below 0.923900 and the implementation crossed the runtime cap, the default-off FedDyn-lite code path was removed before continuing.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=2`, `reset_source=literature`; the crash does not count as a scored plateau row.
+- Reserve P5 promoted: add `fedyogi` as a conservative server-side FedOpt variant using Yogi's bounded second-moment update. Candidate planned: active client stack with `--aggregator fedyogi --server_lr 0.2 --fedopt_beta1 0.9 --fedopt_beta2 0.99 --fedopt_tau 0.1`.
+- Validation before launch: `PYTHON=.venv/bin/python make validate`, `make smoke`, and a no-ledger two-round FedYogi smoke passed. The targeted smoke logged `Using FedYogiAggregator (server_lr=0.2, beta1=0.9, beta2=0.99, tau=0.1)` and completed cross-site evaluation without writing to `results.tsv`.
 
 ---
 
