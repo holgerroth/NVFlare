@@ -136,6 +136,12 @@ def define_parser():
         help="Sharpness-aware minimization perturbation radius forwarded to clients. 0 disables SAM.",
     )
     parser.add_argument(
+        "--sam_blend",
+        type=float,
+        default=1.0,
+        help="Blend weight for the SAM perturbed gradient forwarded to clients; 1 preserves ordinary SAM.",
+    )
+    parser.add_argument(
         "--class_balanced_loss_beta",
         type=float,
         default=0.0,
@@ -358,6 +364,8 @@ def main():
         args.fedproxloss_mu,
         "--sam_rho",
         args.sam_rho,
+        "--sam_blend",
+        args.sam_blend,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
     ]
