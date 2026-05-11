@@ -39,12 +39,13 @@ mutable_args:
   sam_rho: {type: float, min: 0.0, max: 0.2}
   aggregator:
     type: str
-    choices: [weighted, fedavg, fedavgm, fedadam, fedopt, scaffold, median, default]
+    choices: [weighted, fedavg, fedavgm, fedadam, fedopt, fedexp, scaffold, median, default]
   server_lr: {type: float, min: 0.1, max: 4.0}
   server_momentum: {type: float, min: 0.0, max: 0.95}
   fedopt_beta1: {type: float, min: 0.0, max: 0.99}
   fedopt_beta2: {type: float, min: 0.5, max: 0.999}
   fedopt_tau: {type: float, min: 0.000001, max: 0.1, log_scale: true}
+  fedexp_epsilon: {type: float, min: 0.000000000001, max: 0.001, log_scale: true}
 
 comparison_budget_args:
   h100_default_candidate_budget:

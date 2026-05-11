@@ -1574,3 +1574,4 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - P2 `--sam_blend 0.75` scored 0.919200 in 879s and was marked `discard`, worse than P1 and the active high-water.
 - Both gradient-blend branches are now falsified for this stack. Remove the default-off `sam_blend` knob from `client.py`, `job.py`, and `mutation_schema.yaml`; do not retry vanilla/SAM gradient blending without a materially different source-backed mechanism.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=2` after the literature reset.
+- Promote P3 reserve next: add a server-only `--aggregator fedexp` branch following Jhunjhunwala23 FedExP. The implementation computes the FedExP extrapolation factor from received client DIFF norm diversity, uses `--server_lr` as a safety cap, preserves `ParamsType.DIFF` aggregation, and requires no client metadata changes.
