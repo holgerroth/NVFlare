@@ -26,8 +26,9 @@ The active FedAvgM stack still uses raw `NUM_STEPS_CURRENT_ROUND` weighting, so 
 ### Observed outcome
 
 - `--client_weight_power 0.5` completed with score 0.923600 and was marked `discard`.
-- `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with six scored candidates since the FedUV literature reset.
-- Because 0.5 was a relatively close shoulder but still below the active 1.0 weighting, run one narrower reserve at `--client_weight_power 0.75` before removing the knob.
+- `--client_weight_power 0.75` completed with score 0.922700 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with seven scored candidates since the FedUV literature reset.
+- Both softened weighting branches missed, so the default-off implementation was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml`.
 
 ## Client Momentum Dampening Candidate
 
