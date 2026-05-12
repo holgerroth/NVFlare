@@ -142,18 +142,6 @@ def define_parser():
         help="Effective-number class-balanced loss beta forwarded to clients. 0 disables class reweighting.",
     )
     parser.add_argument(
-        "--lookahead_k",
-        type=int,
-        default=0,
-        help="Lookahead local optimizer sync period forwarded to clients. 0 disables it.",
-    )
-    parser.add_argument(
-        "--lookahead_alpha",
-        type=float,
-        default=0.5,
-        help="Lookahead slow-weight interpolation factor forwarded to clients.",
-    )
-    parser.add_argument(
         "--aggregator",
         type=str,
         default="weighted",
@@ -372,10 +360,6 @@ def main():
         args.sam_rho,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
-        "--lookahead_k",
-        args.lookahead_k,
-        "--lookahead_alpha",
-        args.lookahead_alpha,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

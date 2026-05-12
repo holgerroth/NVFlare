@@ -33,6 +33,12 @@ FedDecorr was a costly null result. The next reserve from the same literature lo
 
 - Active high-water stack plus `--lookahead_k 5 --lookahead_alpha 0.5`, tagged `[src: Zhang19 Lookahead arXiv:1907.08610]`.
 
+### Observed outcome
+
+- Full 20-round candidate scored 0.916700, below the 0.925800 high-water, and was marked `discard` in `results.tsv`.
+- `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with `scored_since_reset=2`.
+- The default-off Lookahead implementation was removed after the miss; do not retry `k=5, alpha=0.5` on this stack.
+
 ---
 
 ## Literature Loop 2026-05-12 Representation Collapse

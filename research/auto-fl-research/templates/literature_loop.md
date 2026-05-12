@@ -160,6 +160,8 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - The default-off FedDecorr implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=1`, `reset_source=literature`.
 - Next reserve remains a distinct client-local trajectory/optimizer mechanism such as Lookahead; do not retry FedDecorr beta 0.1 on this stack.
+- Lookahead `k=5, alpha=0.5` also missed, scoring 0.916700 and getting marked `discard`; the default-off Lookahead implementation was removed.
+- After Lookahead, `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=2`, `reset_source=literature`.
 
 ---
 

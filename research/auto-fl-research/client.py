@@ -120,18 +120,6 @@ def build_parser():
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
     )
     parser.add_argument(
-        "--lookahead_k",
-        type=int,
-        default=0,
-        help="Lookahead local optimizer sync period. 0 disables Lookahead.",
-    )
-    parser.add_argument(
-        "--lookahead_alpha",
-        type=float,
-        default=0.5,
-        help="Lookahead slow-weight interpolation factor in (0, 1].",
-    )
-    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -271,19 +259,6 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _init_lookahead_slow_weights(model):
-    return [param.detach().clone() if param.requires_grad else None for param in model.parameters()]
-
-
-def _apply_lookahead_sync(model, slow_weights, alpha):
-    with torch.no_grad():
-        for param, slow_param in zip(model.parameters(), slow_weights):
-            if slow_param is None:
-                continue
-            slow_param.add_(param.detach() - slow_param, alpha=alpha)
-            param.copy_(slow_param)
-
-
 def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
     outputs = model(inputs)
     loss = criterion(outputs, labels)
@@ -415,10 +390,6 @@ def main(args):
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
-    if args.lookahead_k < 0:
-        raise ValueError("lookahead_k must be >= 0")
-    if args.lookahead_k > 0 and (args.lookahead_alpha <= 0.0 or args.lookahead_alpha > 1.0):
-        raise ValueError("lookahead_alpha must be in (0, 1] when lookahead_k is enabled")
     flare.init()
     site_name = flare.get_site_name()
     site_seed = _site_seed(args.seed, site_name)
@@ -470,8 +441,6 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
-    if args.lookahead_k > 0:
-        print(f"{site_name}: lookahead_k={args.lookahead_k} lookahead_alpha={args.lookahead_alpha}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
@@ -519,8 +488,6 @@ def main(args):
         for p in global_model.parameters():
             p.requires_grad = False
         global_model.to(DEVICE)
-        lookahead_slow_weights = _init_lookahead_slow_weights(model) if args.lookahead_k > 0 else None
-        lookahead_steps = 0
 
         scaffold_global_controls = None
         scaffold_ctrl_diff = None
@@ -584,10 +551,6 @@ def main(args):
                         scaffold_local_controls,
                     )
                     scaffold_steps += 1
-                if lookahead_slow_weights is not None:
-                    lookahead_steps += 1
-                    if lookahead_steps % args.lookahead_k == 0:
-                        _apply_lookahead_sync(model, lookahead_slow_weights, args.lookahead_alpha)
                 running_loss += loss_value
 
                 if scheduler is not None:
@@ -642,10 +605,6 @@ def main(args):
                             scaffold_local_controls,
                         )
                         scaffold_steps += 1
-                    if lookahead_slow_weights is not None:
-                        lookahead_steps += 1
-                        if lookahead_steps % args.lookahead_k == 0:
-                            _apply_lookahead_sync(model, lookahead_slow_weights, args.lookahead_alpha)
                     running_loss += loss_value
 
                 avg_loss = running_loss / train_batches
