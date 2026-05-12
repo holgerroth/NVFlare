@@ -2,14 +2,14 @@
 
 ## Executive Summary
 
-- **Branch:** `autoresearch/h100-algocal-20260507` at `4d933cdc5`
-- **Rows analyzed:** 632 total, 616 scored
+- **Branch:** `autoresearch/h100-algocal-20260507` at `516f45501`
+- **Rows analyzed:** 702 total, 684 scored
 - **Best score:** 0.925800 at experiment `#626`
 - **Baseline:** 0.852100 at experiment `#0`
 - **Lift:** +0.073700 absolute, 8.6% relative
-- **Runtime cost:** 122.42h aggregate; 11.6m average over 632 timed candidates
-- **Agent model/effort:** Agent model output, optional: GPT-5.5 Agent effort output, optional: xhigh
-- **Agent/tooling cost:** Agent cost telemetry unavailable; no agent cost output was pasted. Experiment runtime cost is reported from results.tsv.
+- **Runtime cost:** 139.07h aggregate; 11.9m average over 702 timed candidates
+- **Agent model/effort:** Agent model output: GPT-5.5; Agent effort output: xhigh.
+- **Agent/tooling cost:** Agent cost telemetry was unavailable; no cost output was pasted. Experiment runtime cost is reported from results.tsv.
 - **Best status:** `keep`; treat as needing reproduction unless independently repeated or marked `keep`.
 
 - **Progress plot:** `progress.png`
@@ -61,12 +61,12 @@ Major running-best milestones, selected by first/last and largest score jumps:
 
 | metric | value |
 | --- | --- |
-| total aggregate runtime | 122.42h |
-| average runtime per timed candidate | 11.6m |
-| timed candidates | 632 |
+| total aggregate runtime | 139.07h |
+| average runtime per timed candidate | 11.9m |
+| timed candidates | 702 |
 | candidate rows | 0 |
 | kept rows | 24 |
-| crash rows | 15 |
+| crash rows | 17 |
 
 The runtime total is aggregate candidate runtime from `runtime_seconds`, not wall-clock elapsed campaign time.
 
@@ -77,7 +77,7 @@ The runtime total is aggregate candidate runtime from `runtime_seconds`, not wal
 Agent model and effort context provided for this report:
 
 ```text
-Agent model output, optional: GPT-5.5  Agent effort output, optional: xhigh
+Agent model output: GPT-5.5; Agent effort output: xhigh.
 ```
 
 ### Agent / Tooling Cost
@@ -85,7 +85,7 @@ Agent model output, optional: GPT-5.5  Agent effort output, optional: xhigh
 Agent/tooling cost context provided for this report:
 
 ```text
-Agent cost telemetry unavailable; no agent cost output was pasted. Experiment runtime cost is reported from results.tsv.
+Agent cost telemetry was unavailable; no cost output was pasted. Experiment runtime cost is reported from results.tsv.
 ```
 
 ### Crash / Failure Notes
@@ -135,6 +135,7 @@ Agent cost telemetry unavailable; no agent cost output was pasted. Experiment ru
 | Li20 FedProx; Qu22 FedSAM ICML | 7 | 0.921700 | FedProx mu 1e-5 under kept FedSAM rho 0.05 stack [src: Li20 FedProx; ... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Li21 FedRS KDD:10.1145/3447548.3467254 | 1 | 0.901200 | FedRS restricted softmax alpha 0.5 on active FedAvgM FedProx stack [s... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Li25 FedWMSAM | 1 | 0.920000 | Late-cosine SAM rho schedule max 0.10 under kept FedAvgM stack [src: ... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
+| Liang21 R-Drop NeurIPS | 1 | 0.000000 | R-Drop alpha 0.1 on active FedSAM/FedAvgM high-water stack [src: Lian... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | not confirmed |
 | Muller19 LabelSmoothing arXiv:1906.02629; Szegedy16 Inception arXiv:1512.00567 | 1 | 0.912600 | Label smoothing 0.05 under class-balanced FedZMG stack [src: Muller19... | server momentum, server diff amplification, FedProx/client drift regularization, label smoothing, weight decay | helped |
 | Muller19 label smoothing NeurIPS | 2 | 0.904400 | Label smoothing 0.05 on active FedAvgM FedProx stack [src: Muller19 l... | server momentum, server diff amplification, FedProx/client drift regularization, label smoothing, weight decay | helped |
 | Qu22 FedSAM | 6 | 0.925200 | SAM radius 0.0725 tight upper-shoulder interpolation under kept FedSA... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
@@ -149,6 +150,8 @@ Agent cost telemetry unavailable; no agent cost output was pasted. Experiment ru
 | Reddi21 FedOpt; Li20 FedProx | 4 | 0.922400 | Lower server momentum with lower FedProx mu near-miss pairing under k... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Reddi21 FedOpt; Qu22 FedSAM ICML | 4 | 0.922500 | Lower server momentum with higher SAM radius near-miss pairing under ... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Sarkar20 Fed-Focal arXiv:2011.06283; Lin17 Focal arXiv:1708.02002 | 4 | 0.910100 | Focal loss gamma 1.0 retry at width 2 on FedZMG high-floor stack [src... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
+| Shi23 FedDecorr arXiv:2210.00226 | 1 | 0.920900 | FedDecorr coef 0.1 on active FedSAM/FedAvgM high-water stack [src: Sh... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
+| Son24 FedUV CVPR | 2 | 0.921700 | FedUV classifier variance coef 1.25 on active FedSAM/FedAvgM stack [s... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Sun23 FedSMOO arXiv:2305.11584; Li20 FedProx MLSys; Qu22 FedSAM ICML | 1 | 0.919000 | Dynamic cosine-decay FedProx mu 1e-4 under kept FedSAM stack [src: Su... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Wang20 FedNova NeurIPS | 2 | 0.900900 | FedNova normalized aggregation on class-balanced FedZMG stack [src: W... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Wang20 FedNova arXiv:2007.07481; Reddi21 FedOpt arXiv:2003.00295 | 1 | 0.899100 | FedNova-style step-normalized FedAvgM on active FedProx stack [src: W... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
@@ -156,6 +159,7 @@ Agent cost telemetry unavailable; no agent cost output was pasted. Experiment ru
 | Yoon21 FedMix arXiv:2107.00233; Sang24 mixup-noise arXiv:2409.13235; Zhang17 mixup arXiv:1710.09412 | 1 | 0.914800 | Local mixup alpha 0.2 on kept FedZMG stack [src: Yoon21 FedMix arXiv:... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Zantalis26 FedZMG arXiv:2602.18384 | 61 | 0.916900 | Scheduler eta-min factor 0.00015 tight check around FedZMG floor near... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Zhang18 mixup arXiv:1710.09412; Yoon21 FedMix arXiv:2107.00233 | 1 | 0.912200 | Local mixup alpha 0.2 under class-balanced FedZMG stack [src: Zhang18... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
+| Zhang19 Lookahead arXiv:1907.08610 | 1 | 0.916700 | Lookahead k=5 alpha=0.5 on active FedSAM/FedAvgM high-water stack [sr... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Zhang21 clipping arXiv:2106.13673 | 5 | 0.916700 | Update clipping norm 45 on kept FedZMG stack [src: Zhang21 clipping a... | server momentum, server diff amplification, FedProx/client drift regularization, gradient clipping, weight decay | helped |
 | Zhang22 FedLC arXiv:2209.00189 | 1 | 0.899200 | FedLC logit calibration tau 0.5 on active FedAvgM FedProx stack [src:... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
 | Zhao22 GNP; Sun23 FedSpeed | 2 | 0.922100 | Gradient-norm SAM blend 0.5 on active FedSAM/FedAvgM high-water stack... | server momentum, server diff amplification, FedProx/client drift regularization, weight decay | helped |
@@ -188,23 +192,23 @@ Source refs are extracted from `[src: ...]` markers in `results.tsv` description
 
 | status | rows |
 | --- | --- |
-| crash | 15 |
-| discard | 577 |
+| crash | 17 |
+| discard | 643 |
 | keep | 24 |
-| literature | 16 |
+| literature | 18 |
 
 ### Top Scored Rows
 
 | rank | experiment | score | runtime | status | description |
 | --- | --- | --- | --- | --- | --- |
 | 1 | #626 | 0.925800 | 14.3m | keep | Very tight upper cosine floor 0.0001625 interpolation on active FedSAM/FedAvgM high-w... |
-| 2 | #574 | 0.925200 | 14.4m | keep | SAM radius 0.0725 tight upper-shoulder interpolation under kept FedSAM/FedAvgM stack ... |
-| 3 | #625 | 0.924300 | 14.4m | discard | Tight upper cosine floor 0.000175 interpolation on active FedSAM/FedAvgM high-water s... |
-| 4 | #427 | 0.923900 | 14.3m | keep | active class-balanced FedZMG stack plus FedSAM rho 0.05 [src: Qu22 FedSAM ICML; Foret... |
-| 5 | #629 | 0.923800 | 14.3m | discard | Post-improvement lower FedAvgM server momentum 0.47421875 interpolation on active cos... |
-| 6 | #614 | 0.923500 | 14.4m | discard | Tight lower SAM rho 0.0721875 interpolation on active FedSAM/FedAvgM high-water stack |
-| 7 | #511 | 0.923200 | 14.4m | discard | Class-balanced beta 0.86875 lower-side bracket under kept FedSAM/FedAvgM stack [src: ... |
-| 8 | #630 | 0.923100 | 14.4m | discard | Post-improvement upper FedAvgM server momentum 0.47578125 interpolation on active cos... |
-| 9 | #440 | 0.923000 | 14.3m | discard | Class-balanced beta 0.875 under kept FedSAM rho 0.05 stack [src: Cui19 CBLoss; Qu22 F... |
-| 10 | #571 | 0.923000 | 14.3m | discard | Class-balanced beta 0.89375 tight upper interpolation under kept FedSAM/FedAvgM stack... |
+| 2 | #632 | 0.925700 | 14.3m | discard | Post-improvement upper client momentum 0.92578125 interpolation on active cosine-floo... |
+| 3 | #574 | 0.925200 | 14.4m | keep | SAM radius 0.0725 tight upper-shoulder interpolation under kept FedSAM/FedAvgM stack ... |
+| 4 | #658 | 0.924700 | 17.9m | discard | Post-improvement schema-max exact local_train_steps 1000 under active cosine-floor hi... |
+| 5 | #625 | 0.924300 | 14.4m | discard | Tight upper cosine floor 0.000175 interpolation on active FedSAM/FedAvgM high-water s... |
+| 6 | #656 | 0.924100 | 14.4m | discard | Post-improvement near-miss combo server_lr 1.800390625 lower server_momentum 0.474218... |
+| 7 | #427 | 0.923900 | 14.3m | keep | active class-balanced FedZMG stack plus FedSAM rho 0.05 [src: Qu22 FedSAM ICML; Foret... |
+| 8 | #629 | 0.923800 | 14.3m | discard | Post-improvement lower FedAvgM server momentum 0.47421875 interpolation on active cos... |
+| 9 | #672 | 0.923800 | 13.6m | discard | Noisy subcampaign deterministic-off training on active FedSAM/FedAvgM high-water stack |
+| 10 | #700 | 0.923600 | 14.3m | discard | Client weight power 0.5 FedAvgM on active FedSAM/FedAvgM high-water stack |
 
