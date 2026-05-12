@@ -23,6 +23,12 @@ The active FedSAM/FedAvgM stack has bracketed client learning rate and momentum,
 
 - Active high-water stack plus `--dampening 0.05`.
 
+### Observed outcome
+
+- `--dampening 0.05` completed with score 0.921200 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with five scored candidates since the FedUV literature reset.
+- The default-off dampening implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`.
+
 ## Server Nesterov Candidate
 
 ### Hypothesis
