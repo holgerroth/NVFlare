@@ -142,18 +142,6 @@ def define_parser():
         help="Effective-number class-balanced loss beta forwarded to clients. 0 disables class reweighting.",
     )
     parser.add_argument(
-        "--feduv_uniformity_coef",
-        type=float,
-        default=0.0,
-        help="FedUV hyperspherical uniformity coefficient forwarded to clients. 0 disables it.",
-    )
-    parser.add_argument(
-        "--feduv_variance_coef",
-        type=float,
-        default=0.0,
-        help="FedUV classifier probability variance coefficient forwarded to clients. 0 disables it.",
-    )
-    parser.add_argument(
         "--aggregator",
         type=str,
         default="weighted",
@@ -314,10 +302,6 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
-    if args.feduv_uniformity_coef < 0.0:
-        raise ValueError("feduv_uniformity_coef must be >= 0")
-    if args.feduv_variance_coef < 0.0:
-        raise ValueError("feduv_variance_coef must be >= 0")
 
     if args.name:
         job_name = args.name
@@ -376,10 +360,6 @@ def main():
         args.sam_rho,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
-        "--feduv_uniformity_coef",
-        args.feduv_uniformity_coef,
-        "--feduv_variance_coef",
-        args.feduv_variance_coef,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

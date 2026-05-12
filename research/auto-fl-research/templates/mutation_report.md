@@ -41,6 +41,7 @@ The current FedSAM/FedAvgM high-water stack has exhausted local-compute, scalar 
 - The variance branch was numerically stable and stayed under `RUN_TIMEOUT_SECONDS=1200`, so the next source-backed reserve is the distinct FedUV uniformity term at `--feduv_uniformity_coef 0.1`.
 - `--feduv_uniformity_coef 0.1` scored 0.921100 and was also marked `discard`.
 - The watchdog returned `recommendation=continue` with two scored candidates since the literature reset. Both single-term FedUV branches missed materially, so the implementation should be removed before the next sweep.
+- The default-off FedUV implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`; keep only the source-backed null-result memory.
 
 ## Lookahead Reserve Candidate
 
