@@ -1,5 +1,28 @@
 # Mutation report
 
+## Client Momentum Dampening Candidate
+
+### Hypothesis
+
+The active FedSAM/FedAvgM stack has bracketed client learning rate and momentum, but the SGD momentum buffer still fully absorbs each new local gradient after the first step. Light dampening may reduce short-horizon client drift under label skew without changing communication, aggregation, model keys, or evaluation.
+
+### Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+### Contract check
+
+- `--dampening` defaults to `0.0`, preserving the current SGD behavior.
+- The change is client-local optimizer configuration only.
+- DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, `compute_model_diff`, cross-site evaluation, architecture, and aggregation remain unchanged.
+
+### Selected candidate
+
+- Active high-water stack plus `--dampening 0.05`.
+
 ## Server Nesterov Candidate
 
 ### Hypothesis

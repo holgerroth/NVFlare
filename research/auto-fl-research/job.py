@@ -103,6 +103,7 @@ def define_parser():
         help="Disable deterministic PyTorch and DataLoader seeding in client training.",
     )
     parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--dampening", type=float, default=0.0)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
@@ -302,6 +303,8 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.dampening < 0.0 or args.dampening >= 1.0:
+        raise ValueError("dampening must be in [0, 1)")
 
     if args.name:
         job_name = args.name
@@ -350,6 +353,8 @@ def main():
         args.local_train_steps,
         "--momentum",
         args.momentum,
+        "--dampening",
+        args.dampening,
         "--weight_decay",
         args.weight_decay,
         "--cosine_lr_eta_min_factor",
