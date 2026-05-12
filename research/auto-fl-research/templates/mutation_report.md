@@ -38,6 +38,12 @@ The current FedSAM/FedAvgM stack has exhausted scalar optimizer, scheduler, loss
 
 - Active high-water stack plus `--feddecorr_coef 0.1`, tagged `[src: Shi23 FedDecorr arXiv:2210.00226]`.
 
+### Observed outcome
+
+- Full 20-round candidate scored 0.920900, below the 0.925800 high-water, and was marked `discard` in `results.tsv`.
+- `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with `scored_since_reset=1`.
+- The default-off FedDecorr code was removed after the miss; keep the literature row and null-result memory only.
+
 ---
 
 ## Hypothesis

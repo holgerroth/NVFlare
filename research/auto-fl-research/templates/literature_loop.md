@@ -153,6 +153,14 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Do not retry: routine FedSAM/FedAvgM scalar jitter before this representation branch is tested.
 - Sources to carry forward: Shi23 FedDecorr, Lu25 FedLF, Cogswell16 DeCov, Zhang19 Lookahead, Liang21 R-Drop, Pereyra17 confidence penalty.
 
+## Batch outcome
+
+- FedDecorr beta 0.1 missed: the active high-water stack plus `--feddecorr_coef 0.1` scored 0.920900 and was marked `discard`.
+- Runtime was near the timeout boundary, so the extra feature-correlation loss is not worth keeping without a strong score gain.
+- The default-off FedDecorr implementation was removed from `client.py`, `job.py`, and `mutation_schema.yaml`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue`, `scored_since_reset=1`, `reset_source=literature`.
+- Next reserve remains a distinct client-local trajectory/optimizer mechanism such as Lookahead; do not retry FedDecorr beta 0.1 on this stack.
+
 ---
 
 # Literature loop 2026-05-10 trajectory SAM
