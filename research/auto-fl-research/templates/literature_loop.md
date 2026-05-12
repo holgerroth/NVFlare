@@ -1763,3 +1763,6 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - The variance hinge was stable and cheap enough to keep the reserve branch valid, but the score was materially below the 0.925800 high-water.
 - `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=1` after the FedUV literature reset.
 - Promote P2 reserve next: run `--feduv_uniformity_coef 0.1` on the same active stack to test the distinct feature-spread component. Remove the FedUV implementation if this reserve also misses materially.
+- P2 `--feduv_uniformity_coef 0.1` scored 0.921100 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=2` after the FedUV literature reset.
+- Both FedUV single-term branches are now falsified for this stack; remove the default-off FedUV implementation from `client.py`, `job.py`, and `mutation_schema.yaml`.

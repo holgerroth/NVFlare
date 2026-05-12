@@ -39,6 +39,8 @@ The current FedSAM/FedAvgM high-water stack has exhausted local-compute, scalar 
 - `--feduv_variance_coef 1.25` scored 0.921700 in 916s, below the 0.925800 high-water, and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with one scored candidate since the literature reset.
 - The variance branch was numerically stable and stayed under `RUN_TIMEOUT_SECONDS=1200`, so the next source-backed reserve is the distinct FedUV uniformity term at `--feduv_uniformity_coef 0.1`.
+- `--feduv_uniformity_coef 0.1` scored 0.921100 and was also marked `discard`.
+- The watchdog returned `recommendation=continue` with two scored candidates since the literature reset. Both single-term FedUV branches missed materially, so the implementation should be removed before the next sweep.
 
 ## Lookahead Reserve Candidate
 
