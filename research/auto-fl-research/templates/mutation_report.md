@@ -1,5 +1,40 @@
 # Mutation report
 
+## Lookahead Reserve Candidate
+
+### Hypothesis
+
+FedDecorr was a costly null result. The next reserve from the same literature loop is Lookahead: periodically synchronize fast local SGD/SAM weights back toward slow weights during each client round, reset those slow weights after every received global model, and keep the FLModel contract unchanged. This targets local trajectory variance without changing communication, evaluation, or server aggregation.
+
+### Source
+
+- Zhang et al., "Lookahead Optimizer: k steps forward, 1 step back", NeurIPS 2019, arXiv:1907.08610, https://arxiv.org/abs/1907.08610.
+
+### Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+### Commands run
+
+- `PYTHON=.venv/bin/python make validate`
+- `PYTHON=.venv/bin/python make smoke`
+- `PYTHON=.venv/bin/python CUDA_VISIBLE_DEVICES=0 bash scripts/run_iteration.sh --no-log-results ... --lookahead_k 5 --lookahead_alpha 0.5 --name lookahead_path_smoke`
+
+### Contract check
+
+- `--lookahead_k` defaults to `0`, so existing runs are unchanged unless the candidate opts in.
+- Slow weights are client-local tensors reset after `model.load_state_dict(input_model.params, strict=True)` each round.
+- DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, cross-site evaluation, architecture, and aggregation remain unchanged.
+
+### Selected candidate
+
+- Active high-water stack plus `--lookahead_k 5 --lookahead_alpha 0.5`, tagged `[src: Zhang19 Lookahead arXiv:1907.08610]`.
+
+---
+
 ## Literature Loop 2026-05-12 Representation Collapse
 
 ### Hypothesis
