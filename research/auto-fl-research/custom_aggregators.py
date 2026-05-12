@@ -115,6 +115,7 @@ class FedOptAggregator(ModelAggregator):
         optimizer: str = "sgdm",
         server_lr: float = 1.0,
         server_momentum: float = 0.6,
+        server_nesterov: bool = False,
         beta1: float = 0.9,
         beta2: float = 0.99,
         tau: float = 1e-3,
@@ -136,6 +137,7 @@ class FedOptAggregator(ModelAggregator):
         self.optimizer = optimizer
         self.server_lr = server_lr
         self.server_momentum = server_momentum
+        self.server_nesterov = server_nesterov
         self.beta1 = beta1
         self.beta2 = beta2
         self.tau = tau
@@ -192,7 +194,10 @@ class FedOptAggregator(ModelAggregator):
                 previous = np.zeros_like(diff)
             velocity = self.server_momentum * previous + diff
             self.first_moment[key] = velocity
-            updates[key] = self.server_lr * velocity
+            if self.server_nesterov:
+                updates[key] = self.server_lr * (diff + self.server_momentum * velocity)
+            else:
+                updates[key] = self.server_lr * velocity
         return updates
 
     def _adam_update(self, mean_diff):
@@ -220,11 +225,12 @@ class FedOptAggregator(ModelAggregator):
 
 
 class FedAvgMAggregator(FedOptAggregator):
-    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6):
+    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6, server_nesterov: bool = False):
         super().__init__(
             optimizer="sgdm",
             server_lr=server_lr,
             server_momentum=server_momentum,
+            server_nesterov=server_nesterov,
         )
 
 

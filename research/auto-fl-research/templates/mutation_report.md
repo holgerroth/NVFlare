@@ -1,5 +1,28 @@
 # Mutation report
 
+## Server Nesterov Candidate
+
+### Hypothesis
+
+The active FedSAM/FedAvgM stack has tightly bracketed scalar server learning rate and momentum, but it has not tested a different server-momentum application rule. A Nesterov-style server update can change early-round momentum anticipation while preserving the same DIFF aggregation inputs and the same steady-state scaling under constant updates.
+
+### Files changed
+
+- `custom_aggregators.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+### Contract check
+
+- `--server_nesterov` defaults off, so existing FedAvgM behavior is unchanged.
+- The change is server-local inside the existing FedAvgM/FedOpt aggregator path.
+- Clients still send the same `ParamsType.DIFF` payloads with `NUM_STEPS_CURRENT_ROUND`; model keys, architecture, data, and evaluation remain unchanged.
+
+### Selected candidate
+
+- Active high-water stack plus `--server_nesterov`.
+
 ## LR Warmup Candidate
 
 ### Hypothesis
