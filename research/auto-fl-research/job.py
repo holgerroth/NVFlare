@@ -142,6 +142,12 @@ def define_parser():
         help="Effective-number class-balanced loss beta forwarded to clients. 0 disables class reweighting.",
     )
     parser.add_argument(
+        "--rdrop_alpha",
+        type=float,
+        default=0.0,
+        help="R-Drop symmetric KL coefficient forwarded to clients. 0 disables R-Drop.",
+    )
+    parser.add_argument(
         "--aggregator",
         type=str,
         default="weighted",
@@ -360,6 +366,8 @@ def main():
         args.sam_rho,
         "--class_balanced_loss_beta",
         args.class_balanced_loss_beta,
+        "--rdrop_alpha",
+        args.rdrop_alpha,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
