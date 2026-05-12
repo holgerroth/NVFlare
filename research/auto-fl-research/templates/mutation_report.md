@@ -1,5 +1,28 @@
 # Mutation report
 
+## Client Weight Power Candidate
+
+### Hypothesis
+
+The active FedAvgM stack still uses raw `NUM_STEPS_CURRENT_ROUND` weighting, so larger local partitions can dominate the server momentum direction under the fixed Dirichlet split. Softening the client weight exponent may reduce non-IID client dominance while preserving DIFF payloads, server momentum, evaluation, and model keys.
+
+### Files changed
+
+- `custom_aggregators.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+### Contract check
+
+- `--client_weight_power` defaults to `1.0`, preserving existing step-weighted behavior.
+- The change only rescales already received client DIFFs inside the existing aggregators.
+- Clients still send identical `ParamsType.DIFF` payloads with `NUM_STEPS_CURRENT_ROUND`; architecture, data, and evaluation are unchanged.
+
+### Selected candidate
+
+- Active high-water stack plus `--client_weight_power 0.5`.
+
 ## Client Momentum Dampening Candidate
 
 ### Hypothesis

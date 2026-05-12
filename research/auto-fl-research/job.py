@@ -175,6 +175,12 @@ def define_parser():
         help="Server momentum for fedavgm/fedopt aggregators.",
     )
     parser.add_argument(
+        "--client_weight_power",
+        type=float,
+        default=1.0,
+        help="Exponent applied to NUM_STEPS_CURRENT_ROUND before weighted aggregation. 1.0 is step weighting.",
+    )
+    parser.add_argument(
         "--fedopt_beta1",
         type=float,
         default=0.9,
@@ -246,25 +252,32 @@ def add_final_global_evaluation(recipe, participating_clients):
 def get_aggregator(args):
     kind = args.aggregator
     if kind == "weighted":
-        print("Using WeightedAggregator")
-        return WeightedAggregator()
+        print(f"Using WeightedAggregator (client_weight_power={args.client_weight_power})")
+        return WeightedAggregator(client_weight_power=args.client_weight_power)
     if kind == "fedavg":
-        print("Using FedAvgAggregator")
-        return FedAvgAggregator()
+        print(f"Using FedAvgAggregator (client_weight_power={args.client_weight_power})")
+        return FedAvgAggregator(client_weight_power=args.client_weight_power)
     if kind in {"fedavgm", "fedopt"}:
-        print("Using FedAvgMAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
+        print(
+            "Using FedAvgMAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
+            f"client_weight_power={args.client_weight_power})"
+        )
         return FedAvgMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
+            client_weight_power=args.client_weight_power,
         )
     if kind == "fedadam":
         print(
             "Using FedAdamAggregator "
             f"(server_lr={args.server_lr}, beta1={args.fedopt_beta1}, "
-            f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau})"
+            f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau}, "
+            f"client_weight_power={args.client_weight_power})"
         )
         return FedAdamAggregator(
             server_lr=args.server_lr,
+            client_weight_power=args.client_weight_power,
             beta1=args.fedopt_beta1,
             beta2=args.fedopt_beta2,
             tau=args.fedopt_tau,
@@ -302,6 +315,8 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.client_weight_power < 0.0 or args.client_weight_power > 1.0:
+        raise ValueError("client_weight_power must be in [0, 1]")
 
     if args.name:
         job_name = args.name

@@ -59,16 +59,28 @@ def _to_meta_numpy(value, reference):
     return result.astype(ref_array.dtype, copy=False)
 
 
+def _client_weight(model: FLModel, client_weight_power: float):
+    weight = float(model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0))
+    if weight < 0.0:
+        raise ValueError("client weight must be non-negative")
+    if client_weight_power == 0.0:
+        return 1.0
+    return weight**client_weight_power
+
+
 class WeightedAggregator(ModelAggregator):
-    def __init__(self):
+    def __init__(self, client_weight_power: float = 1.0):
         super().__init__()
+        if client_weight_power < 0.0 or client_weight_power > 1.0:
+            raise ValueError("client_weight_power must be in [0, 1]")
+        self.client_weight_power = client_weight_power
         self.weighted_sum = {}
         self.total_weight = 0.0
         self.client_weights = []
         self.params_type = None
 
     def accept_model(self, model: FLModel):
-        weight = model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0)
+        weight = _client_weight(model, self.client_weight_power)
         self.client_weights.append(weight)
 
         if self.params_type is None:
@@ -115,6 +127,7 @@ class FedOptAggregator(ModelAggregator):
         optimizer: str = "sgdm",
         server_lr: float = 1.0,
         server_momentum: float = 0.6,
+        client_weight_power: float = 1.0,
         beta1: float = 0.9,
         beta2: float = 0.99,
         tau: float = 1e-3,
@@ -126,6 +139,8 @@ class FedOptAggregator(ModelAggregator):
             raise ValueError("server_lr must be > 0")
         if not 0.0 <= server_momentum < 1.0:
             raise ValueError("server_momentum must be in [0, 1)")
+        if client_weight_power < 0.0 or client_weight_power > 1.0:
+            raise ValueError("client_weight_power must be in [0, 1]")
         if not 0.0 <= beta1 < 1.0:
             raise ValueError("beta1 must be in [0, 1)")
         if not 0.0 <= beta2 < 1.0:
@@ -136,6 +151,7 @@ class FedOptAggregator(ModelAggregator):
         self.optimizer = optimizer
         self.server_lr = server_lr
         self.server_momentum = server_momentum
+        self.client_weight_power = client_weight_power
         self.beta1 = beta1
         self.beta2 = beta2
         self.tau = tau
@@ -146,7 +162,7 @@ class FedOptAggregator(ModelAggregator):
         self.reset_stats()
 
     def accept_model(self, model: FLModel):
-        weight = float(model.meta.get(FLMetaKey.NUM_STEPS_CURRENT_ROUND, 1.0))
+        weight = _client_weight(model, self.client_weight_power)
         self.client_weights.append(weight)
 
         if self.params_type is None:
@@ -220,11 +236,12 @@ class FedOptAggregator(ModelAggregator):
 
 
 class FedAvgMAggregator(FedOptAggregator):
-    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6):
+    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6, client_weight_power: float = 1.0):
         super().__init__(
             optimizer="sgdm",
             server_lr=server_lr,
             server_momentum=server_momentum,
+            client_weight_power=client_weight_power,
         )
 
 
@@ -232,6 +249,7 @@ class FedAdamAggregator(FedOptAggregator):
     def __init__(
         self,
         server_lr: float = 1.0,
+        client_weight_power: float = 1.0,
         beta1: float = 0.9,
         beta2: float = 0.99,
         tau: float = 1e-3,
@@ -239,6 +257,7 @@ class FedAdamAggregator(FedOptAggregator):
         super().__init__(
             optimizer="adam",
             server_lr=server_lr,
+            client_weight_power=client_weight_power,
             beta1=beta1,
             beta2=beta2,
             tau=tau,
