@@ -28,6 +28,9 @@ The active FedSAM/FedAvgM stack has tightly bracketed scalar server learning rat
 - Active-stack `--server_nesterov` crashed after 469s with a client NaN diff during round 9 and no comparable cross-site score.
 - `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with three scored candidates since the FedUV literature reset.
 - Because the crash is consistent with an over-aggressive early server lookahead, run one conservative reserve with `--server_lr 1.2 --server_nesterov` before removing the default-off knob.
+- The conservative `--server_lr 1.2 --server_nesterov` reserve completed with score 0.921800 and was marked `discard`.
+- `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with four scored candidates since the FedUV literature reset.
+- The default-off server-Nesterov implementation was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml`.
 
 ## LR Warmup Candidate
 

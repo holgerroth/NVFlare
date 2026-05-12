@@ -175,11 +175,6 @@ def define_parser():
         help="Server momentum for fedavgm/fedopt aggregators.",
     )
     parser.add_argument(
-        "--server_nesterov",
-        action="store_true",
-        help="Use Nesterov-style lookahead for fedavgm/fedopt server momentum.",
-    )
-    parser.add_argument(
         "--fedopt_beta1",
         type=float,
         default=0.9,
@@ -257,15 +252,10 @@ def get_aggregator(args):
         print("Using FedAvgAggregator")
         return FedAvgAggregator()
     if kind in {"fedavgm", "fedopt"}:
-        print(
-            "Using FedAvgMAggregator "
-            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
-            f"server_nesterov={args.server_nesterov})"
-        )
+        print("Using FedAvgMAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
         return FedAvgMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
-            server_nesterov=args.server_nesterov,
         )
     if kind == "fedadam":
         print(
