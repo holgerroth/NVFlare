@@ -34,7 +34,6 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
-import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -119,12 +118,6 @@ def build_parser():
         type=float,
         default=0.0,
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
-    )
-    parser.add_argument(
-        "--rdrop_alpha",
-        type=float,
-        default=0.0,
-        help="R-Drop symmetric KL coefficient for two dropout passes. 0 disables R-Drop.",
     )
     parser.add_argument(
         "--scaffold",
@@ -266,25 +259,9 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _symmetric_kl_loss(logits_a, logits_b):
-    log_probs_a = F.log_softmax(logits_a, dim=1)
-    log_probs_b = F.log_softmax(logits_b, dim=1)
-    probs_a = log_probs_a.exp()
-    probs_b = log_probs_b.exp()
-    return 0.5 * (
-        F.kl_div(log_probs_a, probs_b, reduction="batchmean")
-        + F.kl_div(log_probs_b, probs_a, reduction="batchmean")
-    )
-
-
-def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, rdrop_alpha=0.0):
+def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
     outputs = model(inputs)
-    if rdrop_alpha > 0.0:
-        paired_outputs = model(inputs)
-        loss = 0.5 * (criterion(outputs, labels) + criterion(paired_outputs, labels))
-        loss = loss + rdrop_alpha * _symmetric_kl_loss(outputs, paired_outputs)
-    else:
-        loss = criterion(outputs, labels)
+    loss = criterion(outputs, labels)
     if criterion_prox is not None:
         loss = loss + criterion_prox(model, global_model)
     return loss
@@ -304,7 +281,7 @@ def _grad_norm(model):
 
 def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
     optimizer.zero_grad(set_to_none=True)
-    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args.rdrop_alpha)
+    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
     loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -331,7 +308,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
             perturbations.append(perturbation)
 
     optimizer.zero_grad(set_to_none=True)
-    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args.rdrop_alpha)
+    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
     sam_loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -413,8 +390,6 @@ def main(args):
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
-    if args.rdrop_alpha < 0.0:
-        raise ValueError("rdrop_alpha must be >= 0")
     flare.init()
     site_name = flare.get_site_name()
     site_seed = _site_seed(args.seed, site_name)
@@ -466,8 +441,6 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
-    if args.rdrop_alpha > 0.0:
-        print(f"{site_name}: rdrop_alpha={args.rdrop_alpha}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
