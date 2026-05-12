@@ -1756,3 +1756,10 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: personalized classifier fine-tuning, prototype transfer, and new control-variate frameworks because they change the protocol or evaluation comparison.
 - Do not retry: further routine scalar FedAvgM/FedSAM jitter before this FedUV branch is tested.
 - Sources to carry forward: Son24 FedUV main and supplement; Hu24 FNR-FL; Oh22 FedBABU only as a rejected personalized-head boundary.
+
+### Batch outcome
+
+- P1 `--feduv_variance_coef 1.25` scored 0.921700 in 916s and was marked `discard`.
+- The variance hinge was stable and cheap enough to keep the reserve branch valid, but the score was materially below the 0.925800 high-water.
+- `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=1` after the FedUV literature reset.
+- Promote P2 reserve next: run `--feduv_uniformity_coef 0.1` on the same active stack to test the distinct feature-spread component. Remove the FedUV implementation if this reserve also misses materially.
