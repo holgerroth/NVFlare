@@ -87,6 +87,11 @@ def build_parser():
     parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--decoupled_weight_decay",
+        action="store_true",
+        help="Apply SGD weight decay as an explicit post-step parameter decay instead of coupled L2.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -279,6 +284,24 @@ def _grad_norm(model):
     return torch.norm(torch.stack(grads), p=2)
 
 
+def _apply_decoupled_weight_decay(optimizer, weight_decay):
+    if weight_decay <= 0.0:
+        return
+
+    with torch.no_grad():
+        for group in optimizer.param_groups:
+            decay = 1.0 - group["lr"] * weight_decay
+            for param in group["params"]:
+                if param.requires_grad:
+                    param.mul_(decay)
+
+
+def _finish_optimizer_step(optimizer, args):
+    optimizer.step()
+    if args.decoupled_weight_decay:
+        _apply_decoupled_weight_decay(optimizer, args.weight_decay)
+
+
 def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
     optimizer.zero_grad(set_to_none=True)
     loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
@@ -287,12 +310,12 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
         _apply_zero_mean_gradients(model)
 
     if args.sam_rho <= 0:
-        optimizer.step()
+        _finish_optimizer_step(optimizer, args)
         return loss.item()
 
     grad_norm = _grad_norm(model)
     if not torch.isfinite(grad_norm) or grad_norm <= 0:
-        optimizer.step()
+        _finish_optimizer_step(optimizer, args)
         return loss.item()
 
     rho_scale = args.sam_rho / (grad_norm + 1e-12)
@@ -318,7 +341,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
             if perturbation is not None:
                 param.sub_(perturbation)
 
-    optimizer.step()
+    _finish_optimizer_step(optimizer, args)
     return sam_loss.item()
 
 
@@ -386,6 +409,8 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.weight_decay < 0.0:
+        raise ValueError("weight_decay must be >= 0")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
@@ -410,8 +435,10 @@ def main(args):
         model.parameters(),
         lr=args.lr,
         momentum=args.momentum,
-        weight_decay=args.weight_decay,
+        weight_decay=0.0 if args.decoupled_weight_decay else args.weight_decay,
     )
+    if args.decoupled_weight_decay:
+        print(f"{site_name}: decoupled_weight_decay={args.weight_decay}")
 
     scheduler = None
     criterion_prox = None

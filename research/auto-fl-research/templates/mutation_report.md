@@ -1,5 +1,35 @@
 # Mutation report
 
+## Decoupled Weight Decay Candidate
+
+### Hypothesis
+
+The active stack has tightly bracketed the scalar `weight_decay=5e-4` value under coupled SGD L2 regularization. Decoupling the same decay magnitude from the stochastic gradient may change late-round regularization without changing the FL protocol, local compute, model keys, data, or evaluation.
+
+### Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+### Contract check
+
+- `--decoupled_weight_decay` defaults off, preserving the existing SGD optimizer path.
+- When enabled, clients still compute `compute_model_diff(...)` and send `ParamsType.DIFF` with `NUM_STEPS_CURRENT_ROUND`.
+- The change is client-local optimizer semantics only; server aggregation, architecture, and cross-site evaluation remain unchanged.
+
+### Selected candidate
+
+- Active high-water stack plus `--decoupled_weight_decay` with the existing `--weight_decay 5e-4`.
+
+### Observed outcome
+
+- `PYTHON=.venv/bin/python make validate` passed.
+- `PYTHON=.venv/bin/python make smoke` passed.
+- No-ledger targeted smoke with `--decoupled_weight_decay` passed.
+- Pending full 20-round candidate.
+
 ## Client Weight Power Candidate
 
 ### Hypothesis

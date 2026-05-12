@@ -104,6 +104,11 @@ def define_parser():
     )
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--decoupled_weight_decay",
+        action="store_true",
+        help="Forward decoupled SGD weight decay to clients.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -305,6 +310,8 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.weight_decay < 0.0:
+        raise ValueError("weight_decay must be >= 0")
 
     if args.name:
         job_name = args.name
@@ -372,6 +379,8 @@ def main():
         train_args.append("--eval_global_every_round")
     if args.zero_mean_gradients:
         train_args.append("--zero_mean_gradients")
+    if args.decoupled_weight_decay:
+        train_args.append("--decoupled_weight_decay")
     if args.aggregator == "scaffold":
         train_args.append("--scaffold")
     if args.no_deterministic_training:
