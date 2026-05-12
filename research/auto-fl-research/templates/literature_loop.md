@@ -1672,3 +1672,87 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - P3 cap-3.0 crashed in round 3 with NaN local losses and `Diff norm is NaN or Inf`; `results.tsv` recorded the row as `crash` with runtime 167s. `scripts/plateau_watchdog.py results.tsv` reported `recommendation=continue` with `scored_since_reset=2`.
 - One conservative reserve remains justified because the crash is consistent with an overly high extrapolation cap rather than a contract failure: run `--aggregator fedexp --server_lr 1.8 --fedexp_epsilon 1e-12` on the same active stack. Remove the FedExP implementation if this cap is unstable or materially below the active high-water.
 - P3 conservative cap-1.8 completed without NaNs but scored 0.917200 in 858s and was marked `discard`. This is materially below the active 0.925200 high-water and below the 0.922800 lower server-LR/lower-WD near miss, so the default-off `fedexp` branch was removed from `custom_aggregators.py`, `job.py`, and `mutation_schema.yaml`.
+
+---
+
+# Literature loop 2026-05-12 classifier variance and feature uniformity
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` reached `recommendation=literature` after 32 scored candidates since the row 659 literature reset; post-literature exact-step, scalar optimizer, ablation, aggregator, SCAFFOLD, and FedAdam probes all missed the 0.925800 high-water.
+- Current best: 0.925800, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.0001625`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `sam_rho=0.0725`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: FedDecorr, Lookahead, R-Drop, deterministic-off, zero-mean off, SAM off, class-balanced off, scheduler off, FedAvg/weighted/default/median/SCAFFOLD/FedAdam, and broad client/server LR or momentum probes all regressed.
+- Confirmed null/worse ideas to avoid: FedLC/FedRS/logit calibration, label smoothing, mixup/cutout, focal, LDAM, distillation/FedNTD, dynamic FedProx, local SWA, FedNova, SCAFFOLD, FedAdam/Yogi/FedOpt adaptivity, clipping/align aggregation, architecture variants, batch 128, Nesterov, FedDecorr, Lookahead, R-Drop with SAM, FedLESAM, SAM schedules/blends, and FedExP.
+- Candidate width: effective width 1 on one local GPU, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning non-IID feature norm regularization classifier bias CIFAR 2024 local training | find a client-local regularizer distinct from prior logit-prior and FedDecorr nulls | web search, IJCAI proceedings | FNR-FL targets feature-norm directions under non-IID clients. |
+| FedUV Uniformity and Variance for Heterogeneous Federated Learning PDF | inspect an FL method focused on classifier variance and representation spread | CVF Open Access, supplemental PDF, arXiv | FedUV gives two default-off local losses that preserve FedAvg-style aggregation. |
+| federated learning personalized classifier freeze final layer non-IID FedBABU variance regularization | triage classifier-bias methods that may violate global-model comparability | OpenReview, arXiv, web search | Personalized head or prototype/control-variate methods were filtered out. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Son24 FedUV | FedUV: Uniformity and Variance for Heterogeneous Federated Learning / 2024 | https://openaccess.thecvf.com/content/CVPR2024/html/Son_FedUV_Uniformity_and_Variance_for_Heterogeneous_Federated_Learning_CVPR_2024_paper.html | final classifier bias and representation clustering under heterogeneous clients | client-local classifier variance and hyperspherical uniformity | keep |
+| Son24 FedUV supp | FedUV supplementary material / 2024 | https://openaccess.thecvf.com/content/CVPR2024/supplemental/Son_FedUV_Uniformity_and_CVPR_2024_supplemental.pdf | practical loss formulas and CIFAR-10 coefficient ranges | implementation details | keep |
+| Hu24 FNR-FL | Feature Norm Regularized Federated Learning: Utilizing Data Disparities for Model Performance Gains / 2024 | https://www.ijcai.org/proceedings/2024/457 | non-IID data causes divergent local update directions | feature-norm regularization | keep as reserve |
+| Oh22 FedBABU | FedBABU: Towards Enhanced Representation for Federated Image Classification / 2022 | https://openreview.net/forum?id=HuaYQfggn5u | classifier heads can dominate non-IID representation learning | freeze body/head, then personalize | reject: personalized/fine-tuned head is not comparable to final global model scoring |
+| Tan23 FedProto | FedProto: Federated Prototype Learning across Heterogeneous Clients / 2023 | https://ojs.aaai.org/index.php/AAAI/article/view/26392 | local feature spaces can be inconsistent across clients | class prototypes | reject: requires server-coupled prototype exchange |
+| UniVarFL26 | A Unified Variance Reduction-Based Framework for Non-Convex Federated Learning / 2026 | https://ojs.aaai.org/index.php/AAAI/article/view/38652 | variance reduction under heterogeneous FL | control-variate framework | reject: new protocol/state beyond this campaign surface |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Classifier probability variance can collapse under label skew | FedUV reports the final classifier is most prone to local bias and adds a variance hinge on mini-batch class probabilities | class-balanced loss is kept, but all logit/loss-prior follow-ups and class-balanced ablations missed | a logits-only variance term is client-local, cheap, and distinct from class weights | `client.py`, `job.py`, `mutation_schema.yaml` |
+| C2 | Representation spread may limit classifier variance | FedUV adds hyperspherical uniformity over encoder representations because clustered features constrain classifier variance | FedDecorr and Lookahead missed, but no FedUV-style pairwise feature-spread row exists | registered CNNs expose `conv_layer`/`fc_layer`, so penultimate features are available without architecture changes | `client.py` |
+| C3 | Stronger literature methods often violate the global FLModel contract | FedProto needs prototype exchange; FedBABU relies on personalized head fine-tuning; variance-reduction frameworks add control state | SCAFFOLD and FedAdam already underperformed, and protocol-heavy branches are risky duplicates | keep this loop to default-off client-local losses only | `client.py`, `job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedUV classifier variance hinge | Son24 FedUV | add default-off `--feduv_variance_coef`; run active stack with `--feduv_variance_coef 1.25` | encourage locally biased classifiers to keep class-wise probability spread without changing aggregation | score <= 0.925800 or instability/NaN | low: logits-only local loss |
+| P2 | FedUV hyperspherical uniformity | Son24 FedUV | same code path with `--feduv_uniformity_coef 0.1` if P1 is stable or near | spread penultimate features so classifier variance is easier to sustain | score below P1 or runtime approaches timeout | low-medium: pairwise feature loss adds per-batch work |
+| P3 | FedUV combined light loss | Son24 FedUV | reserve active stack plus `--feduv_uniformity_coef 0.1 --feduv_variance_coef 1.25` | test the paper's coupled mechanism if individual terms show signal | worse than both single terms or timeout | low-medium |
+| P4 | FNR feature-norm regularization | Hu24 FNR-FL | future default-off feature-norm deviation loss from local class average norms | reduce non-IID update direction drift through feature magnitude control | repeats FedDecorr-style runtime cost with no score gain | medium: class-local feature bookkeeping |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not class-balanced CE, FedLC, FedRS, LDAM, or confidence penalty; it penalizes mini-batch probability variance | no FedUV or classifier-variance row exists | select |
+| P2 | not FedDecorr; pairwise uniformity uses normalized penultimate features, not covariance off-diagonal penalties | FedDecorr miss warns against costly feature losses, so keep as reserve | reserve |
+| P3 | combined P1/P2 | only useful after at least one single term is stable or near high-water | reserve |
+| P4 | related to feature regularization | FedDecorr miss and timeout risk make it lower priority | reserve |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 FedUV variance 1.25 | 3 | 5 | 5 | 5 | 5 | 1 | 30 |
+| P2 FedUV uniformity 0.1 | 3 | 5 | 4 | 5 | 5 | 2 | 28 |
+| P3 FedUV combined light | 4 | 5 | 3 | 5 | 4 | 3 | 27 |
+| P4 FNR feature norm | 3 | 5 | 2 | 4 | 4 | 3 | 23 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001625_mu3e5_zmg_cb090_sam00725_feduvvar125_w1` | active high-water stack plus `--feduv_variance_coef 1.25` |
+| reserve | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001625_mu3e5_zmg_cb090_sam00725_feduvu01_w1` | active high-water stack plus `--feduv_uniformity_coef 0.1` |
+| reserve | P3 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001625_mu3e5_zmg_cb090_sam00725_feduvu01var125_w1` | active high-water stack plus both FedUV knobs |
+
+## Reflective memory
+
+- Keep: FedUV is the next branch because it attacks classifier variance and representation spread directly while staying client-local and FedAvg-compatible.
+- Discard: personalized classifier fine-tuning, prototype transfer, and new control-variate frameworks because they change the protocol or evaluation comparison.
+- Do not retry: further routine scalar FedAvgM/FedSAM jitter before this FedUV branch is tested.
+- Sources to carry forward: Son24 FedUV main and supplement; Hu24 FNR-FL; Oh22 FedBABU only as a rejected personalized-head boundary.

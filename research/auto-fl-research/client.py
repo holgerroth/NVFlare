@@ -34,6 +34,7 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
+import torch.nn.functional as F  # noqa: E402
 import torch.optim as optim  # noqa: E402
 from data.cifar10_data_utils import create_datasets  # noqa: E402
 from model import (  # noqa: E402
@@ -118,6 +119,18 @@ def build_parser():
         type=float,
         default=0.0,
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
+    )
+    parser.add_argument(
+        "--feduv_uniformity_coef",
+        type=float,
+        default=0.0,
+        help="FedUV hyperspherical uniformity regularization coefficient. 0 disables it.",
+    )
+    parser.add_argument(
+        "--feduv_variance_coef",
+        type=float,
+        default=0.0,
+        help="FedUV classifier probability variance regularization coefficient. 0 disables it.",
     )
     parser.add_argument(
         "--scaffold",
@@ -259,9 +272,56 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
-    outputs = model(inputs)
+def _forward_with_penultimate_features(model, inputs):
+    if not hasattr(model, "conv_layer") or not hasattr(model, "fc_layer"):
+        raise ValueError("FedUV uniformity requires a registered CNN with conv_layer and fc_layer")
+
+    features = model.conv_layer(inputs)
+    features = features.view(features.size(0), -1)
+    fc_layers = list(model.fc_layer.children())
+    if not fc_layers:
+        return model(inputs), features
+
+    for layer in fc_layers[:-1]:
+        features = layer(features)
+    outputs = fc_layers[-1](features)
+    return outputs, features
+
+
+def _feduv_regularization(outputs, features, args):
+    loss = outputs.new_tensor(0.0)
+
+    if args.feduv_variance_coef > 0.0 and outputs.size(0) > 1:
+        probabilities = torch.softmax(outputs.float(), dim=1)
+        num_classes = probabilities.size(1)
+        ideal_std = torch.eye(num_classes, device=probabilities.device, dtype=probabilities.dtype).std(dim=0).mean()
+        variance_loss = F.relu(ideal_std - probabilities.std(dim=0)).mean()
+        loss = loss + args.feduv_variance_coef * variance_loss.to(dtype=outputs.dtype)
+
+    if args.feduv_uniformity_coef > 0.0:
+        if features is None:
+            raise ValueError("FedUV uniformity requires penultimate features")
+        if features.size(0) > 1:
+            normalized = F.normalize(features.float(), dim=1)
+            pairwise_sq_dist = torch.pdist(normalized, p=2).pow(2)
+            nonzero_dist = pairwise_sq_dist[pairwise_sq_dist > 0]
+            if nonzero_dist.numel() > 0:
+                sigma = nonzero_dist.median().clamp_min(1e-12)
+                uniformity_loss = torch.exp(-pairwise_sq_dist / sigma).mean()
+                loss = loss + args.feduv_uniformity_coef * uniformity_loss.to(dtype=outputs.dtype)
+
+    return loss
+
+
+def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args):
+    features = None
+    if args.feduv_uniformity_coef > 0.0:
+        outputs, features = _forward_with_penultimate_features(model, inputs)
+    else:
+        outputs = model(inputs)
     loss = criterion(outputs, labels)
+    if args.feduv_variance_coef > 0.0 or args.feduv_uniformity_coef > 0.0:
+        loss = loss + _feduv_regularization(outputs, features, args)
     if criterion_prox is not None:
         loss = loss + criterion_prox(model, global_model)
     return loss
@@ -281,7 +341,7 @@ def _grad_norm(model):
 
 def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
     optimizer.zero_grad(set_to_none=True)
-    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args)
     loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -308,7 +368,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
             perturbations.append(perturbation)
 
     optimizer.zero_grad(set_to_none=True)
-    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args)
     sam_loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -390,6 +450,10 @@ def main(args):
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
+    if args.feduv_uniformity_coef < 0.0:
+        raise ValueError("feduv_uniformity_coef must be >= 0")
+    if args.feduv_variance_coef < 0.0:
+        raise ValueError("feduv_variance_coef must be >= 0")
     flare.init()
     site_name = flare.get_site_name()
     site_seed = _site_seed(args.seed, site_name)
@@ -441,6 +505,11 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
+    if args.feduv_uniformity_coef > 0.0 or args.feduv_variance_coef > 0.0:
+        print(
+            f"{site_name}: feduv_uniformity_coef={args.feduv_uniformity_coef} "
+            f"feduv_variance_coef={args.feduv_variance_coef}"
+        )
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 

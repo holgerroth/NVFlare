@@ -1,5 +1,39 @@
 # Mutation report
 
+## Literature Loop 2026-05-12 FedUV
+
+### Hypothesis
+
+The current FedSAM/FedAvgM high-water stack has exhausted local-compute, scalar optimizer, aggregation, and prior representation/trajectory regularizer branches. A default-off FedUV variance loss can target non-IID classifier bias by encouraging class-wise probability spread during client training while preserving the FLModel contract. The paired uniformity knob is implemented for the reserve branch but stays off in the first candidate.
+
+### Sources
+
+- Son et al., "FedUV: Uniformity and Variance for Heterogeneous Federated Learning", CVPR 2024, https://openaccess.thecvf.com/content/CVPR2024/html/Son_FedUV_Uniformity_and_Variance_for_Heterogeneous_Federated_Learning_CVPR_2024_paper.html. FedUV adds local classifier variance and representation uniformity regularizers for heterogeneous FL.
+- Son et al., FedUV supplementary material, https://openaccess.thecvf.com/content/CVPR2024/supplemental/Son_FedUV_Uniformity_and_CVPR_2024_supplemental.pdf. The supplement gives PyTorch-like loss formulas and CIFAR-10 regularization ranges.
+- Hu et al., "Feature Norm Regularized Federated Learning: Utilizing Data Disparities for Model Performance Gains", IJCAI 2024, https://www.ijcai.org/proceedings/2024/457. Reserve feature-norm branch for non-IID update-direction drift.
+
+### Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+### Contract check
+
+- `--feduv_uniformity_coef` and `--feduv_variance_coef` default to `0.0`, so existing runs are unchanged.
+- The new losses are computed only inside local client training; no data, evaluation, aggregation, server metadata, dependency, model key, or architecture change is introduced.
+- The client still receives global weights, loads with `strict=True`, computes `compute_model_diff`, uploads `ParamsType.DIFF`, and preserves `NUM_STEPS_CURRENT_ROUND`.
+
+### Selected candidate
+
+- Active high-water stack plus `--feduv_variance_coef 1.25`, tagged `[src: Son24 FedUV CVPR]`.
+
+### Next observation
+
+- Keep the knob only if the full 20-round candidate materially improves over 0.925800 or is comparable with simpler/faster behavior. If it misses but remains near high-water, run the reserved uniformity-only branch; if both FedUV single terms miss, remove the default-off implementation.
+
 ## Lookahead Reserve Candidate
 
 ### Hypothesis
