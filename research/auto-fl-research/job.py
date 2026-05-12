@@ -106,18 +106,6 @@ def define_parser():
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
-    parser.add_argument(
-        "--lr_warmup_units",
-        type=int,
-        default=0,
-        help="Number of local scheduler units to linearly warm up before cosine decay. 0 disables warmup.",
-    )
-    parser.add_argument(
-        "--lr_warmup_start_factor",
-        type=float,
-        default=0.2,
-        help="Initial LR factor for --lr_warmup_units. Must be in (0, 1].",
-    )
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -314,10 +302,6 @@ def main():
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
-    if args.lr_warmup_units < 0:
-        raise ValueError("lr_warmup_units must be >= 0")
-    if args.lr_warmup_start_factor <= 0.0 or args.lr_warmup_start_factor > 1.0:
-        raise ValueError("lr_warmup_start_factor must be in (0, 1]")
 
     if args.name:
         job_name = args.name
@@ -370,10 +354,6 @@ def main():
         args.weight_decay,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
-        "--lr_warmup_units",
-        args.lr_warmup_units,
-        "--lr_warmup_start_factor",
-        args.lr_warmup_start_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
         "--sam_rho",

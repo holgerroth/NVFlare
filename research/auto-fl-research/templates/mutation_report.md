@@ -28,6 +28,7 @@ The active FedSAM/FedAvgM stack is sensitive to early local optimization, and co
 - The one-round warmup candidate scored 0.921500 and was marked `discard`.
 - `scripts/plateau_watchdog.py results.tsv` returned `recommendation=continue` with three scored candidates since the FedUV literature reset.
 - The warmup branch missed materially, so remove the default-off scheduler knobs before the next sweep.
+- The default-off warmup scheduler knobs were removed from `client.py`, `job.py`, and `mutation_schema.yaml`.
 
 ## Literature Loop 2026-05-12 FedUV
 
