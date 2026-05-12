@@ -120,6 +120,12 @@ def build_parser():
         help="Effective-number class-balanced loss beta in [0, 1). 0 disables class reweighting.",
     )
     parser.add_argument(
+        "--feddecorr_coef",
+        type=float,
+        default=0.0,
+        help="FedDecorr representation decorrelation coefficient. 0 disables the local regularizer.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -259,9 +265,39 @@ def _apply_zero_mean_gradients(model):
         grad.sub_(grad.mean(dim=tuple(range(1, grad.dim())), keepdim=True))
 
 
-def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model):
-    outputs = model(inputs)
+def _forward_logits_and_features(model, inputs, require_features):
+    if require_features and hasattr(model, "conv_layer") and hasattr(model, "fc_layer"):
+        features = model.conv_layer(inputs)
+        features = features.view(features.size(0), -1)
+        fc_layers = list(model.fc_layer.children())
+        if len(fc_layers) < 2:
+            raise ValueError("FedDecorr requires a classifier with at least one feature layer and one output layer")
+        for layer in fc_layers[:-1]:
+            features = layer(features)
+        outputs = fc_layers[-1](features)
+        return outputs, features
+    return model(inputs), None
+
+
+def _feddecorr_loss(features, eps=1e-5):
+    if features is None:
+        raise ValueError("FedDecorr requires model features, but none were produced")
+    if features.dim() > 2:
+        features = features.flatten(start_dim=1)
+    if features.size(0) < 2:
+        return features.new_zeros(())
+
+    features = features - features.mean(dim=0, keepdim=True)
+    features = features / features.std(dim=0, unbiased=False, keepdim=True).clamp_min(eps)
+    corr_mat = torch.matmul(features.t(), features) / features.size(0)
+    return corr_mat.pow(2).mean()
+
+
+def _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args):
+    outputs, features = _forward_logits_and_features(model, inputs, require_features=args.feddecorr_coef > 0.0)
     loss = criterion(outputs, labels)
+    if args.feddecorr_coef > 0.0:
+        loss = loss + args.feddecorr_coef * _feddecorr_loss(features)
     if criterion_prox is not None:
         loss = loss + criterion_prox(model, global_model)
     return loss
@@ -281,7 +317,7 @@ def _grad_norm(model):
 
 def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox, global_model, args):
     optimizer.zero_grad(set_to_none=True)
-    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args)
     loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -308,7 +344,7 @@ def _optimizer_step(model, optimizer, inputs, labels, criterion, criterion_prox,
             perturbations.append(perturbation)
 
     optimizer.zero_grad(set_to_none=True)
-    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model)
+    sam_loss = _compute_train_loss(model, inputs, labels, criterion, criterion_prox, global_model, args)
     sam_loss.backward()
     if args.zero_mean_gradients:
         _apply_zero_mean_gradients(model)
@@ -390,6 +426,8 @@ def main(args):
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
         raise ValueError("class_balanced_loss_beta must be in [0, 1)")
+    if args.feddecorr_coef < 0.0:
+        raise ValueError("feddecorr_coef must be >= 0")
     flare.init()
     site_name = flare.get_site_name()
     site_seed = _site_seed(args.seed, site_name)
@@ -441,6 +479,8 @@ def main(args):
         )
     if args.sam_rho > 0.0:
         print(f"{site_name}: sam_rho={args.sam_rho}")
+    if args.feddecorr_coef > 0.0:
+        print(f"{site_name}: feddecorr_coef={args.feddecorr_coef}")
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 

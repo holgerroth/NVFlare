@@ -71,6 +71,90 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 
 ---
 
+# Literature loop 2026-05-12 representation collapse
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` reached `recommendation=literature` after row 658; scalar FedSAM/FedAvgM retunes and local-compute probes failed to materially improve over the 0.925800 high-water.
+- Current best: 0.925800, `moderate_cnn`, FedAvgM `server_lr=1.8`, `server_momentum=0.475`, client `lr=0.045`, `momentum=0.925`, `weight_decay=5e-4`, `cosine_lr_eta_min_factor=0.0001625`, `fedproxloss_mu=3e-5`, `zero_mean_gradients`, `class_balanced_loss_beta=0.90`, `sam_rho=0.0725`, `aggregation_epochs=7`.
+- Recent symptoms from `results.tsv`: exact steps up to 1000, epochs 6/8, FedProx off, tight server LR/momentum, client momentum, SAM rho, beta, weight decay, and cosine-floor neighbors all missed.
+- Confirmed null/worse ideas to avoid: FedLC/FedRS/logit calibration, label smoothing, mixup/cutout, focal, LDAM, full distillation/FedNTD, dynamic FedProx, local SWA, FedNova, SCAFFOLD, FedAdam/Yogi/FedOpt adaptivity, median/clip/align aggregation, architecture variants, batch 128, and routine scalar jitter.
+- Candidate width: effective width 1 on one local GPU, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: timer started with `scripts/log_literature_review.py --start`.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| federated learning feature decorrelation dimensional collapse label heterogeneity CIFAR | find a non-scalar client-local mechanism after FedSAM/FedAvgM plateau | arXiv, OpenReview, ICLR, GitHub | FedDecorr directly targets heterogeneity-induced representation collapse. |
+| federated long-tailed learning feature optimization decorrelation local training | check label-skew representation variants that are not another logit-prior loss | PMLR, OpenReview | FedLF supports local feature decorrelation but full class-center optimization overlaps prior logit/loss nulls. |
+| dropout consistency regularization overfitting CIFAR R-Drop confidence penalty Lookahead optimizer | find cheap non-FL regularizers if FL-specific feature decorrelation is too invasive | NeurIPS, arXiv, Google Research | R-Drop and confidence penalty are contract-safe but less novel or more expensive; Lookahead is cheap reserve optimizer geometry. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Shi23 FedDecorr | Towards Understanding and Mitigating Dimensional Collapse in Heterogeneous Federated Learning / 2023 | https://arxiv.org/abs/2210.00226 | label heterogeneity causes local and global representation dimensional collapse | client-local feature decorrelation | keep |
+| Lu25 FedLF | FedLF: Adaptive Logit Adjustment and Feature Optimization in Federated Long-Tailed Learning / 2025 | https://proceedings.mlr.press/v260/lu25a.html | heterogeneous and long-tailed client data biases global classes | local feature decorrelation plus class-centre/logit changes | keep as support; reject full method |
+| Cogswell16 DeCov | Reducing Overfitting in Deep Networks by Decorrelating Representations / 2016 | https://arxiv.org/abs/1511.06068 | overfitting and co-adapted hidden activations hurt generalization | generic representation decorrelation | keep as support |
+| Chen26 FedBlade | Stabilizing Heterogeneous Federated Learning via Feature Decorrelation and Bidirectional Alignment / 2026 | https://openreview.net/forum?id=xzuR1JUNcK | FedDecorr-style decorrelation may not prevent small singular values collapsing | feature decorrelation plus bidirectional alignment | reject: submitted work and requires projector/synthetic classifier coupling |
+| Zhang19 Lookahead | Lookahead Optimizer: k steps forward, 1 step back / 2019 | https://arxiv.org/abs/1907.08610 | high-momentum local SGD may have noisy fast-weight trajectories | local optimizer slow/fast weight sync | keep as reserve |
+| Liang21 R-Drop | R-Drop: Regularized Dropout for Neural Networks / 2021 | https://proceedings.neurips.cc/paper_files/paper/2021/hash/5a66b9200f29ac3fa0ae244cc2a51b39-Abstract.html | dropout creates train/inference inconsistency and overfitting | bidirectional KL between two dropout passes | reserve; runtime risk with SAM |
+| Pereyra17 CP | Regularizing Neural Networks by Penalizing Confident Output Distributions / 2017 | https://research.google/pubs/regularizing-neural-networks-by-penalizing-confident-output-distributions/ | overconfident output distributions reduce generalization | entropy/confidence penalty | reject: close to failed label smoothing branch |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Heterogeneous local training can collapse representations | Shi23 reports stronger heterogeneity drives representations into a lower-dimensional space and proposes FedDecorr during local training | optimizer and local-compute sweeps plateau under Dirichlet alpha 0.5 despite FedSAM | local clients can add a representation-correlation loss without new metadata | `client.py`, `job.py`, `mutation_schema.yaml` |
+| C2 | Label-skew remedies that only adjust logits are exhausted | Lu25 combines feature decorrelation with logit/class-center changes; previous FedLC/FedRS/LDAM/class-weight branches already tested logit/loss sides | class-balanced beta 0.90 is kept, but all nearby beta/logit/margin follow-ups missed | isolate the feature-decorrelation component rather than re-opening logit priors | `client.py` |
+| C3 | Generalization may need trajectory smoothing, but not more server state | Zhang19 supports Lookahead as low-overhead variance/stability control; R-Drop supports dropout consistency but adds extra forward passes | client/server momentum and SAM scalar jitter show sharp local regressions near best | reserve client-only optimizer/regularizer changes if FedDecorr is null | `client.py`, `job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | FedDecorr local feature decorrelation | Shi23; Cogswell16; Lu25 | add default-off `--feddecorr_coef`; run active stack with `--feddecorr_coef 0.1` | mitigate local representation collapse and improve global model generalization without extra communication | score <= 0.925800 or runtime/NaN regression | low: client-local loss only |
+| P2 | Lower FedDecorr coefficient | Shi23 | if P1 is stable but too regularized, try `--feddecorr_coef 0.05` | reduce possible underfitting while preserving decorrelation signal | no gain over P1 or high-water | low |
+| P3 | Lookahead around local SGD | Zhang19 | future default-off `--lookahead_k 5 --lookahead_alpha 0.5`, reset slow weights after each received global model | lower local update variance around high-momentum FedSAM stack | score below high-water or interaction with scheduler/momentum hurts | low-medium: optimizer wrapper state |
+| P4 | R-Drop dropout consistency | Liang21 | future default-off symmetric KL between two dropout passes with small alpha | reduce dropout-induced output inconsistency and overfitting | timeout with SAM or score below high-water | medium: extra forward/backward cost |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | not FedZMG, class-balanced CE, FedLC, LDAM, or SAM; changes hidden representation correlation | no FedDecorr row exists | select |
+| P2 | near P1 variant | only useful if P1 is stable and close | reserve |
+| P3 | not Nesterov or server momentum; slow/fast local weight sync is distinct | optimizer scalar jitter exhausted, but no Lookahead row exists | reserve |
+| P4 | not global/self distillation; dropout self-consistency only | likely too costly with SAM and label smoothing already null | reserve |
+
+## Proposal scoring
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 FedDecorr 0.1 | 4 | 5 | 4 | 5 | 5 | 1 | 31 |
+| P2 FedDecorr 0.05 | 3 | 5 | 4 | 4 | 4 | 1 | 27 |
+| P3 Lookahead | 3 | 4 | 3 | 3 | 4 | 1 | 25 |
+| P4 R-Drop | 2 | 5 | 3 | 4 | 4 | 4 | 21 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001625_mu3e5_zmg_cb090_sam00725_feddecorr01_w1` | active high-water stack plus `--feddecorr_coef 0.1` |
+| reserve | P2 | `fedavgm_lr18_m0475_epochs7_clientlr0045_cm0925_wd5e4_eta00001625_mu3e5_zmg_cb090_sam00725_feddecorr005_w1` | only if P1 is stable and near high-water |
+| reserve | P3 |  | implement Lookahead only after FedDecorr branch is falsified |
+| reserve | P4 |  | R-Drop only if runtime headroom remains after a no-ledger smoke |
+
+## Reflective memory
+
+- Keep: representation-collapse branch is the first source-backed direction after scalar and compute retunes exhausted; start with FedDecorr beta 0.1 because Shi23 recommends it without prior dataset information.
+- Discard: full FedLF/FedBlade because they require class-center/projector/alignment mechanisms outside the smallest safe surface and overlap prior logit-calibration nulls.
+- Do not retry: routine FedSAM/FedAvgM scalar jitter before this representation branch is tested.
+- Sources to carry forward: Shi23 FedDecorr, Lu25 FedLF, Cogswell16 DeCov, Zhang19 Lookahead, Liang21 R-Drop, Pereyra17 confidence penalty.
+
+---
+
 # Literature loop 2026-05-10 trajectory SAM
 
 ## Trigger

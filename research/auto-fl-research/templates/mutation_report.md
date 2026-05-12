@@ -1,5 +1,45 @@
 # Mutation report
 
+## Literature Loop 2026-05-12 Representation Collapse
+
+### Hypothesis
+
+The current FedSAM/FedAvgM stack has exhausted scalar optimizer, scheduler, loss-weight, and local-compute retunes. The remaining plausible failure mode is heterogeneity-induced representation collapse inside local clients. A default-off FedDecorr loss can regularize hidden feature correlations without changing FLModel metadata, aggregation, evaluation, or model parameter keys.
+
+### Sources
+
+- Shi et al., "Towards Understanding and Mitigating Dimensional Collapse in Heterogeneous Federated Learning", ICLR 2023, arXiv:2210.00226, https://arxiv.org/abs/2210.00226. FedDecorr adds a local correlation-matrix regularizer and recommends beta `0.1` when no dataset prior is available.
+- Cogswell et al., "Reducing Overfitting in Deep Networks by Decorrelating Representations", ICLR 2016, arXiv:1511.06068, https://arxiv.org/abs/1511.06068. DeCov supports hidden-feature decorrelation as a generalization regularizer.
+- Lu et al., "FedLF: Adaptive Logit Adjustment and Feature Optimization in Federated Long-Tailed Learning", ACML 2025, https://proceedings.mlr.press/v260/lu25a.html. FedLF supports feature decorrelation as a local component under heterogeneous client data.
+- Zhang et al., "Lookahead Optimizer: k steps forward, 1 step back", NeurIPS 2019, arXiv:1907.08610, https://arxiv.org/abs/1907.08610. Reserve idea for local trajectory variance.
+- Liang et al., "R-Drop: Regularized Dropout for Neural Networks", NeurIPS 2021, https://proceedings.neurips.cc/paper_files/paper/2021/hash/5a66b9200f29ac3fa0ae244cc2a51b39-Abstract.html. Reserve idea for dropout consistency if runtime headroom remains.
+
+### Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+### Commands run
+
+- `PYTHON=.venv/bin/python make validate`
+- `PYTHON=.venv/bin/python make smoke`
+- `PYTHON=.venv/bin/python CUDA_VISIBLE_DEVICES=0 bash scripts/run_iteration.sh --no-log-results ... --feddecorr_coef 0.1 --name feddecorr_path_smoke`
+
+### Contract check
+
+- The client loop, `model.load_state_dict(..., strict=True)`, `compute_model_diff`, `ParamsType.DIFF`, and `NUM_STEPS_CURRENT_ROUND` remain unchanged.
+- `--feddecorr_coef` is default-off and only adds a local loss term computed from existing classifier features.
+- No data, evaluation, server metadata, dependency, architecture, or parameter-cap change is introduced.
+
+### Selected candidate
+
+- Active high-water stack plus `--feddecorr_coef 0.1`, tagged `[src: Shi23 FedDecorr arXiv:2210.00226]`.
+
+---
+
 ## Hypothesis
 
 Successful runs are appended to `results.tsv` as `candidate`, but the previous instructions did not force agents to rewrite reviewed rows to `keep` or `discard` after run analysis. This leaves long campaigns with hundreds of stale candidates and progress plots with no kept markers. Run review needs an explicit ledger-finalization step and a helper script.
