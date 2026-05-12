@@ -1,5 +1,28 @@
 # Mutation report
 
+## LR Warmup Candidate
+
+### Hypothesis
+
+The active FedSAM/FedAvgM stack is sensitive to early local optimization, and cosine floor/eta retunes are exhausted. A short client-local linear LR warmup before the existing cosine decay may reduce early-round drift without changing communication, aggregation, data, evaluation, or model parameters.
+
+### Files changed
+
+- `client.py`
+- `job.py`
+- `mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+### Contract check
+
+- `--lr_warmup_units` defaults to `0`, so existing runs keep the same `CosineAnnealingLR`.
+- Warmup only changes the client-local LR scheduler before normal cosine decay.
+- DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, `model.load_state_dict(..., strict=True)`, evaluation, aggregation, and architecture remain unchanged.
+
+### Selected candidate
+
+- Active high-water stack plus `--lr_warmup_units 7 --lr_warmup_start_factor 0.2`.
+
 ## Literature Loop 2026-05-12 FedUV
 
 ### Hypothesis

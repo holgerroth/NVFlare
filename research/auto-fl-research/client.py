@@ -89,6 +89,18 @@ def build_parser():
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
+    parser.add_argument(
+        "--lr_warmup_units",
+        type=int,
+        default=0,
+        help="Number of local scheduler units to linearly warm up before cosine decay. 0 disables warmup.",
+    )
+    parser.add_argument(
+        "--lr_warmup_start_factor",
+        type=float,
+        default=0.2,
+        help="Initial LR factor for --lr_warmup_units. Must be in (0, 1].",
+    )
     parser.add_argument("--evaluate_local", action="store_true")
     parser.add_argument(
         "--eval_global_every_round",
@@ -386,6 +398,10 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.lr_warmup_units < 0:
+        raise ValueError("lr_warmup_units must be >= 0")
+    if args.lr_warmup_start_factor <= 0.0 or args.lr_warmup_start_factor > 1.0:
+        raise ValueError("lr_warmup_start_factor must be in (0, 1]")
     if args.sam_rho < 0.0:
         raise ValueError("sam_rho must be >= 0")
     if args.class_balanced_loss_beta < 0.0 or args.class_balanced_loss_beta >= 1.0:
@@ -454,12 +470,40 @@ def main(args):
             scheduler_units = args.local_train_steps if args.local_train_steps > 0 else args.aggregation_epochs
             eta_min = args.lr * args.cosine_lr_eta_min_factor
             t_max = total_rounds * scheduler_units
-            scheduler = optim.lr_scheduler.CosineAnnealingLR(
-                optimizer,
-                T_max=t_max,
-                eta_min=eta_min,
-            )
-            print(f"{site_name}: CosineAnnealingLR init " f"(initial_lr={args.lr}, eta_min={eta_min}, T_max={t_max})")
+            warmup_units = min(args.lr_warmup_units, max(0, t_max - 1))
+            if warmup_units > 0:
+                scheduler = optim.lr_scheduler.SequentialLR(
+                    optimizer,
+                    schedulers=[
+                        optim.lr_scheduler.LinearLR(
+                            optimizer,
+                            start_factor=args.lr_warmup_start_factor,
+                            end_factor=1.0,
+                            total_iters=warmup_units,
+                        ),
+                        optim.lr_scheduler.CosineAnnealingLR(
+                            optimizer,
+                            T_max=max(1, t_max - warmup_units),
+                            eta_min=eta_min,
+                        ),
+                    ],
+                    milestones=[warmup_units],
+                )
+                print(
+                    f"{site_name}: LinearLR warmup + CosineAnnealingLR init "
+                    f"(initial_lr={args.lr}, warmup_units={warmup_units}, "
+                    f"warmup_start_factor={args.lr_warmup_start_factor}, eta_min={eta_min}, T_max={t_max})"
+                )
+            else:
+                scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer,
+                    T_max=t_max,
+                    eta_min=eta_min,
+                )
+                print(
+                    f"{site_name}: CosineAnnealingLR init "
+                    f"(initial_lr={args.lr}, eta_min={eta_min}, T_max={t_max})"
+                )
 
         model.load_state_dict(input_model.params, strict=True)
 
