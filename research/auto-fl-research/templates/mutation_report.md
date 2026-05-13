@@ -74,6 +74,7 @@ The best optimizer-only stack has saturated around FedAvgM with long local train
 - Watchdog reported `recommendation=literature` after 33 scored candidates since the last material improvement.
 - Recent local sweeps did not improve on `0.899900`: FedProx light/medium, exact local steps, client LR/momentum, weight decay refinements, robust aggregation, server LR/momentum micro sweeps, and scheduler floors all missed or tied.
 - Selected the next batch from `templates/literature_loop.md`: tuned SCAFFOLD under the best ep8/weight-decay stack, plus a damped FedAdam retry with low server LR and larger tau.
+- Post-run outcome: tuned SCAFFOLD scored `0.888900` and damped FedAdam scored `0.808600`, so both literature-selected candidates were discarded.
 
 ## Literature basis
 
@@ -88,6 +89,8 @@ The best optimizer-only stack has saturated around FedAvgM with long local train
 
 SCAFFOLD is justified because the plateau still looks like non-IID client drift after long local training. FedAdam is justified because adaptive server optimizers are source-backed for heterogeneous FL, but the prior FedAdam crash means the retry must be damped with `server_lr=0.1` and `fedopt_tau=1e-2`.
 
+The r32 results falsified both selected candidates under the current fixed budget. SCAFFOLD remained stable but underperformed the FedAvgM best by `0.011000`. The damped FedAdam retry avoided the earlier crash but scored far below the plateau, so adaptive Adam-style server updates should not be retried without a stronger source-backed change.
+
 ## Contract check
 
 - No code or protocol change is introduced by the selected next batch.
@@ -100,7 +103,4 @@ Low for the worksheet/report edits. Candidate runtime risk is medium for FedAdam
 
 ## Next mutation
 
-Record the literature event row, then launch:
-
-- `r32_lit_scaffold_ep8_wd4e4`: `--aggregator scaffold --aggregation_epochs 8 --local_train_steps 0 --weight_decay 4e-4`
-- `r32_lit_fedadam_slr01_tau1e2_wd4e4`: `--aggregator fedadam --server_lr 0.1 --fedopt_beta1 0.9 --fedopt_beta2 0.99 --fedopt_tau 1e-2 --aggregation_epochs 8 --weight_decay 4e-4`
+With the watchdog reset to `recommendation=continue`, continue with non-duplicate local axes around the retained FedAvgM best rather than starting another literature loop immediately.
