@@ -1,5 +1,59 @@
 # Mutation report
 
+## Mutation: CIFAR-10 Mixup knob
+
+## Hypothesis
+
+Source-backed client-local Mixup may improve the FedAvgM ep8 plateau by regularizing long local training on class-skewed client subsets, while preserving DIFF uploads, server aggregation contracts, fixed data/evaluation fields, and the current model architecture.
+
+## Files changed
+
+- `tasks/cifar10/client.py`
+- `tasks/cifar10/job.py`
+- `tasks/cifar10/mutation_schema.yaml`
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make validate`
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make smoke`
+
+## Observed outcome
+
+- Added a dormant `--mixup_alpha` argument with default `0.0`.
+- `job.py` forwards the argument to every client.
+- `client.py` applies input and label Mixup inside both local-step and epoch-based training loops only when `mixup_alpha > 0`.
+- The literature loop selected `mixup_alpha=0.2` and `0.4` as the next source-backed batch.
+- Validation passed static contract checks and compiled Python sources.
+- Smoke passed a one-round CIFAR-10 simulation with `RUN_ITERATION_LOG_RESULTS=0`.
+
+## Literature basis
+
+- Zhang et al., 2018, "mixup: Beyond Empirical Risk Minimization", ICLR/arXiv: https://arxiv.org/abs/1710.09412
+- Yoon et al., 2021, "FedMix: Approximation of Mixup under Mean Augmented Federated Learning", arXiv: https://arxiv.org/abs/2107.00233
+- Hsu, Qi, and Brown, 2019, "Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification", Google Research/arXiv: https://research.google/pubs/measuring-the-effects-of-non-identical-data-distribution-for-federated-visual-classification/
+
+## Run analysis
+
+Candidate runs are pending. The selected batch should compare `--mixup_alpha 0.2` and `0.4` against the current `0.900100` FedAvgM ep8 best.
+
+## Contract check
+
+- The default value preserves existing behavior.
+- The FL loop, strict state loading, DIFF upload, `NUM_STEPS_CURRENT_ROUND`, evaluation branch, and fixed model architecture remain unchanged.
+- Mixup is client-local and does not alter data splits, validation data, aggregation metadata, or parameter keys.
+
+## Rollback risk
+
+Low. The new behavior is opt-in, validation/smoke passed, and there are no dependency changes.
+
+## Next mutation
+
+Finish the literature event, then run the two Mixup candidates.
+
+---
+
 ## Mutation: CIFAR-10 gradient clipping knob
 
 ## Hypothesis

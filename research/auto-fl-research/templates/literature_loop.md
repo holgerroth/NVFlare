@@ -2,6 +2,89 @@
 
 Use this worksheet only when progress stalls or the next axis is unclear. Keep entries short and source-backed.
 
+## Literature loop: post-r47 FedAvgM ep8 plateau
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` printed `recommendation=literature` after 32 scored candidates since the previous literature reset.
+- Current best: `0.900100`, FedAvgM, `aggregation_epochs=8`, `server_lr=1.75`, `server_momentum=0.15`, `client_momentum=0.895`, `weight_decay=4e-4`, `model_arch=moderate_cnn`, `alpha=0.5`, final eval `site-1`.
+- Recent symptoms from `results.tsv`: client momentum gave a tiny new best, but refinements around client momentum, client LR, label smoothing, gradient clipping, scheduler floor, weight decay, FedProx, SCAFFOLD, FedAdam, and server-LR interactions all missed.
+- Confirmed null/worse ideas to avoid for the next batch: no scheduler, median aggregation, FedAdam damped retry, tuned SCAFFOLD, FedProx `1e-3/1e-2`, label smoothing alone, gradient clipping alone, and more server-LR jitter around `1.70-1.85`.
+- Candidate width: 2 on one local 80 GB H100, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: started with `scripts/log_literature_review.py --start`; finish with `--finish` before launching the next batch.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| mixup CIFAR-10 overfitting regularization non-IID federated learning | Recent local regularizers did not improve; need a stronger client-local regularizer that preserves protocol. | arXiv, OpenReview, FedMix arXiv | Mixup is a direct tensor/label-space change inside `client.py`. |
+| federated learning mixup non-IID CIFAR-10 augmentation | Need FL-specific evidence for mixing under heterogeneous client data. | arXiv, paper indexes | FedMix motivates mixup-like augmentation for non-IID FL, but mean sharing is not needed for a local-only pilot. |
+| adaptive federated optimization FedYogi FedAdagrad non-IID visual classification | Prior FedAdam was bad; check whether other FedOpt variants are worth code work. | ICLR/OpenReview PDF, arXiv mirrors | FedYogi/FedAdagrad are source-backed but require aggregator extension after a failed FedAdam family branch. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Hsu19 | Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification / 2019 | https://research.google/pubs/measuring-the-effects-of-non-identical-data-distribution-for-federated-visual-classification/ | Non-IID CIFAR-style visual FL is sensitive to client drift and server momentum. | FedAvgM context | Keep as plateau diagnosis. |
+| Zhang18 | mixup: Beyond Empirical Risk Minimization / ICLR 2018 | https://arxiv.org/abs/1710.09412 | Large visual models can overfit/memorize; interpolation regularizes between examples and labels. | Mixup | Keep; implemented locally without protocol changes. |
+| Yoon21 | FedMix: Approximation of Mixup under Mean Augmented Federated Learning / 2021 | https://arxiv.org/abs/2107.00233 | Standard FL degrades as heterogeneity increases; Mixup-inspired augmentation helps non-IID FL. | Federated Mixup | Keep as FL-specific support; use local Mixup only to avoid mean sharing. |
+| Yun19 | CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features / ICCV 2019 | https://openaccess.thecvf.com/content_ICCV_2019/papers/Yun_CutMix_Regularization_Strategy_to_Train_Strong_Classifiers_With_Localizable_Features_ICCV_2019_paper.pdf | Image classifiers can overfit to discriminative regions; patch mixing regularizes with informative pixels. | CutMix | Reserve; more code and harder to tune than Mixup. |
+| Cubuk20 | RandAugment: Practical Automated Data Augmentation with a Reduced Search Space / NeurIPS 2020 | https://papers.nips.cc/paper/2020/hash/d85b63ef0ccb114d0a3bb7b7d808028f-Abstract.html | Stronger image augmentation can improve CIFAR generalization. | RandAugment | Reject for this loop: would touch shared data transforms, which the task notes discourage. |
+| Reddi21 | Adaptive Federated Optimization / ICLR 2021 | https://openreview.net/pdf?id=LkFG3lB13U5 | Server adaptivity can improve heterogeneous FL, including FedAdagrad/FedYogi variants. | FedOpt | Reserve; FedAdam already failed badly and new variants need aggregator work. |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Long local ep8 training may be overfitting local class-skewed subsets despite FedAvgM. | Zhang18 shows input/label interpolation regularizes CIFAR training; Yoon21 connects Mixup-like augmentation to non-IID FL. | Label smoothing and gradient clipping missed, but they were weaker regularizers than mixing examples. | Can add Mixup entirely in `client.py` with a job arg and no protocol change. | `tasks/cifar10/client.py`, `tasks/cifar10/job.py` |
+| C2 | More image augmentation may help, but data-transform edits have higher harness risk. | Yun19 and Cubuk20 show augmentation gains on CIFAR/ImageNet. | Existing crop/flip is strong but not exhaustive. | Shared `data/*` is discouraged for mutation; client tensor mixing is safer. | Reserve only; avoid `data/*` edits. |
+| C3 | FedAvgM plateau may need a different FedOpt rule, but adaptive Adam already underperformed. | Reddi21 includes FedAdagrad/FedYogi as adaptive server variants. | FedAdam damped scored `0.808600`; FedAvgM remains dominant. | Aggregator extension is possible but lower priority than a client-local regularizer. | `tasks/shared/custom_aggregators.py`, `tasks/cifar10/job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Add opt-in local Mixup and run mild alpha values. | Zhang18, Yoon21 | Add `--mixup_alpha`; run current best stack with `--mixup_alpha 0.2` and `0.4`. | Reduce overconfident local fits and improve generalization under non-IID ep8 training. | Scores stay below `0.900100`, or training becomes unstable. | Low: client-local tensor/label mixing only. |
+| P2 | Add CutMix tensor-space augmentation. | Yun19 | Add `--cutmix_alpha` in client loop and run one mild alpha. | Stronger spatial regularization than Mixup. | Worse than Mixup or runtime/implementation complexity increases. | Medium: more code and bbox sampling edge cases. |
+| P3 | Add FedYogi/FedAdagrad server optimizer variants. | Reddi21 | Extend `FedOptAggregator` choices and run damped FedYogi. | Adaptive server denominator may escape FedAvgM plateau more safely than FedAdam. | Repeats FedAdam underperformance or crashes. | Medium: aggregator code change. |
+| P4 | RandAugment stronger image transforms. | Cubuk20 | Add transform policy to CIFAR data pipeline. | Improve visual generalization beyond crop/flip. | Requires `data/*` mutation or hurts comparability. | High for this loop; reject. |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | Not duplicate: label smoothing did not mix inputs or pair labels. | Compatible with existing crop/flip and default evaluation. | Launch two alpha variants. |
+| P2 | Not duplicate. | More complex than P1; reserve until Mixup falsified. | Reserve. |
+| P3 | Related to failed FedAdam, but FedYogi/Adagrad are different Reddi21 variants. | FedAdam branch is weak here. | Reserve, do not launch before Mixup. |
+| P4 | Not duplicate. | Violates preferred edit surface by touching shared data transforms. | Reject. |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 | 4 | 5 | 4 | 5 | 4 | 3 | 28 |
+| P3 | 3 | 3 | 3 | 4 | 4 | 3 | 20 |
+| P2 | 3 | 3 | 2 | 4 | 4 | 3 | 19 |
+| P4 | 3 | 1 | 2 | 4 | 3 | 3 | 14 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `r48_lit_mixup02_cm0895_wd4e4_sm015` | Current best FedAvgM ep8 stack plus `--mixup_alpha 0.2`. |
+| 2 | P1 variant | `r48_lit_mixup04_cm0895_wd4e4_sm015` | Current best FedAvgM ep8 stack plus `--mixup_alpha 0.4`. |
+| 3 | P3 reserve | reserve | Damped FedYogi/FedAdagrad only if Mixup misses and watchdog later permits another literature branch. |
+
+## Reflective memory
+
+- Local jitter around the FedAvgM ep8 optimizer stack is exhausted for now.
+- Label smoothing and gradient clipping alone did not fix the plateau.
+- Prefer client-local Mixup before deeper aggregator work because it is source-backed, opt-in, and avoids `data/*` or protocol edits.
+
+---
+
 ## Trigger
 
 - Reason: `plateau_watchdog.py` printed `recommendation=literature` after the corrected scheduler floor sweep reached 33 scored candidates since the last material improvement.

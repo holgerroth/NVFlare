@@ -105,6 +105,12 @@ def build_parser():
         default=0.0,
         help="CrossEntropyLoss label smoothing factor. 0 disables label smoothing.",
     )
+    parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Beta distribution alpha for input/label Mixup. 0 disables Mixup.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -166,6 +172,21 @@ def _make_generator(seed):
     generator = torch.Generator()
     generator.manual_seed(seed)
     return generator
+
+
+def _mixup_batch(inputs, labels, alpha):
+    if alpha <= 0.0 or inputs.size(0) < 2:
+        return inputs, labels, labels, 1.0
+    lam = float(np.random.beta(alpha, alpha))
+    index = torch.randperm(inputs.size(0), device=inputs.device)
+    mixed_inputs = lam * inputs + (1.0 - lam) * inputs[index]
+    return mixed_inputs, labels, labels[index], lam
+
+
+def _mixup_loss(criterion, outputs, labels_a, labels_b, lam):
+    if lam >= 1.0:
+        return criterion(outputs, labels_a)
+    return lam * criterion(outputs, labels_a) + (1.0 - lam) * criterion(outputs, labels_b)
 
 
 def _create_seeded_data_loaders(
@@ -289,6 +310,8 @@ def main(args):
         raise ValueError("max_grad_norm must be >= 0")
     if not 0.0 <= args.label_smoothing < 1.0:
         raise ValueError("label_smoothing must be in [0, 1)")
+    if args.mixup_alpha < 0.0:
+        raise ValueError("mixup_alpha must be >= 0")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -423,10 +446,11 @@ def main(args):
                     batch = next(loader_iter)
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
+                inputs, labels_a, labels_b, lam = _mixup_batch(inputs, labels, args.mixup_alpha)
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                loss = _mixup_loss(criterion, outputs, labels_a, labels_b, lam)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -478,10 +502,11 @@ def main(args):
 
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
+                    inputs, labels_a, labels_b, lam = _mixup_batch(inputs, labels, args.mixup_alpha)
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
-                    loss = criterion(outputs, labels)
+                    loss = _mixup_loss(criterion, outputs, labels_a, labels_b, lam)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
