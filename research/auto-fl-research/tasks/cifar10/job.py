@@ -109,6 +109,12 @@ def define_parser():
     )
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="CrossEntropyLoss label smoothing factor passed to clients. 0 disables label smoothing.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -341,6 +347,8 @@ def main():
         args.momentum,
         "--weight_decay",
         args.weight_decay,
+        "--label_smoothing",
+        args.label_smoothing,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",

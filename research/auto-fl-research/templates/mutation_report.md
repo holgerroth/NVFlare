@@ -1,5 +1,53 @@
 # Mutation report
 
+## Mutation: CIFAR-10 label smoothing knob
+
+## Hypothesis
+
+Mild label smoothing may improve the current FedAvgM ep8 plateau by reducing overconfident local fits during long client training, while preserving the DIFF upload contract and all fixed communication/data/evaluation budget fields.
+
+## Files changed
+
+- `tasks/cifar10/client.py`
+- `tasks/cifar10/job.py`
+- `tasks/cifar10/mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make validate`
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make smoke`
+
+## Observed outcome
+
+- Added a dormant `--label_smoothing` training argument with default `0.0`.
+- `job.py` forwards the argument to every client, and `client.py` applies it through `nn.CrossEntropyLoss(label_smoothing=...)`.
+- Validation passed static contract checks and compiled Python sources.
+- Smoke passed a one-round CIFAR-10 simulation with `RUN_ITERATION_LOG_RESULTS=0`.
+
+## Literature basis
+
+None in this local loop. The active task profile lists label smoothing as a typical safe client-side mutation idea.
+
+## Run analysis
+
+Candidate runs are pending. The first sweep should use small values such as `0.02` and `0.05` on the current best FedAvgM ep8 stack.
+
+## Contract check
+
+- The default value preserves existing behavior.
+- The FL loop, strict state loading, DIFF upload, `NUM_STEPS_CURRENT_ROUND`, evaluation branch, and fixed model architecture remain unchanged.
+
+## Rollback risk
+
+Low. The new argument is opt-in and validation/smoke passed.
+
+## Next mutation
+
+Run a two-point label-smoothing sweep under the current best optimizer stack.
+
+---
+
 ## Hypothesis
 
 Successful runs are appended to `results.tsv` as `candidate`, but the previous instructions did not force agents to rewrite reviewed rows to `keep` or `discard` after run analysis. This leaves long campaigns with hundreds of stale candidates and progress plots with no kept markers. Run review needs an explicit ledger-finalization step and a helper script.

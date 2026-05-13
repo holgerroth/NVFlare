@@ -93,6 +93,12 @@ def build_parser():
     parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="CrossEntropyLoss label smoothing factor. 0 disables label smoothing.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -273,6 +279,8 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if not 0.0 <= args.label_smoothing < 1.0:
+        raise ValueError("label_smoothing must be in [0, 1)")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -290,7 +298,7 @@ def main(args):
         f"{site_name}: model_arch={args.model_arch} "
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     optimizer = optim.SGD(
         model.parameters(),
         lr=args.lr,
