@@ -1,5 +1,55 @@
 # Mutation report
 
+## Mutation: CIFAR-10 FedYogi/FedAdagrad knobs
+
+## Hypothesis
+
+After Mixup underperformed, the literature reserve branch should test adaptive server optimizers from Reddi et al. without changing DIFF uploads. FedYogi and FedAdagrad may avoid the poor FedAdam behavior by using different second-moment accumulation while preserving the same aggregation interface.
+
+## Files changed
+
+- `tasks/shared/custom_aggregators.py`
+- `tasks/cifar10/job.py`
+- `tasks/cifar10/mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make validate`
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make smoke`
+
+## Observed outcome
+
+- Added opt-in `--aggregator fedyogi` and `--aggregator fedadagrad` choices.
+- Both variants reuse the existing FedOpt-style weighted DIFF aggregation and output the same parameter key schema.
+- Candidate runs are pending.
+- Validation passed static contract checks and compiled Python sources.
+- Smoke passed a one-round CIFAR-10 simulation with `RUN_ITERATION_LOG_RESULTS=0`.
+
+## Literature basis
+
+- Reddi et al., 2021, "Adaptive Federated Optimization", ICLR/OpenReview: https://openreview.net/pdf?id=LkFG3lB13U5
+
+## Run analysis
+
+Candidate runs are pending. The selected reserve batch should compare damped FedYogi and FedAdagrad under the current ep8/weight-decay/client-momentum stack.
+
+## Contract check
+
+- The FedAvgM/default path remains unchanged.
+- Adaptive variants aggregate client DIFFs and return `ParamsType.DIFF` with existing parameter keys.
+- No client loop, evaluation, data split, or model architecture behavior is changed for existing candidates.
+
+## Rollback risk
+
+Medium. The new behavior is opt-in and validation/smoke passed, but it touches shared aggregator logic.
+
+## Next mutation
+
+Run one damped FedYogi and one damped FedAdagrad candidate.
+
+---
+
 ## Mutation: CIFAR-10 Mixup knob
 
 ## Hypothesis

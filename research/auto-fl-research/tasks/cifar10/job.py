@@ -33,9 +33,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(1, str(REPO_ROOT))
 
 from tasks.shared.custom_aggregators import (
+    FedAdagradAggregator,
     FedAdamAggregator,
     FedAvgAggregator,
     FedAvgMAggregator,
+    FedYogiAggregator,
     MedianAggregator,
     ScaffoldAggregator,
     WeightedAggregator,
@@ -157,14 +159,16 @@ def define_parser():
             "fedavg",
             "fedavgm",
             "fedadam",
+            "fedadagrad",
             "fedopt",
+            "fedyogi",
             "scaffold",
             "median",
             "default",
         ],
         help=(
             "weighted/fedavg=data-size weighted FedAvg, fedavgm/fedopt=server momentum "
-            "over aggregated DIFFs, fedadam=server Adam over aggregated DIFFs, "
+            "over aggregated DIFFs, fedadam/fedyogi/fedadagrad=adaptive server updates over aggregated DIFFs, "
             "scaffold=SCAFFOLD with control-variate meta, median=robust median, "
             "default=built-in FedAvg"
         ),
@@ -274,6 +278,27 @@ def get_aggregator(args):
             server_lr=args.server_lr,
             beta1=args.fedopt_beta1,
             beta2=args.fedopt_beta2,
+            tau=args.fedopt_tau,
+        )
+    if kind == "fedyogi":
+        print(
+            "Using FedYogiAggregator "
+            f"(server_lr={args.server_lr}, beta1={args.fedopt_beta1}, "
+            f"beta2={args.fedopt_beta2}, tau={args.fedopt_tau})"
+        )
+        return FedYogiAggregator(
+            server_lr=args.server_lr,
+            beta1=args.fedopt_beta1,
+            beta2=args.fedopt_beta2,
+            tau=args.fedopt_tau,
+        )
+    if kind == "fedadagrad":
+        print(
+            "Using FedAdagradAggregator " f"(server_lr={args.server_lr}, beta1={args.fedopt_beta1}, tau={args.fedopt_tau})"
+        )
+        return FedAdagradAggregator(
+            server_lr=args.server_lr,
+            beta1=args.fedopt_beta1,
             tau=args.fedopt_tau,
         )
     if kind == "scaffold":

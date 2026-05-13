@@ -127,7 +127,7 @@ class FedOptAggregator(ModelAggregator):
         tau: float = 1e-3,
     ):
         super().__init__()
-        if optimizer not in {"sgdm", "adam"}:
+        if optimizer not in {"sgdm", "adam", "yogi", "adagrad"}:
             raise ValueError(f"Unsupported FedOpt optimizer: {optimizer}")
         if server_lr <= 0.0:
             raise ValueError("server_lr must be > 0")
@@ -216,12 +216,20 @@ class FedOptAggregator(ModelAggregator):
                 second = np.zeros_like(diff)
 
             first = self.beta1 * first + (1.0 - self.beta1) * diff
-            second = self.beta2 * second + (1.0 - self.beta2) * np.square(diff)
+            diff_square = np.square(diff)
+            if self.optimizer == "adam":
+                second = self.beta2 * second + (1.0 - self.beta2) * diff_square
+                denominator = np.sqrt(second / second_bias_correction) + self.tau
+            elif self.optimizer == "yogi":
+                second = second - (1.0 - self.beta2) * diff_square * np.sign(second - diff_square)
+                denominator = np.sqrt(second / second_bias_correction) + self.tau
+            else:
+                second = second + diff_square
+                denominator = np.sqrt(second) + self.tau
             self.first_moment[key] = first
             self.second_moment[key] = second
             first_hat = first / first_bias_correction
-            second_hat = second / second_bias_correction
-            updates[key] = self.server_lr * first_hat / (np.sqrt(second_hat) + self.tau)
+            updates[key] = self.server_lr * first_hat / denominator
         return updates
 
 
@@ -247,6 +255,38 @@ class FedAdamAggregator(FedOptAggregator):
             server_lr=server_lr,
             beta1=beta1,
             beta2=beta2,
+            tau=tau,
+        )
+
+
+class FedYogiAggregator(FedOptAggregator):
+    def __init__(
+        self,
+        server_lr: float = 1.0,
+        beta1: float = 0.9,
+        beta2: float = 0.99,
+        tau: float = 1e-3,
+    ):
+        super().__init__(
+            optimizer="yogi",
+            server_lr=server_lr,
+            beta1=beta1,
+            beta2=beta2,
+            tau=tau,
+        )
+
+
+class FedAdagradAggregator(FedOptAggregator):
+    def __init__(
+        self,
+        server_lr: float = 1.0,
+        beta1: float = 0.0,
+        tau: float = 1e-3,
+    ):
+        super().__init__(
+            optimizer="adagrad",
+            server_lr=server_lr,
+            beta1=beta1,
             tau=tau,
         )
 
