@@ -110,6 +110,12 @@ def define_parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
+        "--max_grad_norm",
+        type=float,
+        default=0.0,
+        help="Clip client gradient norm before optimizer steps. 0 disables clipping.",
+    )
+    parser.add_argument(
         "--label_smoothing",
         type=float,
         default=0.0,
@@ -347,6 +353,8 @@ def main():
         args.momentum,
         "--weight_decay",
         args.weight_decay,
+        "--max_grad_norm",
+        args.max_grad_norm,
         "--label_smoothing",
         args.label_smoothing,
         "--cosine_lr_eta_min_factor",

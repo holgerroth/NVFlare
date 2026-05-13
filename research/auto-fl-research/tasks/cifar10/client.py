@@ -94,6 +94,12 @@ def build_parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
+        "--max_grad_norm",
+        type=float,
+        default=0.0,
+        help="Clip gradient norm before optimizer steps. 0 disables clipping.",
+    )
+    parser.add_argument(
         "--label_smoothing",
         type=float,
         default=0.0,
@@ -279,6 +285,8 @@ def main(args):
         raise ValueError("aggregation_epochs must be > 0")
     if args.local_train_steps < 0:
         raise ValueError("local_train_steps must be >= 0")
+    if args.max_grad_norm < 0.0:
+        raise ValueError("max_grad_norm must be >= 0")
     if not 0.0 <= args.label_smoothing < 1.0:
         raise ValueError("label_smoothing must be in [0, 1)")
 
@@ -424,6 +432,8 @@ def main(args):
                     loss = loss + criterion_prox(model, global_model)
 
                 loss.backward()
+                if args.max_grad_norm > 0.0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
                 optimizer.step()
 
                 curr_lr = get_lr_values(optimizer)[0]
@@ -477,6 +487,8 @@ def main(args):
                         loss = loss + criterion_prox(model, global_model)
 
                     loss.backward()
+                    if args.max_grad_norm > 0.0:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
                     optimizer.step()
 
                     curr_lr = get_lr_values(optimizer)[0]

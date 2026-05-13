@@ -1,5 +1,54 @@
 # Mutation report
 
+## Mutation: CIFAR-10 gradient clipping knob
+
+## Hypothesis
+
+Long local training under non-IID CIFAR-10 can produce client updates with high variance. Optional gradient-norm clipping may stabilize the kept FedAvgM ep8 stack without changing DIFF uploads, aggregation metadata, model architecture, or evaluation.
+
+## Files changed
+
+- `tasks/cifar10/client.py`
+- `tasks/cifar10/job.py`
+- `tasks/cifar10/mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make validate`
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make smoke`
+
+## Observed outcome
+
+- Added a dormant `--max_grad_norm` argument with default `0.0`.
+- `job.py` forwards the argument to every client.
+- `client.py` clips gradients after `loss.backward()` and before `optimizer.step()` only when the value is positive.
+- Validation passed static contract checks and compiled Python sources.
+- Smoke passed a one-round CIFAR-10 simulation with `RUN_ITERATION_LOG_RESULTS=0`.
+
+## Literature basis
+
+None in this local loop. The active task profile lists gradient clipping as a typical safe client-side mutation idea.
+
+## Run analysis
+
+Candidate runs are pending. The first sweep should use conservative values such as `1.0` and `5.0` on the current best FedAvgM ep8 stack.
+
+## Contract check
+
+- The default value preserves existing behavior.
+- The FL loop, strict state loading, DIFF upload, `NUM_STEPS_CURRENT_ROUND`, evaluation branch, and fixed model architecture remain unchanged.
+
+## Rollback risk
+
+Low. The new behavior is opt-in and validation/smoke passed.
+
+## Next mutation
+
+Run a two-point gradient-clipping sweep under the current best optimizer stack.
+
+---
+
 ## Mutation: CIFAR-10 label smoothing knob
 
 ## Hypothesis
