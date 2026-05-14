@@ -330,7 +330,7 @@ Nesterov momentum may improve client-side SGD updates around the retained FedAvg
 
 - Validation passed: static client contract checks and Python source compilation were clean.
 - Smoke passed: the short NVFlare run completed with score `0.100000` and skipped `results.tsv` logging as expected.
-- Candidate run pending.
+- Candidate runs missed the retained best: `--nesterov --momentum 0.895` scored `0.892400`, and `--nesterov --momentum 0.875` scored `0.890100`.
 
 ## Literature basis
 
@@ -338,7 +338,7 @@ None. This is a standard optimizer variant exposed as an opt-in local client kno
 
 ## Run analysis
 
-The flag is off by default. Candidate runs will pass `--nesterov` with the current best FedAvgM/client-momentum stack and compare against the existing `0.900100` keep row.
+The flag is off by default. Under the current best FedAvgM stack, Nesterov made client updates worse than the existing `0.900100` keep row, so this optimizer variant should not be narrowed further without a stronger reason.
 
 ## Contract check
 
