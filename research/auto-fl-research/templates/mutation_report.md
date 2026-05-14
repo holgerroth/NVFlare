@@ -373,7 +373,7 @@ AdamW may find a more stable client update under the retained FedAvgM ep8 stack 
 
 - Validation passed: static client contract checks and Python source compilation were clean.
 - Smoke passed: the short NVFlare run completed with score `0.100000` and skipped `results.tsv` logging as expected.
-- Candidate run pending.
+- Candidate runs missed the retained best: AdamW `lr=1e-3` scored `0.835500`, and AdamW `lr=5e-4` scored `0.856800`.
 
 ## Literature basis
 
@@ -381,7 +381,7 @@ None. This is a standard client optimizer-family variant.
 
 ## Run analysis
 
-The default optimizer remains SGD. Candidate runs will pass `--optimizer adamw` with conservative client learning rates and compare against the retained `0.900100` FedAvgM/SGD keep row.
+The default optimizer remains SGD. Under the retained FedAvgM ep8 stack, AdamW underperformed the existing `0.900100` FedAvgM/SGD keep row by a wide margin, so this optimizer family should not be narrowed further without a stronger rationale.
 
 ## Contract check
 
