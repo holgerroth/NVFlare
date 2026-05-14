@@ -137,6 +137,12 @@ def define_parser():
         default=0.0,
         help="Beta distribution alpha for client-side input/label Mixup. 0 disables Mixup.",
     )
+    parser.add_argument(
+        "--cutmix_alpha",
+        type=float,
+        default=0.0,
+        help="Beta distribution alpha for client-side input/label CutMix. 0 disables CutMix.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -400,6 +406,8 @@ def main():
         args.label_smoothing,
         "--mixup_alpha",
         args.mixup_alpha,
+        "--cutmix_alpha",
+        args.cutmix_alpha,
         "--cosine_lr_eta_min_factor",
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",

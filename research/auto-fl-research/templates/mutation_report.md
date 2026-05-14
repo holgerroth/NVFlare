@@ -1,5 +1,56 @@
 # Mutation report
 
+## Mutation: CIFAR-10 CutMix knob
+
+## Hypothesis
+
+Source-backed client-local CutMix may improve the long-local-step FedAvgM plateau by replacing weak Mixup with spatial patch regularization, while preserving the existing NVFlare Client API loop, DIFF upload contract, fixed data/evaluation fields, and registered `moderate_cnn` architecture.
+
+## Files changed
+
+- `tasks/cifar10/client.py`
+- `tasks/cifar10/job.py`
+- `tasks/cifar10/mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make validate`
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make smoke`
+
+## Observed outcome
+
+- Added a dormant `--cutmix_alpha` argument with default `0.0`.
+- `job.py` forwards the argument to every client.
+- `client.py` applies CutMix inside both exact-step and epoch-based training loops only when `cutmix_alpha > 0`.
+- `mixup_alpha` and `cutmix_alpha` are mutually exclusive for a run, keeping candidate semantics clear.
+- Validation passed static contract checks and compiled Python sources.
+- Smoke passed a one-round CIFAR-10 simulation with `RUN_ITERATION_LOG_RESULTS=0`.
+
+## Literature basis
+
+- Yun et al., 2019, "CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features", ICCV: https://openaccess.thecvf.com/content_ICCV_2019/papers/Yun_CutMix_Regularization_Strategy_to_Train_Strong_Classifiers_With_Localizable_Features_ICCV_2019_paper.pdf
+
+## Run analysis
+
+Candidate run is pending. The first selected candidate should replace `mixup_alpha=0.03` with mild `cutmix_alpha=0.2` under the current best FedAvgM local-step stack.
+
+## Contract check
+
+- The default value preserves existing behavior.
+- The FL loop, strict state loading, DIFF upload, `NUM_STEPS_CURRENT_ROUND`, evaluation branch, selected model architecture, and aggregation contract remain unchanged.
+- CutMix is client-local and does not alter data splits, validation data, aggregation metadata, or parameter keys.
+
+## Rollback risk
+
+Low. The new behavior is opt-in, client-local, dependency-free, and leaves the default path unchanged.
+
+## Next mutation
+
+Validate, smoke, commit the opt-in knob, then run a mild CutMix replacement candidate.
+
+---
+
 ## Mutation: CIFAR-10 FedYogi/FedAdagrad knobs
 
 ## Hypothesis

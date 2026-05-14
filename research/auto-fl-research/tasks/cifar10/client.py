@@ -119,6 +119,12 @@ def build_parser():
         default=0.0,
         help="Beta distribution alpha for input/label Mixup. 0 disables Mixup.",
     )
+    parser.add_argument(
+        "--cutmix_alpha",
+        type=float,
+        default=0.0,
+        help="Beta distribution alpha for input/label CutMix. 0 disables CutMix.",
+    )
     parser.add_argument("--no_lr_scheduler", action="store_true")
     parser.add_argument("--cosine_lr_eta_min_factor", type=float, default=0.01)
     parser.add_argument("--evaluate_local", action="store_true")
@@ -189,6 +195,39 @@ def _mixup_batch(inputs, labels, alpha):
     index = torch.randperm(inputs.size(0), device=inputs.device)
     mixed_inputs = lam * inputs + (1.0 - lam) * inputs[index]
     return mixed_inputs, labels, labels[index], lam
+
+
+def _cutmix_batch(inputs, labels, alpha):
+    if alpha <= 0.0 or inputs.size(0) < 2:
+        return inputs, labels, labels, 1.0
+    if inputs.ndim != 4:
+        raise ValueError(f"CutMix expects BCHW image tensors, got shape={tuple(inputs.shape)}")
+
+    lam = float(np.random.beta(alpha, alpha))
+    index = torch.randperm(inputs.size(0), device=inputs.device)
+    _, _, height, width = inputs.shape
+    cut_ratio = np.sqrt(1.0 - lam)
+    cut_w = int(width * cut_ratio)
+    cut_h = int(height * cut_ratio)
+
+    cx = int(np.random.randint(width))
+    cy = int(np.random.randint(height))
+    x1 = int(np.clip(cx - cut_w // 2, 0, width))
+    y1 = int(np.clip(cy - cut_h // 2, 0, height))
+    x2 = int(np.clip(cx + cut_w // 2, 0, width))
+    y2 = int(np.clip(cy + cut_h // 2, 0, height))
+
+    mixed_inputs = inputs.clone()
+    mixed_inputs[:, :, y1:y2, x1:x2] = inputs[index, :, y1:y2, x1:x2]
+    patch_area = (x2 - x1) * (y2 - y1)
+    adjusted_lam = 1.0 - patch_area / float(width * height)
+    return mixed_inputs, labels, labels[index], adjusted_lam
+
+
+def _augment_batch(inputs, labels, mixup_alpha, cutmix_alpha):
+    if cutmix_alpha > 0.0:
+        return _cutmix_batch(inputs, labels, cutmix_alpha)
+    return _mixup_batch(inputs, labels, mixup_alpha)
 
 
 def _mixup_loss(criterion, outputs, labels_a, labels_b, lam):
@@ -320,6 +359,10 @@ def main(args):
         raise ValueError("label_smoothing must be in [0, 1)")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
+    if args.cutmix_alpha < 0.0:
+        raise ValueError("cutmix_alpha must be >= 0")
+    if args.mixup_alpha > 0.0 and args.cutmix_alpha > 0.0:
+        raise ValueError("mixup_alpha and cutmix_alpha are mutually exclusive for this client")
     if args.nesterov and args.optimizer != "sgd":
         raise ValueError("nesterov is only supported with optimizer=sgd")
     if args.nesterov and args.momentum <= 0.0:
@@ -468,7 +511,12 @@ def main(args):
                     batch = next(loader_iter)
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
-                inputs, labels_a, labels_b, lam = _mixup_batch(inputs, labels, args.mixup_alpha)
+                inputs, labels_a, labels_b, lam = _augment_batch(
+                    inputs,
+                    labels,
+                    args.mixup_alpha,
+                    args.cutmix_alpha,
+                )
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
@@ -524,7 +572,12 @@ def main(args):
 
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
-                    inputs, labels_a, labels_b, lam = _mixup_batch(inputs, labels, args.mixup_alpha)
+                    inputs, labels_a, labels_b, lam = _augment_batch(
+                        inputs,
+                        labels,
+                        args.mixup_alpha,
+                        args.cutmix_alpha,
+                    )
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
