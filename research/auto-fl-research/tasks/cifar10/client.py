@@ -92,6 +92,7 @@ def build_parser():
     parser.add_argument("--eval_batch_size", type=int, default=1024)
     parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--nesterov", action="store_true", help="Enable Nesterov momentum for SGD.")
     parser.add_argument("--weight_decay", type=float, default=0.0)
     parser.add_argument(
         "--max_grad_norm",
@@ -312,6 +313,8 @@ def main(args):
         raise ValueError("label_smoothing must be in [0, 1)")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
+    if args.nesterov and args.momentum <= 0.0:
+        raise ValueError("nesterov requires positive momentum")
 
     flare.init()
     site_name = flare.get_site_name()
@@ -335,6 +338,7 @@ def main(args):
         lr=args.lr,
         momentum=args.momentum,
         weight_decay=args.weight_decay,
+        nesterov=args.nesterov,
     )
 
     scheduler = None

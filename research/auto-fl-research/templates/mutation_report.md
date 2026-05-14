@@ -305,3 +305,46 @@ Low for the worksheet/report edits. Candidate runtime risk is medium for FedAdam
 ## Next mutation
 
 With the watchdog reset to `recommendation=continue`, continue with non-duplicate local axes around the retained FedAvgM best rather than starting another literature loop immediately.
+
+---
+
+## Mutation: CIFAR-10 SGD Nesterov knob
+
+## Hypothesis
+
+Nesterov momentum may improve client-side SGD updates around the retained FedAvgM ep8 stack without changing the FL protocol, model, data split, or server aggregation contract.
+
+## Files changed
+
+- `tasks/cifar10/client.py`
+- `tasks/cifar10/job.py`
+- `tasks/cifar10/mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make validate`
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make smoke`
+
+## Observed outcome
+
+- Validation passed: static client contract checks and Python source compilation were clean.
+- Smoke passed: the short NVFlare run completed with score `0.100000` and skipped `results.tsv` logging as expected.
+- Candidate run pending.
+
+## Literature basis
+
+None. This is a standard optimizer variant exposed as an opt-in local client knob.
+
+## Run analysis
+
+The flag is off by default. Candidate runs will pass `--nesterov` with the current best FedAvgM/client-momentum stack and compare against the existing `0.900100` keep row.
+
+## Contract check
+
+- Preserves DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, and the NVFlare client loop.
+- Does not change model architecture, data loading, score extraction, or server aggregation.
+
+## Rollback risk
+
+Low. The default path remains unchanged; risk is limited to candidates that explicitly pass `--nesterov`.
