@@ -165,3 +165,86 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Discard: routine jitter around server LR/momentum, client LR/momentum, scheduler floors, exact local steps, and weight decay is exhausted for now.
 - Do not retry: invalid `--eta_min_factor`; use `--cosine_lr_eta_min_factor`.
 - Sources to carry forward: Hsu19 for FedAvgM/server momentum; Karimireddy20 for SCAFFOLD/client drift; Reddi21 for damped adaptive server optimization; Li20 for FedProx reserve; Wang20 only if local work becomes variable.
+
+## Literature loop: post-r118 local-step label-smoothing plateau
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` printed `recommendation=literature` after 32 scored candidates since row 244, the last material improvement.
+- Current best: `0.909600`, FedAvgM, `local_train_steps=990`, `server_lr=1.75`, `server_momentum=0.15`, `client_momentum=0.890`, `weight_decay=3.5e-4`, `mixup_alpha=0.03`, `label_smoothing=0.01`, `cosine_lr_eta_min_factor=0.001`, `model_arch=moderate_cnn`, final eval `site-1`.
+- Recent symptoms from `results.tsv`: local-step, label-smoothing, weight-decay, mixup, client-momentum, server-momentum, server-LR, gradient-clipping, and scheduler-floor jitter all missed; FedProx at `5e-7` and `1e-6` timed out at round 19 under the current local-step budget.
+- Confirmed null/worse ideas to avoid next: more close jitter around label smoothing `0.008-0.012`, mixup `0.029-0.031`, weight decay `3.4e-4-3.6e-4`, client momentum `0.889-0.891`, server momentum `0.1525-0.155`, gradient clipping `6.5/8.5`, and FedProx on `local_train_steps=990`.
+- Candidate width: 2 on one local 80 GB H100, pinned with `CUDA_VISIBLE_DEVICES=0`.
+- Ledger event: started with `scripts/log_literature_review.py --start`; finish with `--finish` before launching the next batch.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| SCAFFOLD client drift non-IID CIFAR federated learning local steps | Plateau follows long exact local training; need a source-backed drift correction that preserves DIFF uploads. | arXiv, PMLR | SCAFFOLD directly targets client drift and is already implemented as an explicit protocol mode. |
+| Group Normalization federated learning feature shift non-IID CIFAR | Current CNN lacks normalization; a registered buffer-free normalization variant may improve local stability without batch-stat buffers. | arXiv, CVF, FedBN arXiv | GroupNorm avoids batch-stat dependence; FedBN motivates normalization choices under FL feature shift. |
+| sharpness aware minimization federated learning non-IID CIFAR FedSAM | Regularization jitter is exhausted; check whether flat-minima local optimization is worth code work. | arXiv, PMLR, OpenReview | FedSAM is relevant but needs client optimizer changes and likely doubles local compute. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Hsu19 | Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification / 2019 | https://research.google/pubs/measuring-the-effects-of-non-identical-data-distribution-for-federated-visual-classification/ | Non-IID CIFAR-style visual FL is sensitive to heterogeneity and server optimization. | FedAvgM context | Keep as diagnosis. |
+| Karimireddy20 | SCAFFOLD: Stochastic Controlled Averaging for Federated Learning / 2020 | https://proceedings.mlr.press/v119/karimireddy20a.html | FedAvg suffers client drift on heterogeneous data; control variates reduce drift. | SCAFFOLD | Keep; implemented and profile-supported. |
+| Wu18 | Group Normalization / 2018 | https://arxiv.org/abs/1803.08494 | Normalization without batch-stat dependence can stabilize visual models when batch statistics are unreliable. | GroupNorm architecture | Keep; registered variant exists. |
+| Li21 | FedBN: Federated Learning on Non-IID Features via Local Batch Normalization / 2021 | https://arxiv.org/abs/2102.07623 | Feature shift in FL interacts with normalization; local normalization can help non-IID feature distributions. | Normalization in FL | Keep as FL-specific normalization motivation; avoid adding BN buffers. |
+| Foret21 | Sharpness-Aware Minimization for Efficiently Improving Generalization / 2021 | https://arxiv.org/abs/2010.01412 | Flat-minima optimization improves image-model generalization on CIFAR-style tasks. | SAM | Keep as reserve. |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://proceedings.mlr.press/v162/qu22a.html | ERM local optimizers can fall into sharp valleys under FL distribution shift. | FedSAM | Reserve; source-backed but needs code and more runtime. |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Long local training still likely induces client drift even after FedAvgM tuning. | Karimireddy20 targets client drift under heterogeneous data; Hsu19 supports FedAvgM sensitivity in visual FL. | FedAvgM is best, but 32 local jitter candidates failed to improve and FedProx timed out. | Existing `--aggregator scaffold` can test control variates without changing model keys or `ParamsType.DIFF`. | `tasks/cifar10/client.py`, `tasks/shared/custom_aggregators.py`, `--aggregator scaffold` |
+| C2 | The current CNN may lack enough activation stabilization for high local-step client training. | Wu18 shows GroupNorm is independent of batch statistics; Li21 shows normalization choices matter under FL feature shift. | Fine optimizer/regularizer sweeps near the best stack missed, suggesting representation stability rather than scalar knob tuning may be limiting. | Registered `moderate_cnn_norm` is buffer-free and under the parameter cap, but must be labeled as an architecture subcampaign. | `tasks/cifar10/model.py`, `--model_arch moderate_cnn_norm` |
+| C3 | Generalization may require flat-minima optimization rather than more scalar regularizer jitter. | Foret21 and Qu22 support SAM/FedSAM for generalization and FL distribution shift. | Label smoothing, mixup, gradient clipping, and scheduler jitter did not move past `0.909600`. | SAM can be client-local and DIFF-preserving, but requires code and likely extra runtime. | Reserve for `tasks/cifar10/client.py`, `tasks/cifar10/job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Run SCAFFOLD on the current best local-step and regularization stack. | Karimireddy20, Hsu19 | `--aggregator scaffold --local_train_steps 990 --weight_decay 3.5e-4 --momentum 0.890 --mixup_alpha 0.03 --label_smoothing 0.01 --cosine_lr_eta_min_factor 0.001`. | Reduce drift that FedAvgM scalar tuning could not remove. | Crashes, times out, or scores far below `0.909600`. | Medium: explicit supported metadata mode, no parameter-key change. |
+| P2 | Launch a labeled architecture subcampaign with the registered GroupNorm model. | Wu18, Li21 | `--model_arch moderate_cnn_norm` with the current best FedAvgM stack and parameter cap. | Stabilize activations during long local client training without adding BN buffers. | Scores below `0.907000` or runtime/shape issues appear. | Medium: architecture change is registered but must stay labeled. |
+| P3 | Add opt-in FedSAM client optimizer. | Foret21, Qu22 | Add `--sam_rho`; first candidate would use a reduced local-step cap if full 990 exceeds timeout. | Favor flatter minima after local regularizer jitter stalls. | Runtime doubles into timeout or score does not beat simple FedAvgM. | Medium-high: code change plus higher compute. |
+| P4 | Retry FedOpt/FedYogi at current local-step stack. | Reddi21 | `--aggregator fedyogi` or `fedadam` with damped LR/tau. | Adaptive server denominator may escape plateau. | Prior damped FedAdam/FedYogi rows remain far below best; likely repeats. | Medium; reject for this batch. |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | Prior SCAFFOLD used default/older stacks, not current `local_train_steps=990 + label_smoothing + mixup`. | SCAFFOLD `0.888900` under old ep8 stack is weak but not duplicate. | Launch. |
+| P2 | No architecture candidates exist in `results.tsv`. | Starts a labeled architecture subcampaign; do not mix unlabeled with optimizer-only rows. | Launch with architecture label. |
+| P3 | Not duplicate. | Requires code and extra runtime; reserve after no-code source-backed candidates. | Reserve. |
+| P4 | Damped FedAdam/FedYogi already scored around `0.81` or crashed. | Strong null conflict. | Reject. |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 | 4 | 4 | 5 | 5 | 3 | 3 | 26 |
+| P2 | 4 | 4 | 5 | 4 | 5 | 3 | 27 |
+| P3 | 4 | 3 | 2 | 5 | 5 | 5 | 21 |
+| P4 | 2 | 3 | 4 | 3 | 1 | 3 | 15 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P2 | `r119_lit_arch_gn_lts990_ls001_mix003_wd35e5_cm0890_eta001_sm015` | `--n_clients 8 --num_rounds 20 --aggregation_epochs 8 --local_train_steps 990 --batch_size 64 --eval_batch_size 1024 --alpha 0.5 --seed 0 --model_arch moderate_cnn_norm --max_model_params 5000000 --final_eval_clients site-1 --aggregator fedavgm --server_lr 1.75 --server_momentum 0.15 --weight_decay 3.5e-4 --momentum 0.890 --mixup_alpha 0.03 --label_smoothing 0.01 --cosine_lr_eta_min_factor 0.001` |
+| 2 | P1 | `r119_lit_scaffold_lts990_ls001_mix003_wd35e5_cm0890_eta001` | `--n_clients 8 --num_rounds 20 --aggregation_epochs 8 --local_train_steps 990 --batch_size 64 --eval_batch_size 1024 --alpha 0.5 --seed 0 --model_arch moderate_cnn --max_model_params 5000000 --final_eval_clients site-1 --aggregator scaffold --weight_decay 3.5e-4 --momentum 0.890 --mixup_alpha 0.03 --label_smoothing 0.01 --cosine_lr_eta_min_factor 0.001` |
+| 3 | P3 | reserve | Do not implement until this no-code source-backed batch is reviewed. |
+| 4 | P4 | rejected | Do not launch. |
+
+## Reflective memory
+
+- Keep target: `0.909600` FedAvgM with `local_train_steps=990`, `label_smoothing=0.01`, `mixup_alpha=0.03`, `weight_decay=3.5e-4`, `client_momentum=0.890`, and `server_momentum=0.15`.
+- Local jitter around that recipe is exhausted for now; only revisit after a source-backed change creates a new interaction surface.
+- FedProx at current local-step budget is a timeout risk; avoid it unless local compute is explicitly reduced and labeled.
+- Architecture candidates must be labeled as architecture subcampaign rows because `model_arch` changes the model key/shape schema by design.
