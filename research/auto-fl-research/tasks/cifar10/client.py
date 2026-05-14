@@ -88,6 +88,13 @@ def build_parser():
         help="Maximum allowed model parameters for architecture-search campaigns. Use 0 to disable.",
     )
     parser.add_argument("--lr", type=float, default=5e-2)
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="sgd",
+        choices=("sgd", "adamw"),
+        help="Client optimizer family.",
+    )
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--eval_batch_size", type=int, default=1024)
     parser.add_argument("--num_workers", type=int, default=2)
@@ -313,6 +320,8 @@ def main(args):
         raise ValueError("label_smoothing must be in [0, 1)")
     if args.mixup_alpha < 0.0:
         raise ValueError("mixup_alpha must be >= 0")
+    if args.nesterov and args.optimizer != "sgd":
+        raise ValueError("nesterov is only supported with optimizer=sgd")
     if args.nesterov and args.momentum <= 0.0:
         raise ValueError("nesterov requires positive momentum")
 
@@ -333,13 +342,22 @@ def main(args):
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    optimizer = optim.SGD(
-        model.parameters(),
-        lr=args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
-        nesterov=args.nesterov,
-    )
+    if args.optimizer == "sgd":
+        optimizer = optim.SGD(
+            model.parameters(),
+            lr=args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay,
+            nesterov=args.nesterov,
+        )
+    elif args.optimizer == "adamw":
+        optimizer = optim.AdamW(
+            model.parameters(),
+            lr=args.lr,
+            weight_decay=args.weight_decay,
+        )
+    else:
+        raise ValueError(f"Unsupported optimizer: {args.optimizer}")
 
     scheduler = None
     criterion_prox = None

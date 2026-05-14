@@ -348,3 +348,46 @@ The flag is off by default. Under the current best FedAvgM stack, Nesterov made 
 ## Rollback risk
 
 Low. The default path remains unchanged; risk is limited to candidates that explicitly pass `--nesterov`.
+
+---
+
+## Mutation: CIFAR-10 AdamW optimizer knob
+
+## Hypothesis
+
+AdamW may find a more stable client update under the retained FedAvgM ep8 stack than SGD momentum, while preserving the existing FL contract and fixed CIFAR-10 budget.
+
+## Files changed
+
+- `tasks/cifar10/client.py`
+- `tasks/cifar10/job.py`
+- `tasks/cifar10/mutation_schema.yaml`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make validate`
+- `PYTHON=.venv/bin/python TASK_DIR=tasks/cifar10 make smoke`
+
+## Observed outcome
+
+- Validation passed: static client contract checks and Python source compilation were clean.
+- Smoke passed: the short NVFlare run completed with score `0.100000` and skipped `results.tsv` logging as expected.
+- Candidate run pending.
+
+## Literature basis
+
+None. This is a standard client optimizer-family variant.
+
+## Run analysis
+
+The default optimizer remains SGD. Candidate runs will pass `--optimizer adamw` with conservative client learning rates and compare against the retained `0.900100` FedAvgM/SGD keep row.
+
+## Contract check
+
+- Preserves DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, and the NVFlare client loop.
+- Does not change model architecture, data loading, score extraction, or server aggregation.
+
+## Rollback risk
+
+Low. The new optimizer path is opt-in; existing SGD behavior is unchanged by default.

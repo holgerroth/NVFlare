@@ -25,6 +25,9 @@ mutable_args:
   max_model_params: {type: int, min: 1, max: 5000000}
   aggregation_epochs: {type: int, min: 1, max: 8}
   local_train_steps: {type: int, min: 0, max: 1000}
+  optimizer:
+    type: str
+    choices: [sgd, adamw]
   lr: {type: float, min: 0.0001, max: 0.1, log_scale: true}
   batch_size: {type: int, choices: [32, 64, 128]}
   eval_batch_size: {type: int, choices: [64, 128, 256, 512, 1024, 2048]}

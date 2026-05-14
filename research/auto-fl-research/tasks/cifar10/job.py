@@ -96,6 +96,13 @@ def define_parser():
         help="Exact optimizer steps per client per round. Use 0 for epoch-based training with --aggregation_epochs.",
     )
     parser.add_argument("--lr", type=float, default=5e-2)
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="sgd",
+        choices=("sgd", "adamw"),
+        help="Client optimizer family passed to clients.",
+    )
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument(
         "--eval_batch_size",
@@ -373,6 +380,8 @@ def main():
         args.max_model_params,
         "--lr",
         args.lr,
+        "--optimizer",
+        args.optimizer,
         "--batch_size",
         args.batch_size,
         "--eval_batch_size",
