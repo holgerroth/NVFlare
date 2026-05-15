@@ -248,3 +248,86 @@ Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplic
 - Local jitter around that recipe is exhausted for now; only revisit after a source-backed change creates a new interaction surface.
 - FedProx at current local-step budget is a timeout risk; avoid it unless local compute is explicitly reduced and labeled.
 - Architecture candidates must be labeled as architecture subcampaign rows because `model_arch` changes the model key/shape schema by design.
+
+---
+
+## Literature loop: post-r173 r141 plateau
+
+## Trigger
+
+- Reason: `plateau_watchdog.py` printed `recommendation=literature` after 32 scored candidates since row 304, the r141 material improvement.
+- Current best: `0.910700`, FedAvgM, `local_train_steps=990`, `server_lr=1.75`, `server_momentum=0.15875`, `client_momentum=0.890`, `weight_decay=3.5e-4`, `mixup_alpha=0.03`, `label_smoothing=0.01`, `cosine_lr_eta_min_factor=0.001`, `model_arch=moderate_cnn`, final eval `site-1`.
+- Recent symptoms from `results.tsv`: exact-step, server LR/momentum, client momentum, weight decay, scheduler floor, label-smoothing, mixup, CutMix, and gradient-clipping probes all missed. Best near-miss was clipped `max_grad_norm=6.5` at `0.910200`, but nearby clipped variants fell back.
+- Confirmed null/worse ideas to avoid next: more scalar jitter around `server_momentum=0.15875`, `server_lr=1.75`, `local_train_steps=990`, `label_smoothing=0.01`, `mixup_alpha=0.03`, `weight_decay=3.5e-4`, and `client_momentum=0.890`; SCAFFOLD current stack; FedAdam/FedYogi/FedAdagrad; FedProx under `local_train_steps=990`; CutMix mild values.
+- Candidate width: 1 on one local 80 GB H100, pinned with `CUDA_VISIBLE_DEVICES=0`, because earlier concurrent candidates caused resource contention.
+- Ledger event: started with `scripts/log_literature_review.py --start`; finish with `--finish` before launching the selected candidate.
+
+## Search queries
+
+| query | rationale | source(s) searched | notes |
+| --- | --- | --- | --- |
+| SGD Nesterov momentum deep networks CIFAR momentum tuning | Scalar momentum jitter missed, but the current local optimizer has not tried Nesterov under the long-step r141 stack. | PMLR, arXiv mirrors | Sutskever13 supports carefully tuned momentum and Nesterov-style updates for deep networks. |
+| classifier calibration non-IID federated learning CIFAR-10 classifier bias | The CNN classifier head may be a bottleneck after optimizer and regularizer jitter saturates. | arXiv, Hugging Face paper mirror | Luo21 finds classifier bias under non-IID FL; a registered small-head model is a safe architecture proxy, not CCVR itself. |
+| FedSAM non-IID CIFAR federated learning sharpness aware minimization | Regularizer jitter missed, so flat-minima local optimization is the next code-backed reserve. | PMLR, arXiv | Qu22 supports SAM in FL but requires client optimizer code and likely extra runtime. |
+
+## Candidate papers
+
+| ref | title / year | url | challenge | method family | keep/reject |
+| --- | --- | --- | --- | --- | --- |
+| Hsu19 | Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification / 2019 | https://research.google/pubs/measuring-the-effects-of-non-identical-data-distribution-for-federated-visual-classification/ | Non-IID CIFAR-style visual FL is sensitive to heterogeneity and FedAvgM-style server optimization. | FedAvgM context | Keep as diagnosis. |
+| Sutskever13 | On the importance of initialization and momentum in deep learning / 2013 | https://proceedings.mlr.press/v28/sutskever13.html | Momentum details can materially affect deep-network SGD training. | Nesterov/local optimizer | Keep; `--nesterov` is already implemented and protocol-safe. |
+| Luo21 | No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data / 2021 | https://arxiv.org/abs/2106.05001 | Non-IID FL can induce greater classifier bias than representation bias. | Classifier-head diagnosis | Keep; use only as motivation for registered small-head architecture, not evaluation-changing CCVR. |
+| Qu22 | Generalized Federated Learning via Sharpness Aware Minimization / 2022 | https://proceedings.mlr.press/v162/qu22a.html | ERM local optimizers can converge to sharp valleys under FL distribution shift. | FedSAM | Reserve; requires client optimizer code and extra compute. |
+| Karimireddy20 | SCAFFOLD: Stochastic Controlled Averaging for Federated Learning / 2020 | https://proceedings.mlr.press/v119/karimireddy20a.html | Client drift is a core failure mode under heterogeneity. | Control variates | Reject for next launch: current-stack SCAFFOLD already scored `0.899400`. |
+
+## Challenge cards
+
+| id | challenge | paper evidence | `results.tsv` symptom | harness relevance | allowed surface |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Current local SGD may need a qualitatively different momentum update, not another scalar value. | Sutskever13 shows momentum quality is crucial for training deep networks. | Client momentum `0.8875`, `0.8895`, `0.8925`, and clipped variants all missed around `0.890`. | `--nesterov` is already implemented in `client.py` and preserves DIFF uploads. | `tasks/cifar10/client.py`, CLI only |
+| C2 | Non-IID classifier-head bias may be limiting after scalar optimizer and regularizer sweeps. | Luo21 reports greater classifier bias than other layer bias in non-IID FL and improves CIFAR benchmarks via classifier calibration. | Fine-grained local and server tuning around r141 no longer improves. | Registered `moderate_cnn_small_head` changes only `model_arch` under the cap; label it as architecture subcampaign. | `tasks/cifar10/model.py`, CLI only |
+| C3 | Local ERM may be landing in sharp, poorly generalizing minima. | Qu22 proposes FedSAM for non-IID FL distribution shift and local generalization. | Mixup, label smoothing, clipping, and scheduler floor probes did not clear `0.910700`. | Client-local SAM can preserve the FL contract but needs code and likely more runtime. | Reserve for `tasks/cifar10/client.py`, `tasks/cifar10/job.py` |
+
+## Proposal cards
+
+| id | mechanism | source refs | exact change / args | expected effect | falsifier | contract risk |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1 | Enable Nesterov momentum in the current r141 stack. | Sutskever13, Hsu19 | Add `--nesterov` to r141 args, keeping `local_train_steps=990`, `momentum=0.890`, `server_momentum=0.15875`, and the same regularizers. | Different local SGD lookahead may improve client updates without changing server protocol. | Score below `0.910700` or unstable training. | Low: existing opt-in client optimizer flag. |
+| P2 | Registered small-head architecture subcampaign. | Luo21, Hsu19 | Use `--model_arch moderate_cnn_small_head` with r141 optimizer/regularizer args and `max_model_params=5000000`. | Reduce classifier-head overfitting/bias under non-IID clients. | Crash, shape mismatch, or score below `0.907000`. | Medium: model schema changes by registered architecture; must be labeled. |
+| P3 | Implement opt-in FedSAM. | Qu22 | Add `--sam_rho` client optimizer path; first candidate likely needs runtime-aware local-step setting. | Favor flatter local minima after regularizer jitter stalls. | Runtime exceeds 1200s or score does not beat r141. | Medium-high: code change plus extra backward pass. |
+| P4 | Retry SCAFFOLD or FedOpt adaptivity. | Karimireddy20, Reddi21 | Existing `--aggregator scaffold` or adaptive FedOpt variants. | Address drift or server adaptivity. | Prior current-stack SCAFFOLD and damped FedOpt rows are far below best. | Medium; reject for this loop. |
+
+## Duplicate and null filter
+
+| proposal | duplicate of | null/worse conflict | decision |
+| --- | --- | --- | --- |
+| P1 | Nesterov was tested only under older epoch-based stacks, not current `local_train_steps=990` r141 stack. | Old Nesterov rows were worse, so launch only one current-stack probe. | Launch next. |
+| P2 | No `moderate_cnn_small_head` row found. | Architecture rows must not be mixed as optimizer-only improvements. | Reserve as the next source-backed candidate. |
+| P3 | Not duplicate. | Requires code and likely runtime expansion; do after no-code candidates. | Reserve. |
+| P4 | Current-stack SCAFFOLD `0.899400`; FedAdam/FedYogi/FedAdagrad weak or crashed. | Strong null conflict. | Reject. |
+
+## Proposal scoring
+
+Score each axis from 1-5. Total = `2*expected_gain + 2*contract_safety + simplicity + evidence + novelty - runtime_cost`.
+
+| proposal | expected gain | contract safety | simplicity | evidence | novelty | runtime cost | total |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P1 | 3 | 5 | 5 | 4 | 3 | 2 | 26 |
+| P2 | 4 | 4 | 5 | 3 | 5 | 3 | 26 |
+| P3 | 4 | 3 | 2 | 5 | 5 | 5 | 22 |
+| P4 | 1 | 3 | 4 | 4 | 1 | 3 | 14 |
+
+## QWBE-style next-candidate batch plan
+
+| slot | proposal | candidate name | args / code variant |
+| --- | --- | --- | --- |
+| 1 | P1 | `r174_lit_nesterov_lts990_ls001_mix003_wd35e5_cm0890_eta001_sm015875` | r141 stack plus `--nesterov` and description `[src: Sutskever13 Nesterov]`. |
+| 2 | P2 reserve | `r175_lit_arch_smallhead_lts990_ls001_mix003_wd35e5_cm0890_eta001_sm015875` | `--model_arch moderate_cnn_small_head` with r141 stack, labeled architecture subcampaign `[src: Luo21 CCVR]`. |
+| 3 | P3 reserve | reserve | Implement only if no-code literature candidates fail and watchdog later supports another source-backed code branch. |
+| 4 | P4 rejected | rejected | Do not retry in this loop. |
+
+## Reflective memory
+
+- Keep target: r141 `0.910700`, FedAvgM with long exact local steps and mild Mixup/label smoothing.
+- Local scalar jitter around r141 is exhausted until a source-backed change creates a new interaction surface.
+- The next launch must be literature-marked and source-backed; use Nesterov first because it is no-code and contract-safe.

@@ -442,3 +442,56 @@ The default optimizer remains SGD. Under the retained FedAvgM ep8 stack, AdamW u
 ## Rollback risk
 
 Low. The new optimizer path is opt-in; existing SGD behavior is unchanged by default.
+
+---
+
+## Literature loop: post-r173 r141 plateau
+
+## Hypothesis
+
+After 32 scored misses since r141, scalar optimizer and regularization jitter around the current FedAvgM stack is exhausted. The next candidate should introduce a source-backed, contract-safe local optimizer variant rather than another tiny scalar perturbation.
+
+## Files changed
+
+- `templates/literature_loop.md`
+- `templates/mutation_report.md`
+
+## Commands run
+
+- `.venv/bin/python scripts/plateau_watchdog.py results.tsv`
+- `.venv/bin/python scripts/log_literature_review.py --start --description "plateau after r173: 32 scored candidates since r141 best; local scalar jitter missed"`
+- Web literature search across PMLR, Google Research, arXiv, and Hugging Face paper mirrors.
+
+## Observed outcome
+
+- Watchdog reported `recommendation=literature` at 32/32 scored candidates since r141.
+- Current best remains `0.910700` from r141.
+- Recent local probes around clipping, label smoothing, local steps, server LR/momentum, client momentum, scheduler floor, Mixup, CutMix, and weight decay did not improve the best.
+- Selected next source-backed candidate: current r141 stack plus `--nesterov`, citing Sutskever13.
+- Reserve source-backed candidate: registered `moderate_cnn_small_head` architecture subcampaign, motivated by Luo21 classifier-bias findings.
+
+## Literature basis
+
+- Hsu, Qi, and Brown, 2019, "Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification", Google Research: https://research.google/pubs/measuring-the-effects-of-non-identical-data-distribution-for-federated-visual-classification/
+- Sutskever, Martens, Dahl, and Hinton, 2013, "On the importance of initialization and momentum in deep learning", PMLR: https://proceedings.mlr.press/v28/sutskever13.html
+- Luo et al., 2021, "No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data", arXiv: https://arxiv.org/abs/2106.05001
+- Qu et al., 2022, "Generalized Federated Learning via Sharpness Aware Minimization", PMLR: https://proceedings.mlr.press/v162/qu22a.html
+- Karimireddy et al., 2020, "SCAFFOLD: Stochastic Controlled Averaging for Federated Learning", PMLR: https://proceedings.mlr.press/v119/karimireddy20a.html
+
+## Run analysis
+
+Nesterov is the strongest immediate launch because it is already implemented, opt-in, and preserves the NVFlare DIFF contract. Prior Nesterov rows used older epoch-based stacks and do not duplicate the current `local_train_steps=990`, `server_momentum=0.15875` recipe. The small-head architecture is reserved because it changes model shape and must be handled as a labeled architecture subcampaign.
+
+## Contract check
+
+- No client loop, DIFF upload, model-diff computation, required metadata, or evaluation contract changes are introduced by the worksheet/report edits.
+- The selected candidate uses only an existing CLI flag.
+- The reserve architecture candidate uses an already registered `model_arch` under `max_model_params=5000000`.
+
+## Rollback risk
+
+Low for the worksheet/report edits. Candidate runtime risk is low for Nesterov because it uses the existing SGD path; architecture reserve risk is medium because model schema changes by design.
+
+## Next mutation
+
+Record the literature row, commit the ledger and worksheet, then launch `r174_lit_nesterov_lts990_ls001_mix003_wd35e5_cm0890_eta001_sm015875` with `[src: Sutskever13 Nesterov]`.
