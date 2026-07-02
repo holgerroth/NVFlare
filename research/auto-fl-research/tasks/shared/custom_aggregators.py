@@ -51,12 +51,16 @@ def _to_output_type(value, reference):
     return np.asarray(value)
 
 
-def _to_meta_numpy(value, reference):
+def _to_meta_tensor(value, reference):
+    # Persisted checkpoints reload with torch.load(weights_only=True), which
+    # rejects pickled numpy objects; meta arrays must be CPU torch tensors.
     result = np.asarray(value)
-    if reference is None:
-        return result
-    ref_array = _as_numpy(reference)
-    return result.astype(ref_array.dtype, copy=False)
+    if reference is not None:
+        ref_array = _as_numpy(reference)
+        result = result.astype(ref_array.dtype, copy=False)
+    if torch is not None:
+        return torch.from_numpy(np.ascontiguousarray(result))
+    return result
 
 
 def _raise_empty_aggregation(aggregator_name: str, client_weights):
@@ -314,7 +318,7 @@ class ScaffoldAggregator(ModelAggregator):
             self.global_controls[key] = previous + delta
 
         global_controls = {
-            key: _to_meta_numpy(value, self.control_references.get(key)) for key, value in self.global_controls.items()
+            key: _to_meta_tensor(value, self.control_references.get(key)) for key, value in self.global_controls.items()
         }
         return FLModel(
             params=aggregated_params,
