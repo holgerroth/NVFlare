@@ -1,51 +1,84 @@
 # Mutation report
 
+Campaign: `autoresearch/h100-algocalib-20260702` (CIFAR-10/H100 default budget:
+8 clients, 20 rounds, 4 local epochs, batch 64, alpha 0.5, seed 0,
+moderate_cnn, cross-site eval on site-1, 1200s cap).
+
 ## Hypothesis
 
-Successful runs are appended to `results.tsv` as `candidate`, but the previous instructions did not force agents to rewrite reviewed rows to `keep` or `discard` after run analysis. This leaves long campaigns with hundreds of stale candidates and progress plots with no kept markers. Run review needs an explicit ledger-finalization step and a helper script.
+1. The eight-step algorithm calibration will separate FedAvg-family,
+   FedProx, server-optimizer (FedAvgM/FedAdam), and SCAFFOLD behavior under
+   an identical fixed budget, and the best family will support narrow
+   server-side sweeps.
+2. The SCAFFOLD calibration crash is a persistence bug, not an algorithmic
+   failure: `FLModel.meta["scaffold_c_global"]` numpy arrays get pickled into
+   `FL_global_model.pt` `meta_props`, and cross-site validation reloads
+   checkpoints with `torch.load(weights_only=True)` (PyTorch >= 2.6), which
+   rejects pickled numpy globals and returns a `None` model learnable.
 
 ## Files changed
 
-- `README.md`
-- `program.md`
-- `scripts/finalize_batch_status.py`
-- `scripts/summarize_results.py`
-- `skills/autofl-nvflare/SKILL.md`
-- `skills/autofl-nvflare/references/provenance.md`
-- `skills/autofl-nvflare/references/runbook.md`
-- `templates/mutation_report.md`
+- `tasks/shared/custom_aggregators.py` — `_to_meta_numpy` replaced by
+  `_to_meta_tensor`; `ScaffoldAggregator.aggregate_model` now emits global
+  control variates as CPU torch tensors (commit `3a06951c7`).
 
 ## Commands run
 
-- `make validate`
-- `make smoke`
+- `make validate`, `make smoke` (weighted), scaffold-specific smoke
+  (2 clients / 1 round / cross-site eval) after the fix.
+- Batches 1-4 of same-budget candidates via `scripts/run_iteration.sh`,
+  `PARALLEL_CANDIDATES=4`, `CUDA_VISIBLE_DEVICES=0`.
 
 ## Observed outcome
 
-- Current local `results.tsv` has 469 `candidate` rows, 25 `crash` rows, and 0 `keep` rows, confirming the prompt gap.
-- `program.md`, README, the autofl skill, and the runbook now state that `candidate` means unreviewed and that every completed run or batch must update statuses before the next candidate batch.
-- Added `scripts/finalize_batch_status.py` to promote the best reviewed candidate to `keep` and demote reviewed non-survivors to `discard`.
-- `scripts/summarize_results.py` now reminds agents to finalize statuses after reviewing candidate runs.
-- The README and skill provenance now acknowledge the Camyla-inspired literature-loop / QWBE-style proposal workflow.
-- No local `results.tsv` rows were modified by this harness change.
+- Baseline weighted FedAvg: 0.8460.
+- Calibration: builtin FedAvg 0.8510, explicit FedAvg 0.8470,
+  FedProx mu=1e-5 0.8462, mu=1e-4 0.8486, FedAvgM lr1.0/m0.6 0.8462,
+  FedAvgM lr2.0/m0.4 0.8531, FedAdam lr1.0 crash, SCAFFOLD crash.
+- Momentum sweep at server_lr=2.0: m0.2 **0.8606** (current best),
+  m0.3 0.8520, m0.1 0.8575, m0.5 0.8509, m0.6 0.8305, m0.0 NaN-diverged
+  around round 9 (momentum smoothing is load-bearing at lr 2.0).
+- SCAFFOLD after tensor-meta fix: completed cleanly at 0.8569 — fix
+  validated in a full run; kept as a bug fix even though the score does not
+  beat FedAvgM.
+- FedAdam diverged (NaN client diff) at server_lr 1.0 and 0.1 with
+  tau=1e-3: with model-sized DIFFs the update ~ diff/(|diff|+tau) is
+  sign-scaled, so every element moves ~server_lr per round regardless of
+  gradient scale. A damped-adaptivity audit (tau=0.01) is queued as the
+  final attempt for that family.
 
 ## Literature basis
 
-None. This is ledger hygiene and prompt hardening.
+- FedProx: Li et al. 2020, arXiv:1812.06127.
+- FedAvgM (server momentum): Hsu et al. 2019, arXiv:1909.06335.
+- FedAdam/FedOpt and the tau adaptivity floor: Reddi et al. 2020,
+  arXiv:2003.00295 (paper uses much smaller effective server steps; our
+  mutation bounds floor server_lr at 0.1, so tau is the stabilizing knob).
+- SCAFFOLD control variates: Karimireddy et al. 2020, arXiv:1910.06378.
 
 ## Run analysis
 
-Not run. This change does not affect training behavior.
+FedAvgM with modest server momentum is the clear leading family
+(+0.0146 over baseline). Low momentum (0.2) at an over-relaxed server step
+(2.0) beats both higher momentum and no momentum; zero momentum diverges.
+Server_lr refinement at m=0.2 is in flight (batch 5).
 
 ## Contract check
 
-- No FL client loop, aggregation, model, data split, scoring behavior, or run script behavior changed.
-- Validation status recorded in this report after checks complete.
+- Client loop, DIFF uploads, `NUM_STEPS_CURRENT_ROUND`, and eval branch
+  untouched. The scaffold meta change stays inside the explicitly supported
+  scaffold protocol mode; client ingestion already used `torch.as_tensor`
+  and accepts tensors unchanged. Static contract checks and both smokes
+  pass.
 
 ## Rollback risk
 
-Low. The change adds a standalone ledger helper and tightens instructions. It does not change candidate execution or score extraction.
+Low. The aggregator fix only changes the in-flight/persisted type of
+scaffold meta arrays. Reverting restores the cross-site-val crash.
 
 ## Next mutation
 
-Use `scripts/finalize_batch_status.py` after every completed run or batch. For stale ledgers, run it once with `--all-candidates --keep-best --discard-others` after confirming the intended cleanup policy.
+Batch 5 (in flight): FedAvgM server_lr {1.5, 2.5, 3.0} at m=0.2 plus
+FedAdam tau=0.01 audit. Afterwards: client-side knobs (lr, weight decay,
+scheduler floor) around the best server config, then the registered
+architecture calibration as a labeled subcampaign.
