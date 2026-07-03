@@ -129,6 +129,18 @@ def define_parser():
         default=0.0,
         help="FedProx proximal-loss coefficient. 0 disables the proximal term.",
     )
+    parser.add_argument(
+        "--label_smoothing",
+        type=float,
+        default=0.0,
+        help="Label-smoothing factor for the client cross-entropy loss. 0 disables smoothing.",
+    )
+    parser.add_argument(
+        "--grad_clip_norm",
+        type=float,
+        default=0.0,
+        help="Max gradient L2 norm for client-side clipping. 0 disables clipping.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -345,6 +357,10 @@ def main():
         args.cosine_lr_eta_min_factor,
         "--fedproxloss_mu",
         args.fedproxloss_mu,
+        "--label_smoothing",
+        args.label_smoothing,
+        "--grad_clip_norm",
+        args.grad_clip_norm,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
