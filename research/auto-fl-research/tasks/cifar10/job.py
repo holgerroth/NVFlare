@@ -148,6 +148,12 @@ def define_parser():
         help="Beta(alpha, alpha) mixup coefficient for client batches. 0 disables mixup.",
     )
     parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="Client-side SAM perturbation radius; doubles per-step compute. 0 disables SAM.",
+    )
+    parser.add_argument(
         "--server_window_avg",
         type=int,
         default=0,
@@ -380,6 +386,8 @@ def main():
         args.grad_clip_norm,
         "--mixup_alpha",
         args.mixup_alpha,
+        "--sam_rho",
+        args.sam_rho,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

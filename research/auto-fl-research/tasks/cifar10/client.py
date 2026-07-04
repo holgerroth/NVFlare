@@ -127,6 +127,12 @@ def build_parser():
         help="Beta(alpha, alpha) mixup coefficient for training batches. 0 disables mixup.",
     )
     parser.add_argument(
+        "--sam_rho",
+        type=float,
+        default=0.0,
+        help="SAM perturbation radius; doubles per-step compute. 0 disables SAM.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -249,6 +255,29 @@ def _load_scaffold_global_controls(model, meta):
             )
         controls[key] = tensor_value
     return controls
+
+
+def _sam_ascent(model, rho):
+    """Perturb parameters to the local sharpness ascent point
+    [src: Foret21 SAM arXiv:2010.01412, FedSAM arXiv:2206.02618]."""
+    grads = [p.grad for p in model.parameters() if p.grad is not None]
+    grad_norm = torch.norm(torch.stack([g.norm(p=2) for g in grads]), p=2)
+    scale = rho / (grad_norm + 1e-12)
+    perturbations = []
+    with torch.no_grad():
+        for param in model.parameters():
+            if param.grad is None:
+                continue
+            e_w = param.grad * scale
+            param.add_(e_w)
+            perturbations.append((param, e_w))
+    return perturbations
+
+
+def _sam_restore(perturbations):
+    with torch.no_grad():
+        for param, e_w in perturbations:
+            param.sub_(e_w)
 
 
 def _apply_mixup(inputs, labels, alpha, rng):
@@ -454,6 +483,17 @@ def main(args):
                     loss = loss + criterion_prox(model, global_model)
 
                 loss.backward()
+                if args.sam_rho > 0:
+                    perturbations = _sam_ascent(model, args.sam_rho)
+                    optimizer.zero_grad(set_to_none=True)
+                    sam_outputs = model(inputs)
+                    sam_loss = criterion(sam_outputs, labels)
+                    if mixup_labels is not None:
+                        sam_loss = mixup_lam * sam_loss + (1.0 - mixup_lam) * criterion(sam_outputs, mixup_labels)
+                    if criterion_prox is not None:
+                        sam_loss = sam_loss + criterion_prox(model, global_model)
+                    sam_loss.backward()
+                    _sam_restore(perturbations)
                 if args.grad_clip_norm > 0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                 optimizer.step()
@@ -516,6 +556,17 @@ def main(args):
                         loss = loss + criterion_prox(model, global_model)
 
                     loss.backward()
+                    if args.sam_rho > 0:
+                        perturbations = _sam_ascent(model, args.sam_rho)
+                        optimizer.zero_grad(set_to_none=True)
+                        sam_outputs = model(inputs)
+                        sam_loss = criterion(sam_outputs, labels)
+                        if mixup_labels is not None:
+                            sam_loss = mixup_lam * sam_loss + (1.0 - mixup_lam) * criterion(sam_outputs, mixup_labels)
+                        if criterion_prox is not None:
+                            sam_loss = sam_loss + criterion_prox(model, global_model)
+                        sam_loss.backward()
+                        _sam_restore(perturbations)
                     if args.grad_clip_norm > 0:
                         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                     optimizer.step()
