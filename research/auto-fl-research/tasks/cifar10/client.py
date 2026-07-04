@@ -144,6 +144,18 @@ def build_parser():
         help="Restart the cosine LR schedule at every round (SGDR-style) instead of one global decay.",
     )
     parser.add_argument(
+        "--fedlc_tau",
+        type=float,
+        default=0.0,
+        help="FedLC logit-calibration strength from local label counts. 0 disables calibration.",
+    )
+    parser.add_argument(
+        "--feddecorr_beta",
+        type=float,
+        default=0.0,
+        help="FedDecorr feature-decorrelation coefficient on penultimate features. 0 disables it.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -266,6 +278,25 @@ def _load_scaffold_global_controls(model, meta):
             )
         controls[key] = tensor_value
     return controls
+
+
+def _fedlc_margin(targets, num_classes, tau):
+    """Per-class logit margin from local label counts
+    [src: Zhang22 FedLC arXiv:2209.00189]."""
+    counts = np.bincount(np.asarray(targets), minlength=num_classes).astype(np.float64)
+    margin = tau * np.power(np.maximum(counts, 1.0), -0.25)
+    return torch.as_tensor(margin, dtype=torch.float32, device=DEVICE)
+
+
+def _feddecorr_loss(feats, beta):
+    """FedDecorr-style penalty on the off-diagonal feature correlation
+    [src: Shi22 arXiv:2210.00226]."""
+    if feats.size(0) < 2:
+        return feats.new_zeros(())
+    z = (feats - feats.mean(dim=0)) / (feats.std(dim=0) + 1e-5)
+    corr = (z.T @ z) / feats.size(0)
+    off_diag = corr - torch.diag(torch.diagonal(corr))
+    return beta * off_diag.pow(2).mean()
 
 
 def _sam_ascent(model, rho):
@@ -405,6 +436,17 @@ def main(args):
         seed=site_seed,
     )
 
+    fedlc_margin = None
+    if args.fedlc_tau > 0:
+        num_classes = model.fc_layer[-1].out_features
+        fedlc_margin = _fedlc_margin(train_dataset.targets, num_classes, args.fedlc_tau)
+
+    feddecorr_feats = {}
+    if args.feddecorr_beta > 0:
+        model.fc_layer[-1].register_forward_hook(
+            lambda module, hook_inputs, hook_output: feddecorr_feats.update(feats=hook_inputs[0])
+        )
+
     summary_writer = SummaryWriter()
     scaffold_local_controls = None
 
@@ -510,9 +552,13 @@ def main(args):
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
+                if fedlc_margin is not None:
+                    outputs = outputs - fedlc_margin
                 loss = criterion(outputs, labels)
                 if mixup_labels is not None:
                     loss = mixup_lam * loss + (1.0 - mixup_lam) * criterion(outputs, mixup_labels)
+                if args.feddecorr_beta > 0:
+                    loss = loss + _feddecorr_loss(feddecorr_feats["feats"], args.feddecorr_beta)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -522,6 +568,8 @@ def main(args):
                     perturbations = _sam_ascent(model, args.sam_rho)
                     optimizer.zero_grad(set_to_none=True)
                     sam_outputs = model(inputs)
+                    if fedlc_margin is not None:
+                        sam_outputs = sam_outputs - fedlc_margin
                     sam_loss = criterion(sam_outputs, labels)
                     if mixup_labels is not None:
                         sam_loss = mixup_lam * sam_loss + (1.0 - mixup_lam) * criterion(sam_outputs, mixup_labels)
@@ -585,9 +633,13 @@ def main(args):
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
+                    if fedlc_margin is not None:
+                        outputs = outputs - fedlc_margin
                     loss = criterion(outputs, labels)
                     if mixup_labels is not None:
                         loss = mixup_lam * loss + (1.0 - mixup_lam) * criterion(outputs, mixup_labels)
+                    if args.feddecorr_beta > 0:
+                        loss = loss + _feddecorr_loss(feddecorr_feats["feats"], args.feddecorr_beta)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
@@ -597,6 +649,8 @@ def main(args):
                         perturbations = _sam_ascent(model, args.sam_rho)
                         optimizer.zero_grad(set_to_none=True)
                         sam_outputs = model(inputs)
+                        if fedlc_margin is not None:
+                            sam_outputs = sam_outputs - fedlc_margin
                         sam_loss = criterion(sam_outputs, labels)
                         if mixup_labels is not None:
                             sam_loss = mixup_lam * sam_loss + (1.0 - mixup_lam) * criterion(sam_outputs, mixup_labels)

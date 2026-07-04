@@ -181,6 +181,18 @@ def define_parser():
         action="store_true",
         help="Restart the client cosine LR schedule every round (SGDR-style).",
     )
+    parser.add_argument(
+        "--fedlc_tau",
+        type=float,
+        default=0.0,
+        help="FedLC logit-calibration strength from local label counts. 0 disables calibration.",
+    )
+    parser.add_argument(
+        "--feddecorr_beta",
+        type=float,
+        default=0.0,
+        help="FedDecorr feature-decorrelation coefficient on penultimate features. 0 disables it.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -415,6 +427,10 @@ def main():
         args.sam_rho,
         "--cutout_size",
         args.cutout_size,
+        "--fedlc_tau",
+        args.fedlc_tau,
+        "--feddecorr_beta",
+        args.feddecorr_beta,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
