@@ -159,6 +159,12 @@ def define_parser():
         default=0,
         help="Window size for server-side averaging of round-wise global models (fedavgm/fedopt). 0/1 disables.",
     )
+    parser.add_argument(
+        "--server_window_tail",
+        type=int,
+        default=0,
+        help="SWA-style tail average: final global model is the mean of the last N round models (fedavgm/fedopt). 0 disables.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -274,12 +280,14 @@ def get_aggregator(args):
         print(
             "Using FedAvgMAggregator "
             f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
-            f"window_avg={args.server_window_avg})"
+            f"window_avg={args.server_window_avg}, tail_avg={args.server_window_tail})"
         )
         return FedAvgMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
             window_avg=args.server_window_avg,
+            window_avg_tail_rounds=args.server_window_tail,
+            total_rounds=args.num_rounds if args.server_window_tail > 0 else 0,
         )
     if kind == "fedadam":
         print(

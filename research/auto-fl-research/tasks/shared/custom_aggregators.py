@@ -132,6 +132,8 @@ class FedOptAggregator(ModelAggregator):
         beta2: float = 0.99,
         tau: float = 1e-3,
         window_avg: int = 0,
+        window_avg_tail_rounds: int = 0,
+        total_rounds: int = 0,
     ):
         super().__init__()
         if optimizer not in {"sgdm", "adam"}:
@@ -148,6 +150,12 @@ class FedOptAggregator(ModelAggregator):
             raise ValueError("tau must be > 0")
         if window_avg < 0:
             raise ValueError("window_avg must be >= 0")
+        if window_avg_tail_rounds < 0:
+            raise ValueError("window_avg_tail_rounds must be >= 0")
+        if window_avg > 1 and window_avg_tail_rounds > 0:
+            raise ValueError("window_avg (feedback) and window_avg_tail_rounds (tail-only) are mutually exclusive")
+        if window_avg_tail_rounds > 0 and total_rounds <= 0:
+            raise ValueError("window_avg_tail_rounds requires total_rounds > 0")
 
         self.optimizer = optimizer
         self.server_lr = server_lr
@@ -156,6 +164,7 @@ class FedOptAggregator(ModelAggregator):
         self.beta2 = beta2
         self.tau = tau
         self.window_avg = window_avg
+        self.window_avg_tail_rounds = window_avg_tail_rounds
 
         self.first_moment = {}
         self.second_moment = {}
@@ -164,7 +173,14 @@ class FedOptAggregator(ModelAggregator):
         # broadcast state is reconstructed as initial + cumulative emitted
         # updates, so window averaging needs no absolute weights.
         self.cum_emitted = {}
-        self.round_history = deque(maxlen=window_avg) if window_avg > 1 else None
+        if window_avg > 1:
+            self.round_history = deque(maxlen=window_avg)
+        elif window_avg_tail_rounds > 0:
+            self.round_history = deque(maxlen=window_avg_tail_rounds)
+        else:
+            self.round_history = None
+        self.round_index = 0
+        self.total_rounds = total_rounds
         self.reset_stats()
 
     def accept_model(self, model: FLModel):
@@ -196,14 +212,15 @@ class FedOptAggregator(ModelAggregator):
             update = self._adam_update(mean_diff)
 
         if self.round_history is not None:
-            update = self._window_average_update(update)
+            if self.window_avg > 1:
+                update = self._window_average_update(update)
+            else:
+                update = self._tail_average_update(update)
 
         aggregated_params = {key: _to_output_type(update[key], self.references[key]) for key in update}
         return FLModel(params=aggregated_params, params_type=self.params_type)
 
-    def _window_average_update(self, update):
-        """Window-average of round-wise global models, fed back as the broadcast
-        state [src: Pu21 arXiv:2103.11619, WiMA arXiv:2310.01366]."""
+    def _record_round_coord(self, update):
         round_coord = {}
         for key, val in update.items():
             previous = self.cum_emitted.get(key)
@@ -212,6 +229,31 @@ class FedOptAggregator(ModelAggregator):
                 self.cum_emitted[key] = previous
             round_coord[key] = previous + val
         self.round_history.append(round_coord)
+        return round_coord
+
+    def _window_average_update(self, update):
+        """Window-average of round-wise global models, fed back as the broadcast
+        state [src: Pu21 arXiv:2103.11619, WiMA arXiv:2310.01366]."""
+        self._record_round_coord(update)
+
+        emitted = {}
+        for key in update:
+            target = sum(coord[key] for coord in self.round_history) / len(self.round_history)
+            emitted[key] = target - self.cum_emitted[key]
+            self.cum_emitted[key] = target
+        return emitted
+
+    def _tail_average_update(self, update):
+        """SWA-style tail average: rounds proceed unmodified, but the FINAL
+        persisted global model is the mean of the last W round models
+        [src: Izmailov18 SWA arXiv:1803.05407, Pu21 arXiv:2103.11619]."""
+        round_coord = self._record_round_coord(update)
+        self.round_index += 1
+
+        if self.round_index < self.total_rounds:
+            for key in update:
+                self.cum_emitted[key] = round_coord[key]
+            return update
 
         emitted = {}
         for key in update:
@@ -263,12 +305,21 @@ class FedOptAggregator(ModelAggregator):
 
 
 class FedAvgMAggregator(FedOptAggregator):
-    def __init__(self, server_lr: float = 1.0, server_momentum: float = 0.6, window_avg: int = 0):
+    def __init__(
+        self,
+        server_lr: float = 1.0,
+        server_momentum: float = 0.6,
+        window_avg: int = 0,
+        window_avg_tail_rounds: int = 0,
+        total_rounds: int = 0,
+    ):
         super().__init__(
             optimizer="sgdm",
             server_lr=server_lr,
             server_momentum=server_momentum,
             window_avg=window_avg,
+            window_avg_tail_rounds=window_avg_tail_rounds,
+            total_rounds=total_rounds,
         )
 
 
