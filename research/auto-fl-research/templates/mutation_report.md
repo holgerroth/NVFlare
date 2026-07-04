@@ -95,7 +95,36 @@ Trigger: all CLI axes resolved/re-checked at 0.9044; watchdog still
   cost more than flatness gains. Do not retry SAM unless the runtime budget
   changes.
 
+## Literature loop 2 outcome (batches 40-42)
+
+Trigger: interaction lattice at 0.9124 fully mined. Selected cutout
+(DeVries17 arXiv:1708.04552) and FedNova normalization (Wang20
+arXiv:2007.07481); momentum-reset rejected on Mime evidence
+(arXiv:2008.03606).
+
+- Cutout: **discarded** in every dose (8px stacked 0.9059, 12px replacing
+  mixup 0.9035, mild splits 0.9065/0.9084) — input-regularization budget is
+  saturated by mixup 0.1 + label smoothing 0.05.
+- FedNova: **discarded** (0.9107) — alpha 0.5 shards are near-equal, so
+  normalization is close to identity here.
+- SGDR per-round LR restart (Loshchilov16 arXiv:1608.03983): **discarded
+  hard** (0.8463) — the single global cosine decay to a ~0 floor is
+  load-bearing.
+
+## Milestone: steps-1000 stack (batches 43-45)
+
+`local_train_steps=1000` (~10.2 epochs, schema bound; solo runs ~800s)
+beat the 8-epoch stack: **0.9135** vs 0.9124. Steps curve rises into the
+bound (900 -> 0.9100). Server momentum re-check at the new compute level
+confirms 0.3 (0.35 -> 0.9123, 0.25 -> 0.9118). Steps-1000 candidates must
+run solo: two concurrent runs exceed the 1200s cap.
+
+Best stack (0.9135): FedAvgM server_lr 1.75 / momentum 0.3 over DIFFs;
+local_train_steps 1000; client SGD lr 0.06, momentum 0.9, wd 2.5e-4;
+global cosine floor 1e-4; FedProx mu 1e-4; label smoothing 0.05;
+mixup 0.1. Delta over weighted baseline: +0.0675.
+
 ## Next mutation
 
-Interaction re-checks under mixup (wd, client lr), then consider tail-only
-window averaging or a second literature cycle if the watchdog fires.
+Fine client-side probes at the steps-1000 stack while the watchdog counts;
+literature loop 3 when it fires or the probe pool is exhausted.
