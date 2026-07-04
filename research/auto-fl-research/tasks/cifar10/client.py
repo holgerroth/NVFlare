@@ -139,6 +139,11 @@ def build_parser():
         help="Side length of the square cutout mask applied to training batches. 0 disables cutout.",
     )
     parser.add_argument(
+        "--lr_restart_each_round",
+        action="store_true",
+        help="Restart the cosine LR schedule at every round (SGDR-style) instead of one global decay.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -408,17 +413,22 @@ def main(args):
         current_round = input_model.current_round
         print(f"\n[site={site_name}] round={current_round}\n")
 
-        if scheduler is None and not args.no_lr_scheduler:
+        if (scheduler is None or args.lr_restart_each_round) and not args.no_lr_scheduler:
             total_rounds = input_model.total_rounds
             scheduler_units = args.local_train_steps if args.local_train_steps > 0 else args.aggregation_epochs
             eta_min = args.lr * args.cosine_lr_eta_min_factor
-            t_max = total_rounds * scheduler_units
+            t_max = scheduler_units if args.lr_restart_each_round else total_rounds * scheduler_units
+            if args.lr_restart_each_round:
+                # SGDR-style per-round restart [src: Loshchilov16 arXiv:1608.03983]
+                for group in optimizer.param_groups:
+                    group["lr"] = args.lr
             scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
                 T_max=t_max,
                 eta_min=eta_min,
             )
-            print(f"{site_name}: CosineAnnealingLR init " f"(initial_lr={args.lr}, eta_min={eta_min}, T_max={t_max})")
+            if current_round == 0:
+                print(f"{site_name}: CosineAnnealingLR init " f"(initial_lr={args.lr}, eta_min={eta_min}, T_max={t_max})")
 
         model.load_state_dict(input_model.params, strict=True)
 

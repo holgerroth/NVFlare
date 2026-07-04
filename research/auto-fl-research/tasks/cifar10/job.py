@@ -176,6 +176,11 @@ def define_parser():
         default=0,
         help="Side length of the square cutout mask applied to client training batches. 0 disables cutout.",
     )
+    parser.add_argument(
+        "--lr_restart_each_round",
+        action="store_true",
+        help="Restart the client cosine LR schedule every round (SGDR-style).",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -421,6 +426,8 @@ def main():
         train_args.append("--scaffold")
     if args.no_deterministic_training:
         train_args.append("--no_deterministic_training")
+    if args.lr_restart_each_round:
+        train_args.append("--lr_restart_each_round")
     train_args = " ".join(shlex.quote(str(item)) for item in train_args)
 
     recipe = FedAvgRecipe(
