@@ -76,9 +76,26 @@ Server_lr refinement at m=0.2 is in flight (batch 5).
 Low. The aggregator fix only changes the in-flight/persisted type of
 scaffold meta arrays. Reverting restores the cross-site-val crash.
 
+## Literature loop 1 outcome (batches 28-31)
+
+Trigger: all CLI axes resolved/re-checked at 0.9044; watchdog still
+`continue` but no non-duplicate safe axis remained. Worksheet in
+`templates/literature_loop.md`.
+
+- P2 mixup (Zhang18 arXiv:1710.09412): **kept** — alpha 0.1 → 0.9091
+  (new best, +0.0047 over pre-literature best). Curve 0.05/0.1/0.15/0.2/0.4 =
+  0.9051/0.9091/0.9058/0.9072/0.9063. Complementary to label smoothing
+  (removing ls under mixup drops to 0.9024).
+- P1 fed-back server window average (Pu21 arXiv:2103.11619, WiMA
+  arXiv:2310.01366): **discarded** — W=5 at best stack scored 0.8558;
+  mid-training feedback of the averaged model fights tuned FedAvgM momentum.
+  Tail-only averaging remains an untested variant.
+- P3 FedSAM (Qu22 arXiv:2206.02618): **discarded in cap-fitting form** —
+  rho 0.05 at e4 (to fit the 1200s cap) scored 0.8817; halved local epochs
+  cost more than flatness gains. Do not retry SAM unless the runtime budget
+  changes.
+
 ## Next mutation
 
-Batch 5 (in flight): FedAvgM server_lr {1.5, 2.5, 3.0} at m=0.2 plus
-FedAdam tau=0.01 audit. Afterwards: client-side knobs (lr, weight decay,
-scheduler floor) around the best server config, then the registered
-architecture calibration as a labeled subcampaign.
+Interaction re-checks under mixup (wd, client lr), then consider tail-only
+window averaging or a second literature cycle if the watchdog fires.
