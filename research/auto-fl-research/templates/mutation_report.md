@@ -124,7 +124,21 @@ local_train_steps 1000; client SGD lr 0.06, momentum 0.9, wd 2.5e-4;
 global cosine floor 1e-4; FedProx mu 1e-4; label smoothing 0.05;
 mixup 0.1. Delta over weighted baseline: +0.0675.
 
+## Literature loop 3 outcome (batches 51-52)
+
+Trigger: steps-1000 lattice fully confirmed at 0.9136; only jitter axes
+left. Selected FedLC logit calibration (Zhang22 arXiv:2209.00189) and
+FedDecorr feature decorrelation (Shi22 arXiv:2210.00226).
+
+- FedLC tau=1.0: **discarded** (0.9092) — label-prior correction is
+  redundant with mixup + label smoothing at alpha 0.5 skew.
+- FedDecorr: **discarded** — beta 0.1 -> 0.9129 (noise-adjacent),
+  but no dose response (0.05 -> 0.9063, 0.3 -> 0.9093); treated as null.
+
+Both knobs remain in client.py (default off) for future campaigns.
+
 ## Next mutation
 
-Fine client-side probes at the steps-1000 stack while the watchdog counts;
-literature loop 3 when it fires or the probe pool is exhausted.
+Complete eta-floor confirmation at steps-1000, then continue the loop:
+combination probes of noise-adjacent variants while the watchdog counts
+toward literature loop 4.
