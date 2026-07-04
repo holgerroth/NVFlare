@@ -165,6 +165,17 @@ def define_parser():
         default=0,
         help="SWA-style tail average: final global model is the mean of the last N round models (fedavgm/fedopt). 0 disables.",
     )
+    parser.add_argument(
+        "--fednova_norm",
+        action="store_true",
+        help="FedNova-normalized averaging of client DIFFs by local step counts (fedavgm/fedopt).",
+    )
+    parser.add_argument(
+        "--cutout_size",
+        type=int,
+        default=0,
+        help="Side length of the square cutout mask applied to client training batches. 0 disables cutout.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -288,6 +299,7 @@ def get_aggregator(args):
             window_avg=args.server_window_avg,
             window_avg_tail_rounds=args.server_window_tail,
             total_rounds=args.num_rounds if args.server_window_tail > 0 else 0,
+            fednova_norm=args.fednova_norm,
         )
     if kind == "fedadam":
         print(
@@ -396,6 +408,8 @@ def main():
         args.mixup_alpha,
         "--sam_rho",
         args.sam_rho,
+        "--cutout_size",
+        args.cutout_size,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

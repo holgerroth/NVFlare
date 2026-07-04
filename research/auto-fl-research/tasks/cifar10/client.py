@@ -133,6 +133,12 @@ def build_parser():
         help="SAM perturbation radius; doubles per-step compute. 0 disables SAM.",
     )
     parser.add_argument(
+        "--cutout_size",
+        type=int,
+        default=0,
+        help="Side length of the square cutout mask applied to training batches. 0 disables cutout.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -280,6 +286,20 @@ def _sam_restore(perturbations):
             param.sub_(e_w)
 
 
+def _apply_cutout(inputs, size, rng):
+    """Zero a random square per image on the normalized batch
+    [src: DeVries17 Cutout arXiv:1708.04552, Zhong17 arXiv:1708.04896]."""
+    n, _, height, width = inputs.shape
+    ys = rng.integers(0, height, size=n)
+    xs = rng.integers(0, width, size=n)
+    half = size // 2
+    for i in range(n):
+        y1, y2 = max(0, ys[i] - half), min(height, ys[i] + half)
+        x1, x2 = max(0, xs[i] - half), min(width, xs[i] + half)
+        inputs[i, :, y1:y2, x1:x2] = 0.0
+    return inputs
+
+
 def _apply_mixup(inputs, labels, alpha, rng):
     """Batch-level mixup [src: Zhang18 arXiv:1710.09412]; returns mixed inputs,
     permuted labels, and the mixing coefficient."""
@@ -362,6 +382,9 @@ def main(args):
     mixup_rng = None
     if args.mixup_alpha > 0:
         mixup_rng = np.random.default_rng(site_seed + 20259)
+    cutout_rng = None
+    if args.cutout_size > 0:
+        cutout_rng = np.random.default_rng(site_seed + 40521)
 
     print(f"Creating datasets for site={site_name}")
     train_dataset, valid_dataset = create_datasets(
@@ -468,6 +491,8 @@ def main(args):
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
+                if cutout_rng is not None:
+                    inputs = _apply_cutout(inputs, args.cutout_size, cutout_rng)
                 mixup_labels = None
                 mixup_lam = 1.0
                 if mixup_rng is not None:
@@ -541,6 +566,8 @@ def main(args):
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
+                    if cutout_rng is not None:
+                        inputs = _apply_cutout(inputs, args.cutout_size, cutout_rng)
                     mixup_labels = None
                     mixup_lam = 1.0
                     if mixup_rng is not None:

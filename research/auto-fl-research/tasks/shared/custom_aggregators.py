@@ -134,6 +134,7 @@ class FedOptAggregator(ModelAggregator):
         window_avg: int = 0,
         window_avg_tail_rounds: int = 0,
         total_rounds: int = 0,
+        fednova_norm: bool = False,
     ):
         super().__init__()
         if optimizer not in {"sgdm", "adam"}:
@@ -165,6 +166,7 @@ class FedOptAggregator(ModelAggregator):
         self.tau = tau
         self.window_avg = window_avg
         self.window_avg_tail_rounds = window_avg_tail_rounds
+        self.fednova_norm = fednova_norm
 
         self.first_moment = {}
         self.second_moment = {}
@@ -199,13 +201,26 @@ class FedOptAggregator(ModelAggregator):
                 self.weighted_sum[key] = diff * weight
             else:
                 self.weighted_sum[key] += diff * weight
+            if self.fednova_norm:
+                if key not in self.plain_sum:
+                    self.plain_sum[key] = diff.copy()
+                else:
+                    self.plain_sum[key] += diff
         self.total_weight += weight
+        self.total_weight_sq += weight * weight
 
     def aggregate_model(self) -> FLModel:
         if self.total_weight == 0:
             _raise_empty_aggregation(type(self).__name__, self.client_weights)
 
-        mean_diff = {key: val / self.total_weight for key, val in self.weighted_sum.items()}
+        if self.fednova_norm:
+            # FedNova normalized averaging with data-proportional steps:
+            # tau_eff * sum_i(p_i * d_i / tau_i) with p_i = tau_i / T reduces to
+            # (sum tau_i^2 / T^2) * sum_i d_i [src: Wang20 arXiv:2007.07481].
+            scale = self.total_weight_sq / (self.total_weight * self.total_weight)
+            mean_diff = {key: val * scale for key, val in self.plain_sum.items()}
+        else:
+            mean_diff = {key: val / self.total_weight for key, val in self.weighted_sum.items()}
         if self.optimizer == "sgdm":
             update = self._sgdm_update(mean_diff)
         else:
@@ -264,7 +279,9 @@ class FedOptAggregator(ModelAggregator):
 
     def reset_stats(self):
         self.weighted_sum = {}
+        self.plain_sum = {}
         self.total_weight = 0.0
+        self.total_weight_sq = 0.0
         self.client_weights = []
         self.params_type = None
         self.references = {}
@@ -312,6 +329,7 @@ class FedAvgMAggregator(FedOptAggregator):
         window_avg: int = 0,
         window_avg_tail_rounds: int = 0,
         total_rounds: int = 0,
+        fednova_norm: bool = False,
     ):
         super().__init__(
             optimizer="sgdm",
@@ -320,6 +338,7 @@ class FedAvgMAggregator(FedOptAggregator):
             window_avg=window_avg,
             window_avg_tail_rounds=window_avg_tail_rounds,
             total_rounds=total_rounds,
+            fednova_norm=fednova_norm,
         )
 
 
