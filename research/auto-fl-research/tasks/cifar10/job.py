@@ -141,6 +141,18 @@ def define_parser():
         default=0.0,
         help="Max gradient L2 norm for client-side clipping. 0 disables clipping.",
     )
+    parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Beta(alpha, alpha) mixup coefficient for client batches. 0 disables mixup.",
+    )
+    parser.add_argument(
+        "--server_window_avg",
+        type=int,
+        default=0,
+        help="Window size for server-side averaging of round-wise global models (fedavgm/fedopt). 0/1 disables.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -253,10 +265,15 @@ def get_aggregator(args):
         print("Using FedAvgAggregator")
         return FedAvgAggregator()
     if kind in {"fedavgm", "fedopt"}:
-        print("Using FedAvgMAggregator " f"(server_lr={args.server_lr}, server_momentum={args.server_momentum})")
+        print(
+            "Using FedAvgMAggregator "
+            f"(server_lr={args.server_lr}, server_momentum={args.server_momentum}, "
+            f"window_avg={args.server_window_avg})"
+        )
         return FedAvgMAggregator(
             server_lr=args.server_lr,
             server_momentum=args.server_momentum,
+            window_avg=args.server_window_avg,
         )
     if kind == "fedadam":
         print(
@@ -361,6 +378,8 @@ def main():
         args.label_smoothing,
         "--grad_clip_norm",
         args.grad_clip_norm,
+        "--mixup_alpha",
+        args.mixup_alpha,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

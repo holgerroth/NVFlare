@@ -121,6 +121,12 @@ def build_parser():
         help="Max gradient L2 norm for clipping before each optimizer step. 0 disables clipping.",
     )
     parser.add_argument(
+        "--mixup_alpha",
+        type=float,
+        default=0.0,
+        help="Beta(alpha, alpha) mixup coefficient for training batches. 0 disables mixup.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -245,6 +251,15 @@ def _load_scaffold_global_controls(model, meta):
     return controls
 
 
+def _apply_mixup(inputs, labels, alpha, rng):
+    """Batch-level mixup [src: Zhang18 arXiv:1710.09412]; returns mixed inputs,
+    permuted labels, and the mixing coefficient."""
+    lam = float(rng.beta(alpha, alpha))
+    perm = torch.randperm(inputs.size(0), device=inputs.device)
+    mixed = lam * inputs + (1.0 - lam) * inputs[perm]
+    return mixed, labels[perm], lam
+
+
 def _apply_scaffold_correction(model, curr_lr, global_controls, local_controls):
     with torch.no_grad():
         for key, param in model.named_parameters():
@@ -314,6 +329,10 @@ def main(args):
     criterion_prox = None
     if args.fedproxloss_mu > 0:
         criterion_prox = PTFedProxLoss(mu=args.fedproxloss_mu)
+
+    mixup_rng = None
+    if args.mixup_alpha > 0:
+        mixup_rng = np.random.default_rng(site_seed + 20259)
 
     print(f"Creating datasets for site={site_name}")
     train_dataset, valid_dataset = create_datasets(
@@ -420,9 +439,16 @@ def main(args):
 
                 inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
+                mixup_labels = None
+                mixup_lam = 1.0
+                if mixup_rng is not None:
+                    inputs, mixup_labels, mixup_lam = _apply_mixup(inputs, labels, args.mixup_alpha, mixup_rng)
+
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
+                if mixup_labels is not None:
+                    loss = mixup_lam * loss + (1.0 - mixup_lam) * criterion(outputs, mixup_labels)
 
                 if criterion_prox is not None:
                     loss = loss + criterion_prox(model, global_model)
@@ -475,9 +501,16 @@ def main(args):
                 for batch in train_loader:
                     inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
 
+                    mixup_labels = None
+                    mixup_lam = 1.0
+                    if mixup_rng is not None:
+                        inputs, mixup_labels, mixup_lam = _apply_mixup(inputs, labels, args.mixup_alpha, mixup_rng)
+
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
+                    if mixup_labels is not None:
+                        loss = mixup_lam * loss + (1.0 - mixup_lam) * criterion(outputs, mixup_labels)
 
                     if criterion_prox is not None:
                         loss = loss + criterion_prox(model, global_model)
