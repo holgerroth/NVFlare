@@ -135,6 +135,8 @@ class FedOptAggregator(ModelAggregator):
         window_avg_tail_rounds: int = 0,
         total_rounds: int = 0,
         fednova_norm: bool = False,
+        fedexp: bool = False,
+        server_lr_decay_to: float = 0.0,
     ):
         super().__init__()
         if optimizer not in {"sgdm", "adam"}:
@@ -157,6 +159,12 @@ class FedOptAggregator(ModelAggregator):
             raise ValueError("window_avg (feedback) and window_avg_tail_rounds (tail-only) are mutually exclusive")
         if window_avg_tail_rounds > 0 and total_rounds <= 0:
             raise ValueError("window_avg_tail_rounds requires total_rounds > 0")
+        if server_lr_decay_to < 0:
+            raise ValueError("server_lr_decay_to must be >= 0")
+        if server_lr_decay_to > 0 and total_rounds <= 0:
+            raise ValueError("server_lr_decay_to requires total_rounds > 0")
+        if fedexp and server_lr_decay_to > 0:
+            raise ValueError("fedexp and server_lr_decay_to are mutually exclusive")
 
         self.optimizer = optimizer
         self.server_lr = server_lr
@@ -167,6 +175,9 @@ class FedOptAggregator(ModelAggregator):
         self.window_avg = window_avg
         self.window_avg_tail_rounds = window_avg_tail_rounds
         self.fednova_norm = fednova_norm
+        self.fedexp = fedexp
+        self.server_lr_decay_to = server_lr_decay_to
+        self.decay_round = 0
 
         self.first_moment = {}
         self.second_moment = {}
@@ -206,6 +217,8 @@ class FedOptAggregator(ModelAggregator):
                     self.plain_sum[key] = diff.copy()
                 else:
                     self.plain_sum[key] += diff
+            if self.fedexp:
+                self.sq_norm_sum += weight * float(np.sum(diff * diff))
         self.total_weight += weight
         self.total_weight_sq += weight * weight
 
@@ -221,8 +234,22 @@ class FedOptAggregator(ModelAggregator):
             mean_diff = {key: val * scale for key, val in self.plain_sum.items()}
         else:
             mean_diff = {key: val / self.total_weight for key, val in self.weighted_sum.items()}
+        effective_lr = self.server_lr
+        if self.fedexp:
+            # FedExP: server step from the ratio of average squared local
+            # updates to the squared average update, floored at 1 and capped
+            # for safety [src: Jhunjhunwala23 arXiv:2301.09604].
+            mean_sq = sum(float(np.sum(val * val)) for val in mean_diff.values())
+            avg_local_sq = self.sq_norm_sum / self.total_weight
+            effective_lr = min(max(1.0, avg_local_sq / (2.0 * mean_sq + 1e-12)), 4.0)
+        elif self.server_lr_decay_to > 0:
+            # Linear server-lr decay across rounds toward server_lr_decay_to.
+            frac = min(self.decay_round / max(self.total_rounds - 1, 1), 1.0)
+            effective_lr = self.server_lr + (self.server_lr_decay_to - self.server_lr) * frac
+            self.decay_round += 1
+
         if self.optimizer == "sgdm":
-            update = self._sgdm_update(mean_diff)
+            update = self._sgdm_update(mean_diff, effective_lr)
         else:
             update = self._adam_update(mean_diff)
 
@@ -282,11 +309,13 @@ class FedOptAggregator(ModelAggregator):
         self.plain_sum = {}
         self.total_weight = 0.0
         self.total_weight_sq = 0.0
+        self.sq_norm_sum = 0.0
         self.client_weights = []
         self.params_type = None
         self.references = {}
 
-    def _sgdm_update(self, mean_diff):
+    def _sgdm_update(self, mean_diff, effective_lr=None):
+        lr = self.server_lr if effective_lr is None else effective_lr
         updates = {}
         for key, diff in mean_diff.items():
             previous = self.first_moment.get(key)
@@ -294,7 +323,7 @@ class FedOptAggregator(ModelAggregator):
                 previous = np.zeros_like(diff)
             velocity = self.server_momentum * previous + diff
             self.first_moment[key] = velocity
-            updates[key] = self.server_lr * velocity
+            updates[key] = lr * velocity
         return updates
 
     def _adam_update(self, mean_diff):
@@ -330,6 +359,8 @@ class FedAvgMAggregator(FedOptAggregator):
         window_avg_tail_rounds: int = 0,
         total_rounds: int = 0,
         fednova_norm: bool = False,
+        fedexp: bool = False,
+        server_lr_decay_to: float = 0.0,
     ):
         super().__init__(
             optimizer="sgdm",
@@ -339,6 +370,8 @@ class FedAvgMAggregator(FedOptAggregator):
             window_avg_tail_rounds=window_avg_tail_rounds,
             total_rounds=total_rounds,
             fednova_norm=fednova_norm,
+            fedexp=fedexp,
+            server_lr_decay_to=server_lr_decay_to,
         )
 
 

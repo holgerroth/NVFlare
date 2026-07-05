@@ -171,6 +171,17 @@ def define_parser():
         help="FedNova-normalized averaging of client DIFFs by local step counts (fedavgm/fedopt).",
     )
     parser.add_argument(
+        "--fedexp",
+        action="store_true",
+        help="FedExP adaptive server step from client update diversity (fedavgm/fedopt); overrides server_lr.",
+    )
+    parser.add_argument(
+        "--server_lr_decay_to",
+        type=float,
+        default=0.0,
+        help="Linearly decay server_lr to this value across rounds (fedavgm/fedopt). 0 disables decay.",
+    )
+    parser.add_argument(
         "--cutout_size",
         type=int,
         default=0,
@@ -315,8 +326,10 @@ def get_aggregator(args):
             server_momentum=args.server_momentum,
             window_avg=args.server_window_avg,
             window_avg_tail_rounds=args.server_window_tail,
-            total_rounds=args.num_rounds if args.server_window_tail > 0 else 0,
+            total_rounds=args.num_rounds if (args.server_window_tail > 0 or args.server_lr_decay_to > 0) else 0,
             fednova_norm=args.fednova_norm,
+            fedexp=args.fedexp,
+            server_lr_decay_to=args.server_lr_decay_to,
         )
     if kind == "fedadam":
         print(
