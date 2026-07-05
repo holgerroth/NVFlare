@@ -137,8 +137,32 @@ FedDecorr feature decorrelation (Shi22 arXiv:2210.00226).
 
 Both knobs remain in client.py (default off) for future campaigns.
 
+## Literature loop 4 outcome (batches 68-69)
+
+Trigger: watchdog fired at 32/32 scored candidates without material
+improvement after the full fine-grid confirmation at 0.9136.
+
+- FedExP adaptive server step (Jhunjhunwala23 arXiv:2301.09604):
+  **discarded** — pure (momentum 0) 0.9063, hybrid with momentum 0.3
+  0.9089. The adaptive rule under-steps relative to the hand-tuned fixed
+  1.75 over-relaxation at this budget.
+- Server-lr decay across rounds (arXiv:2107.06917 field guide):
+  **discarded** — decay to 1.0 -> 0.9062, to 1.4 -> 0.9106. Sustained
+  over-relaxation beats annealing when the client lr already anneals to a
+  ~0 floor.
+
+Both knobs remain available (default off).
+
+## Campaign state after four literature loops
+
+Best 0.9136 (+0.0676 over 0.8460 weighted baseline): FedAvgM
+server_lr 1.75 / momentum 0.3 over DIFFs; local_train_steps 1000;
+client SGD lr 0.06 / momentum 0.9 / wd 3e-4; global cosine floor 1e-4;
+FedProx mu 1e-4; label smoothing 0.05; mixup 0.1. All axes confirmed at
+fine resolution; literature keepers: mixup (loop 1). Confirmed nulls:
+FedAdam, SCAFFOLD, median, window/tail averaging, SGDR, SAM (cap-bound),
+cutout, FedNova, FedLC, FedDecorr, FedExP, server-lr decay.
+
 ## Next mutation
 
-Complete eta-floor confirmation at steps-1000, then continue the loop:
-combination probes of noise-adjacent variants while the watchdog counts
-toward literature loop 4.
+Flat-peak combination probes; next literature loop on watchdog cadence.
