@@ -204,6 +204,12 @@ def define_parser():
         default=0.0,
         help="FedDecorr feature-decorrelation coefficient on penultimate features. 0 disables it.",
     )
+    parser.add_argument(
+        "--rdrop_alpha",
+        type=float,
+        default=0.0,
+        help="R-Drop symmetric-KL coefficient between two client dropout passes. 0 disables it.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -444,6 +450,8 @@ def main():
         args.fedlc_tau,
         "--feddecorr_beta",
         args.feddecorr_beta,
+        "--rdrop_alpha",
+        args.rdrop_alpha,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")

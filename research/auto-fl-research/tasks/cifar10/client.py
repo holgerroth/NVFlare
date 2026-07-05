@@ -156,6 +156,12 @@ def build_parser():
         help="FedDecorr feature-decorrelation coefficient on penultimate features. 0 disables it.",
     )
     parser.add_argument(
+        "--rdrop_alpha",
+        type=float,
+        default=0.0,
+        help="R-Drop symmetric-KL coefficient between two dropout passes; roughly doubles forward cost. 0 disables it.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -278,6 +284,18 @@ def _load_scaffold_global_controls(model, meta):
             )
         controls[key] = tensor_value
     return controls
+
+
+def _rdrop_kl(logits_p, logits_q):
+    """Symmetric KL between two dropout forward passes
+    [src: Liang21 R-Drop arXiv:2106.14448]."""
+    p_log = torch.log_softmax(logits_p, dim=-1)
+    q_log = torch.log_softmax(logits_q, dim=-1)
+    p = p_log.exp()
+    q = q_log.exp()
+    kl_pq = (p * (p_log - q_log)).sum(dim=-1).mean()
+    kl_qp = (q * (q_log - p_log)).sum(dim=-1).mean()
+    return 0.5 * (kl_pq + kl_qp)
 
 
 def _fedlc_margin(targets, num_classes, tau):
@@ -557,6 +575,14 @@ def main(args):
                 loss = criterion(outputs, labels)
                 if mixup_labels is not None:
                     loss = mixup_lam * loss + (1.0 - mixup_lam) * criterion(outputs, mixup_labels)
+                if args.rdrop_alpha > 0:
+                    outputs2 = model(inputs)
+                    if fedlc_margin is not None:
+                        outputs2 = outputs2 - fedlc_margin
+                    loss2 = criterion(outputs2, labels)
+                    if mixup_labels is not None:
+                        loss2 = mixup_lam * loss2 + (1.0 - mixup_lam) * criterion(outputs2, mixup_labels)
+                    loss = 0.5 * (loss + loss2) + args.rdrop_alpha * _rdrop_kl(outputs, outputs2)
                 if args.feddecorr_beta > 0:
                     loss = loss + _feddecorr_loss(feddecorr_feats["feats"], args.feddecorr_beta)
 
@@ -638,6 +664,14 @@ def main(args):
                     loss = criterion(outputs, labels)
                     if mixup_labels is not None:
                         loss = mixup_lam * loss + (1.0 - mixup_lam) * criterion(outputs, mixup_labels)
+                    if args.rdrop_alpha > 0:
+                        outputs2 = model(inputs)
+                        if fedlc_margin is not None:
+                            outputs2 = outputs2 - fedlc_margin
+                        loss2 = criterion(outputs2, labels)
+                        if mixup_labels is not None:
+                            loss2 = mixup_lam * loss2 + (1.0 - mixup_lam) * criterion(outputs2, mixup_labels)
+                        loss = 0.5 * (loss + loss2) + args.rdrop_alpha * _rdrop_kl(outputs, outputs2)
                     if args.feddecorr_beta > 0:
                         loss = loss + _feddecorr_loss(feddecorr_feats["feats"], args.feddecorr_beta)
 
