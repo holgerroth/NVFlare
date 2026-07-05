@@ -163,6 +163,22 @@ fine resolution; literature keepers: mixup (loop 1). Confirmed nulls:
 FedAdam, SCAFFOLD, median, window/tail averaging, SGDR, SAM (cap-bound),
 cutout, FedNova, FedLC, FedDecorr, FedExP, server-lr decay.
 
+## Literature loop 5 outcome (batches 84-85)
+
+Trigger: watchdog fired again at 32/32. Selected R-Drop symmetric-KL
+consistency (Liang21 arXiv:2106.14448; model already has dropout);
+annealed-regularization angle rejected for lack of primary sources.
+
+- R-Drop alpha 0.3: **kept — new best 0.9148** (+0.0012 material).
+  Curve: 0.15 -> 0.9089, 0.3 -> 0.9148, 0.45 -> 0.9105, 0.6 -> 0.9136.
+  Doubled forward cost fits the cap solo at steps 950 (~950s).
+
+Best stack (0.9148, +0.0688 over baseline): FedAvgM server_lr 1.75 /
+momentum 0.32; local_train_steps 950; client SGD lr 0.06 / mom 0.9 /
+wd 3e-4; cosine floor 1e-4; FedProx mu 1e-4; label smoothing 0.05;
+mixup 0.1; R-Drop 0.3.
+
 ## Next mutation
 
-Flat-peak combination probes; next literature loop on watchdog cadence.
+Interaction re-checks under R-Drop (label smoothing, prox, mixup), then
+watchdog cadence toward literature loop 6.
