@@ -178,7 +178,24 @@ momentum 0.32; local_train_steps 950; client SGD lr 0.06 / mom 0.9 /
 wd 3e-4; cosine floor 1e-4; FedProx mu 1e-4; label smoothing 0.05;
 mixup 0.1; R-Drop 0.3.
 
+## Literature loop 6 outcome (batches 112-113)
+
+Trigger: watchdog 32/32 after the slr-1.8 stack rotation. Selected CutMix
+(Yun19 arXiv:1905.04899) and local tail-SWA before the DIFF upload
+(Izmailov18 arXiv:1803.05407, Caldarola22 arXiv:2203.11834).
+
+- CutMix replacing mixup: **discarded** (0.2 -> 0.9127, 0.5 -> 0.9089).
+  Mixup remains the better input mix at this budget.
+- Local tail-SWA: **discarded** (100 steps -> 0.9115, 250 -> 0.9121).
+  The near-zero cosine floor already parks the local trajectory in a flat
+  region; averaging adds nothing — consistent with the server-side
+  window/tail averaging nulls.
+
+Current best 0.9164 (+0.0704 over baseline): FedAvgM server_lr 1.8 /
+momentum 0.32; steps 950; client lr 0.06 / mom 0.9 / wd 2.8e-4;
+floor 1e-4; prox 1e-4; label smoothing 0.05; mixup 0.1; R-Drop 0.3.
+Literature keepers so far: mixup (loop 1), R-Drop (loop 5).
+
 ## Next mutation
 
-Interaction re-checks under R-Drop (label smoothing, prox, mixup), then
-watchdog cadence toward literature loop 6.
+Micro-rotation on watchdog cadence; literature loop 7 when it fires.
