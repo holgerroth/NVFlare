@@ -162,6 +162,18 @@ def build_parser():
         help="R-Drop symmetric-KL coefficient between two dropout passes; roughly doubles forward cost. 0 disables it.",
     )
     parser.add_argument(
+        "--cutmix_alpha",
+        type=float,
+        default=0.0,
+        help="Beta(alpha, alpha) CutMix coefficient for training batches; mutually exclusive with mixup. 0 disables it.",
+    )
+    parser.add_argument(
+        "--local_swa_steps",
+        type=int,
+        default=0,
+        help="Average model weights over the last N local steps of each round before the DIFF upload. 0 disables it.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -354,6 +366,23 @@ def _apply_cutout(inputs, size, rng):
     return inputs
 
 
+def _apply_cutmix(inputs, labels, alpha, rng):
+    """Batch-level CutMix with area-adjusted mixing coefficient
+    [src: Yun19 arXiv:1905.04899]."""
+    lam = float(rng.beta(alpha, alpha))
+    n, _, height, width = inputs.shape
+    perm = torch.randperm(n, device=inputs.device)
+    cut_h = int(height * (1.0 - lam) ** 0.5)
+    cut_w = int(width * (1.0 - lam) ** 0.5)
+    cy = int(rng.integers(0, height))
+    cx = int(rng.integers(0, width))
+    y1, y2 = max(0, cy - cut_h // 2), min(height, cy + cut_h // 2)
+    x1, x2 = max(0, cx - cut_w // 2), min(width, cx + cut_w // 2)
+    inputs[:, :, y1:y2, x1:x2] = inputs[perm][:, :, y1:y2, x1:x2]
+    lam_adjusted = 1.0 - ((y2 - y1) * (x2 - x1)) / float(height * width)
+    return inputs, labels[perm], lam_adjusted
+
+
 def _apply_mixup(inputs, labels, alpha, rng):
     """Batch-level mixup [src: Zhang18 arXiv:1710.09412]; returns mixed inputs,
     permuted labels, and the mixing coefficient."""
@@ -439,6 +468,13 @@ def main(args):
     cutout_rng = None
     if args.cutout_size > 0:
         cutout_rng = np.random.default_rng(site_seed + 40521)
+    cutmix_rng = None
+    if args.cutmix_alpha > 0:
+        if args.mixup_alpha > 0:
+            raise ValueError("cutmix_alpha and mixup_alpha are mutually exclusive")
+        cutmix_rng = np.random.default_rng(site_seed + 60817)
+    if args.local_swa_steps > 0 and args.scaffold:
+        raise ValueError("local_swa_steps is not supported with SCAFFOLD control updates")
 
     print(f"Creating datasets for site={site_name}")
     train_dataset, valid_dataset = create_datasets(
@@ -547,6 +583,24 @@ def main(args):
         steps = args.local_train_steps if args.local_train_steps > 0 else args.aggregation_epochs * train_batches
         curr_lr = get_lr_values(optimizer)[0]
 
+        swa_accum = {}
+        swa_count = 0
+        round_step = 0
+        swa_start_step = max(steps - args.local_swa_steps, 0) if args.local_swa_steps > 0 else steps
+
+        def _swa_track():
+            nonlocal round_step, swa_count
+            round_step += 1
+            if args.local_swa_steps <= 0 or round_step <= swa_start_step:
+                return
+            swa_count += 1
+            with torch.no_grad():
+                for key, value in model.state_dict().items():
+                    if key in swa_accum:
+                        swa_accum[key] += value
+                    else:
+                        swa_accum[key] = value.clone().float()
+
         if args.local_train_steps > 0:
             model.train()
             running_loss = 0.0
@@ -567,6 +621,8 @@ def main(args):
                 mixup_lam = 1.0
                 if mixup_rng is not None:
                     inputs, mixup_labels, mixup_lam = _apply_mixup(inputs, labels, args.mixup_alpha, mixup_rng)
+                elif cutmix_rng is not None:
+                    inputs, mixup_labels, mixup_lam = _apply_cutmix(inputs, labels, args.cutmix_alpha, cutmix_rng)
 
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(inputs)
@@ -606,6 +662,7 @@ def main(args):
                 if args.grad_clip_norm > 0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                 optimizer.step()
+                _swa_track()
 
                 curr_lr = get_lr_values(optimizer)[0]
                 if args.scaffold:
@@ -656,6 +713,8 @@ def main(args):
                     mixup_lam = 1.0
                     if mixup_rng is not None:
                         inputs, mixup_labels, mixup_lam = _apply_mixup(inputs, labels, args.mixup_alpha, mixup_rng)
+                    elif cutmix_rng is not None:
+                        inputs, mixup_labels, mixup_lam = _apply_cutmix(inputs, labels, args.cutmix_alpha, cutmix_rng)
 
                     optimizer.zero_grad(set_to_none=True)
                     outputs = model(inputs)
@@ -695,6 +754,7 @@ def main(args):
                     if args.grad_clip_norm > 0:
                         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
                     optimizer.step()
+                    _swa_track()
 
                     curr_lr = get_lr_values(optimizer)[0]
                     if args.scaffold:
@@ -731,6 +791,15 @@ def main(args):
 
                 if scheduler is not None:
                     scheduler.step()
+
+        if args.local_swa_steps > 0 and swa_count > 0:
+            # Tail-average of the local trajectory before the DIFF upload
+            # [src: Izmailov18 SWA arXiv:1803.05407, Caldarola22 arXiv:2203.11834].
+            reference = model.state_dict()
+            averaged = {
+                key: (value / swa_count).to(dtype=reference[key].dtype) for key, value in swa_accum.items()
+            }
+            model.load_state_dict(averaged, strict=True)
 
         if args.scaffold:
             scaffold_local_controls, scaffold_ctrl_diff = _update_scaffold_controls(

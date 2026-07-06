@@ -210,6 +210,18 @@ def define_parser():
         default=0.0,
         help="R-Drop symmetric-KL coefficient between two client dropout passes. 0 disables it.",
     )
+    parser.add_argument(
+        "--cutmix_alpha",
+        type=float,
+        default=0.0,
+        help="Beta(alpha, alpha) CutMix coefficient for client batches; mutually exclusive with mixup. 0 disables it.",
+    )
+    parser.add_argument(
+        "--local_swa_steps",
+        type=int,
+        default=0,
+        help="Average client weights over the last N local steps of each round before the DIFF upload. 0 disables it.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -452,6 +464,10 @@ def main():
         args.feddecorr_beta,
         "--rdrop_alpha",
         args.rdrop_alpha,
+        "--cutmix_alpha",
+        args.cutmix_alpha,
+        "--local_swa_steps",
+        args.local_swa_steps,
     ]
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
