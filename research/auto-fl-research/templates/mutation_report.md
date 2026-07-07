@@ -196,6 +196,19 @@ momentum 0.32; steps 950; client lr 0.06 / mom 0.9 / wd 2.8e-4;
 floor 1e-4; prox 1e-4; label smoothing 0.05; mixup 0.1; R-Drop 0.3.
 Literature keepers so far: mixup (loop 1), R-Drop (loop 5).
 
+## Literature loop 7 outcome (batches 128-129)
+
+Trigger: watchdog 32/32. Selected the never-explored client optimizer
+family (Wang21 arXiv:2106.02305, Loshchilov17 arXiv:1711.05101).
+
+- Client AdamW: **discarded** (lr 1e-3 -> 0.8549, lr 3e-4 -> 0.8754) —
+  uncorrected local adaptivity biases the aggregate exactly as Wang21
+  predicts; SGD-momentum stays.
+- Nesterov SGD: **discarded** (0.9092), clean null.
+
+Determinism audit (batch 126): an arg-identical re-run of the best config
+reproduced 0.9167 exactly.
+
 ## Next mutation
 
-Micro-rotation on watchdog cadence; literature loop 7 when it fires.
+Micro-rotation on watchdog cadence; literature loop 8 when it fires.
