@@ -174,6 +174,18 @@ def build_parser():
         help="Average model weights over the last N local steps of each round before the DIFF upload. 0 disables it.",
     )
     parser.add_argument(
+        "--client_optimizer",
+        type=str,
+        default="sgd",
+        choices=["sgd", "adamw"],
+        help="Local optimizer family. adamw uses decoupled weight decay; retune --lr when switching.",
+    )
+    parser.add_argument(
+        "--nesterov",
+        action="store_true",
+        help="Use Nesterov momentum for the local SGD optimizer.",
+    )
+    parser.add_argument(
         "--scaffold",
         action="store_true",
         help="Enable SCAFFOLD control-variate correction using FLModel meta.",
@@ -450,12 +462,22 @@ def main(args):
         f"params={count_parameters(model):,} max_model_params={args.max_model_params:,}"
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    optimizer = optim.SGD(
-        model.parameters(),
-        lr=args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
-    )
+    if args.client_optimizer == "adamw":
+        # Local adaptive optimizer [src: Loshchilov17 arXiv:1711.05101,
+        # Wang21 local adaptivity arXiv:2106.02305].
+        optimizer = optim.AdamW(
+            model.parameters(),
+            lr=args.lr,
+            weight_decay=args.weight_decay,
+        )
+    else:
+        optimizer = optim.SGD(
+            model.parameters(),
+            lr=args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay,
+            nesterov=args.nesterov,
+        )
 
     scheduler = None
     criterion_prox = None

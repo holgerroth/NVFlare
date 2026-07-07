@@ -222,6 +222,18 @@ def define_parser():
         default=0,
         help="Average client weights over the last N local steps of each round before the DIFF upload. 0 disables it.",
     )
+    parser.add_argument(
+        "--client_optimizer",
+        type=str,
+        default="sgd",
+        choices=["sgd", "adamw"],
+        help="Client optimizer family. adamw uses decoupled weight decay; retune --lr when switching.",
+    )
+    parser.add_argument(
+        "--nesterov",
+        action="store_true",
+        help="Use Nesterov momentum for the client SGD optimizer.",
+    )
 
     parser.add_argument(
         "--aggregator",
@@ -468,7 +480,11 @@ def main():
         args.cutmix_alpha,
         "--local_swa_steps",
         args.local_swa_steps,
+        "--client_optimizer",
+        args.client_optimizer,
     ]
+    if args.nesterov:
+        train_args.append("--nesterov")
     if args.no_lr_scheduler:
         train_args.append("--no_lr_scheduler")
     if args.evaluate_local:
