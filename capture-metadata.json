@@ -1,0 +1,20 @@
+{
+  "commit": "af89b73cbdbdceeb19779618ccd3fa4639731550",
+  "captures": [
+    {
+      "file": "01-registration-organization-error.png",
+      "description": "Registration: the organization error is displayed inline, with the rejected value retained and the field editable.",
+      "type": "browser page screenshot"
+    },
+    {
+      "file": "02-registration-corrected.png",
+      "description": "After correcting the organization, registration succeeds without restarting the form.",
+      "type": "browser page screenshot"
+    },
+    {
+      "file": "03-server-name-error.png",
+      "description": "Server configuration: an invalid hostname produces an inline error and remains editable.",
+      "type": "browser page screenshot"
+    }
+  ]
+}
