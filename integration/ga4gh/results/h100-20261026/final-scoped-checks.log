@@ -1,0 +1,26 @@
+PYTHONPATH is /repo:
+running command: 
+        check_style_type_import integration/ga4gh
+                 
+Skipping dependency installation
+black-check
+All done! ✨ 🍰 ✨
+23 files would be left unchanged.
+passed!
+Done with black code style checks on integration/ga4gh
+isort-check
+passed!
+flake8
+7.1.1 (mccabe: 0.7.0, pycodestyle: 2.12.1, pyflakes: 3.2.0) CPython 3.12.15 on
+Linux
+0
+passed!
+Done
+..............................................                           [100%]
+=============================== warnings summary ===============================
+../../usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+46 passed, 1 warning in 2.46s

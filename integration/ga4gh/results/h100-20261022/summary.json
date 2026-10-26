@@ -1,0 +1,420 @@
+{
+  "scope": "end-to-end",
+  "rounds": 3,
+  "nvflare_version": "2.9.0",
+  "tes_protocol_fixture": false,
+  "runs": {
+    "direct": {
+      "job_id": "39d96cf1-b5a7-4da7-9018-99b6f4ae8896",
+      "model": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 18.234221883118153,
+      "submission_token_reused": true
+    },
+    "wes": {
+      "run_id": "aca652ac96d141beaca491c19d9af066",
+      "job_id": "2a45f01d-7ff8-4355-865b-54535628eeab",
+      "state": "COMPLETE",
+      "model": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 21.760888491757214
+    },
+    "mixed": {
+      "run_id": "a8b70e7ab2bd4e9db05a178ab7532a47",
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "state": "COMPLETE",
+      "model": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 20.589077508077025
+    }
+  },
+  "cancellation": {
+    "early": "CANCELED",
+    "running": "CANCELED"
+  },
+  "provenance": {
+    "label": "H100-r1u14-CPU-validation",
+    "started_utc": "2026-10-22T15:40:49.108858+00:00",
+    "python": "3.12.15",
+    "platform": "Linux-6.8.0-51-generic-x86_64-with-glibc2.41",
+    "nvflare_module": "/usr/local/lib/python3.12/site-packages/nvflare/__init__.py",
+    "packages": {
+      "nvflare": "2.9.0",
+      "fastapi": "0.159.1",
+      "starlette": "1.9.0",
+      "httpx": "0.28.1",
+      "numpy": "2.5.4"
+    },
+    "source_sha256": {
+      "examples/client.py": "f7edc5652264659ac58a35c901c5242e0c41437d2765b6b6367ade9630f62a35",
+      "examples/job.py": "a1fbcd0e37bfff6e888e6117d251fa75424791d44731ff73aec314c8d6d9c81e",
+      "ga4gh_bridge/__init__.py": "1d6b7671b9b28115f8fb8a9b531d963e81446188dcfffd30ce1f9dcda84463d0",
+      "ga4gh_bridge/analysis.py": "8518f7dfbbc9c60925037c4b30531e1019bae6fd8006e3b9af8879fa965d0161",
+      "ga4gh_bridge/app.py": "44d9f8164eeb98ad96a6e8351e6882468c0ce3e47b59e9d4c5a8c279b9654eeb",
+      "ga4gh_bridge/archive.py": "69919af3011c570502919fb797710a7caac5d565a451cc7fe1d8634f0fee49c3",
+      "ga4gh_bridge/backend.py": "709ba04e107255b655a5a376d57a8ae2931f7ecfe0502e05338c764701701da3",
+      "ga4gh_bridge/config.py": "254895b65e8315e4b070a8c842088d2abf24596d7a647c309af3a300b045321d",
+      "ga4gh_bridge/report.py": "c7b28828bb93125941948e9cac9c8f6b622f0b6b646bde30d9b0fd9c42e61a69",
+      "ga4gh_bridge/service.py": "d9b5f49c4a1bbc479b6f2f9674985d48a271e23034a02420ef15eee82dfb0691",
+      "ga4gh_bridge/store.py": "7369b789f80cbb7ce3be9ba7a7f08a393866f45f1558d211838858236f7ad031",
+      "ga4gh_bridge/tes.py": "b7317d8d646a8ac5f9298e22744f2e32ddce3e6fd35d95b1fd24c7933e4f1939",
+      "tests/backend_test.py": "3b4f23c55819024f2f24685874981a75fe0ee11364f4ad4327596a6d0f520c7a",
+      "tests/conftest.py": "e71e6fed7c166b13a96acafacbc645b874d8d74d8438c1aadafb7aefa0a1cb39",
+      "tests/poc_smoke.py": "91b7107b04bd97b64af3fdb177ecc84f539ea0eedfe1fce1c5848ff6f6038959",
+      "tests/report_test.py": "f7e37c32df99a35d3c595c529e21a63f647223078a120a739b70c5d2d1bcb77a",
+      "tests/tes_fixture.py": "18bc10ae27da850012482e5ca1c4b85eb31ac35572750f56e734ad6a571f5aeb",
+      "tests/tes_test.py": "ce8fc84371c567387b6d11636660ce8780ddd1f4f210a1583088426ff141bc5d",
+      "tests/wes_test.py": "cce41ce6da357421fdd59557d9b2350a9c5f633cd2cb75946238f6906ff4ee96",
+      "validation/funnel_run.py": "032b6c76e7690b76f0e3a4f10dd71972c8c298299dda03df9c71343492801e66"
+    },
+    "finished_utc": "2026-10-22T15:42:26.680119+00:00",
+    "funnel_version": "git commit:   2e54ad74\ngit branch:   v0.11.14\ngit upstream: https://github.com/calypr/funnel\nbuild date:   2026-06-11T21:28:40Z\nversion:      0.11.14",
+    "docker_version": "29.4.0",
+    "tes_image": "python:3.12-slim",
+    "tes_image_id": "sha256:a33c10a97f11005523814c6eee013986119fe41f3122f444518117536675c8e1",
+    "tes_container_network": "none",
+    "task_container_label": "ga4gh-validation=2414f48fba0840c58059dd5f0d5b2ad8",
+    "remaining_task_containers": 0,
+    "runner_exit_code": 0
+  },
+  "restart_recovered": true,
+  "site_rounds": [
+    {
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-1",
+      "task": "train",
+      "round": "1",
+      "mode": "tes",
+      "input": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "output": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "elapsed_seconds": 1.019040746614337
+    },
+    {
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-1",
+      "task": "train",
+      "round": "0",
+      "mode": "tes",
+      "input": [
+        [
+          1.0,
+          2.0,
+          3.0
+        ],
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ]
+      ],
+      "output": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "elapsed_seconds": 1.0409425050020218
+    },
+    {
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-2",
+      "task": "train",
+      "round": "0",
+      "mode": "local",
+      "input": [
+        [
+          1.0,
+          2.0,
+          3.0
+        ],
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ]
+      ],
+      "output": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "elapsed_seconds": 0.0001684548333287239
+    },
+    {
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-2",
+      "task": "train",
+      "round": "1",
+      "mode": "local",
+      "input": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "output": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "elapsed_seconds": 0.0003556981682777405
+    },
+    {
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-2",
+      "task": "train",
+      "round": "2",
+      "mode": "local",
+      "input": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "output": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 0.0003366796299815178
+    },
+    {
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-1",
+      "task": "train",
+      "round": "2",
+      "mode": "tes",
+      "input": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "output": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 1.0184662649407983
+    }
+  ],
+  "tes_tasks": [
+    {
+      "id": "dbd2tk9sdfhu95cftipg",
+      "state": "COMPLETE",
+      "job_id": "78de3211-ccea-471d-af44-5442b9573d8d",
+      "site": "site-1",
+      "task": "train",
+      "round": "0"
+    },
+    {
+      "id": "dbd2tf9sdfhu95cftiog",
+      "state": "COMPLETE",
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-1",
+      "task": "train",
+      "round": "1"
+    },
+    {
+      "id": "dbd2te9sdfhu95cftio0",
+      "state": "COMPLETE",
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-1",
+      "task": "train",
+      "round": "0"
+    },
+    {
+      "id": "dbd2tg1sdfhu95cftip0",
+      "state": "COMPLETE",
+      "job_id": "a1178dfd-8b29-4ee4-973a-2837dd12aec1",
+      "site": "site-1",
+      "task": "train",
+      "round": "2"
+    },
+    {
+      "id": "dbd2tmpsdfhu95cftiq0",
+      "state": "CANCELED",
+      "purpose": "running cancellation probe"
+    }
+  ],
+  "tes_cancel_probe": "CANCELED"
+}

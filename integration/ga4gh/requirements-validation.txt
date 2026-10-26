@@ -1,0 +1,3 @@
+-r requirements-dev.txt
+# Optional plotting dependencies; not needed by the adapter or ordinary clients.
+matplotlib>=3.8,<4

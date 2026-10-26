@@ -1,0 +1,36 @@
+flowchart TB
+    Recipe[Standard FedAvgRecipe]
+    subgraph Coordinator[Federation coordinator]
+        Server[NVFLARE server]
+    end
+    Recipe -->|Normal NVFLARE job execution| Server
+    subgraph OwnerA[Data owner A: on premises or approved cloud]
+        ClientA[NVFLARE client.py at site 1]
+        WES[Existing GA4GH WES service]
+        Workflow[Site workflow and analysis workers]
+        DataA[(Institution A data)]
+        ClientA <-->|Submit / monitor / outputs / cancel| WES
+        WES -->|Execute CWL workflow| Workflow
+        DataA -->|Authorized site data access| Workflow
+    end
+    subgraph OwnerB[Data owner B: on premises or approved cloud]
+        ClientB[NVFLARE client.py at site 2]
+        Local[Local calculation]
+        DataB[(Institution B data)]
+        ClientB <-->|Calculate / result| Local
+        DataB -->|Authorized site data access| Local
+    end
+    Server <-->|Tasks / validated results| ClientA
+    Server <-->|Tasks / validated results| ClientB
+    classDef ga4gh fill:#E8F1FF,stroke:#2563EB,color:#123C7A,stroke-width:2px
+    classDef nvflare fill:#EAF6D8,stroke:#5B8C00,color:#254400,stroke-width:2px
+    classDef neutral fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    class WES ga4gh
+    class Recipe,Server,ClientA,ClientB nvflare
+    class Workflow,Local,DataA,DataB neutral
+    style Coordinator fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    style OwnerA fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    style OwnerB fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    linkStyle default stroke:#6B7280,color:#374151
+    linkStyle 1,2 stroke:#2563EB,color:#123C7A
+    linkStyle 0,6,7 stroke:#5B8C00,color:#254400

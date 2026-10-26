@@ -1,0 +1,44 @@
+flowchart TB
+    Platform[Researcher / research platform]
+
+    subgraph Coordinator[Coordinator / platform: on-premises or approved cloud]
+        App[app.py: WES request validation]
+        Service[service.py: WES job lifecycle]
+        Store[(store.py: WES run state)]
+        Backend[backend.py: Session API]
+        Server[NVFLARE server]
+        App --> Service
+        Service <-->|Persist run state| Store
+        Service --> Backend
+        Backend --> Server
+    end
+
+    subgraph Owner[Data owner: on-premises or approved cloud]
+        Client[examples/client.py: Client API]
+        Local[analysis.calculate]
+        Runner[tes.py: TesRunner called inside client.py]
+        TES[Institution-operated or approved TES service]
+        Container[Analysis container on institution compute]
+        Client -->|Local mode| Local
+        Client -->|TES mode| Runner
+        Runner <-->|TES HTTP requests| TES
+        TES -->|Launch and monitor| Container
+        Local -->|Result| Client
+        Container -->|Site staging: output.json| Runner
+        Runner -->|Result for client validation| Client
+    end
+
+    Platform <-->|WES submission / status / outputs| App
+    Server <-->|Federation tasks / model updates| Client
+
+    classDef ga4gh fill:#E8F1FF,stroke:#2563EB,color:#123C7A,stroke-width:2px
+    classDef nvflare fill:#EAF6D8,stroke:#5B8C00,color:#254400,stroke-width:2px
+    classDef neutral fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    class App,Service,Store,Runner,TES ga4gh
+    class Backend,Server,Client nvflare
+    class Platform,Local,Container neutral
+    style Coordinator fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    style Owner fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    linkStyle default stroke:#6B7280,color:#374151
+    linkStyle 0,1,5,6,7,9,10,11 stroke:#2563EB,color:#123C7A
+    linkStyle 2,3,12 stroke:#5B8C00,color:#254400

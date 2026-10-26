@@ -1,0 +1,429 @@
+{
+  "scope": "client-wes",
+  "rounds": 3,
+  "nvflare_version": "2.9.0",
+  "runs": {
+    "local": {
+      "model": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 17.183624000288546,
+      "job_id": "simulate_job"
+    },
+    "client_wes": {
+      "model": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 29.214644948020577,
+      "job_id": "simulate_job"
+    }
+  },
+  "provenance": {
+    "started_utc": "2026-10-26T17:22:06.181044+00:00",
+    "python": "3.12.15",
+    "platform": "Linux-6.8.0-51-generic-x86_64-with-glibc2.41",
+    "packages": {
+      "nvflare": "2.9.0",
+      "httpx": "0.28.1",
+      "numpy": "2.5.4"
+    },
+    "nvflare_module": "/usr/local/lib/python3.12/site-packages/nvflare/__init__.py",
+    "source_sha256": {
+      "examples/client.py": "95b7357b563dee7a40f7e5913bcafe40d9867e174b9cdda1c44538d61994ff2d",
+      "examples/job.py": "ebfa142479d5bf39ccec89ac831bb7a35efaddd82127a7621027f2d11702dd8b",
+      "examples/site-workflow.cwl": "09ea99b8eb61dd73e8202a7e36aac47e319a7d14ab7ca57f76d65901ee70a1c6",
+      "ga4gh_bridge/__init__.py": "1d6b7671b9b28115f8fb8a9b531d963e81446188dcfffd30ce1f9dcda84463d0",
+      "ga4gh_bridge/analysis.py": "8518f7dfbbc9c60925037c4b30531e1019bae6fd8006e3b9af8879fa965d0161",
+      "ga4gh_bridge/app.py": "565dfc3385503703a977e074977917229b9736da5bb9dd04f9cfad41ff4516fd",
+      "ga4gh_bridge/archive.py": "69919af3011c570502919fb797710a7caac5d565a451cc7fe1d8634f0fee49c3",
+      "ga4gh_bridge/backend.py": "709ba04e107255b655a5a376d57a8ae2931f7ecfe0502e05338c764701701da3",
+      "ga4gh_bridge/config.py": "254895b65e8315e4b070a8c842088d2abf24596d7a647c309af3a300b045321d",
+      "ga4gh_bridge/report.py": "0836fc16289a97a26a5995ee3fe658b916698d6cab9b9454380ef23bf2e2eb89",
+      "ga4gh_bridge/service.py": "d9b5f49c4a1bbc479b6f2f9674985d48a271e23034a02420ef15eee82dfb0691",
+      "ga4gh_bridge/store.py": "7369b789f80cbb7ce3be9ba7a7f08a393866f45f1558d211838858236f7ad031",
+      "ga4gh_bridge/tes.py": "b7317d8d646a8ac5f9298e22744f2e32ddce3e6fd35d95b1fd24c7933e4f1939",
+      "ga4gh_bridge/wes.py": "29191ef69e16560c4cef2d957e6fa4e3f1f2515fa2169b0ddf5e59e76ed765a1",
+      "tests/backend_test.py": "3b4f23c55819024f2f24685874981a75fe0ee11364f4ad4327596a6d0f520c7a",
+      "tests/client_wes_test.py": "645baf9f77630179d1b1af74c5120895bfb6bb8a524618520bfc7cc6a72e1098",
+      "tests/conftest.py": "e71e6fed7c166b13a96acafacbc645b874d8d74d8438c1aadafb7aefa0a1cb39",
+      "tests/poc_smoke.py": "4d350770d3d41903205972c1915d47dee3ff15b54ceaedeb8430233b31f16ebb",
+      "tests/report_test.py": "488cc5a8cb4856439afd9eb54d39879a0d3941741e77f61becf7b65f5ad19af8",
+      "tests/tes_fixture.py": "18bc10ae27da850012482e5ca1c4b85eb31ac35572750f56e734ad6a571f5aeb",
+      "tests/tes_test.py": "ce8fc84371c567387b6d11636660ce8780ddd1f4f210a1583088426ff141bc5d",
+      "tests/wes_test.py": "cce41ce6da357421fdd59557d9b2350a9c5f633cd2cb75946238f6906ff4ee96",
+      "validation/client_wes_run.py": "59510c3387a27f6736528554991356f57a3e519c604a098eb530ab42dd4e4d4a",
+      "validation/funnel_run.py": "032b6c76e7690b76f0e3a4f10dd71972c8c298299dda03df9c71343492801e66"
+    },
+    "wes_service_info": {
+      "default_workflow_engine_parameters": [
+        {
+          "default_value": null,
+          "name": "--no-container"
+        },
+        {
+          "default_value": "1",
+          "name": "--maxCores"
+        },
+        {
+          "default_value": "256Mi",
+          "name": "--defaultMemory"
+        },
+        {
+          "default_value": "256Mi",
+          "name": "--defaultDisk"
+        }
+      ],
+      "supported_filesystem_protocols": [
+        "file",
+        "http",
+        "https"
+      ],
+      "supported_wes_versions": [
+        "1.0.0"
+      ],
+      "system_state_counts": {},
+      "tags": {
+        "wes_dialect": "standard"
+      },
+      "version": "9.6.0",
+      "workflow_engine_versions": {
+        "toil": "9.6.0"
+      },
+      "workflow_type_versions": {
+        "cwl": {
+          "workflow_type_version": [
+            "v1.0",
+            "v1.1",
+            "v1.2"
+          ]
+        },
+        "py": {
+          "workflow_type_version": [
+            "3.10",
+            "3.11",
+            "3.12",
+            "3.13",
+            "3.14"
+          ]
+        },
+        "wdl": {
+          "workflow_type_version": [
+            "draft-2",
+            "1.0"
+          ]
+        }
+      }
+    },
+    "finished_utc": "2026-10-26T17:23:05.789792+00:00"
+  },
+  "site_rounds": [
+    {
+      "job_id": "simulate_job",
+      "site": "site-2",
+      "task": "train",
+      "round": "2",
+      "mode": "local",
+      "input": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "output": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 0.0003438657149672508
+    },
+    {
+      "job_id": "simulate_job",
+      "site": "site-1",
+      "task": "train",
+      "round": "1",
+      "mode": "wes",
+      "input": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "output": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "elapsed_seconds": 4.057579459622502
+    },
+    {
+      "job_id": "simulate_job",
+      "site": "site-2",
+      "task": "train",
+      "round": "0",
+      "mode": "local",
+      "input": [
+        [
+          1.0,
+          2.0,
+          3.0
+        ],
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ]
+      ],
+      "output": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "elapsed_seconds": 0.00016392674297094345
+    },
+    {
+      "job_id": "simulate_job",
+      "site": "site-1",
+      "task": "train",
+      "round": "0",
+      "mode": "wes",
+      "input": [
+        [
+          1.0,
+          2.0,
+          3.0
+        ],
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ]
+      ],
+      "output": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "elapsed_seconds": 4.084795396775007
+    },
+    {
+      "job_id": "simulate_job",
+      "site": "site-2",
+      "task": "train",
+      "round": "1",
+      "mode": "local",
+      "input": [
+        [
+          2.0,
+          3.0,
+          4.0
+        ],
+        [
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          8.0,
+          9.0,
+          10.0
+        ]
+      ],
+      "output": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "elapsed_seconds": 0.00037418119609355927
+    },
+    {
+      "job_id": "simulate_job",
+      "site": "site-1",
+      "task": "train",
+      "round": "2",
+      "mode": "wes",
+      "input": [
+        [
+          3.0,
+          4.0,
+          5.0
+        ],
+        [
+          6.0,
+          7.0,
+          8.0
+        ],
+        [
+          9.0,
+          10.0,
+          11.0
+        ]
+      ],
+      "output": [
+        [
+          4.0,
+          5.0,
+          6.0
+        ],
+        [
+          7.0,
+          8.0,
+          9.0
+        ],
+        [
+          10.0,
+          11.0,
+          12.0
+        ]
+      ],
+      "elapsed_seconds": 4.065323188900948
+    }
+  ],
+  "run_reused": true,
+  "wes_runs": [
+    {
+      "job_id": "simulate_job",
+      "site": "site-1",
+      "task": "train",
+      "round": "1",
+      "id": "run-ca4abff3b15e4202b42fa3ed3d2c92f1",
+      "state": "COMPLETE"
+    },
+    {
+      "job_id": "simulate_job",
+      "site": "site-1",
+      "task": "train",
+      "round": "0",
+      "id": "run-83529b7137b64bc3b08a187539155559",
+      "state": "COMPLETE"
+    },
+    {
+      "job_id": "simulate_job",
+      "site": "site-1",
+      "task": "train",
+      "round": "2",
+      "id": "run-e50ce8f82aa4490f94995e131e529735",
+      "state": "COMPLETE"
+    }
+  ],
+  "wes_cancel_probe": "CANCELED"
+}

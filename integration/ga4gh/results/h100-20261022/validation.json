@@ -1,0 +1,190 @@
+{
+  "passed": true,
+  "absolute_tolerance": 1e-06,
+  "checks": [
+    {
+      "name": "Direct hello-numpy: expected final array",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "WES hello-numpy: expected final array",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "WES + TES / local: expected final array",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "WES hello-numpy: equals direct result",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "WES + TES / local: equals direct result",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Exactly 6 site/round traces",
+      "passed": true
+    },
+    {
+      "name": "Round 1: site-1 used tes",
+      "passed": true
+    },
+    {
+      "name": "Round 1: site-1 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: site-1 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: site-2 used local",
+      "passed": true
+    },
+    {
+      "name": "Round 1: site-2 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: site-2 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: TES equals local",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-1 used tes",
+      "passed": true
+    },
+    {
+      "name": "Round 2: site-1 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-1 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-2 used local",
+      "passed": true
+    },
+    {
+      "name": "Round 2: site-2 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-2 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: TES equals local",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-1 used tes",
+      "passed": true
+    },
+    {
+      "name": "Round 3: site-1 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-1 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-2 used local",
+      "passed": true
+    },
+    {
+      "name": "Round 3: site-2 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-2 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: TES equals local",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: one completed TES task for the mixed job",
+      "passed": true
+    },
+    {
+      "name": "Round 2: one completed TES task for the mixed job",
+      "passed": true
+    },
+    {
+      "name": "Round 3: one completed TES task for the mixed job",
+      "passed": true
+    },
+    {
+      "name": "All recorded TES tasks reached a terminal state",
+      "passed": true
+    },
+    {
+      "name": "WES cancellation: early",
+      "passed": true
+    },
+    {
+      "name": "WES cancellation: running",
+      "passed": true
+    },
+    {
+      "name": "WES restart retained the NVFLARE job",
+      "passed": true
+    },
+    {
+      "name": "Real TES running-task cancellation",
+      "passed": true
+    },
+    {
+      "name": "Runner completed without errors",
+      "passed": true
+    }
+  ]
+}

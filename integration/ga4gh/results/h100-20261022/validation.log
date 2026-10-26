@@ -1,0 +1,7 @@
+Connecting to FLARE ...
+Direct hello-numpy and submission-token reuse completed
+Live HTTP WES hello-numpy completed
+Live HTTP WES ga4gh-numpy completed
+WES early cancellation: CANCELED
+WES running cancellation: CANCELED
+PASS: /scratch/hroth/Code/nvflare/ga4gh-validation-20261022-01/output-03/run/report/index.html

@@ -1,0 +1,13 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+wes-state/
+build/
+dist/
+# Retained synthetic validation evidence.
+!results/h100-20261022/unit-tests.log
+!results/h100-20261022/validation.log
+!results/h100-20261026/final-checks.log
+!results/h100-20261026/final-scoped-checks.log
+!results/h100-20261026/validation.log

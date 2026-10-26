@@ -1,0 +1,5 @@
+Completed local: [[4.0, 5.0, 6.0], [7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+Completed client_wes: [[4.0, 5.0, 6.0], [7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+ask to abort job: reason: validation abort
+Active WES workflow canceled through NVFLARE Client API abort detection
+PASS: /out/run-03/report/index.html

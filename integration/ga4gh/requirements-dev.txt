@@ -1,0 +1,9 @@
+-r requirements-adapter.txt
+pytest>=8
+jsonschema>=4.22
+PyYAML>=6
+# The smoke test also runs the upstream hello-numpy client with experiment tracking.
+tensorboard>=2.12
+black==25.9.0
+isort==5.13.2
+flake8==7.1.1

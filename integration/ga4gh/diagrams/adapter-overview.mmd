@@ -1,0 +1,43 @@
+flowchart TB
+    Platform[Researcher / research platform]
+
+    subgraph Coordinator[Coordinator / platform: on-premises or approved cloud]
+        WES[GA4GH WES adapter]
+        Server[NVFLARE server]
+        WES -->|Administrative Session API| Server
+    end
+
+    subgraph OwnerA[Data owner A: on-premises or approved cloud]
+        Site1[NVFLARE client.py at site-1]
+        TES[GA4GH TES service]
+        Container[Analysis container on site compute]
+        DataA[(Institution A data)]
+        Site1 <-->|TES requests / task results| TES
+        TES -->|Launch and monitor| Container
+        DataA -->|Site data access| Container
+    end
+
+    subgraph OwnerB[Data owner B: on-premises or approved cloud]
+        Site2[NVFLARE client.py at site-2]
+        Local[Local calculation]
+        DataB[(Institution B data)]
+        Site2 <-->|Calculate / return result| Local
+        DataB -->|Site data access| Local
+    end
+
+    Platform <-->|WES submission / status / outputs| WES
+    Server <-->|Federation tasks / model updates| Site1
+    Server <-->|Federation tasks / model updates| Site2
+
+    classDef ga4gh fill:#E8F1FF,stroke:#2563EB,color:#123C7A,stroke-width:2px
+    classDef nvflare fill:#EAF6D8,stroke:#5B8C00,color:#254400,stroke-width:2px
+    classDef neutral fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    class WES,TES ga4gh
+    class Server,Site1,Site2 nvflare
+    class Platform,Container,Local,DataA,DataB neutral
+    style Coordinator fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    style OwnerA fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    style OwnerB fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    linkStyle default stroke:#6B7280,color:#374151
+    linkStyle 1,2,6 stroke:#2563EB,color:#123C7A
+    linkStyle 0,7,8 stroke:#5B8C00,color:#254400

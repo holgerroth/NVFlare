@@ -1,0 +1,174 @@
+{
+  "passed": true,
+  "absolute_tolerance": 1e-06,
+  "checks": [
+    {
+      "name": "Local recipe: expected final array",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Client WES / local: expected final array",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Client WES / local: equals baseline result",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Exactly 6 site/round traces",
+      "passed": true
+    },
+    {
+      "name": "Round 1: site-1 used wes",
+      "passed": true
+    },
+    {
+      "name": "Round 1: site-1 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: site-1 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: site-2 used local",
+      "passed": true
+    },
+    {
+      "name": "Round 1: site-2 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: site-2 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: WES equals local",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-1 used wes",
+      "passed": true
+    },
+    {
+      "name": "Round 2: site-1 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-1 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-2 used local",
+      "passed": true
+    },
+    {
+      "name": "Round 2: site-2 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: site-2 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 2: WES equals local",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-1 used wes",
+      "passed": true
+    },
+    {
+      "name": "Round 3: site-1 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-1 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-2 used local",
+      "passed": true
+    },
+    {
+      "name": "Round 3: site-2 input",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: site-2 output",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 3: WES equals local",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "rmse": 0.0
+    },
+    {
+      "name": "Round 1: one completed WES operation for the mixed job",
+      "passed": true
+    },
+    {
+      "name": "Round 2: one completed WES operation for the mixed job",
+      "passed": true
+    },
+    {
+      "name": "Round 3: one completed WES operation for the mixed job",
+      "passed": true
+    },
+    {
+      "name": "All recorded remote operations reached a terminal state",
+      "passed": true
+    },
+    {
+      "name": "Exactly one site WES run per round",
+      "passed": true
+    },
+    {
+      "name": "Recorded WES run reused after reopening client",
+      "passed": true
+    },
+    {
+      "name": "Client abort canceled active WES workflow",
+      "passed": true
+    },
+    {
+      "name": "Runner completed without errors",
+      "passed": true
+    }
+  ]
+}

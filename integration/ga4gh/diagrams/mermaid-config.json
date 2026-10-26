@@ -1,0 +1,13 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "Arial, Helvetica, sans-serif",
+    "fontSize": "16px",
+    "edgeLabelBackground": "#FFFFFF"
+  },
+  "flowchart": {
+    "htmlLabels": false,
+    "nodeSpacing": 35,
+    "rankSpacing": 48
+  }
+}

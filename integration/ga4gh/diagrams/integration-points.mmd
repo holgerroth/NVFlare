@@ -1,0 +1,37 @@
+flowchart TB
+    Job[examples/job.py: FedAvgRecipe]
+    Server[NVFLARE server]
+    Job -->|Execute or export| Server
+    subgraph Owner[Data owner: on premises or approved cloud]
+        Receive[client.py: flare.receive]
+        Runner[wes.py: WesRunner.run]
+        State[(Durable site run.json)]
+        WES[Existing GA4GH WES service]
+        Workflow[site-workflow.cwl calls analysis.py]
+        Output[WesRunner.read_json_output]
+        Validate[client.py: validate shape and values]
+        Send[client.py: flare.send]
+        Local[Local mode: analysis.calculate]
+        Receive -->|WES mode| Runner
+        Runner <-->|Persist run ID and context| State
+        Runner <-->|WES HTTP requests| WES
+        WES -->|Site workflow execution| Workflow
+        WES -->|Declared result location| Output
+        Workflow -->|JSON output in approved storage| Output
+        Output --> Validate
+        Receive -->|Local mode| Local
+        Local --> Validate
+        Validate --> Send
+    end
+    Server -->|Federation task| Receive
+    Send -->|Validated site result| Server
+    classDef ga4gh fill:#E8F1FF,stroke:#2563EB,color:#123C7A,stroke-width:2px
+    classDef nvflare fill:#EAF6D8,stroke:#5B8C00,color:#254400,stroke-width:2px
+    classDef neutral fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    class Runner,WES,Output ga4gh
+    class Job,Server,Receive,Validate,Send nvflare
+    class State,Workflow,Local neutral
+    style Owner fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    linkStyle default stroke:#6B7280,color:#374151
+    linkStyle 1,3,4,5,6,7 stroke:#2563EB,color:#123C7A
+    linkStyle 0,10,11,12 stroke:#5B8C00,color:#254400

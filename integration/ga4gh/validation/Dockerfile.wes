@@ -1,0 +1,14 @@
+# Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+FROM python:3.12-slim
+RUN python -m venv /opt/wes && /opt/wes/bin/pip install --no-cache-dir 'toil[cwl,server]==9.6.0'
+# Toil's server imports its AWS helpers even when using only local execution.
+RUN /opt/wes/bin/pip install --no-cache-dir 'toil[aws]==9.6.0'
+COPY integration/ga4gh/requirements*.txt /opt/ga4gh/
+RUN python -m pip install --no-cache-dir -r /opt/ga4gh/requirements-validation.txt
+COPY integration/ga4gh /opt/ga4gh
+RUN python -m pip install --no-deps -e /opt/ga4gh
+WORKDIR /opt/ga4gh
+ENV WES_TOIL_BIN=/opt/wes/bin/toil
+ENV MPLCONFIGDIR=/tmp/matplotlib
+ENTRYPOINT ["python", "validation/client_wes_run.py"]
