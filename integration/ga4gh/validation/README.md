@@ -1,7 +1,7 @@
 # Validate the integration with a real TES service
 
 The default smoke test uses a TES protocol fixture. This recipe replaces it with
-[Funnel 0.11.14](https://github.com/calypr/funnel/releases/tag/v0.11.14), running ordinary Python analysis
+[Funnel 0.11.14](https://github.com/calypr/funnel/releases/tag/v0.11.14), running Python analysis
 containers through Docker. The federation still uses the published **NVFLARE 2.9.0** package.
 No GPU is needed, including when running on an H100 host.
 

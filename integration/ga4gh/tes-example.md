@@ -3,7 +3,7 @@
 First complete the [local recipe quickstart](README.md#try-it-locally). Use NVFLARE 2.9.0 on the server and both clients, with this integration installed at each participating site.
 
 
-The example follows the [Gen3 Client API pattern](https://github.com/pcnudde/NVFlare/blob/feat/gen3-study-example/examples/advanced/gen3/client.py#L65). It calls TES from ordinary Python inside an existing client; the TES container runs `analysis.py` and never needs NVFLARE credentials or federation connectivity.
+The example follows the [Gen3 Client API pattern](https://github.com/pcnudde/NVFlare/blob/feat/gen3-study-example/examples/advanced/gen3/client.py#L65). It calls TES from `client.py`; the TES container runs `analysis.py` and never needs NVFLARE credentials or federation connectivity.
 
 At the TES-enabled site, configure these values **before starting its NVFLARE client process**, or supply them through that site's study runtime settings:
 
@@ -41,4 +41,4 @@ outputs in every round, and creates an offline visual report. It also tests runn
 checks that no Docker task containers remain.
 
 The validation runner opts into synthetic traces with `GA4GH_VALIDATION_TRACE_DIR`. These include model
-values and are intended only for this synthetic demonstration; ordinary example execution leaves tracing off.
+values and are intended only for this synthetic demonstration; tracing is disabled by default.

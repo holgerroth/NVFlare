@@ -8,9 +8,9 @@ The primary prototype uses **`FedAvgRecipe` directly** with `framework=Framework
 
 Blue denotes GA4GH interfaces; green denotes NVFLARE. Each data owner operates or approves its execution environment, including any cloud infrastructure. The WES helper runs in the NVFLARE client process; the actual WES service and its workers may run elsewhere within that institution's approved environment.
 
-## 1. Build and execute a normal recipe
+## 1. Build and execute the recipe
 
-[`examples/job.py`](examples/job.py) constructs `FedAvgRecipe` with a NumPy initial model and `train_script` pointing to `client.py`. `--workspace` runs it with two clients in `SimEnv`; `--job-dir` exports it for an existing federation. No custom controller or core NVFLARE changes are required.
+[`examples/job.py`](examples/job.py) constructs `FedAvgRecipe` with a NumPy initial model and `train_script` pointing to `client.py`. `--workspace` runs it with two clients in `SimEnv`; `--job-dir` exports it for an existing federation.
 
 ## 2. Call WES between receive and send
 
@@ -48,7 +48,7 @@ A lost POST response leaves `SUBMISSION_UNKNOWN`, with no blind retry. The opera
 
 ## 5. Return validated results to NVFLARE
 
-WES returns a declared `result` File. The helper retrieves and bounds the JSON output; `client.py` checks shape and finite values before constructing and sending `FLModel`. NVFLARE then aggregates the site results normally. The report verifies the final array and per-round agreement; it does not establish GWAS correctness.
+WES returns a declared `result` File. The helper retrieves and bounds the JSON output; `client.py` checks shape and finite values before constructing and sending `FLModel`. NVFLARE then aggregates the site results. The report verifies the final array and per-round agreement; it does not establish GWAS correctness.
 
 ## Separate optional inbound integration
 

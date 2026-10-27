@@ -12,7 +12,7 @@ both formats when changing a diagram.
 The `adapter-*` assets preserve the separate optional inbound WES architecture used in `inbound-wes.md` and `adapter-integration-points.md`. The main diagrams show the recipe calling an existing site WES service.
 
 Blue identifies GA4GH WES/TES components and connections; green identifies NVFLARE APIs and federation.
-Gray identifies the research platform, data, and ordinary analysis code. Dashed boxes identify operational
+Gray identifies the research platform, data, and analysis code. Dashed boxes identify operational
 ownership: coordinator/platform operator versus each data owner's approved environment. Cloud resources can
 belong inside either boundary; the boxes are not physical host or network boundaries. The overview's data stores
 illustrate the intended deployment, while the synthetic pilot uses arrays.

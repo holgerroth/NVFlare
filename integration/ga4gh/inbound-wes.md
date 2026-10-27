@@ -21,7 +21,7 @@ A motivating use case is a genome-wide association study (GWAS): each institutio
 [View SVG](diagrams/adapter-overview.svg) · [Editable source](diagrams/adapter-overview.mmd)
 
 **Color key:** blue = GA4GH WES/TES integration; green = NVFLARE APIs and federation;
-gray = research platform, data, and ordinary analysis code. Dashed boxes show **operational ownership**, not
+gray = research platform, data, and analysis code. Dashed boxes show **operational ownership**, not
 physical machines. This diagram shows the optional mixed TES/local setup; the quickstart below runs both
 sites locally. The data stores illustrate the intended deployment; the pilot calculates on synthetic arrays.
 
@@ -59,7 +59,7 @@ The WES adapter uses NVFLARE's administrative `Session` API. TES is called from 
 For the implementation details, see the [integration points and code walkthrough](adapter-integration-points.md).
 It traces the API calls, persistent state, site execution, cancellation, and result validation to their source files.
 
-**The workflow format in this pilot is NVFLARE-specific:** WES accepts a ZIP containing an exported NVFLARE job. This demonstrates a standard submission interface; it does not translate CWL or WDL workflows into federated jobs.
+**The workflow format in this pilot is NVFLARE-specific:** WES accepts a ZIP containing an exported NVFLARE job. This demonstrates WES submission; it does not translate CWL or WDL workflows into federated jobs.
 
 ## Try it locally
 
@@ -185,7 +185,7 @@ Keep `$DEMO_DIR` if you want to inspect logs and results. In a persistent deploy
 
 **Another NVFLARE job:** Export the job, ZIP its top-level directory, and submit it as above. Configure `WES_OUTPUT_PATHS` before starting the adapter to select the result files callers may download. The default is `workspace/models/server.npy`; a GWAS job needs its own output list. The [WES reference](wes-reference.md) covers the supported inputs, endpoints, limits, status mapping, and retry behavior. Remote workflow URLs and parameter templating are outside this pilot.
 
-**TES at one site:** Follow the [TES example](tes-example.md) to configure a site-owned endpoint, credentials, container image, and shared staging area. The NVFLARE client stays running normally. Local and TES modes use the same synthetic analysis contract, so one site can use TES while another computes locally. This is optional and does not launch NVFLARE workers through TES.
+**TES at one site:** Follow the [TES example](tes-example.md) to configure a site-owned endpoint, credentials, container image, and shared staging area. The NVFLARE client polls TES and returns the result to the federation. Local and TES modes use the same synthetic analysis contract, so one site can use TES while another computes locally. This is optional and does not launch NVFLARE workers through TES.
 
 **Federated GWAS:** The [FedGX notes](fedgx-notes.md) identify its existing Client API integration, job export path, summary-statistics contract, and compatibility checks. Its scientific pipeline needs a separate validation using agreed synthetic inputs and numerical acceptance criteria.
 

@@ -6,8 +6,7 @@ For the primary Client API WES example, see [integration points](integration-poi
 
 This guide explains where the example connects **NVFLARE 2.9.0** to WES and TES, and which files to change
 when adapting it to another analysis. Start with the [main README](README.md) for installation and a runnable
-walkthrough. All implementation files below live in this integration; the example uses the published NVFLARE
-package and requires no changes to its federation engine.
+walkthrough. All implementation files below live in this integration.
 
 There are two API boundaries. **WES manages a complete federated job through the administrative Session API.**
 **TES runs a site-local calculation from inside the Client API script.** The NVFLARE client remains responsible
@@ -18,7 +17,7 @@ for receiving federation tasks and sending results back.
 [View SVG](diagrams/adapter-integration-points.svg) · [Editable source](diagrams/adapter-integration-points.mmd)
 
 **Color key:** blue = GA4GH WES/TES integration; green = NVFLARE APIs and federation;
-gray = research platform and ordinary analysis code.
+gray = research platform and analysis code.
 
 The dashed boxes show the proposed **operator boundaries**. WES runs under the coordinator/platform operator's
 control. `client.py`, its `TesRunner` helper, site credentials, staging, and the TES execution service belong to

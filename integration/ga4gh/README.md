@@ -2,13 +2,13 @@
 
 Research institutions often already have pipelines for processing their own data. We want to reuse those pipelines in a federated analysis while NVFLARE coordinates the participating sites and combines their results.
 
-This prototype uses **NVFLARE 2.9.0**, a standard **`FedAvgRecipe`**, and an ordinary **Client API script**. At one site, `client.py` submits its calculation to an existing **GA4GH Workflow Execution Service (WES)**, waits for completion, validates the output, and sends the result back to NVFLARE. Another site can calculate locally. WES adoption is optional for every participant.
+This prototype uses **NVFLARE 2.9.0**, **`FedAvgRecipe`**, and a **Client API script**. At one site, `client.py` submits its calculation to an existing **GA4GH Workflow Execution Service (WES)**, waits for completion, validates the output, and sends the result back to NVFLARE. Another site can calculate locally. WES adoption is optional for every participant.
 
 A motivating example is a federated GWAS: each site runs its own analysis pipeline and returns approved summary statistics for aggregation. We start with a small synthetic array so the integration can be understood and checked without genomics tools or sensitive data. [FedGX](fedgx-notes.md) is a candidate for a later scientific demonstration.
 
 ## How the pieces fit together
 
-![A normal NVFLARE recipe with WES inside one data owner's execution environment. Blue is GA4GH and green is NVFLARE.](diagrams/overview.png)
+![An NVFLARE recipe with WES inside one data owner's execution environment. Blue is GA4GH and green is NVFLARE.](diagrams/overview.png)
 
 [SVG](diagrams/overview.svg) · [Editable source](diagrams/overview.mmd)
 
@@ -98,7 +98,7 @@ See the [integration points and code walkthrough](integration-points.md) for the
 python examples/job.py --job-dir "$DEMO_DIR/jobs"
 ```
 
-Deploy the exported job using your normal NVFLARE POC or production workflow. Install this integration at the sites running its client script. The NumPy averaging example is a transport demonstration; a GWAS pipeline needs its own aggregation and validation contract.
+Deploy the exported job using your NVFLARE POC or production workflow. Install this integration at the sites running its client script. The NumPy averaging example is a transport demonstration; a GWAS pipeline needs its own aggregation and validation contract.
 
 ## Recovery and cancellation
 

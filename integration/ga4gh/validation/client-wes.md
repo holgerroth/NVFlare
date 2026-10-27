@@ -17,7 +17,7 @@ docker run --rm --cpus 4 --memory 8g \
 
 The runtime installs Toil in a separate virtual environment to isolate its dependencies from NVFLARE. Toil's server imports its AWS helpers even with local execution, so the image includes its `aws` extra. No AWS account or cloud execution is used.
 
-The runner starts Toil on a private loopback port with its documented testing option `--bypass_celery`. CWL runs ordinary Python on CPU with `--no-container` inside the disposable validation container. This tests a real workflow engine, not a WES protocol fixture. It is not a deployment template for a shared or sensitive-data WES service. See [Toil's WES documentation](https://toil.readthedocs.io/en/latest/running/server/wes.html).
+The runner starts Toil on a private loopback port with its documented testing option `--bypass_celery`. CWL runs Python on CPU with `--no-container` inside the disposable validation container. This tests a real workflow engine, not a WES protocol fixture. It is not a deployment template for a shared or sensitive-data WES service. See [Toil's WES documentation](https://toil.readthedocs.io/en/latest/running/server/wes.html).
 
 ## What the runner checks
 
@@ -30,7 +30,7 @@ The runner starts Toil on a private loopback port with its documented testing op
 
 The abort probe exercises the Client API callback and WES cancellation. It does not test an administrative cancellation through a distributed production federation. The simulator does not support job abort. All roles run in one validation container; institutional isolation and real endpoint authorization remain site acceptance checks.
 
-The runner stops its Toil process group and preserves logs, site traces, WES run records, and reports. Synthetic traces contain model values; ordinary client execution leaves tracing off.
+The runner stops its Toil process group and preserves logs, site traces, WES run records, and reports. Synthetic traces contain model values; tracing is disabled by default.
 
 ## Inspect the results
 
