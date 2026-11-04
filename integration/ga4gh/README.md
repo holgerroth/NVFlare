@@ -1,12 +1,14 @@
-# Call institutional workflows from an NVFLARE recipe
+# NVFLARE and GA4GH integration
 
 Research institutions often already have pipelines for processing their own data. We want to reuse those pipelines in a federated analysis while NVFLARE coordinates the participating sites and combines their results.
 
-This prototype uses **NVFLARE 2.9.0**, **`FedAvgRecipe`**, and a **Client API script**. At one site, `client.py` submits its calculation to an existing **GA4GH Workflow Execution Service (WES)**, waits for completion, validates the output, and sends the result back to NVFLARE. Another site can calculate locally. WES adoption is optional for every participant.
+The primary design target is **Ref Cloud WES launching and managing an NVFLARE federated analysis**. NVFLARE handles federation communication, rounds, and aggregation. Site execution may use a TES-launched FLARE worker or a FLARE client job that calls WES; the choice remains open. A parallel workstream covers ETL with one shared Ref Cloud or a Ref Cloud at each biobank. See the [integration design and November 4 discussion](integration-design.md) for the proposals, schematics, and remaining decisions. Ref Cloud backend integration is not yet implemented.
+
+The runnable POC uses **NVFLARE 2.9.0**, **`FedAvgRecipe`**, and a **Client API script**. At one site, `client.py` submits its calculation to an existing **GA4GH Workflow Execution Service (WES)**, waits for completion, validates the output, and sends the result back to NVFLARE. Another site can calculate locally. WES adoption is optional for every participant.
 
 A motivating example is a federated GWAS: each site runs its own analysis pipeline and returns approved summary statistics for aggregation. We start with a small synthetic array so the integration can be understood and checked without genomics tools or sensitive data. [FedGX](fedgx-notes.md) is a candidate for a later scientific demonstration.
 
-## How the pieces fit together
+## Implemented POC: site workflow execution
 
 ![An NVFLARE recipe with WES inside one data owner's execution environment. Blue is GA4GH and green is NVFLARE.](diagrams/overview.png)
 
@@ -21,7 +23,7 @@ A motivating example is a federated GWAS: each site runs its own analysis pipeli
 | Institution's existing WES service | Execute a site workflow in its supported format; this example supplies CWL |
 | Optional TES service | Execute individual tasks, either behind an institution's WES engine or directly from the optional TES client example |
 
-The main path is **NVFLARE → client.py → existing WES**. It needs no new WES server, adapter database, or adapter admin identity. The separate [inbound WES adapter](inbound-wes.md) remains available for platforms that want to submit the *entire federation* through WES; it is outside this quickstart.
+The quickstart path is **NVFLARE → client.py → existing WES**. The [inbound WES adapter prototype](inbound-wes.md) submits the *entire federation* through the Session API and is the starting point for the coordinator integration. Neither example implements the site TES job launcher shown in the [GA4GH schematic](integration-design.md#ga4gh-team-schematic-coordinator-wes-and-site-tes-launchers).
 
 ## Try it locally
 

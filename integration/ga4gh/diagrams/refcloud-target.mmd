@@ -1,0 +1,47 @@
+flowchart TB
+    User[Researcher or platform]
+    subgraph Coordinator[Coordinator Ref Cloud: target integration]
+        WES[WES API: federated analysis]
+        Adapter[NVFLARE integration adapter]
+        Server[NVFLARE coordinator: parent and server job]
+        WES -->|Submit / monitor / cancel / results| Adapter
+        Adapter -->|Session API in the POC| Server
+    end
+    User --> WES
+    subgraph Site[Each biobank: alternative site execution profiles]
+        Parent[NVFLARE client parent]
+        subgraph A[Profile A: TES launches the FLARE worker]
+            Launcher[TES JobLauncher: proposed]
+            TES[TES API and backend]
+            Worker[NVFLARE job process]
+            Launcher -->|Submit worker task| TES
+            TES -->|Launch| Worker
+        end
+        subgraph B[Profile B: FLARE client job calls WES]
+            Docker[NVFLARE Docker launcher]
+            Adaptor[NVFLARE client job: WES adaptor]
+            SiteWES[Site WES API and engine]
+            Training[Training or ETL workload]
+            Docker -->|Launch| Adaptor
+            Adaptor <-->|Submit / status / output / cancel| SiteWES
+            SiteWES -->|Schedule| Training
+            Training -.->|Client API: TBD| Adaptor
+        end
+        Parent --> Launcher
+        Parent --> Docker
+    end
+    Server <-->|FLARE control channel| Parent
+    Worker <-->|FLARE tasks and model updates| Server
+    Adaptor <-->|FLARE tasks and model updates| Server
+
+    classDef ga4gh fill:#E8F1FF,stroke:#2563EB,color:#123C7A,stroke-width:2px
+    classDef nvflare fill:#EAF6D8,stroke:#5B8C00,color:#254400,stroke-width:2px
+    classDef neutral fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    linkStyle default stroke:#6B7280,color:#374151
+    class WES,TES,SiteWES ga4gh
+    class Adapter,Server,Parent,Launcher,Worker,Docker,Adaptor nvflare
+    class User,Training neutral
+    style Coordinator fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    style Site fill:#FAFAFA,stroke:#64748B,stroke-width:2px,stroke-dasharray:6 4
+    style A fill:#FFFFFF,stroke:#94A3B8,stroke-dasharray:4 4
+    style B fill:#FFFFFF,stroke:#94A3B8,stroke-dasharray:4 4

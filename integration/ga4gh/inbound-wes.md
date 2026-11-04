@@ -1,6 +1,6 @@
-# Optional inbound WES adapter
+# Inbound WES adapter prototype
 
-This is the separate platform-to-federation integration. The main [recipe-driven example](README.md) calls an existing institution WES from `client.py` and needs no inbound adapter.
+This platform-to-federation prototype is a starting point for the [Ref Cloud coordinator integration](integration-design.md). Ref Cloud backend wiring and deployment are not implemented. The [client-side quickstart](README.md#try-it-locally) independently demonstrates a site calling WES from `client.py`.
 
 Research platforms already help scientists find data, submit analyses, and collect results. Federated analysis adds a new requirement: coordinate work across institutions while each institution manages its own data and computing environment. We want those platforms to be able to request a federated analysis through a familiar interface, without having to manage the federation themselves.
 

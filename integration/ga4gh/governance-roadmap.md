@@ -1,6 +1,6 @@
 # Future governance track: Passports and DUO
 
-This document records integration points for a later phase. The synthetic-data hackathon implements no Passport issuer, Visa verifier, DUO policy engine, or governance demo. None is required to join the pilot.
+This document records integration points for a later phase of the [Ref Cloud integration design](integration-design.md). The synthetic-data hackathon implements no Passport issuer, Visa verifier, DUO policy engine, or governance demo. None is required to join the pilot.
 
 ## Responsibilities
 
@@ -16,8 +16,8 @@ Passports provide evidence for a decision. DUO supplies vocabulary for evaluatin
 
 ## Proposed integration points
 
-1. **Submission:** Authenticate the researcher in the platform starting the NVFLARE recipe (or at the optional inbound WES entry point) and validate relevant Visas against institution-approved issuers. Associate the researcher, project, declared purpose, requested datasets, and approved analysis with the run.
-2. **Delegation:** Preserve authenticated researcher attribution from the recipe submission through NVFLARE to each site WES workflow. If using the optional inbound adapter, preserve attribution when its service account submits to NVFLARE. Define an institution-approved delegation mechanism binding that context to the job and workload. Self-asserted WES tags or job metadata are not proof of identity or access rights.
+1. **Submission:** Authenticate the researcher in the platform starting the NVFLARE recipe (or at the inbound WES entry point) and validate relevant Visas against institution-approved issuers. Associate the researcher, project, declared purpose, requested datasets, and approved analysis with the run.
+2. **Delegation:** Preserve authenticated researcher attribution from the recipe submission through NVFLARE to each site WES workflow. If using the inbound adapter, preserve attribution when its service account submits to NVFLARE. Define an institution-approved delegation mechanism binding that context to the job and workload. Self-asserted WES tags or job metadata are not proof of identity or access rights.
 3. **Site authorization:** Each participating institution evaluates the authorization evidence, dataset DUO annotations, proposed purpose, and any additional local conditions before releasing data or permitting computation. Unknown or unsupported restrictions require an explicit institutional decision.
 4. **Execution and results:** Permit the approved workload through the site-controlled data or execution service. Apply the institution's output-release rules before results leave the site.
 5. **Audit:** Correlate the authorization decision and policy version with each site WES run ID, NVFLARE job/study/site, and any TES task IDs. Record decision references and relevant provenance without placing bearer credentials in exported jobs or logs.
@@ -32,4 +32,4 @@ Passports provide evidence for a decision. DUO supplies vocabulary for evaluatin
 - Cover direct submissions as well as WES submissions so the entry point cannot be bypassed. A check inside user-supplied `client.py` is not a security boundary.
 - Test allowed and denied purposes, untrusted/expired/revoked Visas, tampered attribution, unavailable policy services, delegated workload identity, and cancellation after access withdrawal.
 
-The primary prototype uses site-configured WES credentials alongside existing NVFLARE identities. The optional inbound adapter uses a shared caller token and one NVFLARE service identity. Neither path yet carries a verified end-user identity between these systems. A production design must close that gap together with participating institutions before sensitive-data use.
+The client-side POC uses site-configured WES credentials alongside existing NVFLARE identities. The inbound adapter prototype uses a shared caller token and one NVFLARE service identity. Neither path yet carries a verified end-user identity between these systems. A production design must close that gap together with participating institutions before sensitive-data use.

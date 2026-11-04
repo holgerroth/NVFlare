@@ -1,9 +1,9 @@
 flowchart TB
-    Recipe[Standard FedAvgRecipe]
+    Recipe[FedAvgRecipe]
     subgraph Coordinator[Federation coordinator]
         Server[NVFLARE server]
     end
-    Recipe -->|Normal NVFLARE job execution| Server
+    Recipe -->|NVFLARE job execution| Server
     subgraph OwnerA[Data owner A: on premises or approved cloud]
         ClientA[NVFLARE client.py at site 1]
         WES[Existing GA4GH WES service]

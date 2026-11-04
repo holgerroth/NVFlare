@@ -1,6 +1,6 @@
 # Pilot validation records
 
-The primary example uses `FedAvgRecipe` calling site WES from `client.py`. Its reproduction guide is [Client API WES validation](validation/client-wes.md). The two records below distinguish this path from the optional inbound adapter/TES implementation.
+The client-side POC uses `FedAvgRecipe` calling site WES from `client.py`. Its reproduction guide is [Client API WES validation](validation/client-wes.md). The two records below distinguish this path from the inbound adapter/TES implementation. These records predate the [Ref Cloud design](integration-design.md) and do not validate its proposed launcher deployments.
 
 ## Recipe and client-side WES: 2026-10-26
 

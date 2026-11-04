@@ -1,6 +1,8 @@
 # Integration points: a recipe calls site WES
 
-The primary prototype uses **`FedAvgRecipe` directly** with `framework=FrameworkType.NUMPY`. NVFLARE runs the federation; each participating site can call its existing GA4GH WES engine from `client.py`.
+This walkthrough covers the implemented site-workflow POC. For the Ref Cloud target, launcher alternatives, and ETL workstream, see the [integration design](integration-design.md). The POC does not implement either proposed launcher deployment.
+
+The recipe uses **`FedAvgRecipe` directly** with `framework=FrameworkType.NUMPY`. NVFLARE runs the federation; each participating site can call its existing GA4GH WES engine from `client.py`.
 
 ![Code boundaries for recipe-driven Client API WES execution](diagrams/integration-points.png)
 
@@ -50,7 +52,7 @@ A lost POST response leaves `SUBMISSION_UNKNOWN`, with no blind retry. The opera
 
 WES returns a declared `result` File. The helper retrieves and bounds the JSON output; `client.py` checks shape and finite values before constructing and sending `FLModel`. NVFLARE then aggregates the site results. The report verifies the final array and per-round agreement; it does not establish GWAS correctness.
 
-## Separate optional inbound integration
+## Coordinator integration prototype
 
 The earlier **research platform → WES adapter → Session API → federation** implementation is retained in `app.py`, `service.py`, `store.py`, and `backend.py`. It is not started by this recipe and is not required for client-side WES. See the [inbound adapter guide](inbound-wes.md) and [adapter code walkthrough](adapter-integration-points.md).
 

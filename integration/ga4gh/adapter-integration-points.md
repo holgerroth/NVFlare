@@ -1,8 +1,6 @@
-# Optional inbound adapter code walkthrough
+# Inbound adapter code walkthrough
 
-For the primary Client API WES example, see [integration points](integration-points.md).
-
-# GA4GH integration points: a code walkthrough
+This adapter is a starting point for the [Ref Cloud coordinator design](integration-design.md), not a completed Ref Cloud backend. For the client-side WES POC, see [integration points](integration-points.md).
 
 This guide explains where the example connects **NVFLARE 2.9.0** to WES and TES, and which files to change
 when adapting it to another analysis. Start with the [main README](README.md) for installation and a runnable

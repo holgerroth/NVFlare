@@ -1,0 +1,55 @@
+flowchart TB
+    subgraph Shared[One shared Ref Cloud]
+        R1[Shared Ref Cloud APIs]
+        S1[NVFLARE coordinator]
+        subgraph A1[Biobank A]
+            C1[NVFLARE client]
+            E1[Local ETL / training and data]
+            E1 --> C1
+        end
+        subgraph B1[Biobank B]
+            C2[NVFLARE client]
+            E2[Local ETL / training and data]
+            E2 --> C2
+        end
+        R1 -->|Federated analysis| S1
+        S1 <-->|FLARE| C1
+        S1 <-->|FLARE| C2
+        R1 -.->|Site execution access to define| E1
+        R1 -.->|Site execution access to define| E2
+    end
+    subgraph Distributed[Coordinator plus biobank Ref Clouds]
+        R2[Coordinator Ref Cloud APIs]
+        S2[NVFLARE coordinator]
+        subgraph A2[Biobank A]
+            RA[Biobank Ref Cloud APIs]
+            EA[Local ETL / training and data]
+            CA[NVFLARE client]
+            RA --> EA
+            EA --> CA
+        end
+        subgraph B2[Biobank B]
+            RB[Biobank Ref Cloud APIs]
+            EB[Local ETL / training and data]
+            CB[NVFLARE client]
+            RB --> EB
+            EB --> CB
+        end
+        R2 -->|Federated analysis| S2
+        S2 <-->|FLARE| CA
+        S2 <-->|FLARE| CB
+    end
+
+    classDef ga4gh fill:#E8F1FF,stroke:#2563EB,color:#123C7A,stroke-width:2px
+    classDef nvflare fill:#EAF6D8,stroke:#5B8C00,color:#254400,stroke-width:2px
+    classDef neutral fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    linkStyle default stroke:#6B7280,color:#374151
+    class R1,R2,RA,RB ga4gh
+    class S1,S2,C1,C2,CA,CB nvflare
+    class E1,E2,EA,EB neutral
+    style Shared fill:#FFFFFF,stroke:#64748B,stroke-width:2px
+    style Distributed fill:#FFFFFF,stroke:#64748B,stroke-width:2px
+    style A1 fill:#FAFAFA,stroke:#94A3B8,stroke-dasharray:6 4
+    style B1 fill:#FAFAFA,stroke:#94A3B8,stroke-dasharray:6 4
+    style A2 fill:#FAFAFA,stroke:#94A3B8,stroke-dasharray:6 4
+    style B2 fill:#FAFAFA,stroke:#94A3B8,stroke-dasharray:6 4

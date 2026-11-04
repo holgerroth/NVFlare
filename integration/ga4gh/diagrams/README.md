@@ -6,10 +6,14 @@ both formats when changing a diagram.
 
 | Diagram | Editable source | PNG | SVG |
 |---|---|---|---|
-| Overview | [overview.mmd](overview.mmd) | [overview.png](overview.png) | [overview.svg](overview.svg) |
+| Ref Cloud target | [refcloud-target.mmd](refcloud-target.mmd) | [refcloud-target.png](refcloud-target.png) | [refcloud-target.svg](refcloud-target.svg) |
+| Ref Cloud deployments | [refcloud-topologies.mmd](refcloud-topologies.mmd) | [refcloud-topologies.png](refcloud-topologies.png) | [refcloud-topologies.svg](refcloud-topologies.svg) |
+| Client-side POC overview | [overview.mmd](overview.mmd) | [overview.png](overview.png) | [overview.svg](overview.svg) |
 | Code walkthrough | [integration-points.mmd](integration-points.mmd) | [integration-points.png](integration-points.png) | [integration-points.svg](integration-points.svg) |
 
-The `adapter-*` assets preserve the separate optional inbound WES architecture used in `inbound-wes.md` and `adapter-integration-points.md`. The main diagrams show the recipe calling an existing site WES service.
+The `refcloud-*` diagrams describe proposed architectures in [the design record](../integration-design.md). The `overview` and `integration-points` diagrams show the implemented Client API POC; `adapter-*` shows the inbound adapter prototype.
+
+The two PNGs under `proposals/` are the schematics supplied with the November 4 discussion and Chester's email. They retain their original colors and labels, have no Mermaid source here, and are attributed in the design record. They are proposal evidence, not validation results.
 
 Blue identifies GA4GH WES/TES components and connections; green identifies NVFLARE APIs and federation.
 Gray identifies the research platform, data, and analysis code. Dashed boxes identify operational
@@ -23,7 +27,7 @@ lines: a numeric hex color immediately followed by a semicolon can be interprete
 Regenerate from the integration directory using Node.js and Mermaid CLI 12.0.0:
 
 ```bash
-for diagram in overview integration-points; do
+for diagram in overview integration-points refcloud-target refcloud-topologies; do
   for format in svg png; do
     npx --yes --package @mermaid-js/mermaid-cli@12.0.0 mmdc \
       -i "diagrams/$diagram.mmd" -o "diagrams/$diagram.$format" \
