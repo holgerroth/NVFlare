@@ -13,7 +13,7 @@ both formats when changing a diagram.
 
 The `refcloud-*` diagrams describe proposed architectures in [the design record](../integration-design.md). The `overview` and `integration-points` diagrams show the implemented Client API POC; `adapter-*` shows the inbound adapter prototype.
 
-The two PNGs under `proposals/` are the schematics supplied with the November 4 discussion and Chester's email. They retain their original colors and labels, have no Mermaid source here, and are attributed in the design record. They are proposal evidence, not validation results.
+The two PNGs under `proposals/` are the coordinator/TES and site WES schematics supplied for the November 4 integration design. They retain their original colors and labels, have no Mermaid source here, and are described in the design record. They are proposal evidence, not validation results.
 
 Blue identifies GA4GH WES/TES components and connections; green identifies NVFLARE APIs and federation.
 Gray identifies the research platform, data, and analysis code. Dashed boxes identify operational

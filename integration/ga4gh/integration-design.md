@@ -1,6 +1,6 @@
 # Integration design: Reference Cloud and NVFLARE
 
-**Design record: November 4, 2026.** This captures the GA4GH discussion, the supplied schematics, and the subsequent email proposals. Ref Cloud launching a federated NVFLARE analysis is the primary target; ETL is a parallel workstream. Site execution through WES, TES, or both remains a design choice. Ref Cloud integration, the proposed launchers, DRS, TRS, and delegated identity are not implemented by this POC.
+**Design record: November 4, 2026.** This consolidates the GA4GH integration proposals and supplied schematics. Ref Cloud launching a federated NVFLARE analysis is the primary target; ETL is a parallel workstream. Site execution through WES, TES, or both remains a design choice. Ref Cloud integration, the proposed launchers, DRS, TRS, and delegated identity are not implemented by this POC.
 
 ## Shared goal and existing evidence
 
@@ -13,20 +13,19 @@ The current example contains two independently demonstrated integration paths:
 
 The [validation record](validation.md) covers released NVFLARE 2.9.0, synthetic calculations, and real Toil/Funnel execution on one host. It does not establish a Ref Cloud deployment, a TES `JobLauncherSpec` implementation, a Docker-packaged WES adaptor job, or cross-institutional authorization. The POC's NumPy results are not scientific evidence for GWAS, variant classification, or imaging.
 
-## Discussion record
+## Design proposals
 
-These are attributed paraphrases of the conversation and email excerpts supplied for this design. They express proposals and intent, not resource commitments or verified delivery. Contact details and email signatures are omitted.
+These proposals describe possible integration paths and open decisions. They do not establish resource commitments or verified delivery.
 
-| Contributor | November 4 contribution | Design implication |
+| Topic | Proposal | Design implication |
 |---|---|---|
-| Brian D OConnor | Ref Cloud plus FLARE could complete the GIF demonstration and give other projects a starting point; the hackathon could accelerate linking WES/TES to FLARE. | Prioritize a reusable Ref Cloud integration and deployment example. |
-| Jeremy Adams | Suggested making FLARE an allowable WES/TES backend and providing suitable deployment tooling. Shared the Ref Cloud monorepo, identified its production instance, and offered additional instances to simulate a federation. | Inspect the actual backend extension points and test with separate demonstration instances. No completed NVFLARE backend was established by the discussion. |
-| Venkat Malladi | Described the hackathon as connecting NVFLARE to Ref Cloud. Later suggested starting with WES → NVFLARE per biobank and writing weights to a central DRS or another shared server. | Define the scope of each WES run and who coordinates and aggregates across biobanks; shared storage alone does not define the federation protocol. |
-| Chester Chen | Proposed a Docker launcher starting a FLARE client job containing a WES client. That job communicates with its client parent through FLARE, calls the site's WES endpoint for training, retrieves the updated model, and returns it to the FLARE server job. | Evaluate a WES-adaptor client job as an alternative to TES launching the FLARE job process itself. |
-| Brian, replying to Chester | Asked whether the process launched from the client parent should use WES, TES, or both, depending on full-workflow versus individual-job needs. | Keep execution granularity open; do not present either launcher as the agreed implementation. |
-| bbusby | Indicated work had started after the Ref Cloud links and additional-instance offer were shared. | Record activity without inferring a completed deployment or assigning ownership. |
+| Reusable Ref Cloud integration | Ref Cloud plus FLARE could support the GIF demonstration and provide a starting point for other projects. | Prioritize a reusable integration and deployment example. |
+| Backend support and deployment | Make FLARE an allowable WES/TES backend, provide deployment tooling, and use additional Ref Cloud instances to simulate a federation. | Inspect the actual backend extension points and test with separate demonstration instances. A completed NVFLARE backend has not been established. |
+| Per-biobank entry points | Start WES → NVFLARE per biobank and publish weights through a central DRS or another shared server. | Define the scope of each WES run and who coordinates and aggregates across biobanks; shared storage alone does not define the federation protocol. |
+| WES-adaptor client job | Use a Docker launcher to start a FLARE client job containing a WES client. The job communicates with its client parent through FLARE, calls the site's WES endpoint for training, retrieves the updated model, and returns it to the FLARE server job. | Evaluate a WES-adaptor client job as an alternative to TES launching the FLARE job process itself. |
+| Execution granularity | Choose WES, TES, or both according to whether the site needs full workflows or individual tasks. | Keep execution granularity open; neither launcher is an agreed implementation. |
 
-The parallel team focus raised in the discussion is **ETL in Ref Cloud + NVFLARE**, with either one central Ref Cloud or one per biobank. Team owners and deliverable assignments remain open.
+The parallel workstream is **ETL in Ref Cloud + NVFLARE**, with either one central Ref Cloud or one per biobank. Deliverable assignments remain open.
 
 ## Primary target and execution granularity
 
@@ -56,19 +55,19 @@ Source: GA4GH/NVIDIA discussion slide supplied on November 4, 2026; original col
 
 Its orange callouts remain open questions: the meaning of one WES run across N sites, Passport-to-FLARE identity mapping, secrets in TES tasks, job-to-parent networking, and ML capabilities in service information. Profile A requires resolving these and defining a job handle that can poll, wait, and terminate remote work.
 
-### Chester's schematic: a FLARE client job acting as WES client
+### Site WES schematic: a FLARE client job acting as WES client
 
-![Chester's site design: a launcher starts a client job that submits training through WES and returns updates to the server job](diagrams/proposals/chester-site-wes-20261104.png)
+![Site WES design: a launcher starts a client job that submits training through WES and returns updates to the server job](diagrams/proposals/site-wes-adaptor-20261104.png)
 
-Source: Chester Chen's November 4 email proposal and attached schematic, supplied for this design; original colors and labels retained. The diagram separates the server parent, server job, client parent, and client job. The client parent launches the adaptor job; model updates return from that job to the server job. The WES engine schedules the training workload. The email suggests implementing the launcher using Docker with a WES client inside the container.
+Source: site WES integration proposal supplied on November 4, 2026; original colors and labels retained. The diagram separates the server parent, server job, client parent, and client job. The client parent launches the adaptor job; model updates return from that job to the server job. The WES engine schedules the training workload. The proposal suggests implementing the launcher using Docker with a WES client inside the container.
 
-The sketch also labels a **Client API link** carrying task/model information between the training workload and the client job. The email describes receiving an updated model from the WES endpoint. These leave a transport decision to resolve: artifact retrieval through WES, a live Client API connection, or a defined combination. Our POC uses artifact retrieval; a live link would add training-to-adaptor reachability, API configuration, and lifecycle requirements. Neither the parent cellnet connection nor the model-update channel should be conflated with this link.
+The sketch also labels a **Client API link** carrying task/model information between the training workload and the client job. The accompanying proposal text describes receiving an updated model from the WES endpoint. These leave a transport decision to resolve: artifact retrieval through WES, a live Client API connection, or a defined combination. Our POC uses artifact retrieval; a live link would add training-to-adaptor reachability, API configuration, and lifecycle requirements. Neither the parent cellnet connection nor the model-update channel should be conflated with this link.
 
 In this interpretation the WES adaptor spans FLARE communication and site workflow execution. It must preserve round/task context, retrieve and validate the resulting model, and propagate cancellation across both lifecycles. Its job process must also maintain the required connection to the FLARE parent. The existing `WesRunner` and Client API script demonstrate part of that behavior; they are not a completed implementation of this deployment design.
 
-### Venkat's per-biobank WES proposal
+### Per-biobank WES proposal
 
-The suggestion to start WES → NVFLARE at each biobank is recorded as another entry-point option. “NVFLARE” could mean a site participant joining a shared federation, or a complete analysis within one biobank; the excerpt does not settle that scope. Before implementing it, specify who owns global rounds and aggregation, which process joins which federation, and how independent WES runs map to one analysis.
+The suggestion to start WES → NVFLARE at each biobank is recorded as another entry-point option. “NVFLARE” could mean a site participant joining a shared federation, or a complete analysis within one biobank; the proposal does not settle that scope. Before implementing it, specify who owns global rounds and aggregation, which process joins which federation, and how independent WES runs map to one analysis.
 
 A central DRS or another shared artifact service could expose versioned weight objects. Upload/registration, access permissions, checksums, round provenance, and output release need explicit contracts. Publishing weights does not by itself coordinate rounds, define aggregation, or replace FLARE's communication channel. Do not assume an artifact-upload operation merely from a DRS reference.
 
@@ -88,7 +87,7 @@ ETL may happen before a job or during a site task; its cadence and output contra
 - **One shared Ref Cloud:** a shared API/control environment serves multiple biobanks; placement and authorized access to execution workers and data must still be defined. Central control does not imply central data storage or unrestricted access to biobank networks.
 - **Ref Cloud per biobank:** each institution controls its execution/data services. A coordinator environment manages the federated analysis. This is closest to the coordinator-plus-driver-site arrangement in the GA4GH slide.
 
-Jeremy's offer of more instances provides a way to simulate these topologies. Instances on one host or cloud account do not establish real institutional isolation. The production URL is a reference, not the deployment target for this work.
+Additional Ref Cloud instances could simulate these topologies. Instances on one host or cloud account do not establish real institutional isolation. The production URL is a reference, not the deployment target for this work.
 
 ## Roles of the GA4GH interfaces
 
@@ -119,8 +118,8 @@ Validate the chosen profile with two sites: submit through the coordinator, veri
 
 ## References and workload candidates
 
-- [Ref Cloud monorepo branch shared by Jeremy](https://github.com/ga4gh/ga4gh-reference-cloud/tree/ja-iss-30-monorepo-structure): its README describes the core API, researcher UI, admin CLI, identity services, and local/Helm deployment. This is a development reference, not a commitment to a particular backend extension API.
-- [Ref Cloud instance](https://refcloud.ga4gh.org/): identified by Jeremy as the production instance; availability and NVFLARE capability were not independently verified for this design.
+- [Ref Cloud monorepo development branch](https://github.com/ga4gh/ga4gh-reference-cloud/tree/ja-iss-30-monorepo-structure): its README describes the core API, researcher UI, admin CLI, identity services, and local/Helm deployment. This is a development reference, not a commitment to a particular backend extension API.
+- [Ref Cloud instance](https://refcloud.ga4gh.org/): identified in the integration discussion as the production instance; availability and NVFLARE capability were not independently verified for this design.
 - [CogniWarriors](https://github.com/collaborativebioinformatics/CogniWarriors): related imaging/phenotype work. Its README and job builder describe NVFLARE 2.9 FedAvg, global feature scaling, and simulator/export/deployment paths. It is a workload and packaging reference, not a validated GA4GH integration. No scientific results were reproduced here.
 - [FedGX notes](fedgx-notes.md): a separate GWAS candidate requiring its own workflow, aggregation contract, and acceptance criteria.
 - The supplied GIF proposal describes iterative variant-pathogenicity classification with PyTorch/Opacus. That scientific demonstration differs from both GWAS and imaging, and remains unimplemented in this integration.

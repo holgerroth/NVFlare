@@ -29,7 +29,7 @@ The cancellation probe is separate from the simulator federation: a real CWL tas
 
 The runtime used Python 3.12.15, HTTPX 0.28.1, and NumPy 2.5.4 inside a disposable four-CPU / 8 GB container. Toil ran CWL with `--no-container` inside that environment. All roles shared one host; institutional authentication, isolation, and storage controls remain site acceptance checks. Local and mixed run durations were approximately 17.2 and 29.2 seconds, respectively, including simulator startup and polling. These observations are not a performance benchmark.
 
-The [summary](results/h100-20261026/summary.json) records installed versions, WES service information, Python/CWL source hashes, site traces, and WES run IDs. Full execution logs and workflow workspaces remain at `/scratch/hroth/Code/nvflare/ga4gh-client-wes-20261026/output/run-03` on the H100 host. Retained artifacts include the [local model](results/h100-20261026/local.npy), [WES/local model](results/h100-20261026/client_wes.npy), [end-to-end log](results/h100-20261026/validation.log), [full test and style log](results/h100-20261026/final-checks.log), and [final scoped checks](results/h100-20261026/final-scoped-checks.log).
+The [summary](results/h100-20261026/summary.json) records installed versions, WES service information, Python/CWL source hashes, site traces, and WES run IDs. Full execution logs and workflow workspaces remain in the `ga4gh-client-wes-20261026/output/run-03` validation workspace on the H100 host. Retained artifacts include the [local model](results/h100-20261026/local.npy), [WES/local model](results/h100-20261026/client_wes.npy), [end-to-end log](results/h100-20261026/validation.log), [full test and style log](results/h100-20261026/final-checks.log), and [final scoped checks](results/h100-20261026/final-scoped-checks.log).
 
 This validates the synthetic integration contract. The supplied GWAS implementation and its scientific acceptance criteria remain a separate next step.
 
@@ -85,10 +85,10 @@ source hashes; setup instructions depend on released versions, not a repository 
 
 The validated runtime image was `ga4gh-validation:20261022`, ID
 `sha256:d60b57a99fac3617ef3614870e999d5c1504e06f443c8914eaad0c4d8b050c4f`.
-The H100 output directory is
-`/scratch/hroth/Code/nvflare/ga4gh-validation-20261022-01/output-03`.
+The H100 validation workspace contains the output directory
+`ga4gh-validation-20261022-01/output-03`.
 It retains full service logs, the Funnel configuration, provisioning, and state. Only synthetic report artifacts
-and concise validation logs were copied into this example:
+and concise validation logs were copied into this example. Personal workspace prefixes are redacted in published logs:
 
 - [End-to-end log](results/h100-20261022/validation.log), [focused test log](results/h100-20261022/unit-tests.log), and [exit code](results/h100-20261022/exit-code.txt).
 - [Direct model](results/h100-20261022/direct.npy), [WES model](results/h100-20261022/wes.npy), and [mixed model](results/h100-20261022/mixed.npy).

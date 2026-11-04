@@ -2,7 +2,7 @@
 
 Research institutions often already have pipelines for processing their own data. We want to reuse those pipelines in a federated analysis while NVFLARE coordinates the participating sites and combines their results.
 
-The primary design target is **Ref Cloud WES launching and managing an NVFLARE federated analysis**. NVFLARE handles federation communication, rounds, and aggregation. Site execution may use a TES-launched FLARE worker or a FLARE client job that calls WES; the choice remains open. A parallel workstream covers ETL with one shared Ref Cloud or a Ref Cloud at each biobank. See the [integration design and November 4 discussion](integration-design.md) for the proposals, schematics, and remaining decisions. Ref Cloud backend integration is not yet implemented.
+The primary design target is **Ref Cloud WES launching and managing an NVFLARE federated analysis**. NVFLARE handles federation communication, rounds, and aggregation. Site execution may use a TES-launched FLARE worker or a FLARE client job that calls WES; the choice remains open. A parallel workstream covers ETL with one shared Ref Cloud or a Ref Cloud at each biobank. See the [integration design proposals](integration-design.md) for the proposals, schematics, and remaining decisions. Ref Cloud backend integration is not yet implemented.
 
 The runnable POC uses **NVFLARE 2.9.0**, **`FedAvgRecipe`**, and a **Client API script**. At one site, `client.py` submits its calculation to an existing **GA4GH Workflow Execution Service (WES)**, waits for completion, validates the output, and sends the result back to NVFLARE. Another site can calculate locally. WES adoption is optional for every participant.
 

@@ -1,6 +1,6 @@
 # Optional TES execution at one site
 
-This example calls TES from an already-running NVFLARE job. It does **not** implement the TES `JobLauncherSpec` that starts a FLARE worker in the GA4GH team schematic. See the [site execution profiles](integration-design.md#primary-target-and-execution-granularity) for that distinction and Chester's WES-adaptor alternative.
+This example calls TES from an already-running NVFLARE job. It does **not** implement the TES `JobLauncherSpec` that starts a FLARE worker in the GA4GH team schematic. See the [site execution profiles](integration-design.md#primary-target-and-execution-granularity) for that distinction and the WES-adaptor client-job alternative.
 
 First complete the [local recipe quickstart](README.md#try-it-locally). Use NVFLARE 2.9.0 on the server and both clients, with this integration installed at each participating site.
 
