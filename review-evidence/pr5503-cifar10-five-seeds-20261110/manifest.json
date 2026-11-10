@@ -1,0 +1,71 @@
+{
+  "pr": "https://github.com/NVIDIA/NVFlare/pull/5503",
+  "tested_commit": "d3101353d61937d84c3600e7ac508312a58e3d4b",
+  "partition_api": "nvflare.utils.data.partition.dirichlet_label_partition",
+  "dataset": "CIFAR-10: 50,000 train / 10,000 common test images",
+  "algorithm": "FedAvg",
+  "model": "ModerateCNN",
+  "clients": 8,
+  "rounds": 50,
+  "local_epochs": 4,
+  "batch_size": 64,
+  "loader_workers": 2,
+  "learning_rate": 0.05,
+  "optimizer": "SGD(momentum=0.9)",
+  "scheduler": "CosineAnnealingLR(T_max=200, eta_min=0.0005)",
+  "alphas": [
+    1.0,
+    0.5,
+    0.3,
+    0.1
+  ],
+  "partition_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "training_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "seed_pairing": "partition seed s paired with training seed 42+s, matched across alphas",
+  "hardware": "NVIDIA GB300, Linux aarch64",
+  "environment": {
+    "image": "nvcr.io/nvidia/pytorch:25.10-py3",
+    "python": "3.12.3 (main, Aug 14 2025, 17:47:21) [GCC 13.3.0]",
+    "architecture": "aarch64",
+    "torch": "2.9.0a0+145a3a7bda.nv25.10",
+    "torchvision": "0.24.0a0+094e7af5",
+    "cuda": "13.0"
+  },
+  "trials": 20,
+  "completed": 20,
+  "failed": 0,
+  "retries": 0,
+  "reuse_prior_outcomes": false,
+  "method": "Original CIFAR-10 PyTorch FedAvg job/client; experiment adapter replaces split_and_save with the new partition utility and exports site-*.npy. Seed-specific model copies change only constructor default seed; model source verified at server and all eight clients.",
+  "validation": [
+    "56 partition unit tests passed",
+    "Every partition covers all 50,000 samples exactly once",
+    "JSON round trip verified",
+    "50 rounds and 8 clients verified for each trial",
+    "Checkpoint hashes verified",
+    "All 200 mean/SD curve points independently recomputed from raw seed curves"
+  ],
+  "curve_definition": "Site-1 common-test global-model accuracy before each local training round, averaged at matching rounds across five seeds; sample SD (ddof=1), not confidence intervals; no temporal smoothing.",
+  "final_metric_definition": "Common-test accuracy evaluated from the checkpoint after round 50, mean and sample SD across five seeds.",
+  "historical_note": "default_rng produces different partitions from legacy global np.random for the same seed, so exact historical README scores are not expected. An earlier exploratory alpha=0.1 attempt produced NaNs in round 6; the unchanged rerun succeeded. That exploratory attempt is not part of this new 20-trial cohort.",
+  "file_sha256": {
+    "mean_alpha_curves.png": "eed33743785b9c5212b822f47e286b493ff820ae07bddb6e174972a37ec4d0fd",
+    "individual_seed_curves.png": "1bbb59434bd5ec348494b0c2c3dc5a1602cb5baa3c37c4a4847b937e6f80d4bb",
+    "alpha_summary.csv": "55c52f9aabdc714ff209e304bee4fc01f107c26b3a8b7723c72353f5042d2193",
+    "mean_curves.csv": "fd6241d599c987cd0910e13551a2109fb3de84717bb92e8819c330a8286fd6d9",
+    "trial_results.csv": "e687153755646091a52a930b46c69200c09a7c4cd9b8305e93a27129d2144339",
+    "individual_curves.csv": "7208089f5a8d7f7b0c0c051d7da0228c774fd9044b647ee4cea5033a5faeda98"
+  }
+}
